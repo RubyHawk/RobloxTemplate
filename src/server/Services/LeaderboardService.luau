@@ -9,8 +9,17 @@ local Config = require(Shared.TemplateConfig)
 local ProfileService = require(script.Parent.ProfileService)
 
 local LeaderboardService = {}
-local store = DataStoreService:GetOrderedDataStore(Config.leaderboardStoreName)
+local store: OrderedDataStore? = nil
 local nameCache: { [number]: string } = {}
+
+local function getStore(): OrderedDataStore
+	local current = store
+	if current == nil then
+		current = DataStoreService:GetOrderedDataStore(Config.leaderboardStoreName)
+		store = current
+	end
+	return current
+end
 
 local function displayName(userId: number): string
 	if nameCache[userId] then
@@ -63,7 +72,7 @@ function LeaderboardService.globalBoard(): (boolean, { any } | string)
 		return true, LeaderboardService.serverBoard()
 	end
 	local success, result = pcall(function()
-		local pages = store:GetSortedAsync(false, Config.leaderboards.globalSize)
+		local pages = getStore():GetSortedAsync(false, Config.leaderboards.globalSize)
 		local rows = {}
 		for rank, entry in pages:GetCurrentPage() do
 			local userId = tonumber(entry.key) or 0
@@ -83,7 +92,7 @@ function LeaderboardService.flushPlayer(player: Player)
 		return
 	end
 	pcall(function()
-		store:SetAsync(tostring(player.UserId), math.floor(profile.coins))
+		getStore():SetAsync(tostring(player.UserId), math.floor(profile.coins))
 	end)
 end
 

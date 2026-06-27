@@ -22,7 +22,7 @@ local profiles: { [Player]: PlayerProfileV1 } = {}
 local dirty: { [Player]: boolean } = {}
 local mockProfiles: { [number]: PlayerProfileV1 } = {}
 local changedEvent = Instance.new("BindableEvent")
-local store = DataStoreService:GetDataStore(Config.profileStoreName)
+local store: GlobalDataStore? = nil
 local lockTimeoutSeconds = 180
 local autosaveSeconds = 60
 local closing = false
@@ -48,6 +48,15 @@ local function shouldMock(): boolean
 	return RunService:IsStudio() and not Config.studio.useLiveDataStore
 end
 
+local function getStore(): GlobalDataStore
+	local current = store
+	if current == nil then
+		current = DataStoreService:GetDataStore(Config.profileStoreName)
+		store = current
+	end
+	return current
+end
+
 local function updateEnvelope(player: Player, release: boolean): boolean
 	local profile = profiles[player]
 	if profile == nil then
@@ -61,7 +70,7 @@ local function updateEnvelope(player: Player, release: boolean): boolean
 	end
 
 	local success, result = pcall(function()
-		return store:UpdateAsync(keyFor(player), function(old: Envelope?): Envelope?
+		return getStore():UpdateAsync(keyFor(player), function(old: Envelope?): Envelope?
 			if old == nil or old.lock == nil or old.lock.jobId ~= game.JobId then
 				return nil
 			end
@@ -94,7 +103,7 @@ function ProfileService.load(player: Player): PlayerProfileV1?
 		for attempt = 1, 5 do
 			local attemptNow = os.time()
 			local success, result = pcall(function()
-				return store:UpdateAsync(keyFor(player), function(old: Envelope?): Envelope?
+				return getStore():UpdateAsync(keyFor(player), function(old: Envelope?): Envelope?
 					local envelope = old
 					if envelope == nil then
 						envelope = {
