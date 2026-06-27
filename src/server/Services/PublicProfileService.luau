@@ -12,8 +12,17 @@ local ProfileService = require(script.Parent.ProfileService)
 type PublicProfile = Types.PublicProfile
 
 local PublicProfileService = {}
-local store = DataStoreService:GetDataStore(Config.publicProfileStoreName)
+local store: GlobalDataStore? = nil
 local mock: { [number]: PublicProfile } = {}
+
+local function getStore(): GlobalDataStore
+	local current = store
+	if current == nil then
+		current = DataStoreService:GetDataStore(Config.publicProfileStoreName)
+		store = current
+	end
+	return current
+end
 
 local function key(userId: number): string
 	return `user:{userId}`
@@ -46,7 +55,7 @@ function PublicProfileService.publish(player: Player)
 		return
 	end
 	pcall(function()
-		store:SetAsync(key(player.UserId), public)
+		getStore():SetAsync(key(player.UserId), public)
 	end)
 end
 
@@ -68,7 +77,7 @@ function PublicProfileService.find(rawUsername: any): (boolean, PublicProfile? |
 		return if mock[userId] then true else false, mock[userId] or "No public stats are available"
 	end
 	local readSuccess, result = pcall(function()
-		return store:GetAsync(key(userId))
+		return getStore():GetAsync(key(userId))
 	end)
 	if not readSuccess or result == nil then
 		return false, "No public stats are available"

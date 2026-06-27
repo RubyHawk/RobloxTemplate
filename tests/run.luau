@@ -4,6 +4,7 @@ local Calculations = require("../src/shared/Calculations")
 local MigrationCore = require("../src/shared/MigrationCore")
 local ReceiptLedger = require("../src/shared/ReceiptLedger")
 local SessionLock = require("../src/server/Util/SessionLock")
+local fs = require("@lune/fs")
 
 local passed = 0
 
@@ -62,5 +63,21 @@ expectEqual(migrated.unknown, "keep", "migration preserves unknown data")
 local receipts = {}
 expectEqual(ReceiptLedger.claim(receipts, "purchase"), true, "first receipt grants")
 expectEqual(ReceiptLedger.claim(receipts, "purchase"), false, "duplicate receipt rejected")
+
+for _, servicePath in
+	{
+		"src/server/Services/FeedbackService.luau",
+		"src/server/Services/LeaderboardService.luau",
+		"src/server/Services/ProfileService.luau",
+		"src/server/Services/PublicProfileService.luau",
+	}
+do
+	local source = fs.readFile(servicePath)
+	expectEqual(
+		string.find(source, "local store = DataStoreService:Get", 1, true),
+		nil,
+		`{servicePath} does not open DataStores while loading`
+	)
+end
 
 print(`{passed} pure Luau assertions passed`)

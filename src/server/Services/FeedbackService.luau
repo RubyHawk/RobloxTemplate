@@ -9,9 +9,18 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):Wai
 local Config = require(Shared.TemplateConfig)
 
 local FeedbackService = {}
-local store = DataStoreService:GetDataStore(Config.feedbackStoreName)
+local store: GlobalDataStore? = nil
 local lastSubmittedAt: { [Player]: number } = {}
 local allowedCategories = { Bug = true, Feedback = true, Accessibility = true, Other = true }
+
+local function getStore(): GlobalDataStore
+	local current = store
+	if current == nil then
+		current = DataStoreService:GetDataStore(Config.feedbackStoreName)
+		store = current
+	end
+	return current
+end
 
 function FeedbackService.submit(player: Player, category: any, message: any): (boolean, string)
 	if type(category) ~= "string" or not allowedCategories[category] then
@@ -55,7 +64,7 @@ function FeedbackService.submit(player: Player, category: any, message: any): (b
 		print("[Template feedback mock]", record)
 	else
 		success = pcall(function()
-			store:SetAsync(`report:{now}:{HttpService:GenerateGUID(false)}`, record)
+			getStore():SetAsync(`report:{now}:{HttpService:GenerateGUID(false)}`, record)
 		end)
 	end
 	if not success then
