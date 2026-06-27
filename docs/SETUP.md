@@ -1,6 +1,6 @@
 # Technical setup and workflow
 
-Beginners should use `1_SETUP.cmd`, `2_START.cmd`, and `3_CHECK.cmd`. This page explains what they do.
+Beginners should double-click `START_HERE.cmd` and choose a version. This page explains what the launcher does. The numbered CMD files remain available as individual setup, start, and check shortcuts.
 
 ## Installed stack
 

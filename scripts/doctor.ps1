@@ -124,7 +124,7 @@ try {
         if ($warnings -gt 0) {
             Write-Host "$warnings optional note(s) are shown above."
         }
-        Write-Host "You can use 2_START.cmd now."
+        Write-Host "You can use START_HERE.cmd now."
         exit 0
     }
 
