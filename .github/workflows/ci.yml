@@ -17,6 +17,8 @@ jobs:
         run: |
           curl -sSf https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh | bash
           echo "$HOME/.rokit/bin" >> "$GITHUB_PATH"
+      - name: Trust pinned tool publishers
+        run: rokit trust rojo-rbx/rojo UpliftGames/wally Kampfkarren/selene JohnnyMorganz/StyLua lune-org/lune
       - run: rokit install
       - run: stylua --check src tests
       - run: selene src tests
