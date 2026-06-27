@@ -19,7 +19,7 @@ Add its definition to `src/shared/Catalogs.luau`. Keep item IDs stable after rel
 
 ## Add a screen
 
-Build it from `UIFactory`, expose a `mount(parent, context)`-style function or `UIComponent` handle, register it with `ScreenRegistry`, and add a navigation entry. Use semantic theme tokens and verify the mobile acceptance matrix.
+Create its visual shell or reusable component in `StarterGui.TemplateUI`, then bind it through `UIFactory` and `ScreenRegistry`. Live lists may clone the authored `RowTemplate`; do not make basic restyling depend on code. Use semantic theme tokens and verify the mobile acceptance matrix.
 
 ## Replace a provider
 

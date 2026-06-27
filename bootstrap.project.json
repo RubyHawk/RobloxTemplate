@@ -1,0 +1,19 @@
+{
+  "name": "RobloxTemplateBootstrap",
+  "emitLegacyScripts": true,
+  "tree": {
+    "$path": "default.project.json",
+    "StarterGui": {
+      "$className": "StarterGui",
+      "TemplateUI": {
+        "$path": "src/ui/TemplateUI.model.json"
+      },
+      "ZxglyV5Showroom": {
+        "$path": "assets/ui/ZxglyV5Showroom.rbxmx"
+      },
+      "NotificationV2Showroom": {
+        "$path": "assets/ui/NotificationV2Showroom.rbxmx"
+      }
+    }
+  }
+}

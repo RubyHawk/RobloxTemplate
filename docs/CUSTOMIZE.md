@@ -4,7 +4,9 @@ Most values live in [`src/shared/TemplateConfig.luau`](../src/shared/TemplateCon
 
 ## Change colors
 
-Edit [`src/shared/Theme.luau`](../src/shared/Theme.luau). Colors use RGB values such as `Color3.fromRGB(80, 135, 255)`.
+For visual editing, open `StarterGui → TemplateUI → Root` in Studio. The HUD, navigation, screen shell, toast, and reusable component templates are ordinary editable GUI objects. Change colors, fonts, sizes, corners, strokes, and positions in Properties, then press Ctrl+S.
+
+`src/shared/Theme.luau` contains behavior colors such as hover states. A programmer can change those when creating a full theme branch.
 
 ## Change daily rewards
 

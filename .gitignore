@@ -1,9 +1,12 @@
 # Rojo output
 *.rbxl
 *.rbxlx
+*.rbxlx.lock
 *.rbxm
 *.rbxmx
 sourcemap.json
+!assets/ui/*.rbxmx
+!places/*.rbxlx
 
 # Packages and caches
 Packages/
@@ -13,6 +16,8 @@ node_modules/
 .cache/
 coverage/
 build/
+!assets/icons/gvesster-basic/*.png
+!assets/icons/gvesster-basic/LICENSE.txt
 
 # Local secrets and editor state
 .env

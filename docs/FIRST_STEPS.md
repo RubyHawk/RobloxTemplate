@@ -4,7 +4,7 @@
 
 Double-click `START_HERE.cmd` in the project folder.
 
-Choose **Open Playable Starter** or **Open Template**. The launcher switches versions, installs anything required on the first run, rebuilds the selected place, starts Rojo, and opens Roblox Studio.
+Choose **Open Playable Starter** or **Open Template**. The launcher switches versions, installs anything required on the first run, opens that branch's saved place, starts Rojo, and opens Roblox Studio.
 
 Success looks like this:
 
@@ -26,9 +26,13 @@ Inside Roblox Studio:
 1. Open the **Plugins** tab at the top.
 2. Click the **Rojo** button.
 3. Click **Connect** next to `localhost:34872`.
-4. Press **Play** from the Home or Test tab.
+4. Expand **StarterGui** in Explorer to see and edit the real GUI objects.
+5. Press **Ctrl+S** after visual changes.
+6. Press **Play** from the Home or Test tab.
 
 Expected result: the loading screen disappears, the Coins HUD appears in the upper-left, and the menu bar appears along the bottom.
+
+On the `template` branch, `ZxglyV5Showroom` and `NotificationV2Showroom` are script-free visual reference galleries. `TemplateUI` is the connected UI used by the actual systems.
 
 ## 4. Try the template
 

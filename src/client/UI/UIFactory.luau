@@ -7,6 +7,16 @@ local Theme =
 
 local UIFactory = {}
 
+local function authoredTemplate(parent: Instance, name: string): Instance?
+	local screenGui = parent:FindFirstAncestorWhichIsA("ScreenGui")
+	if not screenGui then
+		return nil
+	end
+	local root = screenGui:FindFirstChild("Root")
+	local templates = if root then root:FindFirstChild("ComponentTemplates") else nil
+	return if templates then templates:FindFirstChild(name) else nil
+end
+
 local function corner(parent: Instance, radius: UDim?)
 	local object = Instance.new("UICorner")
 	object.CornerRadius = radius or Theme.radius.medium
@@ -52,15 +62,21 @@ function UIFactory.card(parent: Instance, name: string, properties: any?): Frame
 end
 
 function UIFactory.label(parent: Instance, text: string, properties: any?): TextLabel
-	local object = Instance.new("TextLabel")
-	object.BackgroundTransparency = 1
-	object.BorderSizePixel = 0
-	object.FontFace = Theme.font
+	local template = authoredTemplate(parent, "LabelTemplate")
+	local object = if template and template:IsA("TextLabel")
+		then template:Clone()
+		else Instance.new("TextLabel")
+	if not template then
+		object.BackgroundTransparency = 1
+		object.BorderSizePixel = 0
+		object.FontFace = Theme.font
+		object.TextColor3 = Theme.colors.text
+		object.TextSize = 18
+		object.TextWrapped = true
+		object.TextXAlignment = Enum.TextXAlignment.Left
+	end
+	object.Visible = true
 	object.Text = text
-	object.TextColor3 = Theme.colors.text
-	object.TextSize = 18
-	object.TextWrapped = true
-	object.TextXAlignment = Enum.TextXAlignment.Left
 	if properties then
 		for key, value in properties do
 			(object :: any)[key] = value
@@ -76,29 +92,36 @@ function UIFactory.button(
 	onActivated: (() -> ())?,
 	properties: any?
 ): TextButton
-	local object = Instance.new("TextButton")
-	object.AutoButtonColor = false
-	object.BackgroundColor3 = Theme.colors.primary
-	object.BorderSizePixel = 0
-	object.FontFace = Theme.fontBold
+	local template = authoredTemplate(parent, "ButtonTemplate")
+	local object = if template and template:IsA("TextButton")
+		then template:Clone()
+		else Instance.new("TextButton")
+	if not template then
+		object.AutoButtonColor = false
+		object.BackgroundColor3 = Theme.colors.primary
+		object.BorderSizePixel = 0
+		object.FontFace = Theme.fontBold
+		object.TextColor3 = Theme.colors.text
+		object.TextSize = 16
+		object.TextWrapped = true
+		object.Selectable = true
+		object.Size = UDim2.new(1, 0, 0, Theme.touchTarget)
+		corner(object, Theme.radius.small)
+		stroke(object, 0.7)
+	end
+	object.Visible = true
 	object.Text = text
-	object.TextColor3 = Theme.colors.text
-	object.TextSize = 16
-	object.TextWrapped = true
-	object.Selectable = true
-	object.Size = UDim2.new(1, 0, 0, Theme.touchTarget)
 	if properties then
 		for key, value in properties do
 			(object :: any)[key] = value
 		end
 	end
-	corner(object, Theme.radius.small)
-	stroke(object, 0.7)
+	local restingColor = object.BackgroundColor3
 	object.MouseEnter:Connect(function()
 		TweenService:Create(object, TweenInfo.new(0.12), { BackgroundColor3 = Theme.colors.secondary }):Play()
 	end)
 	object.MouseLeave:Connect(function()
-		TweenService:Create(object, TweenInfo.new(0.12), { BackgroundColor3 = Theme.colors.primary }):Play()
+		TweenService:Create(object, TweenInfo.new(0.12), { BackgroundColor3 = restingColor }):Play()
 	end)
 	if onActivated then
 		object.Activated:Connect(onActivated)
@@ -108,26 +131,30 @@ function UIFactory.button(
 end
 
 function UIFactory.textBox(parent: Instance, placeholder: string, properties: any?): TextBox
-	local object = Instance.new("TextBox")
-	object.BackgroundColor3 = Theme.colors.background
-	object.BorderSizePixel = 0
-	object.ClearTextOnFocus = false
-	object.FontFace = Theme.font
+	local template = authoredTemplate(parent, "TextBoxTemplate")
+	local object = if template and template:IsA("TextBox") then template:Clone() else Instance.new("TextBox")
+	if not template then
+		object.BackgroundColor3 = Theme.colors.background
+		object.BorderSizePixel = 0
+		object.ClearTextOnFocus = false
+		object.FontFace = Theme.font
+		object.PlaceholderColor3 = Theme.colors.textMuted
+		object.TextColor3 = Theme.colors.text
+		object.TextSize = 16
+		object.TextWrapped = true
+		object.Size = UDim2.new(1, 0, 0, Theme.touchTarget)
+		corner(object, Theme.radius.small)
+		stroke(object)
+		padding(object, Theme.spacing.sm)
+	end
+	object.Visible = true
 	object.PlaceholderText = placeholder
-	object.PlaceholderColor3 = Theme.colors.textMuted
 	object.Text = ""
-	object.TextColor3 = Theme.colors.text
-	object.TextSize = 16
-	object.TextWrapped = true
-	object.Size = UDim2.new(1, 0, 0, Theme.touchTarget)
 	if properties then
 		for key, value in properties do
 			(object :: any)[key] = value
 		end
 	end
-	corner(object, Theme.radius.small)
-	stroke(object)
-	padding(object, Theme.spacing.sm)
 	object.Parent = parent
 	return object
 end

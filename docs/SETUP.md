@@ -2,6 +2,8 @@
 
 Beginners should double-click `START_HERE.cmd` and choose a version. This page explains what the launcher does. The numbered CMD files remain available as individual setup, start, and check shortcuts.
 
+Each branch has a saved editable place under `places/`. Setup creates it once from `bootstrap.project.json`; normal starts reopen it and do not overwrite Studio UI changes. `default.project.json` is used only for live code sync.
+
 ## Installed stack
 
 The project pins these current stable releases in `rokit.toml`:
@@ -30,9 +32,10 @@ They were compared with their upstream latest releases on 2026-06-27.
 ## Branch workflow
 
 1. Put reusable fixes on `template`.
-2. Run `3_CHECK.cmd`.
-3. Merge `template` into `playable-starter` and game branches.
-4. Put actual map gameplay only on its game branch.
+2. Save visual Studio edits with Ctrl+S.
+3. Run `3_CHECK.cmd`.
+4. Merge `template` into `playable-starter` and game branches.
+5. Put actual map gameplay only on its game branch.
 
 The GitHub default branch is `playable-starter` because it is the easiest demonstration. `template` remains the reusable source of truth.
 

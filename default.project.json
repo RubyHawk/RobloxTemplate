@@ -23,6 +23,10 @@
         "$path": "src/starter"
       }
     },
+    "StarterGui": {
+      "$className": "StarterGui",
+      "$ignoreUnknownInstances": true
+    },
     "StarterPlayer": {
       "StarterPlayerScripts": {
         "TemplateClient": {

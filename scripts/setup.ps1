@@ -7,11 +7,12 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $PSScriptRoot
-$buildDirectory = Join-Path $root "build"
+$placeDirectory = Join-Path $root "places"
 $project = Get-Content -LiteralPath (Join-Path $root "default.project.json") -Raw | ConvertFrom-Json
 $projectName = [string]$project.name
 $safeProjectName = $projectName -replace '[^A-Za-z0-9._-]', '_'
-$placeFile = Join-Path $buildDirectory "$safeProjectName.rbxlx"
+$placeFile = Join-Path $placeDirectory "$safeProjectName.rbxlx"
+$bootstrapProject = Join-Path $root "bootstrap.project.json"
 $tools = @(
     "rojo-rbx/rojo",
     "UpliftGames/wally",
@@ -83,9 +84,14 @@ try {
         }
     }
 
-    Write-Step "Building a place file that Roblox Studio can open"
-    New-Item -ItemType Directory -Path $buildDirectory -Force | Out-Null
-    Invoke-Checked "Rojo build" { rojo build default.project.json --output $placeFile }
+    Write-Step "Preparing the editable Studio place"
+    New-Item -ItemType Directory -Path $placeDirectory -Force | Out-Null
+    if (-not (Test-Path $placeFile -PathType Leaf)) {
+        Invoke-Checked "Rojo build" { rojo build $bootstrapProject --output $placeFile }
+    }
+    else {
+        Write-Host "[KEEP] Existing place and Studio UI edits: $placeFile" -ForegroundColor Green
+    }
 
     if (Test-RobloxStudioInstalled) {
         Write-Host "[OK] Roblox Studio found" -ForegroundColor Green
@@ -96,7 +102,7 @@ try {
 
     Write-Host ""
     Write-Host "SETUP COMPLETE" -ForegroundColor Green
-    Write-Host "Built: $placeFile"
+    Write-Host "Editable place: $placeFile"
     Write-Host "Next: close this window and double-click START_HERE.cmd."
 }
 catch {

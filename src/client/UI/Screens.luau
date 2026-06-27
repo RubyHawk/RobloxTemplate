@@ -9,57 +9,38 @@ local UIFactory = require(script.Parent.UIFactory)
 local Screens = {}
 
 local function base(parent: Instance, title: string, close: () -> ()): (Frame, ScrollingFrame)
-	local root = UIFactory.card(parent, `{title}Screen`, {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.48),
-		Size = UDim2.fromScale(0.9, 0.76),
-		BackgroundColor3 = Theme.colors.surface,
-		ZIndex = 20,
-	})
-	local constraint = Instance.new("UISizeConstraint")
-	constraint.MinSize = Vector2.new(280, 220)
-	constraint.MaxSize = Vector2.new(760, 620)
-	constraint.Parent = root
+	local template = parent.Parent and parent.Parent:FindFirstChild("ScreenTemplate")
+	assert(template and template:IsA("Frame"), "TemplateUI.Root.ScreenTemplate must be a Frame")
 
-	UIFactory.label(root, title, {
-		Position = UDim2.fromOffset(20, 12),
-		Size = UDim2.new(1, -80, 0, 44),
-		FontFace = Theme.fontBold,
-		TextSize = 26,
-	})
-	UIFactory.button(root, "X", close, {
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -12, 0, 12),
-		Size = UDim2.fromOffset(44, 44),
-		BackgroundColor3 = Theme.colors.danger,
-		TextSize = 24,
-	})
-	local content = UIFactory.scroll(root, "Content", {
-		Position = UDim2.fromOffset(16, 68),
-		Size = UDim2.new(1, -32, 1, -84),
-		ZIndex = 21,
-	})
-	UIFactory.addPadding(content, 4)
-	UIFactory.list(content, 10)
+	local root = template:Clone()
+	root.Name = `{title}Screen`
+	root.Visible = true
+	local titleLabel = root:WaitForChild("Title") :: TextLabel
+	titleLabel.Text = title
+	local closeButton = root:WaitForChild("CloseButton") :: TextButton
+	closeButton.Activated:Connect(close)
+	local content = root:WaitForChild("Content") :: ScrollingFrame
+	root.Parent = parent
 	return root, content
 end
 
 local function row(parent: Instance, title: string, body: string): Frame
-	local card = UIFactory.card(parent, title, {
-		Size = UDim2.new(1, -8, 0, 82),
-		BackgroundColor3 = Theme.colors.surfaceRaised,
-	})
-	UIFactory.label(card, title, {
-		Position = UDim2.fromOffset(14, 8),
-		Size = UDim2.new(1, -28, 0, 28),
-		FontFace = Theme.fontBold,
-	})
-	UIFactory.label(card, body, {
-		Position = UDim2.fromOffset(14, 36),
-		Size = UDim2.new(1, -28, 0, 38),
-		TextColor3 = Theme.colors.textMuted,
-		TextSize = 14,
-	})
+	local screenGui = parent:FindFirstAncestorWhichIsA("ScreenGui")
+	local root = if screenGui then screenGui:FindFirstChild("Root") else nil
+	local templates = if root then root:FindFirstChild("ComponentTemplates") else nil
+	local template = if templates then templates:FindFirstChild("RowTemplate") else nil
+	assert(
+		template and template:IsA("Frame"),
+		"TemplateUI.Root.ComponentTemplates.RowTemplate must be a Frame"
+	)
+	local card = template:Clone()
+	card.Name = title
+	card.Visible = true
+	local titleLabel = card:WaitForChild("Title") :: TextLabel
+	titleLabel.Text = title
+	local bodyLabel = card:WaitForChild("Body") :: TextLabel
+	bodyLabel.Text = body
+	card.Parent = parent
 	return card
 end
 
