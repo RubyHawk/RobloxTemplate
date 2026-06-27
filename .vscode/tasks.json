@@ -2,6 +2,25 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Roblox: 1 - Setup",
+      "type": "shell",
+      "command": "powershell -ExecutionPolicy Bypass -File scripts/setup.ps1",
+      "problemMatcher": []
+    },
+    {
+      "label": "Roblox: 2 - Start Studio + Rojo",
+      "type": "shell",
+      "command": "powershell -ExecutionPolicy Bypass -File scripts/start.ps1",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Roblox: 3 - Check Everything",
+      "type": "shell",
+      "command": "powershell -ExecutionPolicy Bypass -File scripts/doctor.ps1 -Full",
+      "problemMatcher": []
+    },
+    {
       "label": "Roblox: Serve",
       "type": "shell",
       "command": "rojo serve default.project.json",
