@@ -2,6 +2,8 @@
 
 A server-authoritative, mobile-first Roblox UI and systems kit. The `template` branch is the reusable source of truth; game branches compose its services and screens through configuration.
 
+This `playable-starter` branch adds one neutral earning-pad example so you can verify a map calling the template economy. Put reusable changes on `template` first.
+
 ## Quick start
 
 ```powershell

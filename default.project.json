@@ -1,5 +1,5 @@
 {
-  "name": "RobloxTemplateGallery",
+  "name": "RobloxPlayableStarter",
   "emitLegacyScripts": false,
   "servePlaceIds": [],
   "tree": {
@@ -18,6 +18,9 @@
     "ServerScriptService": {
       "TemplateServer": {
         "$path": "src/server"
+      },
+      "PlayableStarter": {
+        "$path": "src/starter"
       }
     },
     "StarterPlayer": {
