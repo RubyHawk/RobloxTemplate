@@ -16,6 +16,17 @@ Install Roblox Studio from the official Creator Hub, then rerun `2_START.cmd`:
 
 https://create.roblox.com/docs/studio/setup
 
+## The wrong branch or map opened
+
+Close the old Studio window and run `2_START.cmd` again. It now rebuilds before every launch and prints the branch and project it is opening:
+
+- `template` opens `RobloxTemplateGallery.rbxlx`.
+- `playable-starter` opens `RobloxPlayableStarter.rbxlx`.
+
+If the printed branch is wrong, switch branches in VS Code first and rerun `2_START.cmd`.
+
+The launcher also closes an older Rojo server on port `34872`; otherwise Studio could reconnect to the previous branch.
+
 ## There is no Rojo button in Studio
 
 Close Studio, run `1_SETUP.cmd`, and reopen it. Setup installs `RojoManagedPlugin.rbxm` into your Roblox Plugins folder.

@@ -1,23 +1,23 @@
 # Your first five minutes
 
-## 1. Run setup once
+## 1. Open the launcher
 
-Double-click `1_SETUP.cmd` in the project folder.
+Double-click `START_HERE.cmd` in the project folder.
 
-It installs the exact project tools, installs the official Rojo plugin into Studio, prepares the optional notification-worker packages when Node.js is available, and builds `build/RobloxTemplate.rbxlx`.
+Choose **Open Playable Starter** or **Open Template**. The launcher switches versions, installs anything required on the first run, rebuilds the selected place, starts Rojo, and opens Roblox Studio.
 
 Success looks like this:
 
 ```text
-SETUP COMPLETE
-Next: close this window and double-click 2_START.cmd.
+Branch:  template
+Project: RobloxTemplateGallery
 ```
 
-## 2. Start the project
+## 2. Keep the black window open
 
-Double-click `2_START.cmd`. It opens the generated place in Roblox Studio and starts the live code connection.
+The black window runs the live code connection. Closing it stops live syncing but does not delete anything.
 
-Keep its black command window open while working. Closing that window stops live syncing but does not delete anything.
+It shows both the Git branch and project name. `template` should show `RobloxTemplateGallery`; `playable-starter` should show `RobloxPlayableStarter`.
 
 ## 3. Connect Studio
 

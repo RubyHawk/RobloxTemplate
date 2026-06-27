@@ -2,16 +2,18 @@
 
 You do not need to understand Git, Rojo, Wally, or the notification worker to open this project.
 
-## Open the template for the first time
+## Open the project
 
-1. Double-click **`1_SETUP.cmd`** and wait for `SETUP COMPLETE`.
-2. Double-click **`2_START.cmd`**. Keep the black window open.
-3. Roblox Studio opens. Select **Plugins → Rojo → Connect**.
-4. Press **Play** in Studio.
+1. Double-click **`START_HERE.cmd`**.
+2. Choose **Open Playable Starter** or **Open Template**.
+3. Keep the black window open when Roblox Studio starts.
+4. In Studio, select **Plugins → Rojo → Connect**, then press **Play**.
 
 You should see a Coins HUD and buttons for the inventory, store, rewards, profile, codes, leaderboards, feedback, community, and settings.
 
-If anything is red or does not open, double-click **`3_CHECK.cmd`**. It explains what is missing in plain language.
+The launcher installs anything missing, switches to the chosen branch, rebuilds the correct place, and replaces any old Rojo session. Its **Repair setup** and **Run project checks** buttons explain problems in plain language.
+
+The numbered CMD files remain available as manual shortcuts, but your non-programmer coworker only needs `START_HERE.cmd`.
 
 ## Which branch should I use?
 

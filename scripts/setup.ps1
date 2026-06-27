@@ -8,7 +8,10 @@ Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $PSScriptRoot
 $buildDirectory = Join-Path $root "build"
-$placeFile = Join-Path $buildDirectory "RobloxTemplate.rbxlx"
+$project = Get-Content -LiteralPath (Join-Path $root "default.project.json") -Raw | ConvertFrom-Json
+$projectName = [string]$project.name
+$safeProjectName = $projectName -replace '[^A-Za-z0-9._-]', '_'
+$placeFile = Join-Path $buildDirectory "$safeProjectName.rbxlx"
 $tools = @(
     "rojo-rbx/rojo",
     "UpliftGames/wally",
@@ -39,6 +42,7 @@ Push-Location $root
 try {
     Write-Host "Roblox Template - beginner setup" -ForegroundColor Yellow
     Write-Host "This installs only project tools and the official Rojo Studio plugin."
+    Write-Host "Current place: $projectName" -ForegroundColor Cyan
 
     if (-not (Get-Command rokit -ErrorAction SilentlyContinue)) {
         Write-Step "Installing Rokit from the official rojo-rbx GitHub repository"
@@ -92,7 +96,8 @@ try {
 
     Write-Host ""
     Write-Host "SETUP COMPLETE" -ForegroundColor Green
-    Write-Host "Next: close this window and double-click 2_START.cmd."
+    Write-Host "Built: $placeFile"
+    Write-Host "Next: close this window and double-click START_HERE.cmd."
 }
 catch {
     Write-Host ""
