@@ -54,6 +54,12 @@ function Switch-ToVersion([string]$Branch) {
         return $false
     }
 
+    $currentBranch = Get-CurrentBranch
+    if ($currentBranch -eq $Branch) {
+        Write-LauncherLog "Already on $Branch; keeping saved Studio UI changes."
+        return $true
+    }
+
     $trackedChanges = @(& git -C $root status --porcelain --untracked-files=no 2>$null)
     if ($LASTEXITCODE -ne 0) {
         Show-LauncherMessage "This folder is not a working Git project. Ask the project owner to check the folder." "Project not found" ([System.Windows.MessageBoxImage]::Error)

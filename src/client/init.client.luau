@@ -39,90 +39,22 @@ task.spawn(function()
 	end
 end)
 
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "TemplateUI"
-screenGui.DisplayOrder = 20
-screenGui.ResetOnSpawn = false
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-pcall(function()
-	screenGui.ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets
-end)
-screenGui.Parent = player:WaitForChild("PlayerGui")
+local playerGui = player:WaitForChild("PlayerGui")
+local screenGui = playerGui:WaitForChild("TemplateUI") :: ScreenGui
+assert(screenGui:IsA("ScreenGui"), "StarterGui.TemplateUI must be a ScreenGui")
+screenGui.Enabled = true
 UIStyles.install(screenGui)
 
-local root = UIFactory.frame(screenGui, "Root", {
-	BackgroundTransparency = 1,
-	Size = UDim2.fromScale(1, 1),
-})
-local uiScale = Instance.new("UIScale")
-uiScale.Parent = root
-
-local hud = UIFactory.card(root, "CurrencyHUD", {
-	Position = UDim2.fromOffset(12, 12),
-	Size = UDim2.fromOffset(240, 60),
-	BackgroundColor3 = Theme.colors.background,
-	ZIndex = 5,
-})
-local coinLabel = UIFactory.label(hud, "◆ 0 Coins", {
-	Position = UDim2.fromOffset(14, 8),
-	Size = UDim2.new(1, -28, 0, 27),
-	FontFace = Theme.fontBold,
-	TextColor3 = Theme.colors.accent,
-	TextSize = 20,
-	ZIndex = 6,
-})
-local boostLabel = UIFactory.label(hud, "x1 boost", {
-	Position = UDim2.fromOffset(14, 34),
-	Size = UDim2.new(1, -28, 0, 18),
-	TextColor3 = Theme.colors.textMuted,
-	TextSize = 13,
-	ZIndex = 6,
-})
-
-local nav = UIFactory.card(root, "Navigation", {
-	AnchorPoint = Vector2.new(0.5, 1),
-	Position = UDim2.new(0.5, 0, 1, -10),
-	Size = UDim2.new(0.94, 0, 0, 64),
-	BackgroundColor3 = Theme.colors.background,
-	ZIndex = 10,
-})
-local navConstraint = Instance.new("UISizeConstraint")
-navConstraint.MaxSize = Vector2.new(860, 64)
-navConstraint.Parent = nav
-local navScroll = UIFactory.scroll(nav, "Buttons", {
-	Position = UDim2.fromOffset(8, 8),
-	Size = UDim2.new(1, -16, 1, -16),
-	AutomaticCanvasSize = Enum.AutomaticSize.X,
-	ScrollingDirection = Enum.ScrollingDirection.X,
-	ScrollBarThickness = 0,
-	CanvasSize = UDim2.new(),
-})
-local navLayout = UIFactory.list(navScroll, 8)
-navLayout.FillDirection = Enum.FillDirection.Horizontal
-navLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-
-local screensLayer = UIFactory.frame(root, "Screens", {
-	BackgroundTransparency = 1,
-	Size = UDim2.fromScale(1, 1),
-	ZIndex = 20,
-})
-local toast = UIFactory.card(root, "Toast", {
-	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.new(0.5, 0, 0, -90),
-	Size = UDim2.new(0.8, 0, 0, 62),
-	BackgroundColor3 = Theme.colors.background,
-	ZIndex = 100,
-})
-local toastConstraint = Instance.new("UISizeConstraint")
-toastConstraint.MaxSize = Vector2.new(560, 62)
-toastConstraint.Parent = toast
-local toastLabel = UIFactory.label(toast, "", {
-	Position = UDim2.fromOffset(14, 8),
-	Size = UDim2.new(1, -28, 1, -16),
-	TextXAlignment = Enum.TextXAlignment.Center,
-	FontFace = Theme.fontBold,
-	ZIndex = 101,
-})
+local root = screenGui:WaitForChild("Root") :: Frame
+local uiScale = root:WaitForChild("InterfaceScale") :: UIScale
+local hud = root:WaitForChild("CurrencyHUD") :: Frame
+local coinLabel = hud:WaitForChild("CoinLabel") :: TextLabel
+local boostLabel = hud:WaitForChild("BoostLabel") :: TextLabel
+local nav = root:WaitForChild("Navigation") :: Frame
+local navScroll = nav:WaitForChild("Buttons") :: ScrollingFrame
+local screensLayer = root:WaitForChild("Screens") :: Frame
+local toast = root:WaitForChild("Toast") :: Frame
+local toastLabel = toast:WaitForChild("Message") :: TextLabel
 local toastToken = 0
 
 local function showToast(message: string)
@@ -222,25 +154,33 @@ rebuildScreens = function()
 end
 
 local navItems = {
-	{ "BAG", "Inventory" },
-	{ "SHOP", "Store" },
-	{ "GIFT", "Rewards" },
-	{ "PROFILE", "Profile" },
-	{ "CODES", "Codes" },
-	{ "TOP", "Boards" },
-	{ "FEEDBACK", "Feedback" },
-	{ "GROUP", "Community" },
-	{ "SETTINGS", "Settings" },
+	{ "BagButton", "Inventory" },
+	{ "ShopButton", "Store" },
+	{ "GiftButton", "Rewards" },
+	{ "ProfileButton", "Profile" },
+	{ "CodesButton", "Codes" },
+	{ "BoardsButton", "Boards" },
+	{ "FeedbackButton", "Feedback" },
+	{ "CommunityButton", "Community" },
+	{ "SettingsButton", "Settings" },
 }
 for _, item in navItems do
-	UIFactory.button(navScroll, item[1], function()
+	local button = navScroll:WaitForChild(item[1]) :: TextButton
+	local restingColor = button.BackgroundColor3
+	button.MouseEnter:Connect(function()
+		TweenService:Create(button, TweenInfo.new(0.12), { BackgroundColor3 = Theme.colors.secondary }):Play()
+	end)
+	button.MouseLeave:Connect(function()
+		TweenService:Create(button, TweenInfo.new(0.12), { BackgroundColor3 = restingColor }):Play()
+	end)
+	button.Activated:Connect(function()
 		AudioController.play("click")
 		if registry.current == item[2] then
 			registry:close()
 		else
 			registry:open(item[2])
 		end
-	end, { Size = UDim2.fromOffset(100, 48) })
+	end)
 end
 
 local function applyState(nextState: any)
@@ -277,9 +217,9 @@ stateRemote.OnClientEvent:Connect(function(packet)
 	elseif packet.kind == "Announcement" and state and state.profile.settings.announcements then
 		showToast(packet.message)
 		local channels = TextChatService:FindFirstChild("TextChannels")
-		local general = if channels then channels:FindFirstChild("RBXGeneral") else nil
-		if general and general:IsA("TextChannel") then
-			general:DisplaySystemMessage(`[SYSTEM] {packet.message}`)
+		local systemChannel = if channels then channels:FindFirstChild("RBXSystem") else nil
+		if systemChannel and systemChannel:IsA("TextChannel") then
+			systemChannel:DisplaySystemMessage(`[SYSTEM] {packet.message}`)
 		end
 	end
 end)

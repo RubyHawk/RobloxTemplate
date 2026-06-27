@@ -18,14 +18,18 @@ https://create.roblox.com/docs/studio/setup
 
 ## The wrong branch or map opened
 
-Close the old Studio window and run `2_START.cmd` again. It now rebuilds before every launch and prints the branch and project it is opening:
+Close the old Studio window and open `START_HERE.cmd` again. The launcher switches to your selection and prints the branch and saved place it is opening:
 
 - `template` opens `RobloxTemplateGallery.rbxlx`.
 - `playable-starter` opens `RobloxPlayableStarter.rbxlx`.
 
-If the printed branch is wrong, switch branches in VS Code first and rerun `2_START.cmd`.
+If you have uncommitted edits on a different branch, the launcher refuses to switch so nothing is lost. Ask the programmer to commit them, then choose the version again.
 
 The launcher also closes an older Rojo server on port `34872`; otherwise Studio could reconnect to the previous branch.
+
+## My Studio UI edits disappeared
+
+Use the place under `places/`, not an old file under `build/`. Save with Ctrl+S before closing Studio. The launcher now reopens the saved branch place and does not rebuild over it.
 
 ## There is no Rojo button in Studio
 

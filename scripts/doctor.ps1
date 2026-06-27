@@ -86,7 +86,7 @@ try {
         if ($LASTEXITCODE -eq 0) { Write-Pass "Luau linting" } else { Write-Fail "Luau linting failed" }
 
         New-Item -ItemType Directory -Path (Join-Path $root "build") -Force | Out-Null
-        & rojo build default.project.json --output (Join-Path $root "build\DoctorTest.rbxlx")
+        & rojo build bootstrap.project.json --output (Join-Path $root "build\DoctorTest.rbxlx")
         if ($LASTEXITCODE -eq 0) { Write-Pass "Rojo place build" } else { Write-Fail "Rojo could not build the place" }
 
         & lune run tests/run

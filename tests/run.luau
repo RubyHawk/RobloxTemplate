@@ -80,4 +80,35 @@ do
 	)
 end
 
+local chatSource = fs.readFile("src/client/init.client.luau") .. fs.readFile("default.project.json")
+for _, legacyToken in
+	{
+		'GetService("Chat")',
+		"LegacyChatService",
+		"DefaultChatSystemChatEvents",
+		"SayMessageRequest",
+		"ChatVersion",
+		"LoadDefaultChat",
+	}
+do
+	expectEqual(string.find(chatSource, legacyToken, 1, true), nil, `legacy chat token: {legacyToken}`)
+end
+expectEqual(string.find(chatSource, "RBXSystem", 1, true) ~= nil, true, "announcements use RBXSystem")
+
+for _, showroomPath in
+	{
+		"assets/ui/ZxglyV5Showroom.rbxmx",
+		"assets/ui/NotificationV2Showroom.rbxmx",
+	}
+do
+	local showroom = fs.readFile(showroomPath)
+	for _, scriptClass in { "LocalScript", "ModuleScript", "Script" } do
+		expectEqual(
+			string.find(showroom, `<Item class="{scriptClass}"`, 1, true),
+			nil,
+			`{showroomPath} contains no {scriptClass}`
+		)
+	end
+end
+
 print(`{passed} pure Luau assertions passed`)

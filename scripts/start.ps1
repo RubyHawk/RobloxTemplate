@@ -7,11 +7,12 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $PSScriptRoot
-$buildDirectory = Join-Path $root "build"
+$placeDirectory = Join-Path $root "places"
 $project = Get-Content -LiteralPath (Join-Path $root "default.project.json") -Raw | ConvertFrom-Json
 $projectName = [string]$project.name
 $safeProjectName = $projectName -replace '[^A-Za-z0-9._-]', '_'
-$placeFile = Join-Path $buildDirectory "$safeProjectName.rbxlx"
+$placeFile = Join-Path $placeDirectory "$safeProjectName.rbxlx"
+$bootstrapProject = Join-Path $root "bootstrap.project.json"
 
 function Find-RobloxStudio {
     $localVersions = Join-Path $env:LOCALAPPDATA "Roblox\Versions"
@@ -68,13 +69,19 @@ try {
         }
     }
 
-    Write-Host "Preparing the place from your current branch..." -ForegroundColor Cyan
+    Write-Host "Opening the saved place for your current branch..." -ForegroundColor Cyan
     Write-Host "  Branch:  $branch"
     Write-Host "  Project: $projectName"
-    New-Item -ItemType Directory -Path $buildDirectory -Force | Out-Null
-    & rojo build default.project.json --output $placeFile
-    if ($LASTEXITCODE -ne 0) {
-        throw "Rojo could not build $projectName. Run 3_CHECK.cmd for details."
+    New-Item -ItemType Directory -Path $placeDirectory -Force | Out-Null
+    if (-not (Test-Path $placeFile -PathType Leaf)) {
+        Write-Host "Creating this branch's editable place for the first time..." -ForegroundColor Yellow
+        & rojo build $bootstrapProject --output $placeFile
+        if ($LASTEXITCODE -ne 0) {
+            throw "Rojo could not create $projectName. Run 3_CHECK.cmd for details."
+        }
+    }
+    else {
+        Write-Host "  Saved UI: $placeFile" -ForegroundColor DarkGray
     }
     Stop-StaleRojoServer
 
@@ -94,7 +101,8 @@ try {
     Write-Host "In Studio:"
     Write-Host "  1. Open the Plugins tab."
     Write-Host "  2. Click Rojo, then Connect."
-    Write-Host "  3. Press Play."
+    Write-Host "  3. Edit UI objects under StarterGui, then press Ctrl+S."
+    Write-Host "  4. Press Play to test connected systems."
     Write-Host ""
     Write-Host "Keep this window open while editing. Press Ctrl+C here when finished." -ForegroundColor Yellow
     rojo serve default.project.json
