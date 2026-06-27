@@ -1,0 +1,4901 @@
+<roblox version="4">
+  <Item class="HttpService" referent="0">
+    <Properties>
+      <string name="Name">HttpService</string>
+      <bool name="HttpEnabled">false</bool>
+    </Properties>
+  </Item>
+  <Item class="ReplicatedFirst" referent="1">
+    <Properties>
+      <string name="Name">ReplicatedFirst</string>
+    </Properties>
+    <Item class="LocalScript" referent="2">
+      <Properties>
+        <string name="Name">Loading</string>
+        <string name="Source"><![CDATA[--!strict
+
+local Players = game:GetService("Players")
+local ReplicatedFirst = game:GetService("ReplicatedFirst")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+ReplicatedFirst:RemoveDefaultLoadingScreen()
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "TemplateLoading"
+gui.IgnoreGuiInset = true
+gui.DisplayOrder = 1000
+gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local background = Instance.new("Frame")
+background.BackgroundColor3 = Color3.fromRGB(22, 25, 42)
+background.BorderSizePixel = 0
+background.Size = UDim2.fromScale(1, 1)
+background.Parent = gui
+
+local title = Instance.new("TextLabel")
+title.AnchorPoint = Vector2.new(0.5, 0.5)
+title.BackgroundTransparency = 1
+title.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold)
+title.Position = UDim2.fromScale(0.5, 0.43)
+title.Size = UDim2.new(0.9, 0, 0, 60)
+title.Text = "ROBLOX TEMPLATE"
+title.TextColor3 = Color3.fromRGB(248, 249, 255)
+title.TextScaled = true
+title.Parent = background
+
+local status = Instance.new("TextLabel")
+status.AnchorPoint = Vector2.new(0.5, 0)
+status.BackgroundTransparency = 1
+status.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json")
+status.Position = UDim2.fromScale(0.5, 0.52)
+status.Size = UDim2.new(0.8, 0, 0, 30)
+status.Text = "Loading systems…"
+status.TextColor3 = Color3.fromRGB(180, 187, 218)
+status.TextSize = 18
+status.Parent = background
+
+local bar = Instance.new("Frame")
+bar.AnchorPoint = Vector2.new(0.5, 0)
+bar.BackgroundColor3 = Color3.fromRGB(41, 45, 73)
+bar.BorderSizePixel = 0
+bar.Position = UDim2.fromScale(0.5, 0.59)
+bar.Size = UDim2.new(0.7, 0, 0, 12)
+bar.Parent = background
+local barCorner = Instance.new("UICorner")
+barCorner.CornerRadius = UDim.new(1, 0)
+barCorner.Parent = bar
+local fill = Instance.new("Frame")
+fill.BackgroundColor3 = Color3.fromRGB(80, 135, 255)
+fill.BorderSizePixel = 0
+fill.Size = UDim2.fromScale(0.08, 1)
+fill.Parent = bar
+local fillCorner = Instance.new("UICorner")
+fillCorner.CornerRadius = UDim.new(1, 0)
+fillCorner.Parent = fill
+
+TweenService:Create(fill, TweenInfo.new(1.2), { Size = UDim2.fromScale(0.75, 1) }):Play()
+local deadline = os.clock() + 10
+while
+	(not game:IsLoaded() or ReplicatedStorage:FindFirstChild("TemplateRemotes") == nil)
+	and os.clock() < deadline
+do
+	task.wait(0.1)
+end
+status.Text = "Ready"
+TweenService:Create(fill, TweenInfo.new(0.2), { Size = UDim2.fromScale(1, 1) }):Play()
+task.wait(0.25)
+TweenService:Create(background, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
+for _, descendant in background:GetDescendants() do
+	if descendant:IsA("TextLabel") then
+		TweenService:Create(descendant, TweenInfo.new(0.25), { TextTransparency = 1 }):Play()
+	elseif descendant:IsA("Frame") then
+		TweenService:Create(descendant, TweenInfo.new(0.25), { BackgroundTransparency = 1 }):Play()
+	end
+end
+task.wait(0.35)
+gui:Destroy()
+]]></string>
+      </Properties>
+    </Item>
+  </Item>
+  <Item class="ReplicatedStorage" referent="3">
+    <Properties>
+      <string name="Name">ReplicatedStorage</string>
+    </Properties>
+    <Item class="Folder" referent="4">
+      <Properties>
+        <string name="Name">Template</string>
+      </Properties>
+      <Item class="Folder" referent="5">
+        <Properties>
+          <string name="Name">Shared</string>
+        </Properties>
+        <Item class="ModuleScript" referent="6">
+          <Properties>
+            <string name="Name">Calculations</string>
+            <string name="Source"><![CDATA[--!strict
+
+local Calculations = {}
+
+function Calculations.utcDay(timestamp: number): number
+	return math.floor(timestamp / 86400)
+end
+
+function Calculations.dailyClaim(
+	lastClaimDay: number,
+	streak: number,
+	now: number,
+	rewardCount: number
+): (boolean, number)
+	local today = Calculations.utcDay(now)
+	if lastClaimDay == today then
+		return false, streak
+	end
+	if lastClaimDay == today - 1 then
+		return true, (streak % rewardCount) + 1
+	end
+	return true, 1
+end
+
+function Calculations.potionMultiplier(boosts: { any }, now: number): number
+	local strongest = 1
+	for _, boost in boosts do
+		if type(boost) == "table" and boost.expiresAt > now and boost.multiplier > strongest then
+			strongest = boost.multiplier
+		end
+	end
+	return strongest
+end
+
+function Calculations.friendBonus(friendCount: number, perFriend: number, cap: number): number
+	return math.min(math.max(friendCount, 0) * perFriend, cap)
+end
+
+function Calculations.earningsMultiplier(
+	friendCount: number,
+	isPremium: boolean,
+	boosts: { any },
+	now: number,
+	perFriend: number,
+	friendCap: number,
+	premiumBonus: number
+): number
+	local social = Calculations.friendBonus(friendCount, perFriend, friendCap)
+	local premium = if isPremium then premiumBonus else 0
+	return (1 + social + premium) * Calculations.potionMultiplier(boosts, now)
+end
+
+function Calculations.offlineEarnings(
+	lastSeenAt: number,
+	now: number,
+	ratePerSecond: number,
+	capHours: number,
+	permanentMultiplier: number
+): (number, number)
+	local elapsed = math.clamp(now - lastSeenAt, 0, capHours * 3600)
+	local amount = math.floor(math.max(ratePerSecond, 0) * elapsed * math.max(permanentMultiplier, 0))
+	return amount, elapsed
+end
+
+function Calculations.normalizeCode(value: any): string?
+	if type(value) ~= "string" then
+		return nil
+	end
+	local normalized = string.upper(string.gsub(value, "%s+", ""))
+	if #normalized < 1 or #normalized > 32 or string.match(normalized, "^[A-Z0-9_-]+$") == nil then
+		return nil
+	end
+	return normalized
+end
+
+return Calculations
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="7">
+          <Properties>
+            <string name="Name">Catalogs</string>
+            <string name="Source"><![CDATA[--!strict
+
+export type ItemDefinition = {
+	id: string,
+	name: string,
+	description: string,
+	category: "Consumable" | "Equipment" | "Misc",
+	icon: string,
+	maxStack: number,
+	priceCoins: number?,
+	boostMultiplier: number?,
+	boostDurationSeconds: number?,
+}
+
+local Items: { [string]: ItemDefinition } = {
+	double_coins_potion = {
+		id = "double_coins_potion",
+		name = "Double Coins Potion",
+		description = "Applies the strongest x2 Coins boost for 15 minutes.",
+		category = "Consumable",
+		icon = "",
+		maxStack = 99,
+		priceCoins = 1000,
+		boostMultiplier = 2,
+		boostDurationSeconds = 15 * 60,
+	},
+	triple_coins_potion = {
+		id = "triple_coins_potion",
+		name = "Triple Coins Potion",
+		description = "Applies the strongest x3 Coins boost for 10 minutes.",
+		category = "Consumable",
+		icon = "",
+		maxStack = 99,
+		priceCoins = 2500,
+		boostMultiplier = 3,
+		boostDurationSeconds = 10 * 60,
+	},
+	starter_tool = {
+		id = "starter_tool",
+		name = "Starter Tool",
+		description = "An equipment placeholder for map branches.",
+		category = "Equipment",
+		icon = "",
+		maxStack = 1,
+		priceCoins = 500,
+	},
+}
+
+return table.freeze({
+	items = table.freeze(Items),
+})
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="8">
+          <Properties>
+            <string name="Name">FeatureRegistry</string>
+            <string name="Source"><![CDATA[--!strict
+
+local Config = require(script.Parent.TemplateConfig)
+
+local FeatureRegistry = {}
+
+function FeatureRegistry.isEnabled(name: string): boolean
+	return Config.features[name] == true
+end
+
+function FeatureRegistry.requireEnabled(name: string): (boolean, string?)
+	if FeatureRegistry.isEnabled(name) then
+		return true, nil
+	end
+	return false, `Feature "{name}" is disabled in TemplateConfig`
+end
+
+function FeatureRegistry.snapshot(): { [string]: boolean }
+	return table.clone(Config.features)
+end
+
+return FeatureRegistry
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="9">
+          <Properties>
+            <string name="Name">MigrationCore</string>
+            <string name="Source"><![CDATA[--!strict
+
+local MigrationCore = {}
+
+function MigrationCore.deepCopy(value: any): any
+	if type(value) ~= "table" then
+		return value
+	end
+	local result = {}
+	for key, child in value do
+		result[MigrationCore.deepCopy(key)] = MigrationCore.deepCopy(child)
+	end
+	return result
+end
+
+function MigrationCore.reconcile(target: any, defaults: any)
+	for key, value in defaults do
+		if target[key] == nil then
+			target[key] = MigrationCore.deepCopy(value)
+		elseif type(value) == "table" and type(target[key]) == "table" then
+			MigrationCore.reconcile(target[key], value)
+		end
+	end
+end
+
+function MigrationCore.migrate(raw: any, defaults: any, currentVersion: number): any
+	local profile = if type(raw) == "table"
+		then MigrationCore.deepCopy(raw)
+		else MigrationCore.deepCopy(defaults)
+	MigrationCore.reconcile(profile, defaults)
+	profile.schemaVersion = currentVersion
+	return profile
+end
+
+return MigrationCore
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="10">
+          <Properties>
+            <string name="Name">Migrations</string>
+            <string name="Source"><![CDATA[--!strict
+
+local ProfileTemplate = require(script.Parent.ProfileTemplate)
+local MigrationCore = require(script.Parent.MigrationCore)
+
+local Migrations = {}
+Migrations.CURRENT_VERSION = 1
+
+function Migrations.migrate(raw: any, now: number): any
+	return MigrationCore.migrate(raw, ProfileTemplate.create(now), Migrations.CURRENT_VERSION)
+end
+
+return Migrations
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="11">
+          <Properties>
+            <string name="Name">ProfileTemplate</string>
+            <string name="Source"><![CDATA[--!strict
+
+local Types = require(script.Parent.Types)
+type PlayerProfileV1 = Types.PlayerProfileV1
+
+local ProfileTemplate = {}
+
+function ProfileTemplate.create(now: number): PlayerProfileV1
+	return {
+		schemaVersion = 1,
+		coins = 0,
+		inventory = {
+			double_coins_potion = { quantity = 1 },
+		},
+		boosts = {},
+		settings = {
+			musicVolume = 0.5,
+			sfxVolume = 0.7,
+			uiScale = 1,
+			reducedMotion = false,
+			announcements = true,
+			afKRollOver = true,
+			notifications = false,
+		},
+		stats = {
+			playSeconds = 0,
+			joins = 0,
+			totalCoinsEarned = 0,
+		},
+		daily = {
+			lastClaimDay = -1,
+			streak = 0,
+		},
+		redemptions = {},
+		entitlements = {
+			extendedOffline = false,
+			premium = false,
+		},
+		social = {
+			friendCountInServer = 0,
+			communityVerified = false,
+			discordVerified = false,
+		},
+		guild = {},
+		lastSeenAt = now,
+		offlineRateSnapshot = 0,
+		createdAt = now,
+		updatedAt = now,
+	}
+end
+
+return ProfileTemplate
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="12">
+          <Properties>
+            <string name="Name">Providers</string>
+            <string name="Source"><![CDATA[--!strict
+
+export type EconomyRateProvider = {
+	getRate: (player: Player) -> number,
+}
+
+export type LikesProvider = {
+	getLikes: () -> { status: string, value: number?, reason: string? },
+}
+
+export type VerificationProvider = {
+	verify: (player: Player) -> { status: string, value: boolean?, reason: string? },
+}
+
+export type NotificationScheduler = {
+	schedule: (userId: number, kind: string, dueAt: number) -> { status: string, reason: string? },
+	cancel: (userId: number) -> (),
+}
+
+export type PublicProfileProvider = {
+	findByUserId: (userId: number) -> any,
+}
+
+return {}
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="13">
+          <Properties>
+            <string name="Name">ReceiptLedger</string>
+            <string name="Source"><![CDATA[--!strict
+
+local ReceiptLedger = {}
+
+function ReceiptLedger.key(purchaseId: string): string
+	return `receipt:{purchaseId}`
+end
+
+function ReceiptLedger.claim(redemptions: { [string]: boolean }, purchaseId: string): boolean
+	local receiptKey = ReceiptLedger.key(purchaseId)
+	if redemptions[receiptKey] then
+		return false
+	end
+	redemptions[receiptKey] = true
+	return true
+end
+
+return ReceiptLedger
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="14">
+          <Properties>
+            <string name="Name">RemoteNames</string>
+            <string name="Source"><![CDATA[--!strict
+
+return table.freeze({
+	folder = "TemplateRemotes",
+	request = "Request",
+	state = "State",
+	query = "Query",
+})
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="15">
+          <Properties>
+            <string name="Name">TemplateConfig</string>
+            <string name="Source"><![CDATA[--!strict
+
+local Config = {
+	version = "0.1.0",
+	profileStoreName = "RobloxTemplate_Profile_v1",
+	publicProfileStoreName = "RobloxTemplate_PublicProfiles_v1",
+	feedbackStoreName = "RobloxTemplate_Feedback_v1",
+	leaderboardStoreName = "RobloxTemplate_CoinsLeaderboard_v1",
+
+	features = {
+		store = true,
+		inventory = true,
+		profiles = true,
+		dailyRewards = true,
+		offlineEarnings = true,
+		leaderboards = true,
+		crossServerChat = true,
+		feedback = true,
+		likesBoard = true,
+		notifications = true,
+		afKRollOver = true,
+		communityVerification = false,
+		discordVerification = false,
+		guilds = false,
+	},
+
+	studio = {
+		useLiveDataStore = false,
+		mockStartingCoins = 2500,
+		openComponentGallery = true,
+	},
+
+	identity = {
+		universeId = 0,
+		placeId = 0,
+		communityId = 0,
+	},
+
+	economy = {
+		primaryCurrency = "Coins",
+		baseOfflineRatePerSecond = 1,
+		friendBonusPerFriend = 0.10,
+		friendBonusCap = 0.50,
+		premiumBonus = 0.10,
+		freeOfflineCapHours = 4,
+		paidOfflineCapHours = 12,
+		extendedOfflineGamePassId = 0,
+	},
+
+	rewards = {
+		daily = { 250, 500, 750, 1000, 1500, 2000, 3000 },
+		codes = {
+			WELCOME = { coins = 500, itemId = "double_coins_potion", quantity = 1 },
+			THANKYOU500 = { coins = 2500, itemId = "triple_coins_potion", quantity = 1 },
+		},
+		likesMilestones = {
+			{ likes = 100, code = "WELCOME", label = "500 Coins + x2 Potion" },
+			{ likes = 500, code = "THANKYOU500", label = "Community boost" },
+		},
+		manualLikes = 0,
+		likesRefreshSeconds = 300,
+	},
+
+	announcements = {
+		intervalSeconds = 180,
+		messages = {
+			"Open Inventory from the HUD to use your boosts!",
+			"Daily rewards reset at midnight UTC.",
+			"Community links are available on the experience page.",
+		},
+	},
+
+	afK = {
+		warnAfterIdleSeconds = 15 * 60,
+		countdownSeconds = 30,
+	},
+
+	feedback = {
+		maxLength = 500,
+		cooldownSeconds = 300,
+	},
+
+	leaderboards = {
+		metric = "Coins",
+		globalSize = 50,
+		refreshSeconds = 60,
+	},
+
+	notifications = {
+		workerUrl = "",
+		dailyMessageId = "",
+		offlineMessageId = "",
+	},
+
+	products = {
+		coinPackSmall = { id = 0, coins = 1000 },
+		coinPackLarge = { id = 0, coins = 10000 },
+	},
+
+	audio = {
+		music = "",
+		click = "",
+		cash = "",
+		reward = "",
+		inventory = "",
+		lootboxOpen = "",
+		spin = "",
+	},
+}
+
+return table.freeze(Config)
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="16">
+          <Properties>
+            <string name="Name">Theme</string>
+            <string name="Source"><![CDATA[--!strict
+
+local Theme = {
+	colors = {
+		background = Color3.fromRGB(22, 25, 42),
+		surface = Color3.fromRGB(41, 45, 73),
+		surfaceRaised = Color3.fromRGB(55, 61, 96),
+		primary = Color3.fromRGB(80, 135, 255),
+		secondary = Color3.fromRGB(181, 91, 255),
+		accent = Color3.fromRGB(255, 201, 64),
+		success = Color3.fromRGB(63, 220, 142),
+		danger = Color3.fromRGB(255, 91, 112),
+		text = Color3.fromRGB(248, 249, 255),
+		textMuted = Color3.fromRGB(180, 187, 218),
+		stroke = Color3.fromRGB(112, 126, 184),
+	},
+	radius = {
+		small = UDim.new(0, 8),
+		medium = UDim.new(0, 14),
+		large = UDim.new(0, 22),
+	},
+	spacing = {
+		xs = 4,
+		sm = 8,
+		md = 12,
+		lg = 20,
+		xl = 28,
+	},
+	touchTarget = 44,
+	font = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Medium),
+	fontBold = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold),
+}
+
+return table.freeze(Theme)
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="17">
+          <Properties>
+            <string name="Name">Types</string>
+            <string name="Source"><![CDATA[--!strict
+
+export type BoostState = {
+	id: string,
+	expiresAt: number,
+	multiplier: number,
+}
+
+export type InventoryEntry = {
+	quantity: number,
+	equipped: boolean?,
+}
+
+export type PlayerSettings = {
+	musicVolume: number,
+	sfxVolume: number,
+	uiScale: number,
+	reducedMotion: boolean,
+	announcements: boolean,
+	afKRollOver: boolean,
+	notifications: boolean,
+}
+
+export type GuildReservation = {
+	guildId: string?,
+	role: string?,
+}
+
+export type PlayerProfileV1 = {
+	schemaVersion: number,
+	coins: number,
+	inventory: { [string]: InventoryEntry },
+	boosts: { BoostState },
+	settings: PlayerSettings,
+	stats: {
+		playSeconds: number,
+		joins: number,
+		totalCoinsEarned: number,
+	},
+	daily: {
+		lastClaimDay: number,
+		streak: number,
+	},
+	redemptions: { [string]: boolean },
+	entitlements: {
+		extendedOffline: boolean,
+		premium: boolean,
+	},
+	social: {
+		friendCountInServer: number,
+		communityVerified: boolean,
+		discordVerified: boolean,
+	},
+	guild: GuildReservation,
+	lastSeenAt: number,
+	offlineRateSnapshot: number,
+	createdAt: number,
+	updatedAt: number,
+}
+
+export type PublicProfile = {
+	userId: number,
+	username: string,
+	displayName: string,
+	coins: number,
+	joins: number,
+	playSeconds: number,
+	dailyStreak: number,
+	updatedAt: number,
+}
+
+export type ClientSnapshot = {
+	profile: PlayerProfileV1,
+	friendBonus: number,
+	premiumBonus: number,
+	potionMultiplier: number,
+	serverTime: number,
+	features: { [string]: boolean },
+}
+
+export type ProviderResult<T> = {
+	status: "available" | "disabled" | "error",
+	value: T?,
+	reason: string?,
+}
+
+return {}
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="ServerScriptService" referent="18">
+    <Properties>
+      <string name="Name">ServerScriptService</string>
+    </Properties>
+    <Item class="Folder" referent="19">
+      <Properties>
+        <string name="Name">PlayableStarter</string>
+      </Properties>
+      <Item class="Script" referent="20">
+        <Properties>
+          <string name="Name">StarterExample</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[--!strict
+
+local ServerScriptService = game:GetService("ServerScriptService")
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+local EconomyService = require(ServerScriptService:WaitForChild("TemplateServer").Services.EconomyService)
+
+local pad = Instance.new("Part")
+pad.Name = "ExampleEarningPad"
+pad.Anchored = true
+pad.CanCollide = true
+pad.Color = Color3.fromRGB(80, 135, 255)
+pad.Material = Enum.Material.Neon
+pad.Position = Vector3.new(0, 1, -18)
+pad.Size = Vector3.new(12, 1, 12)
+pad.Parent = Workspace
+
+local prompt = Instance.new("ProximityPrompt")
+prompt.ActionText = "Earn 10 Coins"
+prompt.ObjectText = "Template Demo"
+prompt.HoldDuration = 0.25
+prompt.MaxActivationDistance = 12
+prompt.RequiresLineOfSight = false
+prompt.Parent = pad
+
+local billboard = Instance.new("BillboardGui")
+billboard.Name = "StarterSign"
+billboard.AlwaysOnTop = true
+billboard.Size = UDim2.fromOffset(320, 80)
+billboard.StudsOffset = Vector3.new(0, 5, 0)
+billboard.Parent = pad
+
+local label = Instance.new("TextLabel")
+label.BackgroundColor3 = Color3.fromRGB(22, 25, 42)
+label.BackgroundTransparency = 0.1
+label.BorderSizePixel = 0
+label.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold)
+label.Size = UDim2.fromScale(1, 1)
+label.Text = "PLAYABLE STARTER\nUse the prompt to exercise the template economy"
+label.TextColor3 = Color3.fromRGB(248, 249, 255)
+label.TextScaled = true
+label.TextWrapped = true
+label.Parent = billboard
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 14)
+corner.Parent = label
+
+local lastAwardAt: { [Player]: number } = {}
+prompt.Triggered:Connect(function(player)
+	local now = os.clock()
+	if now - (lastAwardAt[player] or 0) < 1 then
+		return
+	end
+	lastAwardAt[player] = now
+	EconomyService.award(player, 10, "starter:earning-pad")
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	lastAwardAt[player] = nil
+end)
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+    <Item class="Script" referent="21">
+      <Properties>
+        <string name="Name">TemplateServer</string>
+        <token name="RunContext">0</token>
+        <string name="Source"><![CDATA[--!strict
+
+local Players = game:GetService("Players")
+
+local Services = script.Services
+local AnnouncementService = require(Services.AnnouncementService)
+local FeedbackService = require(Services.FeedbackService)
+local LeaderboardService = require(Services.LeaderboardService)
+local NotificationService = require(Services.NotificationService)
+local ProfileService = require(Services.ProfileService)
+local PublicProfileService = require(Services.PublicProfileService)
+local RemoteService = require(Services.RemoteService)
+local RewardService = require(Services.RewardService)
+local SocialService = require(Services.SocialService)
+local StoreService = require(Services.StoreService)
+local EconomyRateProvider = require(script.Providers.DefaultEconomyRateProvider)
+
+RemoteService.initialize()
+StoreService.initialize()
+ProfileService.startAutosave()
+LeaderboardService.start()
+AnnouncementService.start(RemoteService.broadcastAnnouncement)
+
+local function playerAdded(player: Player)
+	task.spawn(function()
+		local profile = ProfileService.load(player)
+		if profile == nil then
+			if player.Parent then
+				player:Kick("Your data could not be loaded safely. Please rejoin.")
+			end
+			return
+		end
+		NotificationService.cancel(player)
+		StoreService.refreshEntitlements(player)
+		SocialService.refresh(player)
+		player:GetPropertyChangedSignal("MembershipType"):Connect(function()
+			SocialService.refresh(player)
+		end)
+		RewardService.prepareOffline(player)
+		LeaderboardService.updateLeaderstats(player)
+		PublicProfileService.publish(player)
+		RemoteService.publish(player)
+		SocialService.refreshAll()
+	end)
+end
+
+local function playerRemoving(player: Player)
+	NotificationService.scheduleOnLeave(player)
+	PublicProfileService.publish(player)
+	LeaderboardService.flushPlayer(player)
+	RewardService.forget(player)
+	FeedbackService.forget(player)
+	RemoteService.forget(player)
+	ProfileService.release(player)
+	task.defer(SocialService.refreshAll)
+end
+
+Players.PlayerAdded:Connect(playerAdded)
+Players.PlayerRemoving:Connect(playerRemoving)
+for _, player in Players:GetPlayers() do
+	playerAdded(player)
+end
+
+task.spawn(function()
+	while true do
+		task.wait(60)
+		for _, player in Players:GetPlayers() do
+			local profile = ProfileService.get(player)
+			if profile then
+				profile.stats.playSeconds += 60
+				profile.lastSeenAt = os.time()
+				profile.offlineRateSnapshot = EconomyRateProvider.getRate(player)
+				ProfileService.markDirty(player, "playtime")
+				PublicProfileService.publish(player)
+			end
+		end
+	end
+end)
+
+game:BindToClose(function()
+	ProfileService.close()
+end)
+]]></string>
+      </Properties>
+      <Item class="Folder" referent="22">
+        <Properties>
+          <string name="Name">Providers</string>
+        </Properties>
+        <Item class="ModuleScript" referent="23">
+          <Properties>
+            <string name="Name">CommunityVerificationProvider</string>
+            <string name="Source"><![CDATA[--!strict
+
+local Config = require(
+	game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared").TemplateConfig
+)
+
+local Provider = {}
+
+function Provider.verify(player: Player): { status: string, value: boolean?, reason: string? }
+	if not Config.features.communityVerification or Config.identity.communityId <= 0 then
+		return { status = "disabled", value = false, reason = "Community ID is not configured" }
+	end
+	local success, verified = pcall(function()
+		return player:IsInGroupAsync(Config.identity.communityId)
+	end)
+	if not success then
+		return { status = "error", value = false, reason = "Roblox community lookup failed" }
+	end
+	return { status = "available", value = verified }
+end
+
+return Provider
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="24">
+          <Properties>
+            <string name="Name">DefaultEconomyRateProvider</string>
+            <string name="Source"><![CDATA[--!strict
+
+local Config = require(
+	game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared").TemplateConfig
+)
+
+local Provider = {}
+
+function Provider.getRate(_player: Player): number
+	return Config.economy.baseOfflineRatePerSecond
+end
+
+return Provider
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="25">
+          <Properties>
+            <string name="Name">DiscordVerificationProvider</string>
+            <string name="Source"><![CDATA[--!strict
+
+local Provider = {}
+
+function Provider.verify(_player: Player): { status: string, value: boolean?, reason: string? }
+	return {
+		status = "disabled",
+		value = false,
+		reason = "Discord verification requires the future one-time-code backend",
+	}
+end
+
+return Provider
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="26">
+          <Properties>
+            <string name="Name">GuildProvider</string>
+            <string name="Source"><![CDATA[--!strict
+
+local Provider = {}
+
+function Provider.getMembership(_player: Player): { status: string, value: any?, reason: string? }
+	return {
+		status = "disabled",
+		value = nil,
+		reason = "Guilds are reserved but disabled",
+	}
+end
+
+return Provider
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+      <Item class="Folder" referent="27">
+        <Properties>
+          <string name="Name">Services</string>
+        </Properties>
+        <Item class="ModuleScript" referent="28">
+          <Properties>
+            <string name="Name">AfkService</string>
+            <string name="Source"><![CDATA[--!strict
+
+local RunService = game:GetService("RunService")
+local TeleportService = game:GetService("TeleportService")
+
+local AfkService = {}
+
+function AfkService.rollOver(player: Player): (boolean, string)
+	if RunService:IsStudio() then
+		return true, "AFK rollover simulated in Studio"
+	end
+	local success, message = pcall(function()
+		TeleportService:TeleportAsync(game.PlaceId, { player })
+	end)
+	return success, if success then "Joining a fresh server" else tostring(message)
+end
+
+return AfkService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="29">
+          <Properties>
+            <string name="Name">AnnouncementService</string>
+            <string name="Source"><![CDATA[--!strict
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
+local Config = require(Shared.TemplateConfig)
+
+local AnnouncementService = {}
+
+function AnnouncementService.start(broadcast: (string) -> ())
+	task.spawn(function()
+		local index = 0
+		while true do
+			task.wait(Config.announcements.intervalSeconds)
+			index = (index % #Config.announcements.messages) + 1
+			broadcast(Config.announcements.messages[index])
+		end
+	end)
+end
+
+return AnnouncementService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="30">
+          <Properties>
+            <string name="Name">EconomyService</string>
+            <string name="Source"><![CDATA[--!strict
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
+local Config = require(Shared.TemplateConfig)
+local Calculations = require(Shared.Calculations)
+local ProfileService = require(script.Parent.ProfileService)
+
+local EconomyService = {}
+
+function EconomyService.getMultiplier(player: Player): number
+	local profile = ProfileService.get(player)
+	if profile == nil then
+		return 1
+	end
+	return Calculations.earningsMultiplier(
+		profile.social.friendCountInServer,
+		profile.entitlements.premium,
+		profile.boosts,
+		os.time(),
+		Config.economy.friendBonusPerFriend,
+		Config.economy.friendBonusCap,
+		Config.economy.premiumBonus
+	)
+end
+
+function EconomyService.awardRaw(player: Player, amount: number, source: string): (boolean, number)
+	local profile = ProfileService.get(player)
+	if profile == nil or amount ~= amount or amount <= 0 or amount == math.huge then
+		return false, 0
+	end
+	local granted = math.floor(math.min(amount, 1e12))
+	profile.coins = math.min(profile.coins + granted, 9e15)
+	profile.stats.totalCoinsEarned = math.min(profile.stats.totalCoinsEarned + granted, 9e15)
+	ProfileService.markDirty(player, `award:{source}`)
+	return true, granted
+end
+
+function EconomyService.award(player: Player, baseAmount: number, source: string): (boolean, number)
+	return EconomyService.awardRaw(player, baseAmount * EconomyService.getMultiplier(player), source)
+end
+
+function EconomyService.spend(player: Player, amount: number, source: string): boolean
+	local profile = ProfileService.get(player)
+	if profile == nil or amount ~= amount or amount <= 0 or amount == math.huge then
+		return false
+	end
+	local cost = math.floor(amount)
+	if profile.coins < cost then
+		return false
+	end
+	profile.coins -= cost
+	ProfileService.markDirty(player, `spend:{source}`)
+	return true
+end
+
+function EconomyService.permanentOfflineMultiplier(player: Player): number
+	local profile = ProfileService.get(player)
+	if profile == nil then
+		return 1
+	end
+	return 1 + (if profile.entitlements.premium then Config.economy.premiumBonus else 0)
+end
+
+return EconomyService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="31">
+          <Properties>
+            <string name="Name">FeedbackService</string>
+            <string name="Source"><![CDATA[--!strict
+
+local DataStoreService = game:GetService("DataStoreService")
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local TextService = game:GetService("TextService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
+local Config = require(Shared.TemplateConfig)
+
+local FeedbackService = {}
+local store: GlobalDataStore? = nil
+local lastSubmittedAt: { [Player]: number } = {}
+local allowedCategories = { Bug = true, Feedback = true, Accessibility = true, Other = true }
+
+local function getStore(): GlobalDataStore
+	local current = store
+	if current == nil then
+		current = DataStoreService:GetDataStore(Config.feedbackStoreName)
+		store = current
+	end
+	return current
+end
+
+function FeedbackService.submit(player: Player, category: any, message: any): (boolean, string)
+	if type(category) ~= "string" or not allowedCategories[category] then
+		return false, "Choose a valid category"
+	end
+	if type(message) ~= "string" or #message < 3 or #message > Config.feedback.maxLength then
+		return false, `Feedback must be 3-{Config.feedback.maxLength} characters`
+	end
+	local now = os.time()
+	if now - (lastSubmittedAt[player] or 0) < Config.feedback.cooldownSeconds then
+		return false, "Please wait before submitting again"
+	end
+
+	local filtered = ""
+	local isMock = RunService:IsStudio() and not Config.studio.useLiveDataStore
+	local filterSuccess = true
+	if isMock then
+		filtered = string.sub(message, 1, Config.feedback.maxLength)
+	else
+		filterSuccess = pcall(function()
+			local result =
+				TextService:FilterStringAsync(message, player.UserId, Enum.TextFilterContext.PrivateChat)
+			filtered = result:GetNonChatStringForBroadcastAsync()
+		end)
+	end
+	if not filterSuccess or filtered == "" then
+		return false, "Feedback could not be filtered"
+	end
+
+	local record = {
+		category = category,
+		message = filtered,
+		userId = player.UserId,
+		placeId = game.PlaceId,
+		jobId = game.JobId,
+		templateVersion = Config.version,
+		createdAt = now,
+	}
+	local success = true
+	if isMock then
+		print("[Template feedback mock]", record)
+	else
+		success = pcall(function()
+			getStore():SetAsync(`report:{now}:{HttpService:GenerateGUID(false)}`, record)
+		end)
+	end
+	if not success then
+		return false, "Feedback storage is temporarily unavailable"
+	end
+	lastSubmittedAt[player] = now
+	return true, "Thanks—your report was stored"
+end
+
+function FeedbackService.forget(player: Player)
+	lastSubmittedAt[player] = nil
+end
+
+return FeedbackService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="32">
+          <Properties>
+            <string name="Name">InventoryService</string>
+            <string name="Source"><![CDATA[--!strict
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
+local Catalogs = require(Shared.Catalogs)
+local ProfileService = require(script.Parent.ProfileService)
+local EconomyService = require(script.Parent.EconomyService)
+
+local InventoryService = {}
+
+function InventoryService.grant(player: Player, itemId: string, quantity: number): boolean
+	local profile = ProfileService.get(player)
+	local definition = Catalogs.items[itemId]
+	if profile == nil or definition == nil or quantity < 1 then
+		return false
+	end
+	local entry = profile.inventory[itemId] or { quantity = 0 }
+	entry.quantity = math.clamp(entry.quantity + math.floor(quantity), 0, definition.maxStack)
+	profile.inventory[itemId] = entry
+	ProfileService.markDirty(player, `inventory:grant:{itemId}`)
+	return true
+end
+
+function InventoryService.buy(player: Player, itemId: string): (boolean, string)
+	local definition = Catalogs.items[itemId]
+	if definition == nil or definition.priceCoins == nil then
+		return false, "Item is unavailable"
+	end
+	local profile = ProfileService.get(player)
+	if profile == nil then
+		return false, "Profile is not loaded"
+	end
+	local entry = profile.inventory[itemId]
+	if entry and entry.quantity >= definition.maxStack then
+		return false, "Inventory stack is full"
+	end
+	if not EconomyService.spend(player, definition.priceCoins, `shop:{itemId}`) then
+		return false, "Not enough Coins"
+	end
+	InventoryService.grant(player, itemId, 1)
+	return true, `Purchased {definition.name}`
+end
+
+function InventoryService.consume(player: Player, itemId: string): (boolean, string)
+	local profile = ProfileService.get(player)
+	local definition = Catalogs.items[itemId]
+	local entry = if profile then profile.inventory[itemId] else nil
+	if profile == nil or definition == nil or entry == nil or entry.quantity < 1 then
+		return false, "Item is unavailable"
+	end
+	if
+		definition.category ~= "Consumable"
+		or definition.boostMultiplier == nil
+		or definition.boostDurationSeconds == nil
+	then
+		return false, "Item cannot be consumed"
+	end
+
+	entry.quantity -= 1
+	local now = os.time()
+	local found = false
+	for _, boost in profile.boosts do
+		if boost.id == itemId then
+			boost.expiresAt = math.max(boost.expiresAt, now) + definition.boostDurationSeconds
+			boost.multiplier = definition.boostMultiplier
+			found = true
+			break
+		end
+	end
+	if not found then
+		table.insert(profile.boosts, {
+			id = itemId,
+			expiresAt = now + definition.boostDurationSeconds,
+			multiplier = definition.boostMultiplier,
+		})
+	end
+	ProfileService.markDirty(player, `inventory:consume:{itemId}`)
+	return true, `Activated {definition.name}`
+end
+
+function InventoryService.toggleEquip(player: Player, itemId: string): (boolean, string)
+	local profile = ProfileService.get(player)
+	local definition = Catalogs.items[itemId]
+	local entry = if profile then profile.inventory[itemId] else nil
+	if profile == nil or definition == nil or entry == nil or entry.quantity < 1 then
+		return false, "Item is unavailable"
+	end
+	if definition.category ~= "Equipment" then
+		return false, "Item is not equipment"
+	end
+	entry.equipped = not entry.equipped
+	ProfileService.markDirty(player, `inventory:equip:{itemId}`)
+	return true, if entry.equipped then "Equipped" else "Unequipped"
+end
+
+return InventoryService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="33">
+          <Properties>
+            <string name="Name">LeaderboardService</string>
+            <string name="Source"><![CDATA[--!strict
+
+local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
+local Config = require(Shared.TemplateConfig)
+local ProfileService = require(script.Parent.ProfileService)
+
+local LeaderboardService = {}
+local store: OrderedDataStore? = nil
+local nameCache: { [number]: string } = {}
+
+local function getStore(): OrderedDataStore
+	local current = store
+	if current == nil then
+		current = DataStoreService:GetOrderedDataStore(Config.leaderboardStoreName)
+		store = current
+	end
+	return current
+end
+
+local function displayName(userId: number): string
+	if nameCache[userId] then
+		return nameCache[userId]
+	end
+	local success, name = pcall(function()
+		return Players:GetNameFromUserIdAsync(userId)
+	end)
+	local result = if success then name else `User {userId}`
+	nameCache[userId] = result
+	return result
+end
+
+function LeaderboardService.updateLeaderstats(player: Player)
+	local profile = ProfileService.get(player)
+	if profile == nil then
+		return
+	end
+	local folder = player:FindFirstChild("leaderstats") :: Folder?
+	if folder == nil then
+		folder = Instance.new("Folder")
+		folder.Name = "leaderstats"
+		folder.Parent = player
+	end
+	local coins = folder:FindFirstChild("Coins") :: IntValue?
+	if coins == nil then
+		coins = Instance.new("IntValue")
+		coins.Name = "Coins"
+		coins.Parent = folder
+	end
+	coins.Value = math.clamp(math.floor(profile.coins), 0, 2147483647)
+end
+
+function LeaderboardService.serverBoard(): { any }
+	local rows = {}
+	for _, player in Players:GetPlayers() do
+		local profile = ProfileService.get(player)
+		if profile then
+			table.insert(rows, { userId = player.UserId, name = player.DisplayName, value = profile.coins })
+		end
+	end
+	table.sort(rows, function(a, b)
+		return a.value > b.value
+	end)
+	return rows
+end
+
+function LeaderboardService.globalBoard(): (boolean, { any } | string)
+	if RunService:IsStudio() and not Config.studio.useLiveDataStore then
+		return true, LeaderboardService.serverBoard()
+	end
+	local success, result = pcall(function()
+		local pages = getStore():GetSortedAsync(false, Config.leaderboards.globalSize)
+		local rows = {}
+		for rank, entry in pages:GetCurrentPage() do
+			local userId = tonumber(entry.key) or 0
+			table.insert(
+				rows,
+				{ rank = rank, userId = userId, name = displayName(userId), value = entry.value }
+			)
+		end
+		return rows
+	end)
+	return success, if success then result else "Global leaderboard is unavailable"
+end
+
+function LeaderboardService.flushPlayer(player: Player)
+	local profile = ProfileService.get(player)
+	if profile == nil or (RunService:IsStudio() and not Config.studio.useLiveDataStore) then
+		return
+	end
+	pcall(function()
+		getStore():SetAsync(tostring(player.UserId), math.floor(profile.coins))
+	end)
+end
+
+function LeaderboardService.start()
+	task.spawn(function()
+		while true do
+			task.wait(Config.leaderboards.refreshSeconds)
+			for _, player in Players:GetPlayers() do
+				LeaderboardService.updateLeaderstats(player)
+				LeaderboardService.flushPlayer(player)
+			end
+		end
+	end)
+end
+
+return LeaderboardService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="34">
+          <Properties>
+            <string name="Name">LikesService</string>
+            <string name="Source"><![CDATA[--!strict
+
+local HttpService = game:GetService("HttpService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
+local Config = require(Shared.TemplateConfig)
+
+local LikesService = {}
+local lastKnown = Config.rewards.manualLikes
+local updatedAt = 0
+
+function LikesService.getLikes(): { status: string, value: number?, reason: string? }
+	if os.time() - updatedAt < Config.rewards.likesRefreshSeconds then
+		return { status = "available", value = lastKnown }
+	end
+	updatedAt = os.time()
+	if Config.identity.universeId <= 0 or not HttpService.HttpEnabled then
+		return { status = "disabled", value = lastKnown, reason = "Using the configured preview count" }
+	end
+
+	local success, response = pcall(function()
+		return HttpService:RequestAsync({
+			Url = `https://games.roblox.com/v1/games/votes?universeIds={Config.identity.universeId}`,
+			Method = "GET",
+		})
+	end)
+	if success and response.Success then
+		local decoded = HttpService:JSONDecode(response.Body)
+		local first = decoded.data and decoded.data[1]
+		if first and type(first.upVotes) == "number" then
+			lastKnown = first.upVotes
+			return { status = "available", value = lastKnown }
+		end
+	end
+	return { status = "error", value = lastKnown, reason = "Showing the last known likes count" }
+end
+
+return LikesService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="35">
+          <Properties>
+            <string name="Name">NotificationService</string>
+            <string name="Source"><![CDATA[--!strict
+
+local HttpService = game:GetService("HttpService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
+local Config = require(Shared.TemplateConfig)
+local ProfileService = require(script.Parent.ProfileService)
+
+local NotificationService = {}
+
+local function request(path: string, body: any): boolean
+	if Config.notifications.workerUrl == "" or not HttpService.HttpEnabled then
+		return false
+	end
+	local success = pcall(function()
+		local secret = HttpService:GetSecret("NotificationWorkerSecret")
+		local headers: any = { Authorization = secret:AddPrefix("Bearer ") }
+		local response = HttpService:RequestAsync({
+			Url = Config.notifications.workerUrl .. path,
+			Method = "POST",
+			Headers = headers,
+			Body = HttpService:JSONEncode(body),
+		})
+		if not response.Success then
+			error(`Worker returned {response.StatusCode}`)
+		end
+	end)
+	return success
+end
+
+function NotificationService.scheduleOnLeave(player: Player)
+	local profile = ProfileService.get(player)
+	if profile == nil or not profile.settings.notifications then
+		return
+	end
+	local now = os.time()
+	local nextDay = (math.floor(now / 86400) + 1) * 86400 + 9 * 3600
+	if Config.notifications.dailyMessageId ~= "" then
+		request("/v1/jobs", {
+			userId = player.UserId,
+			kind = "daily",
+			dueAt = nextDay,
+			messageId = Config.notifications.dailyMessageId,
+			launchData = "daily",
+		})
+	end
+	if Config.notifications.offlineMessageId ~= "" then
+		request("/v1/jobs", {
+			userId = player.UserId,
+			kind = "offline",
+			dueAt = now + Config.economy.freeOfflineCapHours * 3600,
+			messageId = Config.notifications.offlineMessageId,
+			launchData = "offline",
+		})
+	end
+end
+
+function NotificationService.cancel(player: Player)
+	request("/v1/cancel", { userId = player.UserId })
+end
+
+return NotificationService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="36">
+          <Properties>
+            <string name="Name">ProfileService</string>
+            <string name="Source"><![CDATA[--!strict
+
+local DataStoreService = game:GetService("DataStoreService")
+local RunService = game:GetService("RunService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
+local Config = require(Shared.TemplateConfig)
+local Migrations = require(Shared.Migrations)
+local ProfileTemplate = require(Shared.ProfileTemplate)
+local Types = require(Shared.Types)
+local SessionLock = require(script.Parent.Parent.Util.SessionLock)
+
+type PlayerProfileV1 = Types.PlayerProfileV1
+type Envelope = {
+	data: PlayerProfileV1,
+	lock: SessionLock.Lock?,
+	updatedAt: number,
+}
+
+local ProfileService = {}
+local profiles: { [Player]: PlayerProfileV1 } = {}
+local dirty: { [Player]: boolean } = {}
+local mockProfiles: { [number]: PlayerProfileV1 } = {}
+local changedEvent = Instance.new("BindableEvent")
+local store: GlobalDataStore? = nil
+local lockTimeoutSeconds = 180
+local autosaveSeconds = 60
+local closing = false
+
+ProfileService.changed = changedEvent.Event
+
+local function copy(value: any): any
+	if type(value) ~= "table" then
+		return value
+	end
+	local output = {}
+	for key, child in value do
+		output[copy(key)] = copy(child)
+	end
+	return output
+end
+
+local function keyFor(player: Player): string
+	return `player:{player.UserId}`
+end
+
+local function shouldMock(): boolean
+	return RunService:IsStudio() and not Config.studio.useLiveDataStore
+end
+
+local function getStore(): GlobalDataStore
+	local current = store
+	if current == nil then
+		current = DataStoreService:GetDataStore(Config.profileStoreName)
+		store = current
+	end
+	return current
+end
+
+local function updateEnvelope(player: Player, release: boolean): boolean
+	local profile = profiles[player]
+	if profile == nil then
+		return false
+	end
+	profile.updatedAt = os.time()
+
+	if shouldMock() then
+		mockProfiles[player.UserId] = copy(profile)
+		return true
+	end
+
+	local success, result = pcall(function()
+		return getStore():UpdateAsync(keyFor(player), function(old: Envelope?): Envelope?
+			if old == nil or old.lock == nil or old.lock.jobId ~= game.JobId then
+				return nil
+			end
+			return {
+				data = copy(profile),
+				lock = if release then nil else SessionLock.claim(game.JobId, game.PlaceId, os.time()),
+				updatedAt = os.time(),
+			}
+		end)
+	end)
+	if not success or result == nil then
+		return false
+	end
+	return release or (result.lock ~= nil and result.lock.jobId == game.JobId)
+end
+
+function ProfileService.load(player: Player): PlayerProfileV1?
+	if profiles[player] ~= nil then
+		return profiles[player]
+	end
+
+	local now = os.time()
+	local loaded: PlayerProfileV1? = nil
+	if shouldMock() then
+		loaded = Migrations.migrate(mockProfiles[player.UserId] or ProfileTemplate.create(now), now)
+		if loaded then
+			loaded.coins = math.max(loaded.coins, Config.studio.mockStartingCoins)
+		end
+	else
+		for attempt = 1, 5 do
+			local attemptNow = os.time()
+			local success, result = pcall(function()
+				return getStore():UpdateAsync(keyFor(player), function(old: Envelope?): Envelope?
+					local envelope = old
+					if envelope == nil then
+						envelope = {
+							data = ProfileTemplate.create(now),
+							lock = nil,
+							updatedAt = now,
+						}
+					end
+					if
+						not SessionLock.canClaim(envelope.lock, game.JobId, attemptNow, lockTimeoutSeconds)
+					then
+						return nil
+					end
+					envelope.data = Migrations.migrate(envelope.data, now)
+					envelope.lock = SessionLock.claim(game.JobId, game.PlaceId, attemptNow)
+					envelope.updatedAt = attemptNow
+					return envelope
+				end)
+			end)
+			if success and result ~= nil and result.lock ~= nil and result.lock.jobId == game.JobId then
+				loaded = result.data
+				break
+			end
+			task.wait(math.min(2 ^ attempt, 8))
+		end
+	end
+
+	if loaded == nil or player.Parent == nil then
+		return nil
+	end
+	loaded.stats.joins += 1
+	loaded.updatedAt = now
+	profiles[player] = loaded
+	dirty[player] = true
+	changedEvent:Fire(player, "loaded")
+	return loaded
+end
+
+function ProfileService.get(player: Player): PlayerProfileV1?
+	return profiles[player]
+end
+
+function ProfileService.snapshot(player: Player): PlayerProfileV1?
+	local profile = profiles[player]
+	return if profile then copy(profile) else nil
+end
+
+function ProfileService.markDirty(player: Player, reason: string?)
+	if profiles[player] == nil then
+		return
+	end
+	dirty[player] = true
+	changedEvent:Fire(player, reason or "updated")
+end
+
+function ProfileService.save(player: Player): boolean
+	if not dirty[player] then
+		return true
+	end
+	local success = updateEnvelope(player, false)
+	if success then
+		dirty[player] = nil
+	end
+	return success
+end
+
+function ProfileService.release(player: Player)
+	local profile = profiles[player]
+	if profile == nil then
+		return
+	end
+	profile.lastSeenAt = os.time()
+	profile.updatedAt = os.time()
+	updateEnvelope(player, true)
+	profiles[player] = nil
+	dirty[player] = nil
+end
+
+function ProfileService.startAutosave()
+	task.spawn(function()
+		while not closing do
+			task.wait(autosaveSeconds)
+			for player in profiles do
+				ProfileService.save(player)
+			end
+		end
+	end)
+end
+
+function ProfileService.close()
+	closing = true
+	local threads = 0
+	for player in profiles do
+		threads += 1
+		task.spawn(function()
+			ProfileService.release(player)
+			threads -= 1
+		end)
+	end
+	local deadline = os.clock() + 25
+	while threads > 0 and os.clock() < deadline do
+		task.wait()
+	end
+end
+
+return ProfileService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="37">
+          <Properties>
+            <string name="Name">PublicProfileService</string>
+            <string name="Source"><![CDATA[--!strict
+
+local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
+local Config = require(Shared.TemplateConfig)
+local Types = require(Shared.Types)
+local ProfileService = require(script.Parent.ProfileService)
+
+type PublicProfile = Types.PublicProfile
+
+local PublicProfileService = {}
+local store: GlobalDataStore? = nil
+local mock: { [number]: PublicProfile } = {}
+
+local function getStore(): GlobalDataStore
+	local current = store
+	if current == nil then
+		current = DataStoreService:GetDataStore(Config.publicProfileStoreName)
+		store = current
+	end
+	return current
+end
+
+local function key(userId: number): string
+	return `user:{userId}`
+end
+
+function PublicProfileService.fromPlayer(player: Player): PublicProfile?
+	local profile = ProfileService.get(player)
+	if profile == nil then
+		return nil
+	end
+	return {
+		userId = player.UserId,
+		username = player.Name,
+		displayName = player.DisplayName,
+		coins = profile.coins,
+		joins = profile.stats.joins,
+		playSeconds = profile.stats.playSeconds,
+		dailyStreak = profile.daily.streak,
+		updatedAt = os.time(),
+	}
+end
+
+function PublicProfileService.publish(player: Player)
+	local public = PublicProfileService.fromPlayer(player)
+	if public == nil then
+		return
+	end
+	if RunService:IsStudio() and not Config.studio.useLiveDataStore then
+		mock[player.UserId] = public
+		return
+	end
+	pcall(function()
+		getStore():SetAsync(key(player.UserId), public)
+	end)
+end
+
+function PublicProfileService.find(rawUsername: any): (boolean, PublicProfile? | string)
+	if type(rawUsername) ~= "string" or #rawUsername < 3 or #rawUsername > 20 then
+		return false, "Enter an exact Roblox username"
+	end
+	local success, userId = pcall(function()
+		return Players:GetUserIdFromNameAsync(rawUsername)
+	end)
+	if not success or type(userId) ~= "number" then
+		return false, "Player was not found"
+	end
+	local online = Players:GetPlayerByUserId(userId)
+	if online then
+		return true, PublicProfileService.fromPlayer(online)
+	end
+	if RunService:IsStudio() and not Config.studio.useLiveDataStore then
+		return if mock[userId] then true else false, mock[userId] or "No public stats are available"
+	end
+	local readSuccess, result = pcall(function()
+		return getStore():GetAsync(key(userId))
+	end)
+	if not readSuccess or result == nil then
+		return false, "No public stats are available"
+	end
+	return true, result
+end
+
+return PublicProfileService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="38">
+          <Properties>
+            <string name="Name">RemoteService</string>
+            <string name="Source"><![CDATA[--!strict
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Template"):WaitForChild("Shared")
+local Catalogs = require(Shared.Catalogs)
+local Config = require(Shared.TemplateConfig)
+local Calculations = require(Shared.Calculations)
+local RemoteNames = require(Shared.RemoteNames)
+
+local RateLimiter = require(script.Parent.Parent.Util.RateLimiter)
+local AfkService = require(script.Parent.AfkService)
+local FeedbackService = require(script.Parent.FeedbackService)
+local InventoryService = require(script.Parent.InventoryService)
+local LeaderboardService = require(script.Parent.LeaderboardService)
+local LikesService = require(script.Parent.LikesService)
+local ProfileService = require(script.Parent.ProfileService)
+local PublicProfileService = require(script.Parent.PublicProfileService)
+local RewardService = require(script.Parent.RewardService)
+local SettingsService = require(script.Parent.SettingsService)
+
+local RemoteService = {}
+local limiter = RateLimiter.new()
+local stateRemote: RemoteEvent
+local requestRemote: RemoteEvent
+local queryRemote: RemoteFunction
+
+local function getOrCreate(className: string, name: string, parent: Instance): Instance
+	local existing = parent:FindFirstChild(name)
+	if existing and existing.ClassName == className then
+		return existing
+	end
+	if existing then
+		existing:Destroy()
+	end
+	local instance = Instance.new(className)
+	instance.Name = name
+	instance.Parent = parent
+	return instance
+end
+
+function RemoteService.snapshot(player: Player): any
+	local profile = ProfileService.snapshot(player)
+	if profile == nil then
+		return nil
+	end
+	local likes = LikesService.getLikes()
+	return {
+		profile = profile,
+		catalog = Catalogs.items,
+		features = Config.features,
+		version = Config.version,
+		serverTime = os.time(),
+		friendBonus = Calculations.friendBonus(
+			profile.social.friendCountInServer,
+			Config.economy.friendBonusPerFriend,
+			Config.economy.friendBonusCap
+		),
+		premiumBonus = if profile.entitlements.premium then Config.economy.premiumBonus else 0,
+		potionMultiplier = Calculations.potionMultiplier(profile.boosts, os.time()),
+		offline = RewardService.getPendingOffline(player),
+		likes = likes,
+		likesMilestones = Config.rewards.likesMilestones,
+		serverLeaderboard = LeaderboardService.serverBoard(),
+		productAvailability = {
+			coinPackSmall = Config.products.coinPackSmall.id > 0,
+			coinPackLarge = Config.products.coinPackLarge.id > 0,
+			extendedOffline = Config.economy.extendedOfflineGamePassId > 0,
+		},
+		productIds = {
+			coinPackSmall = Config.products.coinPackSmall.id,
+			coinPackLarge = Config.products.coinPackLarge.id,
+			extendedOffline = Config.economy.extendedOfflineGamePassId,
+		},
+		integrationAvailability = {
+			community = Config.features.communityVerification and Config.identity.communityId > 0,
+			discord = false,
+			guilds = false,
+			notificationWorker = Config.notifications.workerUrl ~= "",
+		},
+	}
+end
+
+function RemoteService.publish(player: Player)
+	if stateRemote and player.Parent then
+		stateRemote:FireClient(player, { kind = "Snapshot", data = RemoteService.snapshot(player) })
+	end
+end
+
+local function result(player: Player, ok: boolean, message: string, data: any?)
+	stateRemote:FireClient(player, { kind = "Result", ok = ok, message = message, data = data })
+	RemoteService.publish(player)
+end
+
+local function handleRequest(player: Player, packet: any)
+	if type(packet) ~= "table" or type(packet.action) ~= "string" then
+		return
+	end
+	local action = packet.action
+	local payload = packet.payload
+	if not limiter:allow(player, action, 6, 1) then
+		result(player, false, "Please slow down")
+		return
+	end
+
+	if action == "BuyItem" then
+		local itemId = if type(payload) == "table" then payload.itemId else nil
+		if type(itemId) ~= "string" or #itemId > 64 then
+			result(player, false, "Invalid item")
+			return
+		end
+		result(player, InventoryService.buy(player, itemId))
+	elseif action == "UseItem" then
+		local itemId = if type(payload) == "table" then payload.itemId else nil
+		if type(itemId) ~= "string" or #itemId > 64 then
+			result(player, false, "Invalid item")
+			return
+		end
+		result(player, InventoryService.consume(player, itemId))
+	elseif action == "ToggleEquip" then
+		local itemId = if type(payload) == "table" then payload.itemId else nil
+		if type(itemId) ~= "string" or #itemId > 64 then
+			result(player, false, "Invalid item")
+			return
+		end
+		result(player, InventoryService.toggleEquip(player, itemId))
+	elseif action == "ClaimDaily" then
+		result(player, RewardService.claimDaily(player))
+	elseif action == "ClaimOffline" then
+		result(player, RewardService.claimOffline(player))
+	elseif action == "RedeemCode" then
+		result(
+			player,
+			RewardService.redeemCode(player, if type(payload) == "table" then payload.code else nil)
+		)
+	elseif action == "UpdateSetting" then
+		if type(payload) ~= "table" then
+			result(player, false, "Invalid setting")
+			return
+		end
+		result(player, SettingsService.update(player, payload.key, payload.value))
+	elseif action == "SubmitFeedback" then
+		if type(payload) ~= "table" then
+			result(player, false, "Invalid feedback")
+			return
+		end
+		result(player, FeedbackService.submit(player, payload.category, payload.message))
+	elseif action == "AfkRollover" then
+		local profile = ProfileService.get(player)
+		if profile == nil or not profile.settings.afKRollOver then
+			result(player, false, "AFK rollover is disabled")
+			return
+		end
+		result(player, AfkService.rollOver(player))
+	else
+		result(player, false, "Unknown request")
+	end
+end
+
+local function handleQuery(player: Player, action: any, payload: any): any
+	if type(action) ~= "string" or not limiter:allow(player, `query:{action}`, 4, 0.5) then
+		return { ok = false, message = "Request unavailable" }
+	end
+	if action == "InitialState" then
+		return { ok = true, data = RemoteService.snapshot(player) }
+	elseif action == "SearchProfile" then
+		local username = if type(payload) == "table" then payload.username else nil
+		local ok, data = PublicProfileService.find(username)
+		return { ok = ok, data = if ok then data else nil, message = if ok then nil else data }
+	elseif action == "GlobalLeaderboard" then
+		local ok, data = LeaderboardService.globalBoard()
+		return { ok = ok, data = if ok then data else nil, message = if ok then nil else data }
+	end
+	return { ok = false, message = "Unknown query" }
+end
+
+function RemoteService.initialize()
+	local folder = ReplicatedStorage:FindFirstChild(RemoteNames.folder)
+	if folder == nil then
+		folder = Instance.new("Folder")
+		folder.Name = RemoteNames.folder
+		folder.Parent = ReplicatedStorage
+	end
+	requestRemote = getOrCreate("RemoteEvent", RemoteNames.request, folder) :: RemoteEvent
+	stateRemote = getOrCreate("RemoteEvent", RemoteNames.state, folder) :: RemoteEvent
+	queryRemote = getOrCreate("RemoteFunction", RemoteNames.query, folder) :: RemoteFunction
+	requestRemote.OnServerEvent:Connect(handleRequest)
+	queryRemote.OnServerInvoke = handleQuery
+	ProfileService.changed:Connect(function(player)
+		LeaderboardService.updateLeaderstats(player)
+		RemoteService.publish(player)
+	end)
+end
+
+function RemoteService.broadcastAnnouncement(message: string)
+	stateRemote:FireAllClients({ kind = "Announcement", message = message })
+end
+
+function RemoteService.forget(player: Player)
+	limiter:forget(player)
+end
+
+return RemoteService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="39">
+          <Properties>
+            <string name="Name">RewardService</string>
+            <string name="Source"><![CDATA[--!strict
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
+local Config = require(Shared.TemplateConfig)
+local Calculations = require(Shared.Calculations)
+local ProfileService = require(script.Parent.ProfileService)
+local EconomyService = require(script.Parent.EconomyService)
+local InventoryService = require(script.Parent.InventoryService)
+local LikesService = require(script.Parent.LikesService)
+local EconomyRateProvider = require(script.Parent.Parent.Providers.DefaultEconomyRateProvider)
+
+local RewardService = {}
+local pendingOffline: { [Player]: { amount: number, elapsed: number } } = {}
+
+function RewardService.prepareOffline(player: Player)
+	local profile = ProfileService.get(player)
+	if profile == nil then
+		return
+	end
+	local capHours = if profile.entitlements.extendedOffline
+		then Config.economy.paidOfflineCapHours
+		else Config.economy.freeOfflineCapHours
+	local amount, elapsed = Calculations.offlineEarnings(
+		profile.lastSeenAt,
+		os.time(),
+		profile.offlineRateSnapshot,
+		capHours,
+		EconomyService.permanentOfflineMultiplier(player)
+	)
+	pendingOffline[player] = { amount = amount, elapsed = elapsed }
+	profile.lastSeenAt = os.time()
+	profile.offlineRateSnapshot = EconomyRateProvider.getRate(player)
+	ProfileService.markDirty(player, "offline:prepared")
+end
+
+function RewardService.getPendingOffline(player: Player): { amount: number, elapsed: number }
+	return pendingOffline[player] or { amount = 0, elapsed = 0 }
+end
+
+function RewardService.claimOffline(player: Player): (boolean, string)
+	local pending = pendingOffline[player]
+	if pending == nil or pending.amount <= 0 then
+		return false, "No offline earnings are ready"
+	end
+	pendingOffline[player] = nil
+	EconomyService.awardRaw(player, pending.amount, "offline")
+	return true, `Claimed {pending.amount} Coins`
+end
+
+function RewardService.claimDaily(player: Player): (boolean, string)
+	local profile = ProfileService.get(player)
+	if profile == nil then
+		return false, "Profile is not loaded"
+	end
+	local canClaim, nextStreak = Calculations.dailyClaim(
+		profile.daily.lastClaimDay,
+		profile.daily.streak,
+		os.time(),
+		#Config.rewards.daily
+	)
+	if not canClaim then
+		return false, "Daily reward already claimed"
+	end
+	local amount = Config.rewards.daily[nextStreak]
+	profile.daily.lastClaimDay = Calculations.utcDay(os.time())
+	profile.daily.streak = nextStreak
+	EconomyService.awardRaw(player, amount, "daily")
+	ProfileService.markDirty(player, "daily:claim")
+	return true, `Day {nextStreak}: {amount} Coins`
+end
+
+function RewardService.redeemCode(player: Player, rawCode: any): (boolean, string)
+	local code = Calculations.normalizeCode(rawCode)
+	local profile = ProfileService.get(player)
+	if code == nil or profile == nil then
+		return false, "Invalid code"
+	end
+	local reward = Config.rewards.codes[code]
+	if reward == nil then
+		return false, "Code does not exist"
+	end
+	if profile.redemptions[code] then
+		return false, "Code already redeemed"
+	end
+	for _, milestone in Config.rewards.likesMilestones do
+		if milestone.code == code then
+			local likes = LikesService.getLikes()
+			if (likes.value or 0) < milestone.likes then
+				return false, `Code unlocks at {milestone.likes} likes`
+			end
+			break
+		end
+	end
+	profile.redemptions[code] = true
+	if reward.coins and reward.coins > 0 then
+		EconomyService.awardRaw(player, reward.coins, `code:{code}`)
+	end
+	if reward.itemId and reward.quantity then
+		InventoryService.grant(player, reward.itemId, reward.quantity)
+	end
+	ProfileService.markDirty(player, `code:{code}`)
+	return true, "Code redeemed"
+end
+
+function RewardService.forget(player: Player)
+	pendingOffline[player] = nil
+end
+
+return RewardService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="40">
+          <Properties>
+            <string name="Name">SettingsService</string>
+            <string name="Source"><![CDATA[--!strict
+
+local ProfileService = require(script.Parent.ProfileService)
+
+local SettingsService = {}
+
+function SettingsService.update(player: Player, key: any, value: any): (boolean, string)
+	local profile = ProfileService.get(player)
+	if profile == nil or type(key) ~= "string" then
+		return false, "Profile is not loaded"
+	end
+	if key == "musicVolume" or key == "sfxVolume" then
+		if type(value) ~= "number" or value ~= value then
+			return false, "Volume must be a number"
+		end
+		profile.settings[key] = math.clamp(value, 0, 1)
+	elseif key == "uiScale" then
+		if type(value) ~= "number" or value ~= value then
+			return false, "UI scale must be a number"
+		end
+		profile.settings.uiScale = math.clamp(value, 0.8, 1.2)
+	elseif
+		key == "reducedMotion"
+		or key == "announcements"
+		or key == "afKRollOver"
+		or key == "notifications"
+	then
+		if type(value) ~= "boolean" then
+			return false, "Setting must be on or off"
+		end
+		profile.settings[key] = value
+	else
+		return false, "Setting is not supported"
+	end
+	ProfileService.markDirty(player, `settings:{key}`)
+	return true, "Setting updated"
+end
+
+return SettingsService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="41">
+          <Properties>
+            <string name="Name">SocialService</string>
+            <string name="Source"><![CDATA[--!strict
+
+local Players = game:GetService("Players")
+
+local ProfileService = require(script.Parent.ProfileService)
+local CommunityVerificationProvider = require(script.Parent.Parent.Providers.CommunityVerificationProvider)
+
+local SocialService = {}
+
+local function countFriends(player: Player): number
+	local count = 0
+	for _, other in Players:GetPlayers() do
+		if other ~= player then
+			local success, isFriend = pcall(function()
+				return player:IsFriendsWithAsync(other.UserId)
+			end)
+			if success and isFriend then
+				count += 1
+			end
+		end
+	end
+	return count
+end
+
+function SocialService.refresh(player: Player)
+	local profile = ProfileService.get(player)
+	if profile == nil then
+		return
+	end
+	profile.entitlements.premium = player.MembershipType == Enum.MembershipType.Premium
+	profile.social.friendCountInServer = countFriends(player)
+
+	local verification = CommunityVerificationProvider.verify(player)
+	profile.social.communityVerified = verification.status == "available" and verification.value == true
+	ProfileService.markDirty(player, "social:refresh")
+end
+
+function SocialService.refreshAll()
+	task.spawn(function()
+		for _, player in Players:GetPlayers() do
+			SocialService.refresh(player)
+		end
+	end)
+end
+
+return SocialService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="42">
+          <Properties>
+            <string name="Name">StoreService</string>
+            <string name="Source"><![CDATA[--!strict
+
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
+local Config = require(Shared.TemplateConfig)
+local ReceiptLedger = require(Shared.ReceiptLedger)
+local ProfileService = require(script.Parent.ProfileService)
+local EconomyService = require(script.Parent.EconomyService)
+
+local StoreService = {}
+
+local function amountForProduct(productId: number): number?
+	if productId == Config.products.coinPackSmall.id and productId > 0 then
+		return Config.products.coinPackSmall.coins
+	elseif productId == Config.products.coinPackLarge.id and productId > 0 then
+		return Config.products.coinPackLarge.coins
+	end
+	return nil
+end
+
+function StoreService.refreshEntitlements(player: Player)
+	local profile = ProfileService.get(player)
+	if profile == nil then
+		return
+	end
+	if Config.economy.extendedOfflineGamePassId <= 0 then
+		profile.entitlements.extendedOffline = false
+		return
+	end
+	local success, owns = pcall(function()
+		return MarketplaceService:UserOwnsGamePassAsync(
+			player.UserId,
+			Config.economy.extendedOfflineGamePassId
+		)
+	end)
+	if success then
+		profile.entitlements.extendedOffline = owns
+		ProfileService.markDirty(player, "entitlement:offline")
+	end
+end
+
+function StoreService.initialize()
+	MarketplaceService.ProcessReceipt = function(receiptInfo)
+		local player = game:GetService("Players"):GetPlayerByUserId(receiptInfo.PlayerId)
+		if player == nil then
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
+		local profile = ProfileService.get(player)
+		local amount = amountForProduct(receiptInfo.ProductId)
+		if profile == nil or amount == nil then
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
+		local receiptKey = ReceiptLedger.key(receiptInfo.PurchaseId)
+		if ReceiptLedger.claim(profile.redemptions, receiptInfo.PurchaseId) then
+			EconomyService.awardRaw(player, amount, `product:{receiptInfo.ProductId}`)
+			ProfileService.markDirty(player, receiptKey)
+		end
+		if not ProfileService.save(player) then
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gamePassId, purchased)
+		if purchased and gamePassId == Config.economy.extendedOfflineGamePassId then
+			StoreService.refreshEntitlements(player)
+		end
+	end)
+end
+
+return StoreService
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+      <Item class="Folder" referent="43">
+        <Properties>
+          <string name="Name">Util</string>
+        </Properties>
+        <Item class="ModuleScript" referent="44">
+          <Properties>
+            <string name="Name">RateLimiter</string>
+            <string name="Source"><![CDATA[--!strict
+
+local RateLimiter = {}
+RateLimiter.__index = RateLimiter
+
+export type RateLimiter = typeof(setmetatable(
+	{} :: {
+		buckets: { [Player]: { [string]: { tokens: number, updatedAt: number } } },
+	},
+	RateLimiter
+))
+
+function RateLimiter.new(): RateLimiter
+	return setmetatable({ buckets = {} }, RateLimiter)
+end
+
+function RateLimiter.allow(
+	self: RateLimiter,
+	player: Player,
+	action: string,
+	capacity: number,
+	refillPerSecond: number
+): boolean
+	local now = os.clock()
+	local playerBuckets = self.buckets[player]
+	if playerBuckets == nil then
+		playerBuckets = {}
+		self.buckets[player] = playerBuckets
+	end
+
+	local bucket = playerBuckets[action]
+	if bucket == nil then
+		bucket = { tokens = capacity, updatedAt = now }
+		playerBuckets[action] = bucket
+	end
+
+	bucket.tokens = math.min(capacity, bucket.tokens + (now - bucket.updatedAt) * refillPerSecond)
+	bucket.updatedAt = now
+	if bucket.tokens < 1 then
+		return false
+	end
+	bucket.tokens -= 1
+	return true
+end
+
+function RateLimiter.forget(self: RateLimiter, player: Player)
+	self.buckets[player] = nil
+end
+
+return RateLimiter
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="45">
+          <Properties>
+            <string name="Name">SessionLock</string>
+            <string name="Source"><![CDATA[--!strict
+
+local SessionLock = {}
+
+export type Lock = {
+	jobId: string,
+	placeId: number,
+	touchedAt: number,
+}
+
+function SessionLock.canClaim(lock: Lock?, jobId: string, now: number, timeoutSeconds: number): boolean
+	return lock == nil or lock.jobId == jobId or now - lock.touchedAt >= timeoutSeconds
+end
+
+function SessionLock.claim(jobId: string, placeId: number, now: number): Lock
+	return {
+		jobId = jobId,
+		placeId = placeId,
+		touchedAt = now,
+	}
+end
+
+return SessionLock
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="SoundService" referent="46">
+    <Properties>
+      <string name="Name">SoundService</string>
+      <bool name="RespectFilteringEnabled">true</bool>
+    </Properties>
+  </Item>
+  <Item class="StarterGui" referent="47">
+    <Properties>
+      <string name="Name">StarterGui</string>
+    </Properties>
+  </Item>
+  <Item class="StarterPlayer" referent="48">
+    <Properties>
+      <string name="Name">StarterPlayer</string>
+    </Properties>
+    <Item class="StarterPlayerScripts" referent="49">
+      <Properties>
+        <string name="Name">StarterPlayerScripts</string>
+      </Properties>
+      <Item class="LocalScript" referent="50">
+        <Properties>
+          <string name="Name">TemplateClient</string>
+          <string name="Source"><![CDATA[--!strict
+
+local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+local TextChatService = game:GetService("TextChatService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local Shared = ReplicatedStorage:WaitForChild("Template"):WaitForChild("Shared")
+local RemoteNames = require(Shared.RemoteNames)
+local Theme = require(Shared.Theme)
+
+local Controllers = script.Controllers
+local AudioController = require(Controllers.AudioController)
+local AfkController = require(Controllers.AfkController)
+local NotificationController = require(Controllers.NotificationController)
+local UIFactory = require(script.UI.UIFactory)
+local UIStyles = require(script.UI.UIStyles)
+local ScreenRegistry = require(script.UI.ScreenRegistry)
+local Screens = require(script.UI.Screens)
+
+local player = Players.LocalPlayer
+local remotes = ReplicatedStorage:WaitForChild(RemoteNames.folder)
+local requestRemote = remotes:WaitForChild(RemoteNames.request) :: RemoteEvent
+local stateRemote = remotes:WaitForChild(RemoteNames.state) :: RemoteEvent
+local queryRemote = remotes:WaitForChild(RemoteNames.query) :: RemoteFunction
+
+task.spawn(function()
+	for _ = 1, 10 do
+		local success = pcall(function()
+			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+		end)
+		if success then
+			break
+		end
+		task.wait(0.25)
+	end
+end)
+
+local playerGui = player:WaitForChild("PlayerGui")
+local screenGui = playerGui:WaitForChild("TemplateUI") :: ScreenGui
+assert(screenGui:IsA("ScreenGui"), "StarterGui.TemplateUI must be a ScreenGui")
+screenGui.Enabled = true
+UIStyles.install(screenGui)
+
+local root = screenGui:WaitForChild("Root") :: Frame
+local uiScale = root:WaitForChild("InterfaceScale") :: UIScale
+local hud = root:WaitForChild("CurrencyHUD") :: Frame
+local coinLabel = hud:WaitForChild("CoinLabel") :: TextLabel
+local boostLabel = hud:WaitForChild("BoostLabel") :: TextLabel
+local nav = root:WaitForChild("Navigation") :: Frame
+local navScroll = nav:WaitForChild("Buttons") :: ScrollingFrame
+local screensLayer = root:WaitForChild("Screens") :: Frame
+local toast = root:WaitForChild("Toast") :: Frame
+local toastLabel = toast:WaitForChild("Message") :: TextLabel
+local toastToken = 0
+
+local function showToast(message: string)
+	toastToken += 1
+	local token = toastToken
+	toastLabel.Text = message
+	TweenService
+		:Create(toast, TweenInfo.new(0.2, Enum.EasingStyle.Back), { Position = UDim2.new(0.5, 0, 0, 12) })
+		:Play()
+	task.delay(3.5, function()
+		if token == toastToken then
+			TweenService:Create(toast, TweenInfo.new(0.2), { Position = UDim2.new(0.5, 0, 0, -90) }):Play()
+		end
+	end)
+end
+
+AudioController.initialize()
+local registry = ScreenRegistry.new()
+local state: any = nil
+
+local function request(action: string, payload: any)
+	AudioController.play("click")
+	requestRemote:FireServer({ action = action, payload = payload })
+end
+
+local function query(action: string, payload: any): any
+	local success, response = pcall(function()
+		return queryRemote:InvokeServer(action, payload)
+	end)
+	return if success then response else { ok = false, message = "Server request failed" }
+end
+
+local rebuildScreens: () -> ()
+
+local function context(): any
+	return {
+		state = state,
+		request = request,
+		query = query,
+		close = function()
+			registry:close()
+		end,
+		toast = showToast,
+		promptNotifications = function()
+			task.spawn(function()
+				local _, message = NotificationController.prompt()
+				showToast(message)
+			end)
+		end,
+		promptProduct = function(productName: string)
+			local productId = state.productIds[productName]
+			if type(productId) == "number" and productId > 0 then
+				MarketplaceService:PromptProductPurchase(player, productId)
+			else
+				showToast("Product is not configured")
+			end
+		end,
+		promptExtendedOffline = function()
+			local passId = state.productIds.extendedOffline
+			if type(passId) == "number" and passId > 0 then
+				MarketplaceService:PromptGamePassPurchase(player, passId)
+			else
+				showToast("Game pass is not configured")
+			end
+		end,
+		promptPremium = function()
+			MarketplaceService:PromptPremiumPurchase(player)
+		end,
+		showList = function(title: string, rows: { any })
+			local dynamic = registry.screens.Dynamic
+			if dynamic then
+				dynamic:Destroy()
+			end
+			registry:register("Dynamic", Screens.simpleList(screensLayer, context(), title, rows))
+			registry:open("Dynamic")
+		end,
+	}
+end
+
+rebuildScreens = function()
+	local current = registry.current
+	registry:destroy()
+	registry = ScreenRegistry.new()
+	local ctx = context()
+	registry:register("Inventory", Screens.inventory(screensLayer, ctx))
+	registry:register("Store", Screens.store(screensLayer, ctx))
+	registry:register("Rewards", Screens.rewards(screensLayer, ctx))
+	registry:register("Profile", Screens.profile(screensLayer, ctx))
+	registry:register("Settings", Screens.settings(screensLayer, ctx))
+	registry:register("Feedback", Screens.feedback(screensLayer, ctx))
+	registry:register("Codes", Screens.codes(screensLayer, ctx))
+	registry:register("Boards", Screens.leaderboards(screensLayer, ctx))
+	registry:register("Community", Screens.verification(screensLayer, ctx))
+	if current and registry.screens[current] then
+		registry:open(current)
+	end
+end
+
+local navItems = {
+	{ "BagButton", "Inventory" },
+	{ "ShopButton", "Store" },
+	{ "GiftButton", "Rewards" },
+	{ "ProfileButton", "Profile" },
+	{ "CodesButton", "Codes" },
+	{ "BoardsButton", "Boards" },
+	{ "FeedbackButton", "Feedback" },
+	{ "CommunityButton", "Community" },
+	{ "SettingsButton", "Settings" },
+}
+for _, item in navItems do
+	local button = navScroll:WaitForChild(item[1]) :: TextButton
+	local restingColor = button.BackgroundColor3
+	button.MouseEnter:Connect(function()
+		TweenService:Create(button, TweenInfo.new(0.12), { BackgroundColor3 = Theme.colors.secondary }):Play()
+	end)
+	button.MouseLeave:Connect(function()
+		TweenService:Create(button, TweenInfo.new(0.12), { BackgroundColor3 = restingColor }):Play()
+	end)
+	button.Activated:Connect(function()
+		AudioController.play("click")
+		if registry.current == item[2] then
+			registry:close()
+		else
+			registry:open(item[2])
+		end
+	end)
+end
+
+local function applyState(nextState: any)
+	if nextState == nil or nextState.profile == nil then
+		return
+	end
+	local previousCoins = if state and state.profile then state.profile.coins else nextState.profile.coins
+	state = nextState
+	coinLabel.Text = `◆ {UIFactory.formatNumber(state.profile.coins)} Coins`
+	boostLabel.Text = `x{string.format(
+		"%.2f",
+		(1 + state.friendBonus + state.premiumBonus) * state.potionMultiplier
+	)} total • {state.profile.social.friendCountInServer} friends`
+	uiScale.Scale = state.profile.settings.uiScale
+	AudioController.applySettings(state.profile.settings)
+	if state.profile.coins > previousCoins then
+		AudioController.play("cash")
+	end
+	AfkController.setEnabled(state.profile.settings.afKRollOver)
+	rebuildScreens()
+end
+
+stateRemote.OnClientEvent:Connect(function(packet)
+	if type(packet) ~= "table" then
+		return
+	end
+	if packet.kind == "Snapshot" then
+		applyState(packet.data)
+	elseif packet.kind == "Result" then
+		showToast(packet.message or if packet.ok then "Done" else "Request failed")
+		if packet.ok then
+			AudioController.play("reward")
+		end
+	elseif packet.kind == "Announcement" and state and state.profile.settings.announcements then
+		showToast(packet.message)
+		local channels = TextChatService:FindFirstChild("TextChannels")
+		local systemChannel = if channels then channels:FindFirstChild("RBXSystem") else nil
+		if systemChannel and systemChannel:IsA("TextChannel") then
+			systemChannel:DisplaySystemMessage(`[SYSTEM] {packet.message}`)
+		end
+	end
+end)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if not processed and (input.KeyCode == Enum.KeyCode.ButtonB or input.KeyCode == Enum.KeyCode.Escape) then
+		registry:close()
+	end
+end)
+
+AfkController.initialize(function()
+	request("AfkRollover", {})
+end, showToast)
+
+task.spawn(function()
+	for _ = 1, 30 do
+		local response = query("InitialState", {})
+		if response.ok and response.data then
+			applyState(response.data)
+			return
+		end
+		task.wait(1)
+	end
+	showToast("Profile did not load. Rejoin to retry.")
+end)
+]]></string>
+        </Properties>
+        <Item class="Folder" referent="51">
+          <Properties>
+            <string name="Name">Controllers</string>
+          </Properties>
+          <Item class="ModuleScript" referent="52">
+            <Properties>
+              <string name="Name">AfkController</string>
+              <string name="Source"><![CDATA[--!strict
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local Config = require(
+	game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared").TemplateConfig
+)
+
+local AfkController = {}
+local enabled = true
+local countdownToken = 0
+
+function AfkController.setEnabled(value: boolean)
+	enabled = value
+	if not enabled then
+		countdownToken += 1
+	end
+end
+
+function AfkController.initialize(requestRollOver: () -> (), notify: (string) -> ())
+	UserInputService.InputBegan:Connect(function()
+		countdownToken += 1
+	end)
+
+	Players.LocalPlayer.Idled:Connect(function(idleSeconds)
+		if not enabled or idleSeconds < Config.afK.warnAfterIdleSeconds then
+			return
+		end
+		countdownToken += 1
+		local token = countdownToken
+		notify(`AFK: moving to a fresh server in {Config.afK.countdownSeconds}s. Press any input to cancel.`)
+		task.delay(Config.afK.countdownSeconds, function()
+			if enabled and token == countdownToken then
+				requestRollOver()
+			end
+		end)
+	end)
+end
+
+return AfkController
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="53">
+            <Properties>
+              <string name="Name">AudioController</string>
+              <string name="Source"><![CDATA[--!strict
+
+local SoundService = game:GetService("SoundService")
+
+local Config = require(
+	game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared").TemplateConfig
+)
+
+local AudioController = {}
+local sounds: { [string]: Sound } = {}
+local musicGroup: SoundGroup
+local sfxGroup: SoundGroup
+
+local function group(name: string): SoundGroup
+	local existing = SoundService:FindFirstChild(name)
+	if existing and existing:IsA("SoundGroup") then
+		return existing
+	end
+	local created = Instance.new("SoundGroup")
+	created.Name = name
+	created.Parent = SoundService
+	return created
+end
+
+function AudioController.initialize()
+	musicGroup = group("TemplateMusic")
+	sfxGroup = group("TemplateSFX")
+	for name, assetId in Config.audio do
+		if assetId ~= "" then
+			local sound = Instance.new("Sound")
+			sound.Name = name
+			sound.SoundId = assetId
+			sound.SoundGroup = if name == "music" then musicGroup else sfxGroup
+			sound.Looped = name == "music"
+			sound.Parent = SoundService
+			sounds[name] = sound
+		end
+	end
+	if sounds.music then
+		sounds.music:Play()
+	end
+end
+
+function AudioController.applySettings(settings: any)
+	if musicGroup then
+		musicGroup.Volume = math.clamp(settings.musicVolume or 0.5, 0, 1)
+	end
+	if sfxGroup then
+		sfxGroup.Volume = math.clamp(settings.sfxVolume or 0.7, 0, 1)
+	end
+end
+
+function AudioController.play(name: string)
+	local sound = sounds[name]
+	if sound then
+		sound.TimePosition = 0
+		sound:Play()
+	end
+end
+
+return AudioController
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="54">
+            <Properties>
+              <string name="Name">NotificationController</string>
+              <string name="Source"><![CDATA[--!strict
+
+local ExperienceNotificationService = game:GetService("ExperienceNotificationService")
+
+local NotificationController = {}
+
+function NotificationController.prompt(): (boolean, string)
+	local success, canPrompt = pcall(function()
+		return ExperienceNotificationService:CanPromptOptInAsync()
+	end)
+	if not success then
+		return false, "Notification eligibility could not be checked"
+	end
+	if not canPrompt then
+		return false, "Roblox notifications are already configured or unavailable for this account"
+	end
+	local promptSuccess = pcall(function()
+		ExperienceNotificationService:PromptOptIn()
+	end)
+	return promptSuccess,
+		if promptSuccess then "Roblox opened the notification prompt" else "Notification prompt failed"
+end
+
+return NotificationController
+]]></string>
+            </Properties>
+          </Item>
+        </Item>
+        <Item class="Folder" referent="55">
+          <Properties>
+            <string name="Name">UI</string>
+          </Properties>
+          <Item class="ModuleScript" referent="56">
+            <Properties>
+              <string name="Name">ScreenRegistry</string>
+              <string name="Source"><![CDATA[--!strict
+
+local ScreenRegistry = {}
+ScreenRegistry.__index = ScreenRegistry
+
+export type ScreenRegistry = typeof(setmetatable(
+	{} :: {
+		screens: { [string]: GuiObject },
+		current: string?,
+	},
+	ScreenRegistry
+))
+
+function ScreenRegistry.new(): ScreenRegistry
+	return setmetatable({ screens = {}, current = nil }, ScreenRegistry)
+end
+
+function ScreenRegistry.register(self: ScreenRegistry, name: string, screen: GuiObject)
+	self.screens[name] = screen
+	screen.Visible = false
+end
+
+function ScreenRegistry.open(self: ScreenRegistry, name: string)
+	for screenName, screen in self.screens do
+		screen.Visible = screenName == name
+	end
+	self.current = name
+end
+
+function ScreenRegistry.close(self: ScreenRegistry)
+	for _, screen in self.screens do
+		screen.Visible = false
+	end
+	self.current = nil
+end
+
+function ScreenRegistry.destroy(self: ScreenRegistry)
+	for _, screen in self.screens do
+		screen:Destroy()
+	end
+	table.clear(self.screens)
+	self.current = nil
+end
+
+return ScreenRegistry
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="57">
+            <Properties>
+              <string name="Name">Screens</string>
+              <string name="Source"><![CDATA[--!strict
+
+local Players = game:GetService("Players")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
+local Theme = require(Shared.Theme)
+local UIFactory = require(script.Parent.UIFactory)
+
+local Screens = {}
+
+local function base(parent: Instance, title: string, close: () -> ()): (Frame, ScrollingFrame)
+	local template = parent.Parent and parent.Parent:FindFirstChild("ScreenTemplate")
+	assert(template and template:IsA("Frame"), "TemplateUI.Root.ScreenTemplate must be a Frame")
+
+	local root = template:Clone()
+	root.Name = `{title}Screen`
+	root.Visible = true
+	local titleLabel = root:WaitForChild("Title") :: TextLabel
+	titleLabel.Text = title
+	local closeButton = root:WaitForChild("CloseButton") :: TextButton
+	closeButton.Activated:Connect(close)
+	local content = root:WaitForChild("Content") :: ScrollingFrame
+	root.Parent = parent
+	return root, content
+end
+
+local function row(parent: Instance, title: string, body: string): Frame
+	local screenGui = parent:FindFirstAncestorWhichIsA("ScreenGui")
+	local root = if screenGui then screenGui:FindFirstChild("Root") else nil
+	local templates = if root then root:FindFirstChild("ComponentTemplates") else nil
+	local template = if templates then templates:FindFirstChild("RowTemplate") else nil
+	assert(
+		template and template:IsA("Frame"),
+		"TemplateUI.Root.ComponentTemplates.RowTemplate must be a Frame"
+	)
+	local card = template:Clone()
+	card.Name = title
+	card.Visible = true
+	local titleLabel = card:WaitForChild("Title") :: TextLabel
+	titleLabel.Text = title
+	local bodyLabel = card:WaitForChild("Body") :: TextLabel
+	bodyLabel.Text = body
+	card.Parent = parent
+	return card
+end
+
+function Screens.inventory(parent: Instance, context: any): Frame
+	local root, content = base(parent, "Inventory", context.close)
+	local entries = context.state.profile.inventory
+	local anyItem = false
+	for itemId, entry in entries do
+		if entry.quantity > 0 then
+			anyItem = true
+			local definition = context.state.catalog[itemId]
+			if definition then
+				local card = row(content, `{definition.name}  ×{entry.quantity}`, definition.description)
+				local action = if definition.category == "Consumable" then "UseItem" else "ToggleEquip"
+				local label = if definition.category == "Consumable"
+					then "USE"
+					else if entry.equipped then "UNEQUIP" else "EQUIP"
+				UIFactory.button(card, label, function()
+					context.request(action, { itemId = itemId })
+				end, {
+					AnchorPoint = Vector2.new(1, 0.5),
+					Position = UDim2.new(1, -10, 0.5, 0),
+					Size = UDim2.fromOffset(106, 44),
+				})
+			end
+		end
+	end
+	if not anyItem then
+		row(content, "Inventory empty", "Items and consumables appear here.")
+	end
+	return root
+end
+
+function Screens.store(parent: Instance, context: any): Frame
+	local root, content = base(parent, "Store", context.close)
+	for itemId, definition in context.state.catalog do
+		if definition.priceCoins then
+			local card =
+				row(content, definition.name, `{definition.description}  •  {definition.priceCoins} Coins`)
+			UIFactory.button(card, "BUY", function()
+				context.request("BuyItem", { itemId = itemId })
+			end, {
+				AnchorPoint = Vector2.new(1, 0.5),
+				Position = UDim2.new(1, -10, 0.5, 0),
+				Size = UDim2.fromOffset(92, 44),
+				BackgroundColor3 = Theme.colors.success,
+			})
+		end
+	end
+	if context.state.productAvailability.coinPackSmall then
+		local card = row(content, "Small Coins Pack", "Direct developer product; Roblox confirms the price.")
+		UIFactory.button(card, "ROBUX", function()
+			context.promptProduct("coinPackSmall")
+		end, {
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, -10, 0.5, 0),
+			Size = UDim2.fromOffset(92, 44),
+		})
+	else
+		row(content, "Robux products", "Disabled until product IDs are configured in TemplateConfig.")
+	end
+	if context.state.productAvailability.coinPackLarge then
+		local card = row(content, "Large Coins Pack", "Direct developer product; Roblox confirms the price.")
+		UIFactory.button(card, "ROBUX", function()
+			context.promptProduct("coinPackLarge")
+		end, {
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, -10, 0.5, 0),
+			Size = UDim2.fromOffset(92, 44),
+		})
+	end
+	local premiumText = if context.state.profile.entitlements.premium
+		then "Active: permanent +10% Coins bonus."
+		else "Roblox Premium members receive a permanent +10% Coins bonus."
+	local premiumCard = row(content, "Roblox Premium", premiumText)
+	if not context.state.profile.entitlements.premium then
+		UIFactory.button(premiumCard, "VIEW", context.promptPremium, {
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, -10, 0.5, 0),
+			Size = UDim2.fromOffset(92, 44),
+		})
+	end
+	return root
+end
+
+function Screens.rewards(parent: Instance, context: any): Frame
+	local root, content = base(parent, "Rewards", context.close)
+	row(
+		content,
+		`Daily streak: Day {context.state.profile.daily.streak}`,
+		"Claims reset at midnight UTC. Missing a day resets the streak."
+	)
+	UIFactory.button(content, "CLAIM DAILY REWARD", function()
+		context.request("ClaimDaily", {})
+	end)
+	local pending = context.state.offline
+	row(
+		content,
+		"Offline earnings",
+		`{UIFactory.formatNumber(pending.amount)} Coins ready from {math.floor(pending.elapsed / 60)} minutes.`
+	)
+	UIFactory.button(content, "CLAIM OFFLINE EARNINGS", function()
+		context.request("ClaimOffline", {})
+	end, { BackgroundColor3 = Theme.colors.success })
+	if
+		context.state.productAvailability.extendedOffline
+		and not context.state.profile.entitlements.extendedOffline
+	then
+		UIFactory.button(content, "EXTEND OFFLINE CAP TO 12 HOURS", context.promptExtendedOffline)
+	end
+	return root
+end
+
+function Screens.profile(parent: Instance, context: any): Frame
+	local root, content = base(parent, "Player Profile", context.close)
+	local profile = context.state.profile
+	row(
+		content,
+		Players.LocalPlayer.DisplayName,
+		`Coins: {UIFactory.formatNumber(profile.coins)}  •  Joins: {profile.stats.joins}  •  Playtime: {math.floor(
+			profile.stats.playSeconds / 60
+		)}m`
+	)
+	local input = UIFactory.textBox(content, "Exact Roblox username")
+	local resultLabel = UIFactory.label(content, "Search displays whitelisted public stats only.", {
+		Size = UDim2.new(1, -8, 0, 54),
+		TextColor3 = Theme.colors.textMuted,
+	})
+	UIFactory.button(content, "SEARCH PLAYER", function()
+		resultLabel.Text = "Searching…"
+		task.spawn(function()
+			local response = context.query("SearchProfile", { username = input.Text })
+			if response.ok and response.data then
+				local found = response.data
+				resultLabel.Text = `{found.displayName} (@{found.username}) • {UIFactory.formatNumber(
+					found.coins
+				)} Coins • {found.joins} joins`
+			else
+				resultLabel.Text = response.message or "Player was not found"
+			end
+		end)
+	end)
+	return root
+end
+
+function Screens.settings(parent: Instance, context: any): Frame
+	local root, content = base(parent, "Settings", context.close)
+	local settings = context.state.profile.settings
+	local function toggle(label: string, key: string, value: boolean)
+		UIFactory.button(content, `{label}: {if value then "ON" else "OFF"}`, function()
+			if key == "notifications" and not value then
+				context.promptNotifications()
+			end
+			context.request("UpdateSetting", { key = key, value = not value })
+		end)
+	end
+	toggle("Reduced motion", "reducedMotion", settings.reducedMotion)
+	toggle("Announcements", "announcements", settings.announcements)
+	toggle("AFK rollover", "afKRollOver", settings.afKRollOver)
+	toggle("Roblox reminders", "notifications", settings.notifications)
+	UIFactory.button(content, `Music: {math.floor(settings.musicVolume * 100)}%`, function()
+		context.request(
+			"UpdateSetting",
+			{ key = "musicVolume", value = (settings.musicVolume + 0.25) % 1.25 }
+		)
+	end)
+	UIFactory.button(content, `SFX: {math.floor(settings.sfxVolume * 100)}%`, function()
+		context.request("UpdateSetting", { key = "sfxVolume", value = (settings.sfxVolume + 0.25) % 1.25 })
+	end)
+	UIFactory.button(content, `UI Scale: {math.floor(settings.uiScale * 100)}%`, function()
+		local nextScale = settings.uiScale + 0.1
+		if nextScale > 1.2 then
+			nextScale = 0.8
+		end
+		context.request("UpdateSetting", { key = "uiScale", value = nextScale })
+	end)
+	row(
+		content,
+		"Project defaults",
+		"Streaming enabled; native chat enabled; HTTP, paid products, Discord, and live DataStores disabled until configured."
+	)
+	return root
+end
+
+function Screens.feedback(parent: Instance, context: any): Frame
+	local root, content = base(parent, "Feedback & Bug Report", context.close)
+	local categories = { "Bug", "Feedback", "Accessibility", "Other" }
+	local categoryIndex = 1
+	local categoryButton = UIFactory.button(content, "Category: Bug", nil)
+	categoryButton.Activated:Connect(function()
+		categoryIndex = (categoryIndex % #categories) + 1
+		categoryButton.Text = `Category: {categories[categoryIndex]}`
+	end)
+	local input = UIFactory.textBox(content, "Describe the issue (3–500 characters)", {
+		MultiLine = true,
+		Size = UDim2.new(1, -8, 0, 140),
+		TextYAlignment = Enum.TextYAlignment.Top,
+	})
+	UIFactory.button(content, "SUBMIT", function()
+		context.request("SubmitFeedback", { category = categories[categoryIndex], message = input.Text })
+	end, { BackgroundColor3 = Theme.colors.success })
+	return root
+end
+
+function Screens.codes(parent: Instance, context: any): Frame
+	local root, content = base(parent, "Likes & Codes", context.close)
+	local likes = context.state.likes
+	row(
+		content,
+		`Likes: {UIFactory.formatNumber(likes.value or 0)}`,
+		likes.reason or "Thanks for supporting the experience!"
+	)
+	for _, milestone in context.state.likesMilestones do
+		local unlocked = (likes.value or 0) >= milestone.likes
+		local detail = if unlocked
+			then `{milestone.label} - Code: {milestone.code}`
+			else `{milestone.label} - Locked`
+		row(content, `{milestone.likes} Likes`, detail)
+	end
+	local input = UIFactory.textBox(content, "Enter code")
+	UIFactory.button(content, "REDEEM CODE", function()
+		context.request("RedeemCode", { code = input.Text })
+	end)
+	return root
+end
+
+local function leaderboardRows(content: Instance, rows: { any })
+	for index, entry in rows do
+		row(content, `#{entry.rank or index}  {entry.name}`, `{UIFactory.formatNumber(entry.value)} Coins`)
+	end
+	if #rows == 0 then
+		row(content, "No players yet", "Leaderboard data appears after profiles load.")
+	end
+end
+
+function Screens.leaderboards(parent: Instance, context: any): Frame
+	local root, content = base(parent, "Leaderboards", context.close)
+	UIFactory.label(content, "CURRENT SERVER", { Size = UDim2.new(1, -8, 0, 32), FontFace = Theme.fontBold })
+	leaderboardRows(content, context.state.serverLeaderboard)
+	UIFactory.button(content, "LOAD GLOBAL TOP 50", function()
+		task.spawn(function()
+			local response = context.query("GlobalLeaderboard", {})
+			if response.ok and response.data then
+				context.showList("Global Leaderboard", response.data)
+			else
+				context.toast(response.message or "Global leaderboard unavailable")
+			end
+		end)
+	end)
+	return root
+end
+
+function Screens.verification(parent: Instance, context: any): Frame
+	local root, content = base(parent, "Community", context.close)
+	local availability = context.state.integrationAvailability
+	row(
+		content,
+		"Roblox Community",
+		if availability.community
+			then "Verification is enabled."
+			else "Disabled until a community ID is configured."
+	)
+	row(
+		content,
+		"Discord",
+		"Verification is scaffolded but disabled. Community link is available on the experience page after setup."
+	)
+	row(
+		content,
+		"Guilds / Clans",
+		if availability.guilds then "Enabled" else "Provider contract reserved; no guild data is active."
+	)
+	return root
+end
+
+function Screens.simpleList(parent: Instance, context: any, title: string, rows: { any }): Frame
+	local root, content = base(parent, title, context.close)
+	leaderboardRows(content, rows)
+	return root
+end
+
+return Screens
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="58">
+            <Properties>
+              <string name="Name">UIComponent</string>
+              <string name="Source"><![CDATA[--!strict
+
+export type Handle = {
+	root: GuiObject,
+	setVisible: (boolean) -> (),
+	destroy: () -> (),
+}
+
+local UIComponent = {}
+
+function UIComponent.mount(parent: Instance, builder: (Instance) -> GuiObject): Handle
+	local root = builder(parent)
+	return {
+		root = root,
+		setVisible = function(visible: boolean)
+			root.Visible = visible
+		end,
+		destroy = function()
+			root:Destroy()
+		end,
+	}
+end
+
+return UIComponent
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="59">
+            <Properties>
+              <string name="Name">UIFactory</string>
+              <string name="Source"><![CDATA[--!strict
+
+local TweenService = game:GetService("TweenService")
+
+local Theme =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared").Theme)
+
+local UIFactory = {}
+
+local function authoredTemplate(parent: Instance, name: string): Instance?
+	local screenGui = parent:FindFirstAncestorWhichIsA("ScreenGui")
+	if not screenGui then
+		return nil
+	end
+	local root = screenGui:FindFirstChild("Root")
+	local templates = if root then root:FindFirstChild("ComponentTemplates") else nil
+	return if templates then templates:FindFirstChild(name) else nil
+end
+
+local function corner(parent: Instance, radius: UDim?)
+	local object = Instance.new("UICorner")
+	object.CornerRadius = radius or Theme.radius.medium
+	object.Parent = parent
+end
+
+local function stroke(parent: Instance, transparency: number?)
+	local object = Instance.new("UIStroke")
+	object.Color = Theme.colors.stroke
+	object.Transparency = transparency or 0.45
+	object.Thickness = 1.5
+	object.Parent = parent
+end
+
+local function padding(parent: Instance, value: number)
+	local object = Instance.new("UIPadding")
+	object.PaddingTop = UDim.new(0, value)
+	object.PaddingBottom = UDim.new(0, value)
+	object.PaddingLeft = UDim.new(0, value)
+	object.PaddingRight = UDim.new(0, value)
+	object.Parent = parent
+end
+
+function UIFactory.frame(parent: Instance, name: string, properties: any?): Frame
+	local object = Instance.new("Frame")
+	object.Name = name
+	object.BorderSizePixel = 0
+	object.BackgroundColor3 = Theme.colors.surface
+	if properties then
+		for key, value in properties do
+			(object :: any)[key] = value
+		end
+	end
+	object.Parent = parent
+	return object
+end
+
+function UIFactory.card(parent: Instance, name: string, properties: any?): Frame
+	local object = UIFactory.frame(parent, name, properties)
+	corner(object)
+	stroke(object)
+	return object
+end
+
+function UIFactory.label(parent: Instance, text: string, properties: any?): TextLabel
+	local template = authoredTemplate(parent, "LabelTemplate")
+	local object = if template and template:IsA("TextLabel")
+		then template:Clone()
+		else Instance.new("TextLabel")
+	if not template then
+		object.BackgroundTransparency = 1
+		object.BorderSizePixel = 0
+		object.FontFace = Theme.font
+		object.TextColor3 = Theme.colors.text
+		object.TextSize = 18
+		object.TextWrapped = true
+		object.TextXAlignment = Enum.TextXAlignment.Left
+	end
+	object.Visible = true
+	object.Text = text
+	if properties then
+		for key, value in properties do
+			(object :: any)[key] = value
+		end
+	end
+	object.Parent = parent
+	return object
+end
+
+function UIFactory.button(
+	parent: Instance,
+	text: string,
+	onActivated: (() -> ())?,
+	properties: any?
+): TextButton
+	local template = authoredTemplate(parent, "ButtonTemplate")
+	local object = if template and template:IsA("TextButton")
+		then template:Clone()
+		else Instance.new("TextButton")
+	if not template then
+		object.AutoButtonColor = false
+		object.BackgroundColor3 = Theme.colors.primary
+		object.BorderSizePixel = 0
+		object.FontFace = Theme.fontBold
+		object.TextColor3 = Theme.colors.text
+		object.TextSize = 16
+		object.TextWrapped = true
+		object.Selectable = true
+		object.Size = UDim2.new(1, 0, 0, Theme.touchTarget)
+		corner(object, Theme.radius.small)
+		stroke(object, 0.7)
+	end
+	object.Visible = true
+	object.Text = text
+	if properties then
+		for key, value in properties do
+			(object :: any)[key] = value
+		end
+	end
+	local restingColor = object.BackgroundColor3
+	object.MouseEnter:Connect(function()
+		TweenService:Create(object, TweenInfo.new(0.12), { BackgroundColor3 = Theme.colors.secondary }):Play()
+	end)
+	object.MouseLeave:Connect(function()
+		TweenService:Create(object, TweenInfo.new(0.12), { BackgroundColor3 = restingColor }):Play()
+	end)
+	if onActivated then
+		object.Activated:Connect(onActivated)
+	end
+	object.Parent = parent
+	return object
+end
+
+function UIFactory.textBox(parent: Instance, placeholder: string, properties: any?): TextBox
+	local template = authoredTemplate(parent, "TextBoxTemplate")
+	local object = if template and template:IsA("TextBox") then template:Clone() else Instance.new("TextBox")
+	if not template then
+		object.BackgroundColor3 = Theme.colors.background
+		object.BorderSizePixel = 0
+		object.ClearTextOnFocus = false
+		object.FontFace = Theme.font
+		object.PlaceholderColor3 = Theme.colors.textMuted
+		object.TextColor3 = Theme.colors.text
+		object.TextSize = 16
+		object.TextWrapped = true
+		object.Size = UDim2.new(1, 0, 0, Theme.touchTarget)
+		corner(object, Theme.radius.small)
+		stroke(object)
+		padding(object, Theme.spacing.sm)
+	end
+	object.Visible = true
+	object.PlaceholderText = placeholder
+	object.Text = ""
+	if properties then
+		for key, value in properties do
+			(object :: any)[key] = value
+		end
+	end
+	object.Parent = parent
+	return object
+end
+
+function UIFactory.list(parent: Instance, paddingPixels: number?): UIListLayout
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, paddingPixels or Theme.spacing.sm)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	layout.Parent = parent
+	return layout
+end
+
+function UIFactory.scroll(parent: Instance, name: string, properties: any?): ScrollingFrame
+	local object = Instance.new("ScrollingFrame")
+	object.Name = name
+	object.BackgroundTransparency = 1
+	object.BorderSizePixel = 0
+	object.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	object.CanvasSize = UDim2.new()
+	object.ScrollBarThickness = 6
+	object.ScrollBarImageColor3 = Theme.colors.primary
+	if properties then
+		for key, value in properties do
+			(object :: any)[key] = value
+		end
+	end
+	object.Parent = parent
+	return object
+end
+
+function UIFactory.addPadding(parent: Instance, value: number)
+	padding(parent, value)
+end
+
+function UIFactory.addCorner(parent: Instance, radius: UDim?)
+	corner(parent, radius)
+end
+
+function UIFactory.formatNumber(value: number): string
+	local suffixes = { "", "K", "M", "B", "T", "Qa" }
+	local absolute = math.abs(value)
+	local index = 1
+	while absolute >= 1000 and index < #suffixes do
+		absolute /= 1000
+		value /= 1000
+		index += 1
+	end
+	if index == 1 then
+		return tostring(math.floor(value))
+	end
+	return `{string.format("%.1f", value)}{suffixes[index]}`
+end
+
+return UIFactory
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="60">
+            <Properties>
+              <string name="Name">UIStyles</string>
+              <string name="Source"><![CDATA[--!strict
+
+local Theme =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared").Theme)
+
+local UIStyles = {}
+
+function UIStyles.install(screenGui: ScreenGui)
+	local sheet = Instance.new("StyleSheet")
+	sheet.Name = "TemplateTokens"
+	for name, value in Theme.colors do
+		sheet:SetAttribute(name, value)
+	end
+	sheet:SetAttribute("TouchTarget", Theme.touchTarget)
+	sheet.Parent = screenGui
+
+	local link = Instance.new("StyleLink")
+	link.StyleSheet = sheet
+	link.Parent = screenGui
+end
+
+return UIStyles
+]]></string>
+            </Properties>
+          </Item>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="TextChatService" referent="61">
+    <Properties>
+      <string name="Name">TextChatService</string>
+      <bool name="CreateDefaultCommands">true</bool>
+      <bool name="CreateDefaultTextChannels">true</bool>
+    </Properties>
+  </Item>
+  <Item class="Workspace" referent="62">
+    <Properties>
+      <string name="Name">Workspace</string>
+      <bool name="NeedsPivotMigration">false</bool>
+      <bool name="StreamingEnabled">true</bool>
+    </Properties>
+    <Item class="Part" referent="63">
+      <Properties>
+        <string name="Name">GalleryFloor</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">true</bool>
+        <Color3uint8 name="Color3uint8">1316644</Color3uint8>
+        <token name="Material">272</token>
+        <Vector3 name="Position">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>128</X>
+          <Y>1</Y>
+          <Z>128</Z>
+        </Vector3>
+      </Properties>
+    </Item>
+    <Item class="SpawnLocation" referent="64">
+      <Properties>
+        <string name="Name">TemplateSpawn</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">true</bool>
+        <bool name="Neutral">true</bool>
+        <Vector3 name="Position">
+          <X>0</X>
+          <Y>3</Y>
+          <Z>0</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>12</X>
+          <Y>1</Y>
+          <Z>12</Z>
+        </Vector3>
+      </Properties>
+    </Item>
+  </Item>
+  <Item class="StarterGui" referent="65">
+    <Properties>
+      <string name="Name">StarterGui</string>
+    </Properties>
+    <Item class="ScreenGui" referent="66">
+      <Properties>
+        <string name="Name">TemplateUI</string>
+        <bool name="ClipToDeviceSafeArea">true</bool>
+        <int name="DisplayOrder">20</int>
+        <bool name="ResetOnSpawn">false</bool>
+        <token name="SafeAreaCompatibility">0</token>
+        <token name="ScreenInsets">2</token>
+        <token name="ZIndexBehavior">1</token>
+      </Properties>
+      <Item class="Frame" referent="67">
+        <Properties>
+          <string name="Name">Root</string>
+          <float name="BackgroundTransparency">1</float>
+          <int name="BorderSizePixel">0</int>
+          <UDim2 name="Size">
+            <XS>1</XS>
+            <XO>0</XO>
+            <YS>1</YS>
+            <YO>0</YO>
+          </UDim2>
+        </Properties>
+        <Item class="UIScale" referent="68">
+          <Properties>
+            <string name="Name">InterfaceScale</string>
+          </Properties>
+        </Item>
+        <Item class="Folder" referent="69">
+          <Properties>
+            <string name="Name">ComponentTemplates</string>
+          </Properties>
+          <Item class="TextButton" referent="70">
+            <Properties>
+              <string name="Name">ButtonTemplate</string>
+              <bool name="AutoButtonColor">false</bool>
+              <Color3 name="BackgroundColor3">
+                <R>0.3137255</R>
+                <G>0.5294118</G>
+                <B>1</B>
+              </Color3>
+              <int name="BorderSizePixel">0</int>
+              <Font name="FontFace">
+                <Family>
+                  <url>rbxasset://fonts/families/GothamSSm.json</url>
+                </Family>
+                <Weight>700</Weight>
+                <Style>Normal</Style>
+              </Font>
+              <bool name="Selectable">true</bool>
+              <UDim2 name="Size">
+                <XS>1</XS>
+                <XO>0</XO>
+                <YS>0</YS>
+                <YO>48</YO>
+              </UDim2>
+              <string name="Text">BUTTON</string>
+              <Color3 name="TextColor3">
+                <R>0.972549</R>
+                <G>0.9764706</G>
+                <B>1</B>
+              </Color3>
+              <float name="TextSize">16</float>
+              <bool name="TextWrapped">true</bool>
+              <bool name="Visible">false</bool>
+            </Properties>
+            <Item class="UICorner" referent="71">
+              <Properties>
+                <string name="Name">UICorner</string>
+                <UDim name="CornerRadius">
+                  <S>0</S>
+                  <O>8</O>
+                </UDim>
+              </Properties>
+            </Item>
+            <Item class="UIStroke" referent="72">
+              <Properties>
+                <string name="Name">UIStroke</string>
+                <Color3 name="Color">
+                  <R>0.4392157</R>
+                  <G>0.4941176</G>
+                  <B>0.7215686</B>
+                </Color3>
+                <float name="Transparency">0.7</float>
+              </Properties>
+            </Item>
+          </Item>
+          <Item class="TextBox" referent="73">
+            <Properties>
+              <string name="Name">TextBoxTemplate</string>
+              <Color3 name="BackgroundColor3">
+                <R>0.0431373</R>
+                <G>0.0509804</G>
+                <B>0.0901961</B>
+              </Color3>
+              <int name="BorderSizePixel">0</int>
+              <bool name="ClearTextOnFocus">false</bool>
+              <Font name="FontFace">
+                <Family>
+                  <url>rbxasset://fonts/families/GothamSSm.json</url>
+                </Family>
+                <Weight>500</Weight>
+                <Style>Normal</Style>
+              </Font>
+              <Color3 name="PlaceholderColor3">
+                <R>0.7058824</R>
+                <G>0.7333333</G>
+                <B>0.854902</B>
+              </Color3>
+              <string name="PlaceholderText">TYPE HERE</string>
+              <UDim2 name="Size">
+                <XS>1</XS>
+                <XO>0</XO>
+                <YS>0</YS>
+                <YO>48</YO>
+              </UDim2>
+              <string name="Text"></string>
+              <Color3 name="TextColor3">
+                <R>0.972549</R>
+                <G>0.9764706</G>
+                <B>1</B>
+              </Color3>
+              <float name="TextSize">16</float>
+              <bool name="TextWrapped">true</bool>
+              <bool name="Visible">false</bool>
+            </Properties>
+            <Item class="UICorner" referent="74">
+              <Properties>
+                <string name="Name">UICorner</string>
+                <UDim name="CornerRadius">
+                  <S>0</S>
+                  <O>8</O>
+                </UDim>
+              </Properties>
+            </Item>
+            <Item class="UIStroke" referent="75">
+              <Properties>
+                <string name="Name">UIStroke</string>
+                <Color3 name="Color">
+                  <R>0.4392157</R>
+                  <G>0.4941176</G>
+                  <B>0.7215686</B>
+                </Color3>
+                <float name="Transparency">0.45</float>
+              </Properties>
+            </Item>
+            <Item class="UIPadding" referent="76">
+              <Properties>
+                <string name="Name">UIPadding</string>
+                <UDim name="PaddingBottom">
+                  <S>0</S>
+                  <O>8</O>
+                </UDim>
+                <UDim name="PaddingLeft">
+                  <S>0</S>
+                  <O>8</O>
+                </UDim>
+                <UDim name="PaddingRight">
+                  <S>0</S>
+                  <O>8</O>
+                </UDim>
+                <UDim name="PaddingTop">
+                  <S>0</S>
+                  <O>8</O>
+                </UDim>
+              </Properties>
+            </Item>
+          </Item>
+          <Item class="TextLabel" referent="77">
+            <Properties>
+              <string name="Name">LabelTemplate</string>
+              <float name="BackgroundTransparency">1</float>
+              <int name="BorderSizePixel">0</int>
+              <Font name="FontFace">
+                <Family>
+                  <url>rbxasset://fonts/families/GothamSSm.json</url>
+                </Family>
+                <Weight>500</Weight>
+                <Style>Normal</Style>
+              </Font>
+              <UDim2 name="Size">
+                <XS>1</XS>
+                <XO>0</XO>
+                <YS>0</YS>
+                <YO>32</YO>
+              </UDim2>
+              <string name="Text">LABEL</string>
+              <Color3 name="TextColor3">
+                <R>0.972549</R>
+                <G>0.9764706</G>
+                <B>1</B>
+              </Color3>
+              <float name="TextSize">18</float>
+              <bool name="TextWrapped">true</bool>
+              <token name="TextXAlignment">0</token>
+              <bool name="Visible">false</bool>
+            </Properties>
+          </Item>
+          <Item class="Frame" referent="78">
+            <Properties>
+              <string name="Name">RowTemplate</string>
+              <Color3 name="BackgroundColor3">
+                <R>0.2039216</R>
+                <G>0.2235294</G>
+                <B>0.3529412</B>
+              </Color3>
+              <int name="BorderSizePixel">0</int>
+              <UDim2 name="Size">
+                <XS>1</XS>
+                <XO>-8</XO>
+                <YS>0</YS>
+                <YO>82</YO>
+              </UDim2>
+              <bool name="Visible">false</bool>
+            </Properties>
+            <Item class="UICorner" referent="79">
+              <Properties>
+                <string name="Name">UICorner</string>
+                <UDim name="CornerRadius">
+                  <S>0</S>
+                  <O>14</O>
+                </UDim>
+              </Properties>
+            </Item>
+            <Item class="UIStroke" referent="80">
+              <Properties>
+                <string name="Name">UIStroke</string>
+                <Color3 name="Color">
+                  <R>0.4392157</R>
+                  <G>0.4941176</G>
+                  <B>0.7215686</B>
+                </Color3>
+                <float name="Thickness">1.5</float>
+                <float name="Transparency">0.45</float>
+              </Properties>
+            </Item>
+            <Item class="TextLabel" referent="81">
+              <Properties>
+                <string name="Name">Title</string>
+                <float name="BackgroundTransparency">1</float>
+                <int name="BorderSizePixel">0</int>
+                <Font name="FontFace">
+                  <Family>
+                    <url>rbxasset://fonts/families/GothamSSm.json</url>
+                  </Family>
+                  <Weight>700</Weight>
+                  <Style>Normal</Style>
+                </Font>
+                <UDim2 name="Position">
+                  <XS>0</XS>
+                  <XO>14</XO>
+                  <YS>0</YS>
+                  <YO>8</YO>
+                </UDim2>
+                <UDim2 name="Size">
+                  <XS>1</XS>
+                  <XO>-28</XO>
+                  <YS>0</YS>
+                  <YO>28</YO>
+                </UDim2>
+                <string name="Text">ROW TITLE</string>
+                <Color3 name="TextColor3">
+                  <R>0.972549</R>
+                  <G>0.9764706</G>
+                  <B>1</B>
+                </Color3>
+                <float name="TextSize">18</float>
+                <bool name="TextWrapped">true</bool>
+                <token name="TextXAlignment">0</token>
+              </Properties>
+            </Item>
+            <Item class="TextLabel" referent="82">
+              <Properties>
+                <string name="Name">Body</string>
+                <float name="BackgroundTransparency">1</float>
+                <int name="BorderSizePixel">0</int>
+                <Font name="FontFace">
+                  <Family>
+                    <url>rbxasset://fonts/families/GothamSSm.json</url>
+                  </Family>
+                  <Weight>500</Weight>
+                  <Style>Normal</Style>
+                </Font>
+                <UDim2 name="Position">
+                  <XS>0</XS>
+                  <XO>14</XO>
+                  <YS>0</YS>
+                  <YO>36</YO>
+                </UDim2>
+                <UDim2 name="Size">
+                  <XS>1</XS>
+                  <XO>-28</XO>
+                  <YS>0</YS>
+                  <YO>38</YO>
+                </UDim2>
+                <string name="Text">Row body text</string>
+                <Color3 name="TextColor3">
+                  <R>0.7058824</R>
+                  <G>0.7333333</G>
+                  <B>0.854902</B>
+                </Color3>
+                <float name="TextSize">14</float>
+                <bool name="TextWrapped">true</bool>
+                <token name="TextXAlignment">0</token>
+              </Properties>
+            </Item>
+          </Item>
+        </Item>
+        <Item class="Frame" referent="83">
+          <Properties>
+            <string name="Name">CurrencyHUD</string>
+            <Color3 name="BackgroundColor3">
+              <R>0.0862745</R>
+              <G>0.0980392</G>
+              <B>0.1647059</B>
+            </Color3>
+            <int name="BorderSizePixel">0</int>
+            <UDim2 name="Position">
+              <XS>0</XS>
+              <XO>12</XO>
+              <YS>0</YS>
+              <YO>12</YO>
+            </UDim2>
+            <UDim2 name="Size">
+              <XS>0</XS>
+              <XO>240</XO>
+              <YS>0</YS>
+              <YO>60</YO>
+            </UDim2>
+            <int name="ZIndex">5</int>
+          </Properties>
+          <Item class="UICorner" referent="84">
+            <Properties>
+              <string name="Name">UICorner</string>
+              <UDim name="CornerRadius">
+                <S>0</S>
+                <O>14</O>
+              </UDim>
+            </Properties>
+          </Item>
+          <Item class="UIStroke" referent="85">
+            <Properties>
+              <string name="Name">UIStroke</string>
+              <Color3 name="Color">
+                <R>0.4392157</R>
+                <G>0.4941176</G>
+                <B>0.7215686</B>
+              </Color3>
+              <float name="Thickness">1.5</float>
+              <float name="Transparency">0.45</float>
+            </Properties>
+          </Item>
+          <Item class="TextLabel" referent="86">
+            <Properties>
+              <string name="Name">CoinLabel</string>
+              <float name="BackgroundTransparency">1</float>
+              <int name="BorderSizePixel">0</int>
+              <Font name="FontFace">
+                <Family>
+                  <url>rbxasset://fonts/families/GothamSSm.json</url>
+                </Family>
+                <Weight>700</Weight>
+                <Style>Normal</Style>
+              </Font>
+              <UDim2 name="Position">
+                <XS>0</XS>
+                <XO>14</XO>
+                <YS>0</YS>
+                <YO>8</YO>
+              </UDim2>
+              <UDim2 name="Size">
+                <XS>1</XS>
+                <XO>-28</XO>
+                <YS>0</YS>
+                <YO>27</YO>
+              </UDim2>
+              <string name="Text">◆ 0 Coins</string>
+              <Color3 name="TextColor3">
+                <R>1</R>
+                <G>0.7882353</G>
+                <B>0.2509804</B>
+              </Color3>
+              <float name="TextSize">20</float>
+              <bool name="TextWrapped">true</bool>
+              <token name="TextXAlignment">0</token>
+              <int name="ZIndex">6</int>
+            </Properties>
+          </Item>
+          <Item class="TextLabel" referent="87">
+            <Properties>
+              <string name="Name">BoostLabel</string>
+              <float name="BackgroundTransparency">1</float>
+              <int name="BorderSizePixel">0</int>
+              <Font name="FontFace">
+                <Family>
+                  <url>rbxasset://fonts/families/GothamSSm.json</url>
+                </Family>
+                <Weight>500</Weight>
+                <Style>Normal</Style>
+              </Font>
+              <UDim2 name="Position">
+                <XS>0</XS>
+                <XO>14</XO>
+                <YS>0</YS>
+                <YO>34</YO>
+              </UDim2>
+              <UDim2 name="Size">
+                <XS>1</XS>
+                <XO>-28</XO>
+                <YS>0</YS>
+                <YO>18</YO>
+              </UDim2>
+              <string name="Text">x1 boost</string>
+              <Color3 name="TextColor3">
+                <R>0.7058824</R>
+                <G>0.7333333</G>
+                <B>0.854902</B>
+              </Color3>
+              <float name="TextSize">13</float>
+              <bool name="TextWrapped">true</bool>
+              <token name="TextXAlignment">0</token>
+              <int name="ZIndex">6</int>
+            </Properties>
+          </Item>
+        </Item>
+        <Item class="Frame" referent="88">
+          <Properties>
+            <string name="Name">Navigation</string>
+            <Vector2 name="AnchorPoint">
+              <X>0.5</X>
+              <Y>1</Y>
+            </Vector2>
+            <Color3 name="BackgroundColor3">
+              <R>0.0862745</R>
+              <G>0.0980392</G>
+              <B>0.1647059</B>
+            </Color3>
+            <int name="BorderSizePixel">0</int>
+            <UDim2 name="Position">
+              <XS>0.5</XS>
+              <XO>0</XO>
+              <YS>1</YS>
+              <YO>-10</YO>
+            </UDim2>
+            <UDim2 name="Size">
+              <XS>0.94</XS>
+              <XO>0</XO>
+              <YS>0</YS>
+              <YO>64</YO>
+            </UDim2>
+            <int name="ZIndex">10</int>
+          </Properties>
+          <Item class="UICorner" referent="89">
+            <Properties>
+              <string name="Name">UICorner</string>
+              <UDim name="CornerRadius">
+                <S>0</S>
+                <O>14</O>
+              </UDim>
+            </Properties>
+          </Item>
+          <Item class="UIStroke" referent="90">
+            <Properties>
+              <string name="Name">UIStroke</string>
+              <Color3 name="Color">
+                <R>0.4392157</R>
+                <G>0.4941176</G>
+                <B>0.7215686</B>
+              </Color3>
+              <float name="Thickness">1.5</float>
+              <float name="Transparency">0.45</float>
+            </Properties>
+          </Item>
+          <Item class="UISizeConstraint" referent="91">
+            <Properties>
+              <string name="Name">UISizeConstraint</string>
+              <Vector2 name="MaxSize">
+                <X>860</X>
+                <Y>64</Y>
+              </Vector2>
+            </Properties>
+          </Item>
+          <Item class="ScrollingFrame" referent="92">
+            <Properties>
+              <string name="Name">Buttons</string>
+              <token name="AutomaticCanvasSize">1</token>
+              <float name="BackgroundTransparency">1</float>
+              <int name="BorderSizePixel">0</int>
+              <UDim2 name="CanvasSize">
+                <XS>0</XS>
+                <XO>0</XO>
+                <YS>0</YS>
+                <YO>0</YO>
+              </UDim2>
+              <UDim2 name="Position">
+                <XS>0</XS>
+                <XO>8</XO>
+                <YS>0</YS>
+                <YO>8</YO>
+              </UDim2>
+              <int name="ScrollBarThickness">0</int>
+              <token name="ScrollingDirection">1</token>
+              <UDim2 name="Size">
+                <XS>1</XS>
+                <XO>-16</XO>
+                <YS>1</YS>
+                <YO>-16</YO>
+              </UDim2>
+              <int name="ZIndex">11</int>
+            </Properties>
+            <Item class="UIListLayout" referent="93">
+              <Properties>
+                <string name="Name">UIListLayout</string>
+                <token name="FillDirection">0</token>
+                <token name="HorizontalAlignment">1</token>
+                <UDim name="Padding">
+                  <S>0</S>
+                  <O>8</O>
+                </UDim>
+                <token name="SortOrder">2</token>
+                <token name="VerticalAlignment">0</token>
+              </Properties>
+            </Item>
+            <Item class="TextButton" referent="94">
+              <Properties>
+                <string name="Name">BagButton</string>
+                <bool name="AutoButtonColor">false</bool>
+                <Color3 name="BackgroundColor3">
+                  <R>0.3137255</R>
+                  <G>0.5294118</G>
+                  <B>1</B>
+                </Color3>
+                <int name="BorderSizePixel">0</int>
+                <Font name="FontFace">
+                  <Family>
+                    <url>rbxasset://fonts/families/GothamSSm.json</url>
+                  </Family>
+                  <Weight>700</Weight>
+                  <Style>Normal</Style>
+                </Font>
+                <int name="LayoutOrder">1</int>
+                <bool name="Selectable">true</bool>
+                <UDim2 name="Size">
+                  <XS>0</XS>
+                  <XO>100</XO>
+                  <YS>0</YS>
+                  <YO>48</YO>
+                </UDim2>
+                <string name="Text">BAG</string>
+                <Color3 name="TextColor3">
+                  <R>0.972549</R>
+                  <G>0.9764706</G>
+                  <B>1</B>
+                </Color3>
+                <float name="TextSize">15</float>
+                <bool name="TextWrapped">true</bool>
+              </Properties>
+              <Item class="UICorner" referent="95">
+                <Properties>
+                  <string name="Name">UICorner</string>
+                  <UDim name="CornerRadius">
+                    <S>0</S>
+                    <O>8</O>
+                  </UDim>
+                </Properties>
+              </Item>
+              <Item class="UIStroke" referent="96">
+                <Properties>
+                  <string name="Name">UIStroke</string>
+                  <Color3 name="Color">
+                    <R>0.4392157</R>
+                    <G>0.4941176</G>
+                    <B>0.7215686</B>
+                  </Color3>
+                  <float name="Transparency">0.7</float>
+                </Properties>
+              </Item>
+            </Item>
+            <Item class="TextButton" referent="97">
+              <Properties>
+                <string name="Name">ShopButton</string>
+                <bool name="AutoButtonColor">false</bool>
+                <Color3 name="BackgroundColor3">
+                  <R>0.3137255</R>
+                  <G>0.5294118</G>
+                  <B>1</B>
+                </Color3>
+                <int name="BorderSizePixel">0</int>
+                <Font name="FontFace">
+                  <Family>
+                    <url>rbxasset://fonts/families/GothamSSm.json</url>
+                  </Family>
+                  <Weight>700</Weight>
+                  <Style>Normal</Style>
+                </Font>
+                <int name="LayoutOrder">2</int>
+                <bool name="Selectable">true</bool>
+                <UDim2 name="Size">
+                  <XS>0</XS>
+                  <XO>100</XO>
+                  <YS>0</YS>
+                  <YO>48</YO>
+                </UDim2>
+                <string name="Text">SHOP</string>
+                <Color3 name="TextColor3">
+                  <R>0.972549</R>
+                  <G>0.9764706</G>
+                  <B>1</B>
+                </Color3>
+                <float name="TextSize">15</float>
+                <bool name="TextWrapped">true</bool>
+              </Properties>
+              <Item class="UICorner" referent="98">
+                <Properties>
+                  <string name="Name">UICorner</string>
+                  <UDim name="CornerRadius">
+                    <S>0</S>
+                    <O>8</O>
+                  </UDim>
+                </Properties>
+              </Item>
+              <Item class="UIStroke" referent="99">
+                <Properties>
+                  <string name="Name">UIStroke</string>
+                  <Color3 name="Color">
+                    <R>0.4392157</R>
+                    <G>0.4941176</G>
+                    <B>0.7215686</B>
+                  </Color3>
+                  <float name="Transparency">0.7</float>
+                </Properties>
+              </Item>
+            </Item>
+            <Item class="TextButton" referent="100">
+              <Properties>
+                <string name="Name">GiftButton</string>
+                <bool name="AutoButtonColor">false</bool>
+                <Color3 name="BackgroundColor3">
+                  <R>0.3137255</R>
+                  <G>0.5294118</G>
+                  <B>1</B>
+                </Color3>
+                <int name="BorderSizePixel">0</int>
+                <Font name="FontFace">
+                  <Family>
+                    <url>rbxasset://fonts/families/GothamSSm.json</url>
+                  </Family>
+                  <Weight>700</Weight>
+                  <Style>Normal</Style>
+                </Font>
+                <int name="LayoutOrder">3</int>
+                <bool name="Selectable">true</bool>
+                <UDim2 name="Size">
+                  <XS>0</XS>
+                  <XO>100</XO>
+                  <YS>0</YS>
+                  <YO>48</YO>
+                </UDim2>
+                <string name="Text">GIFT</string>
+                <Color3 name="TextColor3">
+                  <R>0.972549</R>
+                  <G>0.9764706</G>
+                  <B>1</B>
+                </Color3>
+                <float name="TextSize">15</float>
+                <bool name="TextWrapped">true</bool>
+              </Properties>
+              <Item class="UICorner" referent="101">
+                <Properties>
+                  <string name="Name">UICorner</string>
+                  <UDim name="CornerRadius">
+                    <S>0</S>
+                    <O>8</O>
+                  </UDim>
+                </Properties>
+              </Item>
+              <Item class="UIStroke" referent="102">
+                <Properties>
+                  <string name="Name">UIStroke</string>
+                  <Color3 name="Color">
+                    <R>0.4392157</R>
+                    <G>0.4941176</G>
+                    <B>0.7215686</B>
+                  </Color3>
+                  <float name="Transparency">0.7</float>
+                </Properties>
+              </Item>
+            </Item>
+            <Item class="TextButton" referent="103">
+              <Properties>
+                <string name="Name">ProfileButton</string>
+                <bool name="AutoButtonColor">false</bool>
+                <Color3 name="BackgroundColor3">
+                  <R>0.3137255</R>
+                  <G>0.5294118</G>
+                  <B>1</B>
+                </Color3>
+                <int name="BorderSizePixel">0</int>
+                <Font name="FontFace">
+                  <Family>
+                    <url>rbxasset://fonts/families/GothamSSm.json</url>
+                  </Family>
+                  <Weight>700</Weight>
+                  <Style>Normal</Style>
+                </Font>
+                <int name="LayoutOrder">4</int>
+                <bool name="Selectable">true</bool>
+                <UDim2 name="Size">
+                  <XS>0</XS>
+                  <XO>100</XO>
+                  <YS>0</YS>
+                  <YO>48</YO>
+                </UDim2>
+                <string name="Text">PROFILE</string>
+                <Color3 name="TextColor3">
+                  <R>0.972549</R>
+                  <G>0.9764706</G>
+                  <B>1</B>
+                </Color3>
+                <float name="TextSize">15</float>
+                <bool name="TextWrapped">true</bool>
+              </Properties>
+              <Item class="UICorner" referent="104">
+                <Properties>
+                  <string name="Name">UICorner</string>
+                  <UDim name="CornerRadius">
+                    <S>0</S>
+                    <O>8</O>
+                  </UDim>
+                </Properties>
+              </Item>
+              <Item class="UIStroke" referent="105">
+                <Properties>
+                  <string name="Name">UIStroke</string>
+                  <Color3 name="Color">
+                    <R>0.4392157</R>
+                    <G>0.4941176</G>
+                    <B>0.7215686</B>
+                  </Color3>
+                  <float name="Transparency">0.7</float>
+                </Properties>
+              </Item>
+            </Item>
+            <Item class="TextButton" referent="106">
+              <Properties>
+                <string name="Name">CodesButton</string>
+                <bool name="AutoButtonColor">false</bool>
+                <Color3 name="BackgroundColor3">
+                  <R>0.3137255</R>
+                  <G>0.5294118</G>
+                  <B>1</B>
+                </Color3>
+                <int name="BorderSizePixel">0</int>
+                <Font name="FontFace">
+                  <Family>
+                    <url>rbxasset://fonts/families/GothamSSm.json</url>
+                  </Family>
+                  <Weight>700</Weight>
+                  <Style>Normal</Style>
+                </Font>
+                <int name="LayoutOrder">5</int>
+                <bool name="Selectable">true</bool>
+                <UDim2 name="Size">
+                  <XS>0</XS>
+                  <XO>100</XO>
+                  <YS>0</YS>
+                  <YO>48</YO>
+                </UDim2>
+                <string name="Text">CODES</string>
+                <Color3 name="TextColor3">
+                  <R>0.972549</R>
+                  <G>0.9764706</G>
+                  <B>1</B>
+                </Color3>
+                <float name="TextSize">15</float>
+                <bool name="TextWrapped">true</bool>
+              </Properties>
+              <Item class="UICorner" referent="107">
+                <Properties>
+                  <string name="Name">UICorner</string>
+                  <UDim name="CornerRadius">
+                    <S>0</S>
+                    <O>8</O>
+                  </UDim>
+                </Properties>
+              </Item>
+              <Item class="UIStroke" referent="108">
+                <Properties>
+                  <string name="Name">UIStroke</string>
+                  <Color3 name="Color">
+                    <R>0.4392157</R>
+                    <G>0.4941176</G>
+                    <B>0.7215686</B>
+                  </Color3>
+                  <float name="Transparency">0.7</float>
+                </Properties>
+              </Item>
+            </Item>
+            <Item class="TextButton" referent="109">
+              <Properties>
+                <string name="Name">BoardsButton</string>
+                <bool name="AutoButtonColor">false</bool>
+                <Color3 name="BackgroundColor3">
+                  <R>0.3137255</R>
+                  <G>0.5294118</G>
+                  <B>1</B>
+                </Color3>
+                <int name="BorderSizePixel">0</int>
+                <Font name="FontFace">
+                  <Family>
+                    <url>rbxasset://fonts/families/GothamSSm.json</url>
+                  </Family>
+                  <Weight>700</Weight>
+                  <Style>Normal</Style>
+                </Font>
+                <int name="LayoutOrder">6</int>
+                <bool name="Selectable">true</bool>
+                <UDim2 name="Size">
+                  <XS>0</XS>
+                  <XO>100</XO>
+                  <YS>0</YS>
+                  <YO>48</YO>
+                </UDim2>
+                <string name="Text">TOP</string>
+                <Color3 name="TextColor3">
+                  <R>0.972549</R>
+                  <G>0.9764706</G>
+                  <B>1</B>
+                </Color3>
+                <float name="TextSize">15</float>
+                <bool name="TextWrapped">true</bool>
+              </Properties>
+              <Item class="UICorner" referent="110">
+                <Properties>
+                  <string name="Name">UICorner</string>
+                  <UDim name="CornerRadius">
+                    <S>0</S>
+                    <O>8</O>
+                  </UDim>
+                </Properties>
+              </Item>
+              <Item class="UIStroke" referent="111">
+                <Properties>
+                  <string name="Name">UIStroke</string>
+                  <Color3 name="Color">
+                    <R>0.4392157</R>
+                    <G>0.4941176</G>
+                    <B>0.7215686</B>
+                  </Color3>
+                  <float name="Transparency">0.7</float>
+                </Properties>
+              </Item>
+            </Item>
+            <Item class="TextButton" referent="112">
+              <Properties>
+                <string name="Name">FeedbackButton</string>
+                <bool name="AutoButtonColor">false</bool>
+                <Color3 name="BackgroundColor3">
+                  <R>0.3137255</R>
+                  <G>0.5294118</G>
+                  <B>1</B>
+                </Color3>
+                <int name="BorderSizePixel">0</int>
+                <Font name="FontFace">
+                  <Family>
+                    <url>rbxasset://fonts/families/GothamSSm.json</url>
+                  </Family>
+                  <Weight>700</Weight>
+                  <Style>Normal</Style>
+                </Font>
+                <int name="LayoutOrder">7</int>
+                <bool name="Selectable">true</bool>
+                <UDim2 name="Size">
+                  <XS>0</XS>
+                  <XO>100</XO>
+                  <YS>0</YS>
+                  <YO>48</YO>
+                </UDim2>
+                <string name="Text">FEEDBACK</string>
+                <Color3 name="TextColor3">
+                  <R>0.972549</R>
+                  <G>0.9764706</G>
+                  <B>1</B>
+                </Color3>
+                <float name="TextSize">14</float>
+                <bool name="TextWrapped">true</bool>
+              </Properties>
+              <Item class="UICorner" referent="113">
+                <Properties>
+                  <string name="Name">UICorner</string>
+                  <UDim name="CornerRadius">
+                    <S>0</S>
+                    <O>8</O>
+                  </UDim>
+                </Properties>
+              </Item>
+              <Item class="UIStroke" referent="114">
+                <Properties>
+                  <string name="Name">UIStroke</string>
+                  <Color3 name="Color">
+                    <R>0.4392157</R>
+                    <G>0.4941176</G>
+                    <B>0.7215686</B>
+                  </Color3>
+                  <float name="Transparency">0.7</float>
+                </Properties>
+              </Item>
+            </Item>
+            <Item class="TextButton" referent="115">
+              <Properties>
+                <string name="Name">CommunityButton</string>
+                <bool name="AutoButtonColor">false</bool>
+                <Color3 name="BackgroundColor3">
+                  <R>0.3137255</R>
+                  <G>0.5294118</G>
+                  <B>1</B>
+                </Color3>
+                <int name="BorderSizePixel">0</int>
+                <Font name="FontFace">
+                  <Family>
+                    <url>rbxasset://fonts/families/GothamSSm.json</url>
+                  </Family>
+                  <Weight>700</Weight>
+                  <Style>Normal</Style>
+                </Font>
+                <int name="LayoutOrder">8</int>
+                <bool name="Selectable">true</bool>
+                <UDim2 name="Size">
+                  <XS>0</XS>
+                  <XO>100</XO>
+                  <YS>0</YS>
+                  <YO>48</YO>
+                </UDim2>
+                <string name="Text">GROUP</string>
+                <Color3 name="TextColor3">
+                  <R>0.972549</R>
+                  <G>0.9764706</G>
+                  <B>1</B>
+                </Color3>
+                <float name="TextSize">15</float>
+                <bool name="TextWrapped">true</bool>
+              </Properties>
+              <Item class="UICorner" referent="116">
+                <Properties>
+                  <string name="Name">UICorner</string>
+                  <UDim name="CornerRadius">
+                    <S>0</S>
+                    <O>8</O>
+                  </UDim>
+                </Properties>
+              </Item>
+              <Item class="UIStroke" referent="117">
+                <Properties>
+                  <string name="Name">UIStroke</string>
+                  <Color3 name="Color">
+                    <R>0.4392157</R>
+                    <G>0.4941176</G>
+                    <B>0.7215686</B>
+                  </Color3>
+                  <float name="Transparency">0.7</float>
+                </Properties>
+              </Item>
+            </Item>
+            <Item class="TextButton" referent="118">
+              <Properties>
+                <string name="Name">SettingsButton</string>
+                <bool name="AutoButtonColor">false</bool>
+                <Color3 name="BackgroundColor3">
+                  <R>0.3137255</R>
+                  <G>0.5294118</G>
+                  <B>1</B>
+                </Color3>
+                <int name="BorderSizePixel">0</int>
+                <Font name="FontFace">
+                  <Family>
+                    <url>rbxasset://fonts/families/GothamSSm.json</url>
+                  </Family>
+                  <Weight>700</Weight>
+                  <Style>Normal</Style>
+                </Font>
+                <int name="LayoutOrder">9</int>
+                <bool name="Selectable">true</bool>
+                <UDim2 name="Size">
+                  <XS>0</XS>
+                  <XO>100</XO>
+                  <YS>0</YS>
+                  <YO>48</YO>
+                </UDim2>
+                <string name="Text">SETTINGS</string>
+                <Color3 name="TextColor3">
+                  <R>0.972549</R>
+                  <G>0.9764706</G>
+                  <B>1</B>
+                </Color3>
+                <float name="TextSize">14</float>
+                <bool name="TextWrapped">true</bool>
+              </Properties>
+              <Item class="UICorner" referent="119">
+                <Properties>
+                  <string name="Name">UICorner</string>
+                  <UDim name="CornerRadius">
+                    <S>0</S>
+                    <O>8</O>
+                  </UDim>
+                </Properties>
+              </Item>
+              <Item class="UIStroke" referent="120">
+                <Properties>
+                  <string name="Name">UIStroke</string>
+                  <Color3 name="Color">
+                    <R>0.4392157</R>
+                    <G>0.4941176</G>
+                    <B>0.7215686</B>
+                  </Color3>
+                  <float name="Transparency">0.7</float>
+                </Properties>
+              </Item>
+            </Item>
+          </Item>
+        </Item>
+        <Item class="Frame" referent="121">
+          <Properties>
+            <string name="Name">Screens</string>
+            <float name="BackgroundTransparency">1</float>
+            <int name="BorderSizePixel">0</int>
+            <UDim2 name="Size">
+              <XS>1</XS>
+              <XO>0</XO>
+              <YS>1</YS>
+              <YO>0</YO>
+            </UDim2>
+            <int name="ZIndex">20</int>
+          </Properties>
+        </Item>
+        <Item class="Frame" referent="122">
+          <Properties>
+            <string name="Name">ScreenTemplate</string>
+            <Vector2 name="AnchorPoint">
+              <X>0.5</X>
+              <Y>0.5</Y>
+            </Vector2>
+            <Color3 name="BackgroundColor3">
+              <R>0.1607843</R>
+              <G>0.1764706</G>
+              <B>0.2862745</B>
+            </Color3>
+            <int name="BorderSizePixel">0</int>
+            <UDim2 name="Position">
+              <XS>0.5</XS>
+              <XO>0</XO>
+              <YS>0.48</YS>
+              <YO>0</YO>
+            </UDim2>
+            <UDim2 name="Size">
+              <XS>0.9</XS>
+              <XO>0</XO>
+              <YS>0.76</YS>
+              <YO>0</YO>
+            </UDim2>
+            <bool name="Visible">false</bool>
+            <int name="ZIndex">20</int>
+          </Properties>
+          <Item class="UICorner" referent="123">
+            <Properties>
+              <string name="Name">UICorner</string>
+              <UDim name="CornerRadius">
+                <S>0</S>
+                <O>14</O>
+              </UDim>
+            </Properties>
+          </Item>
+          <Item class="UIStroke" referent="124">
+            <Properties>
+              <string name="Name">UIStroke</string>
+              <Color3 name="Color">
+                <R>0.4392157</R>
+                <G>0.4941176</G>
+                <B>0.7215686</B>
+              </Color3>
+              <float name="Thickness">1.5</float>
+              <float name="Transparency">0.45</float>
+            </Properties>
+          </Item>
+          <Item class="UISizeConstraint" referent="125">
+            <Properties>
+              <string name="Name">UISizeConstraint</string>
+              <Vector2 name="MaxSize">
+                <X>760</X>
+                <Y>620</Y>
+              </Vector2>
+            </Properties>
+          </Item>
+          <Item class="TextLabel" referent="126">
+            <Properties>
+              <string name="Name">Title</string>
+              <float name="BackgroundTransparency">1</float>
+              <int name="BorderSizePixel">0</int>
+              <Font name="FontFace">
+                <Family>
+                  <url>rbxasset://fonts/families/GothamSSm.json</url>
+                </Family>
+                <Weight>700</Weight>
+                <Style>Normal</Style>
+              </Font>
+              <UDim2 name="Position">
+                <XS>0</XS>
+                <XO>20</XO>
+                <YS>0</YS>
+                <YO>12</YO>
+              </UDim2>
+              <UDim2 name="Size">
+                <XS>1</XS>
+                <XO>-80</XO>
+                <YS>0</YS>
+                <YO>44</YO>
+              </UDim2>
+              <string name="Text">SCREEN TITLE</string>
+              <Color3 name="TextColor3">
+                <R>0.972549</R>
+                <G>0.9764706</G>
+                <B>1</B>
+              </Color3>
+              <float name="TextSize">26</float>
+              <bool name="TextWrapped">true</bool>
+              <token name="TextXAlignment">0</token>
+              <int name="ZIndex">21</int>
+            </Properties>
+          </Item>
+          <Item class="TextButton" referent="127">
+            <Properties>
+              <string name="Name">CloseButton</string>
+              <Vector2 name="AnchorPoint">
+                <X>1</X>
+                <Y>0</Y>
+              </Vector2>
+              <bool name="AutoButtonColor">true</bool>
+              <Color3 name="BackgroundColor3">
+                <R>1</R>
+                <G>0.3568627</G>
+                <B>0.4392157</B>
+              </Color3>
+              <int name="BorderSizePixel">0</int>
+              <Font name="FontFace">
+                <Family>
+                  <url>rbxasset://fonts/families/GothamSSm.json</url>
+                </Family>
+                <Weight>700</Weight>
+                <Style>Normal</Style>
+              </Font>
+              <UDim2 name="Position">
+                <XS>1</XS>
+                <XO>-12</XO>
+                <YS>0</YS>
+                <YO>12</YO>
+              </UDim2>
+              <UDim2 name="Size">
+                <XS>0</XS>
+                <XO>44</XO>
+                <YS>0</YS>
+                <YO>44</YO>
+              </UDim2>
+              <string name="Text">X</string>
+              <Color3 name="TextColor3">
+                <R>0.972549</R>
+                <G>0.9764706</G>
+                <B>1</B>
+              </Color3>
+              <float name="TextSize">24</float>
+              <int name="ZIndex">22</int>
+            </Properties>
+            <Item class="UICorner" referent="128">
+              <Properties>
+                <string name="Name">UICorner</string>
+                <UDim name="CornerRadius">
+                  <S>0</S>
+                  <O>8</O>
+                </UDim>
+              </Properties>
+            </Item>
+          </Item>
+          <Item class="ScrollingFrame" referent="129">
+            <Properties>
+              <string name="Name">Content</string>
+              <token name="AutomaticCanvasSize">2</token>
+              <float name="BackgroundTransparency">1</float>
+              <int name="BorderSizePixel">0</int>
+              <UDim2 name="CanvasSize">
+                <XS>0</XS>
+                <XO>0</XO>
+                <YS>0</YS>
+                <YO>0</YO>
+              </UDim2>
+              <UDim2 name="Position">
+                <XS>0</XS>
+                <XO>16</XO>
+                <YS>0</YS>
+                <YO>68</YO>
+              </UDim2>
+              <Color3 name="ScrollBarImageColor3">
+                <R>0.3137255</R>
+                <G>0.5294118</G>
+                <B>1</B>
+              </Color3>
+              <int name="ScrollBarThickness">6</int>
+              <UDim2 name="Size">
+                <XS>1</XS>
+                <XO>-32</XO>
+                <YS>1</YS>
+                <YO>-84</YO>
+              </UDim2>
+              <int name="ZIndex">21</int>
+            </Properties>
+            <Item class="UIPadding" referent="130">
+              <Properties>
+                <string name="Name">UIPadding</string>
+                <UDim name="PaddingBottom">
+                  <S>0</S>
+                  <O>4</O>
+                </UDim>
+                <UDim name="PaddingLeft">
+                  <S>0</S>
+                  <O>4</O>
+                </UDim>
+                <UDim name="PaddingRight">
+                  <S>0</S>
+                  <O>4</O>
+                </UDim>
+                <UDim name="PaddingTop">
+                  <S>0</S>
+                  <O>4</O>
+                </UDim>
+              </Properties>
+            </Item>
+            <Item class="UIListLayout" referent="131">
+              <Properties>
+                <string name="Name">UIListLayout</string>
+                <token name="HorizontalAlignment">0</token>
+                <UDim name="Padding">
+                  <S>0</S>
+                  <O>8</O>
+                </UDim>
+                <token name="SortOrder">2</token>
+              </Properties>
+            </Item>
+          </Item>
+        </Item>
+        <Item class="Frame" referent="132">
+          <Properties>
+            <string name="Name">Toast</string>
+            <Vector2 name="AnchorPoint">
+              <X>0.5</X>
+              <Y>0</Y>
+            </Vector2>
+            <Color3 name="BackgroundColor3">
+              <R>0.0862745</R>
+              <G>0.0980392</G>
+              <B>0.1647059</B>
+            </Color3>
+            <int name="BorderSizePixel">0</int>
+            <UDim2 name="Position">
+              <XS>0.5</XS>
+              <XO>0</XO>
+              <YS>0</YS>
+              <YO>-90</YO>
+            </UDim2>
+            <UDim2 name="Size">
+              <XS>0.8</XS>
+              <XO>0</XO>
+              <YS>0</YS>
+              <YO>62</YO>
+            </UDim2>
+            <int name="ZIndex">100</int>
+          </Properties>
+          <Item class="UICorner" referent="133">
+            <Properties>
+              <string name="Name">UICorner</string>
+              <UDim name="CornerRadius">
+                <S>0</S>
+                <O>14</O>
+              </UDim>
+            </Properties>
+          </Item>
+          <Item class="UIStroke" referent="134">
+            <Properties>
+              <string name="Name">UIStroke</string>
+              <Color3 name="Color">
+                <R>0.4392157</R>
+                <G>0.4941176</G>
+                <B>0.7215686</B>
+              </Color3>
+              <float name="Thickness">1.5</float>
+              <float name="Transparency">0.45</float>
+            </Properties>
+          </Item>
+          <Item class="UISizeConstraint" referent="135">
+            <Properties>
+              <string name="Name">UISizeConstraint</string>
+              <Vector2 name="MaxSize">
+                <X>560</X>
+                <Y>62</Y>
+              </Vector2>
+            </Properties>
+          </Item>
+          <Item class="TextLabel" referent="136">
+            <Properties>
+              <string name="Name">Message</string>
+              <float name="BackgroundTransparency">1</float>
+              <int name="BorderSizePixel">0</int>
+              <Font name="FontFace">
+                <Family>
+                  <url>rbxasset://fonts/families/GothamSSm.json</url>
+                </Family>
+                <Weight>700</Weight>
+                <Style>Normal</Style>
+              </Font>
+              <UDim2 name="Position">
+                <XS>0</XS>
+                <XO>14</XO>
+                <YS>0</YS>
+                <YO>8</YO>
+              </UDim2>
+              <UDim2 name="Size">
+                <XS>1</XS>
+                <XO>-28</XO>
+                <YS>1</YS>
+                <YO>-16</YO>
+              </UDim2>
+              <string name="Text">Notification preview</string>
+              <Color3 name="TextColor3">
+                <R>0.972549</R>
+                <G>0.9764706</G>
+                <B>1</B>
+              </Color3>
+              <float name="TextSize">18</float>
+              <bool name="TextWrapped">true</bool>
+              <token name="TextXAlignment">2</token>
+              <int name="ZIndex">101</int>
+            </Properties>
+          </Item>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+</roblox>
