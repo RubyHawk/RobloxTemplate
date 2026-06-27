@@ -1,27 +1,44 @@
-# Roblox Reusable Template
+# Roblox Template — Start Here
 
-A server-authoritative, mobile-first Roblox UI and systems kit. The `template` branch is the reusable source of truth; game branches compose its services and screens through configuration.
+You do not need to understand Git, Rojo, Wally, or the notification worker to open this project.
 
-## Quick start
+## Open the template for the first time
 
-```powershell
-rokit install
-wally install
-rojo plugin install
-rojo serve default.project.json
-```
+1. Double-click **`1_SETUP.cmd`** and wait for `SETUP COMPLETE`.
+2. Double-click **`2_START.cmd`**. Keep the black window open.
+3. Roblox Studio opens. Select **Plugins → Rojo → Connect**.
+4. Press **Play** in Studio.
 
-Open Roblox Studio, create or open a blank place, connect the Rojo plugin to `localhost:34872`, and press Play. The template opens a component gallery with mock data when Studio API access is disabled.
+You should see a Coins HUD and buttons for the inventory, store, rewards, profile, codes, leaderboards, feedback, community, and settings.
 
-## Checks
+If anything is red or does not open, double-click **`3_CHECK.cmd`**. It explains what is missing in plain language.
 
-```powershell
-stylua --check src tests
-selene src tests
-rojo build default.project.json --output RobloxTemplate.rbxlx
-lune run tests/run
-npm --prefix worker run typecheck
-npm --prefix worker test
-```
+## Which branch should I use?
 
-Read [docs/SETUP.md](docs/SETUP.md) before connecting a published experience or real product IDs.
+- **`playable-starter`** is the easiest starting point. It includes the complete template plus a blue earning pad that proves the economy works.
+- **`template`** contains only the reusable UI and systems. Put improvements that every future map should receive here.
+- Ignore **`main`**; it is the untouched original branch.
+
+The GitHub repository opens on `playable-starter` by default, so beginners do not need to switch branches.
+
+## What already works?
+
+- Modern responsive HUD and menu screens
+- Mock player saving in Studio, Coins, inventory, potions, daily and offline rewards
+- Store foundations, Premium and friend bonuses, profiles, feedback, codes, and leaderboards
+- Loading screen, AFK rollover, settings, announcement messages, and empty audio hooks
+- Secure server validation and automated checks
+
+Features that need your own Roblox IDs—real purchases, community verification, audio, published DataStores, and notifications—stay visibly disabled until you configure them. Discord and guilds are intentionally scaffolded but off.
+
+## Is it current for 2026?
+
+Yes. The tool versions were rechecked against their latest stable releases on 2026-06-27. The UI uses Roblox’s current token-based styling system, chat uses native cross-server `TextChatService`, and the checklist uses Studio’s Device Emulator for phones.
+
+## Where should I go next?
+
+- [Your first five minutes](docs/FIRST_STEPS.md)
+- [What each feature does](docs/FEATURES.md)
+- [Common problems and exact fixes](docs/TROUBLESHOOTING.md)
+- [Change colors, rewards, IDs, and game values](docs/CUSTOMIZE.md)
+- [Technical setup and branch workflow](docs/SETUP.md)

@@ -12,6 +12,7 @@ node_modules/
 .lune/
 .cache/
 coverage/
+build/
 
 # Local secrets and editor state
 .env
