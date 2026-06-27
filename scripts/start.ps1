@@ -29,7 +29,12 @@ function Stop-StaleRojoServer {
     }
 
     $listeners = @(Get-NetTCPConnection -LocalPort 34872 -State Listen -ErrorAction SilentlyContinue)
-    foreach ($processId in ($listeners.OwningProcess | Sort-Object -Unique)) {
+    if ($listeners.Count -eq 0) {
+        return
+    }
+
+    $processIds = @($listeners | Select-Object -ExpandProperty OwningProcess | Sort-Object -Unique)
+    foreach ($processId in $processIds) {
         $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
         if (-not $process) {
             continue
