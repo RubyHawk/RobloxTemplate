@@ -1,0 +1,4 @@
+interface:
+  display_name: "Roblox Template"
+  short_description: "Build secure reusable Roblox systems"
+  default_prompt: "Use $roblox-template to build or update a reusable Roblox template feature."

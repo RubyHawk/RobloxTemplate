@@ -1,0 +1,22 @@
+# Rojo output
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+sourcemap.json
+
+# Packages and caches
+Packages/
+DevPackages/
+node_modules/
+.lune/
+.cache/
+coverage/
+
+# Local secrets and editor state
+.env
+.env.*
+!.env.example
+*.local.json
+.DS_Store
+Thumbs.db

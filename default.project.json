@@ -1,0 +1,73 @@
+{
+  "name": "RobloxTemplateGallery",
+  "emitLegacyScripts": false,
+  "servePlaceIds": [],
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedFirst": {
+      "$path": "src/ReplicatedFirst"
+    },
+    "ReplicatedStorage": {
+      "Template": {
+        "$className": "Folder",
+        "Shared": {
+          "$path": "src/shared"
+        }
+      }
+    },
+    "ServerScriptService": {
+      "TemplateServer": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "TemplateClient": {
+          "$path": "src/client"
+        }
+      }
+    },
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": true
+      },
+      "TemplateSpawn": {
+        "$className": "SpawnLocation",
+        "$properties": {
+          "Anchored": true,
+          "CanCollide": true,
+          "Neutral": true,
+          "Position": [0, 3, 0],
+          "Size": [12, 1, 12]
+        }
+      },
+      "GalleryFloor": {
+        "$className": "Part",
+        "$properties": {
+          "Anchored": true,
+          "CanCollide": true,
+          "Position": [0, 0, 0],
+          "Size": [128, 1, 128],
+          "Color": [0.08, 0.09, 0.14],
+          "Material": "SmoothPlastic"
+        }
+      }
+    },
+    "TextChatService": {
+      "$properties": {
+        "CreateDefaultCommands": true,
+        "CreateDefaultTextChannels": true
+      }
+    },
+    "HttpService": {
+      "$properties": {
+        "HttpEnabled": false
+      }
+    },
+    "SoundService": {
+      "$properties": {
+        "RespectFilteringEnabled": true
+      }
+    }
+  }
+}

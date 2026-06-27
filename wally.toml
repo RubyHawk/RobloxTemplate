@@ -1,0 +1,14 @@
+[package]
+name = "rubyhawk/roblox-template"
+description = "Reusable server-authoritative Roblox UI and systems template"
+version = "0.1.0"
+license = "MIT"
+authors = ["RubyHawk"]
+realm = "shared"
+registry = "https://github.com/UpliftGames/wally-index"
+
+[dependencies]
+
+[server-dependencies]
+
+[dev-dependencies]

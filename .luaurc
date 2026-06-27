@@ -1,0 +1,8 @@
+{
+  "languageMode": "strict",
+  "lint": {
+    "DuplicateCondition": true,
+    "DuplicateLocal": true,
+    "GlobalUsedAsLocal": true
+  }
+}
