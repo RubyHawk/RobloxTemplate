@@ -10,6 +10,14 @@ Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 
 $root = Split-Path -Parent $PSScriptRoot
+$logDirectory = Join-Path $root "build"
+$logFile = Join-Path $logDirectory "launcher.log"
+New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
+
+function Write-LauncherLog([string]$Message) {
+    $line = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  $Message"
+    Add-Content -LiteralPath $logFile -Value $line -Encoding UTF8
+}
 
 function Get-CurrentBranch {
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
@@ -36,7 +44,8 @@ function Show-LauncherMessage([string]$Message, [string]$Title, [System.Windows.
 
 function Start-CommandWindow([string]$FileName) {
     $commandFile = Join-Path $root $FileName
-    Start-Process -FilePath $env:ComSpec -ArgumentList "/d /c `"$commandFile`"" -WorkingDirectory $root
+    $process = Start-Process -FilePath $env:ComSpec -ArgumentList "/d /c `"$commandFile`"" -WorkingDirectory $root -PassThru
+    Write-LauncherLog "Started $FileName as process $($process.Id)."
 }
 
 function Switch-ToVersion([string]$Branch) {
@@ -55,8 +64,21 @@ function Switch-ToVersion([string]$Branch) {
         return $false
     }
 
-    $switchOutput = @(& git -C $root switch $Branch 2>&1)
-    if ($LASTEXITCODE -ne 0) {
+    # Windows PowerShell 5 reports normal Git status text from stderr as a
+    # terminating error when ErrorActionPreference is Stop. Capture it without
+    # treating messages such as "Switched to branch" as failures.
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $switchOutput = @(& git -C $root switch $Branch 2>&1)
+        $switchExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
+    Write-LauncherLog "Git switch $Branch returned $switchExitCode. $($switchOutput -join ' ')"
+    if ($switchExitCode -ne 0) {
         Show-LauncherMessage (($switchOutput -join "`n") + "`n`nAsk the project owner for help switching branches.") "Could not switch version" ([System.Windows.MessageBoxImage]::Error)
         return $false
     }
@@ -183,25 +205,40 @@ $setupButton = $window.FindName("SetupButton")
 $checkButton = $window.FindName("CheckButton")
 
 $currentStatus.Text = "Current selection: $(Get-CurrentBranch)  |  $(Get-CurrentProject)"
+Write-LauncherLog "Launcher opened on $(Get-CurrentBranch) | $(Get-CurrentProject)."
 
 $playableButton.Add_Click({
     $window.IsEnabled = $false
-    if (Switch-ToVersion "playable-starter") {
-        Start-CommandWindow "2_START.cmd"
-        $window.Close()
+    try {
+        if (Switch-ToVersion "playable-starter") {
+            Start-CommandWindow "2_START.cmd"
+            $window.Close()
+        }
+        else {
+            $window.IsEnabled = $true
+        }
     }
-    else {
+    catch {
+        Write-LauncherLog "Playable starter failed: $($_.Exception.ToString())"
+        Show-LauncherMessage "The launcher hit an unexpected error. Nothing was deleted.`n`nDetails were saved to build\launcher.log." "Could not open playable starter" ([System.Windows.MessageBoxImage]::Error)
         $window.IsEnabled = $true
     }
 })
 
 $templateButton.Add_Click({
     $window.IsEnabled = $false
-    if (Switch-ToVersion "template") {
-        Start-CommandWindow "2_START.cmd"
-        $window.Close()
+    try {
+        if (Switch-ToVersion "template") {
+            Start-CommandWindow "2_START.cmd"
+            $window.Close()
+        }
+        else {
+            $window.IsEnabled = $true
+        }
     }
-    else {
+    catch {
+        Write-LauncherLog "Template failed: $($_.Exception.ToString())"
+        Show-LauncherMessage "The launcher hit an unexpected error. Nothing was deleted.`n`nDetails were saved to build\launcher.log." "Could not open template" ([System.Windows.MessageBoxImage]::Error)
         $window.IsEnabled = $true
     }
 })
