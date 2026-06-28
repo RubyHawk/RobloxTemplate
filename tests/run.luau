@@ -128,5 +128,35 @@ else
 	expectEqual(string.find(bootstrap, "GalleryMenu", 1, true), nil, "starter excludes gallery menu")
 	expectEqual(string.find(bootstrap, "GalleryBackdrop", 1, true), nil, "starter excludes gallery backdrop")
 end
+local connectedUi = fs.readFile("src/ui/TemplateUI.model.json")
+for _, requiredObject in
+	{
+		'"Name": "CurrencyHUD"',
+		'"Name": "Navigation"',
+		'"Name": "MoreButton"',
+		'"Name": "MoreMenu"',
+		'"Name": "ScreenTemplate"',
+	}
+do
+	expectEqual(
+		string.find(connectedUi, requiredObject, 1, true) ~= nil,
+		true,
+		`connected UI includes {requiredObject}`
+	)
+end
+expectEqual(
+	string.find(connectedUi, '"Text": "TOP"', 1, true),
+	nil,
+	"secondary actions are not crowded into the main navigation"
+)
+
+local screenCopy = fs.readFile("src/client/UI/Screens.luau")
+for _, developerFacingCopy in { "Project defaults", "Verification is scaffolded", "Discord" } do
+	expectEqual(
+		string.find(screenCopy, developerFacingCopy, 1, true),
+		nil,
+		`player UI hides developer wording: {developerFacingCopy}`
+	)
+end
 
 print(`{passed} pure Luau assertions passed`)

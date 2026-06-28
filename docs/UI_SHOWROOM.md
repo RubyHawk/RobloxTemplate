@@ -19,6 +19,10 @@ The UI Pack and Notification ScreenGuis are disabled by default, so they no long
 
 The imported scripts were removed. In particular, the supplied notification system allowed a client to choose arbitrary notification text, color, and duration. The template keeps its server-validated notification path instead.
 
+## Connected starter design
+
+`TemplateUI` targets a mainstream kid-friendly Roblox experience: a bright coin card, five large labelled actions, and one More drawer for secondary features. Color is never the only cue; every action has readable text. The connected starter is intentionally calmer than the visual reference packs.
+
 ## What to edit
 
 Inside `TemplateUI → Root`:

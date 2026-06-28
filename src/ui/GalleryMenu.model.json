@@ -3,6 +3,7 @@
   "Properties": {
     "ClipToDeviceSafeArea": true,
     "DisplayOrder": 200,
+    "Enabled": false,
     "ResetOnSpawn": false,
     "SafeAreaCompatibility": "None",
     "ScreenInsets": "CoreUISafeInsets",

@@ -533,9 +533,9 @@ local Config = {
 	announcements = {
 		intervalSeconds = 180,
 		messages = {
-			"Open Inventory from the HUD to use your boosts!",
-			"Daily rewards reset at midnight UTC.",
-			"Community links are available on the experience page.",
+			"Open your Bag to use boosts you've collected!",
+			"Come back tomorrow to keep your daily streak going!",
+			"Check the game page for community news and updates.",
 		},
 	},
 
@@ -588,21 +588,21 @@ return table.freeze(Config)
 
 local Theme = {
 	colors = {
-		background = Color3.fromRGB(22, 25, 42),
-		surface = Color3.fromRGB(41, 45, 73),
-		surfaceRaised = Color3.fromRGB(55, 61, 96),
-		primary = Color3.fromRGB(80, 135, 255),
-		secondary = Color3.fromRGB(181, 91, 255),
-		accent = Color3.fromRGB(255, 201, 64),
-		success = Color3.fromRGB(63, 220, 142),
-		danger = Color3.fromRGB(255, 91, 112),
-		text = Color3.fromRGB(248, 249, 255),
-		textMuted = Color3.fromRGB(180, 187, 218),
-		stroke = Color3.fromRGB(112, 126, 184),
+		background = Color3.fromRGB(241, 248, 255),
+		surface = Color3.fromRGB(255, 255, 255),
+		surfaceRaised = Color3.fromRGB(225, 239, 255),
+		primary = Color3.fromRGB(59, 130, 246),
+		secondary = Color3.fromRGB(137, 80, 237),
+		accent = Color3.fromRGB(255, 203, 58),
+		success = Color3.fromRGB(32, 193, 114),
+		danger = Color3.fromRGB(255, 76, 91),
+		text = Color3.fromRGB(20, 37, 69),
+		textMuted = Color3.fromRGB(89, 110, 145),
+		stroke = Color3.fromRGB(105, 160, 255),
 	},
 	radius = {
 		small = UDim.new(0, 8),
-		medium = UDim.new(0, 14),
+		medium = UDim.new(0, 16),
 		large = UDim.new(0, 22),
 	},
 	spacing = {
@@ -2440,6 +2440,7 @@ return SessionLock
           <string name="Source"><![CDATA[--!strict
 
 local Players = game:GetService("Players")
+local GuiService = game:GetService("GuiService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
@@ -2491,21 +2492,30 @@ local coinLabel = hud:WaitForChild("CoinLabel") :: TextLabel
 local boostLabel = hud:WaitForChild("BoostLabel") :: TextLabel
 local nav = root:WaitForChild("Navigation") :: Frame
 local navScroll = nav:WaitForChild("Buttons") :: ScrollingFrame
+local moreMenu = root:WaitForChild("MoreMenu") :: Frame
+local moreMenuButtons = moreMenu:WaitForChild("Buttons") :: ScrollingFrame
+local moreCloseButton = moreMenu:WaitForChild("CloseButton") :: TextButton
 local screensLayer = root:WaitForChild("Screens") :: Frame
 local toast = root:WaitForChild("Toast") :: Frame
 local toastLabel = toast:WaitForChild("Message") :: TextLabel
 local toastToken = 0
 
+local function tweenInfo(duration: number, easingStyle: Enum.EasingStyle?): TweenInfo
+	local adjustedDuration = if GuiService.ReducedMotionEnabled then 0 else duration
+	return if easingStyle
+		then TweenInfo.new(adjustedDuration, easingStyle)
+		else TweenInfo.new(adjustedDuration)
+end
+
 local function showToast(message: string)
 	toastToken += 1
 	local token = toastToken
 	toastLabel.Text = message
-	TweenService
-		:Create(toast, TweenInfo.new(0.2, Enum.EasingStyle.Back), { Position = UDim2.new(0.5, 0, 0, 12) })
+	TweenService:Create(toast, tweenInfo(0.2, Enum.EasingStyle.Back), { Position = UDim2.new(0.5, 0, 0, 12) })
 		:Play()
 	task.delay(3.5, function()
 		if token == toastToken then
-			TweenService:Create(toast, TweenInfo.new(0.2), { Position = UDim2.new(0.5, 0, 0, -90) }):Play()
+			TweenService:Create(toast, tweenInfo(0.2), { Position = UDim2.new(0.5, 0, 0, -90) }):Play()
 		end
 	end)
 end
@@ -2532,10 +2542,11 @@ local function ensureGalleryScreen(name: string): ScreenGui?
 end
 
 local function setupGalleryMenu()
-	local galleryMenu = optionalScreenGui("GalleryMenu")
+	local galleryMenu = ensureGalleryScreen("GalleryMenu")
 	if not galleryMenu then
 		return
 	end
+	galleryMenu.Enabled = true
 
 	local packShowroom = ensureGalleryScreen("ZxglyV5Showroom")
 	local notificationShowroom = ensureGalleryScreen("NotificationV2Showroom")
@@ -2701,28 +2712,68 @@ local navItems = {
 	{ "ShopButton", "Store" },
 	{ "GiftButton", "Rewards" },
 	{ "ProfileButton", "Profile" },
-	{ "CodesButton", "Codes" },
-	{ "BoardsButton", "Boards" },
-	{ "FeedbackButton", "Feedback" },
-	{ "CommunityButton", "Community" },
-	{ "SettingsButton", "Settings" },
 }
 for _, item in navItems do
 	local button = navScroll:WaitForChild(item[1]) :: TextButton
+	local screenName = item[2]
 	local restingColor = button.BackgroundColor3
 	button.MouseEnter:Connect(function()
-		TweenService:Create(button, TweenInfo.new(0.12), { BackgroundColor3 = Theme.colors.secondary }):Play()
+		TweenService:Create(button, tweenInfo(0.12), { BackgroundColor3 = Theme.colors.secondary }):Play()
 	end)
 	button.MouseLeave:Connect(function()
-		TweenService:Create(button, TweenInfo.new(0.12), { BackgroundColor3 = restingColor }):Play()
+		TweenService:Create(button, tweenInfo(0.12), { BackgroundColor3 = restingColor }):Play()
 	end)
 	button.Activated:Connect(function()
 		AudioController.play("click")
-		if registry.current == item[2] then
+		moreMenu.Visible = false
+		if registry.current == screenName then
 			registry:close()
 		else
-			registry:open(item[2])
+			registry:open(screenName)
 		end
+	end)
+end
+
+local moreButton = navScroll:WaitForChild("MoreButton") :: TextButton
+local moreButtonRestingColor = moreButton.BackgroundColor3
+moreButton.MouseEnter:Connect(function()
+	TweenService:Create(moreButton, tweenInfo(0.12), { BackgroundColor3 = Theme.colors.secondary }):Play()
+end)
+moreButton.MouseLeave:Connect(function()
+	TweenService:Create(moreButton, tweenInfo(0.12), { BackgroundColor3 = moreButtonRestingColor }):Play()
+end)
+moreButton.Activated:Connect(function()
+	AudioController.play("click")
+	registry:close()
+	moreMenu.Visible = not moreMenu.Visible
+end)
+
+moreCloseButton.Activated:Connect(function()
+	AudioController.play("click")
+	moreMenu.Visible = false
+end)
+
+local moreItems = {
+	{ "CodesButton", "Codes" },
+	{ "BoardsButton", "Boards" },
+	{ "CommunityButton", "Community" },
+	{ "FeedbackButton", "Feedback" },
+	{ "SettingsButton", "Settings" },
+}
+for _, item in moreItems do
+	local button = moreMenuButtons:WaitForChild(item[1]) :: TextButton
+	local screenName = item[2]
+	local restingColor = button.BackgroundColor3
+	button.MouseEnter:Connect(function()
+		TweenService:Create(button, tweenInfo(0.12), { BackgroundColor3 = Theme.colors.secondary }):Play()
+	end)
+	button.MouseLeave:Connect(function()
+		TweenService:Create(button, tweenInfo(0.12), { BackgroundColor3 = restingColor }):Play()
+	end)
+	button.Activated:Connect(function()
+		AudioController.play("click")
+		moreMenu.Visible = false
+		registry:open(screenName)
 	end)
 end
 
@@ -2732,11 +2783,11 @@ local function applyState(nextState: any)
 	end
 	local previousCoins = if state and state.profile then state.profile.coins else nextState.profile.coins
 	state = nextState
-	coinLabel.Text = `◆ {UIFactory.formatNumber(state.profile.coins)} Coins`
+	coinLabel.Text = `{UIFactory.formatNumber(state.profile.coins)} COINS`
 	boostLabel.Text = `x{string.format(
 		"%.2f",
 		(1 + state.friendBonus + state.premiumBonus) * state.potionMultiplier
-	)} total • {state.profile.social.friendCountInServer} friends`
+	)} BOOST  •  {state.profile.social.friendCountInServer} FRIENDS`
 	uiScale.Scale = state.profile.settings.uiScale
 	AudioController.applySettings(state.profile.settings)
 	if state.profile.coins > previousCoins then
@@ -2769,7 +2820,11 @@ end)
 
 UserInputService.InputBegan:Connect(function(input, processed)
 	if not processed and (input.KeyCode == Enum.KeyCode.ButtonB or input.KeyCode == Enum.KeyCode.Escape) then
-		registry:close()
+		if moreMenu.Visible then
+			moreMenu.Visible = false
+		else
+			registry:close()
+		end
 	end
 end)
 
@@ -3044,7 +3099,7 @@ local function row(parent: Instance, title: string, body: string): Frame
 end
 
 function Screens.inventory(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Inventory", context.close)
+	local root, content = base(parent, "My Bag", context.close)
 	local entries = context.state.profile.inventory
 	local anyItem = false
 	for itemId, entry in entries do
@@ -3068,13 +3123,13 @@ function Screens.inventory(parent: Instance, context: any): Frame
 		end
 	end
 	if not anyItem then
-		row(content, "Inventory empty", "Items and consumables appear here.")
+		row(content, "Your bag is empty", "Items and boosts you collect will appear here.")
 	end
 	return root
 end
 
 function Screens.store(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Store", context.close)
+	local root, content = base(parent, "Shop", context.close)
 	for itemId, definition in context.state.catalog do
 		if definition.priceCoins then
 			local card =
@@ -3099,7 +3154,7 @@ function Screens.store(parent: Instance, context: any): Frame
 			Size = UDim2.fromOffset(92, 44),
 		})
 	else
-		row(content, "Robux products", "Disabled until product IDs are configured in TemplateConfig.")
+		row(content, "Coin packs", "More shop options are coming soon!")
 	end
 	if context.state.productAvailability.coinPackLarge then
 		local card = row(content, "Large Coins Pack", "Direct developer product; Roblox confirms the price.")
@@ -3126,11 +3181,11 @@ function Screens.store(parent: Instance, context: any): Frame
 end
 
 function Screens.rewards(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Rewards", context.close)
+	local root, content = base(parent, "Daily Rewards", context.close)
 	row(
 		content,
 		`Daily streak: Day {context.state.profile.daily.streak}`,
-		"Claims reset at midnight UTC. Missing a day resets the streak."
+		"Come back tomorrow to keep your streak going!"
 	)
 	UIFactory.button(content, "CLAIM DAILY REWARD", function()
 		context.request("ClaimDaily", {})
@@ -3154,7 +3209,7 @@ function Screens.rewards(parent: Instance, context: any): Frame
 end
 
 function Screens.profile(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Player Profile", context.close)
+	local root, content = base(parent, "My Profile", context.close)
 	local profile = context.state.profile
 	row(
 		content,
@@ -3164,7 +3219,7 @@ function Screens.profile(parent: Instance, context: any): Frame
 		)}m`
 	)
 	local input = UIFactory.textBox(content, "Exact Roblox username")
-	local resultLabel = UIFactory.label(content, "Search displays whitelisted public stats only.", {
+	local resultLabel = UIFactory.label(content, "Search for a Roblox player to see their public stats.", {
 		Size = UDim2.new(1, -8, 0, 54),
 		TextColor3 = Theme.colors.textMuted,
 	})
@@ -3197,9 +3252,9 @@ function Screens.settings(parent: Instance, context: any): Frame
 		end)
 	end
 	toggle("Reduced motion", "reducedMotion", settings.reducedMotion)
-	toggle("Announcements", "announcements", settings.announcements)
-	toggle("AFK rollover", "afKRollOver", settings.afKRollOver)
-	toggle("Roblox reminders", "notifications", settings.notifications)
+	toggle("Game tips", "announcements", settings.announcements)
+	toggle("Stay connected", "afKRollOver", settings.afKRollOver)
+	toggle("Reminders", "notifications", settings.notifications)
 	UIFactory.button(content, `Music: {math.floor(settings.musicVolume * 100)}%`, function()
 		context.request(
 			"UpdateSetting",
@@ -3216,16 +3271,12 @@ function Screens.settings(parent: Instance, context: any): Frame
 		end
 		context.request("UpdateSetting", { key = "uiScale", value = nextScale })
 	end)
-	row(
-		content,
-		"Project defaults",
-		"Streaming enabled; native chat enabled; HTTP, paid products, Discord, and live DataStores disabled until configured."
-	)
+	row(content, "You're all set!", "Your choices save automatically. You can change them again any time.")
 	return root
 end
 
 function Screens.feedback(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Feedback & Bug Report", context.close)
+	local root, content = base(parent, "Send Feedback", context.close)
 	local categories = { "Bug", "Feedback", "Accessibility", "Other" }
 	local categoryIndex = 1
 	local categoryButton = UIFactory.button(content, "Category: Bug", nil)
@@ -3276,10 +3327,10 @@ local function leaderboardRows(content: Instance, rows: { any })
 end
 
 function Screens.leaderboards(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Leaderboards", context.close)
+	local root, content = base(parent, "Top Players", context.close)
 	UIFactory.label(content, "CURRENT SERVER", { Size = UDim2.new(1, -8, 0, 32), FontFace = Theme.fontBold })
 	leaderboardRows(content, context.state.serverLeaderboard)
-	UIFactory.button(content, "LOAD GLOBAL TOP 50", function()
+	UIFactory.button(content, "SHOW GLOBAL TOP 50", function()
 		task.spawn(function()
 			local response = context.query("GlobalLeaderboard", {})
 			if response.ok and response.data then
@@ -3299,18 +3350,13 @@ function Screens.verification(parent: Instance, context: any): Frame
 		content,
 		"Roblox Community",
 		if availability.community
-			then "Verification is enabled."
-			else "Disabled until a community ID is configured."
+			then "Community rewards are ready!"
+			else "Community rewards are coming soon."
 	)
 	row(
 		content,
-		"Discord",
-		"Verification is scaffolded but disabled. Community link is available on the experience page after setup."
-	)
-	row(
-		content,
-		"Guilds / Clans",
-		if availability.guilds then "Enabled" else "Provider contract reserved; no guild data is active."
+		"Clubs",
+		if availability.guilds then "Clubs are ready!" else "Team up with friends when clubs arrive later."
 	)
 	return root
 end
@@ -3361,11 +3407,16 @@ return UIComponent
               <string name="Source"><![CDATA[--!strict
 
 local TweenService = game:GetService("TweenService")
+local GuiService = game:GetService("GuiService")
 
 local Theme =
 	require(game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared").Theme)
 
 local UIFactory = {}
+
+local function hoverTweenInfo(): TweenInfo
+	return TweenInfo.new(if GuiService.ReducedMotionEnabled then 0 else 0.12)
+end
 
 local function authoredTemplate(parent: Instance, name: string): Instance?
 	local screenGui = parent:FindFirstAncestorWhichIsA("ScreenGui")
@@ -3478,10 +3529,10 @@ function UIFactory.button(
 	end
 	local restingColor = object.BackgroundColor3
 	object.MouseEnter:Connect(function()
-		TweenService:Create(object, TweenInfo.new(0.12), { BackgroundColor3 = Theme.colors.secondary }):Play()
+		TweenService:Create(object, hoverTweenInfo(), { BackgroundColor3 = Theme.colors.secondary }):Play()
 	end)
 	object.MouseLeave:Connect(function()
-		TweenService:Create(object, TweenInfo.new(0.12), { BackgroundColor3 = restingColor }):Play()
+		TweenService:Create(object, hoverTweenInfo(), { BackgroundColor3 = restingColor }):Play()
 	end)
 	if onActivated then
 		object.Activated:Connect(onActivated)
@@ -3696,9 +3747,9 @@ return UIStyles
               <string name="Name">ButtonTemplate</string>
               <bool name="AutoButtonColor">false</bool>
               <Color3 name="BackgroundColor3">
-                <R>0.3137255</R>
-                <G>0.5294118</G>
-                <B>1</B>
+                <R>0.2313725</R>
+                <G>0.5098039</G>
+                <B>0.9647059</B>
               </Color3>
               <int name="BorderSizePixel">0</int>
               <Font name="FontFace">
@@ -3713,15 +3764,15 @@ return UIStyles
                 <XS>1</XS>
                 <XO>0</XO>
                 <YS>0</YS>
-                <YO>48</YO>
+                <YO>52</YO>
               </UDim2>
               <string name="Text">BUTTON</string>
               <Color3 name="TextColor3">
-                <R>0.972549</R>
-                <G>0.9764706</G>
+                <R>1</R>
+                <G>1</G>
                 <B>1</B>
               </Color3>
-              <float name="TextSize">16</float>
+              <float name="TextSize">17</float>
               <bool name="TextWrapped">true</bool>
               <bool name="Visible">false</bool>
             </Properties>
@@ -3730,7 +3781,7 @@ return UIStyles
                 <string name="Name">UICorner</string>
                 <UDim name="CornerRadius">
                   <S>0</S>
-                  <O>8</O>
+                  <O>14</O>
                 </UDim>
               </Properties>
             </Item>
@@ -3738,11 +3789,12 @@ return UIStyles
               <Properties>
                 <string name="Name">UIStroke</string>
                 <Color3 name="Color">
-                  <R>0.4392157</R>
-                  <G>0.4941176</G>
-                  <B>0.7215686</B>
+                  <R>0.1058824</R>
+                  <G>0.254902</G>
+                  <B>0.5803922</B>
                 </Color3>
-                <float name="Transparency">0.7</float>
+                <float name="Thickness">2</float>
+                <float name="Transparency">0.55</float>
               </Properties>
             </Item>
           </Item>
@@ -3750,9 +3802,9 @@ return UIStyles
             <Properties>
               <string name="Name">TextBoxTemplate</string>
               <Color3 name="BackgroundColor3">
-                <R>0.0431373</R>
-                <G>0.0509804</G>
-                <B>0.0901961</B>
+                <R>0.945098</R>
+                <G>0.972549</G>
+                <B>1</B>
               </Color3>
               <int name="BorderSizePixel">0</int>
               <bool name="ClearTextOnFocus">false</bool>
@@ -3764,24 +3816,24 @@ return UIStyles
                 <Style>Normal</Style>
               </Font>
               <Color3 name="PlaceholderColor3">
-                <R>0.7058824</R>
-                <G>0.7333333</G>
-                <B>0.854902</B>
+                <R>0.3490196</R>
+                <G>0.4313725</G>
+                <B>0.5686275</B>
               </Color3>
               <string name="PlaceholderText">TYPE HERE</string>
               <UDim2 name="Size">
                 <XS>1</XS>
                 <XO>0</XO>
                 <YS>0</YS>
-                <YO>48</YO>
+                <YO>52</YO>
               </UDim2>
               <string name="Text"></string>
               <Color3 name="TextColor3">
-                <R>0.972549</R>
-                <G>0.9764706</G>
-                <B>1</B>
+                <R>0.0784314</R>
+                <G>0.145098</G>
+                <B>0.2705882</B>
               </Color3>
-              <float name="TextSize">16</float>
+              <float name="TextSize">17</float>
               <bool name="TextWrapped">true</bool>
               <bool name="Visible">false</bool>
             </Properties>
@@ -3790,7 +3842,7 @@ return UIStyles
                 <string name="Name">UICorner</string>
                 <UDim name="CornerRadius">
                   <S>0</S>
-                  <O>8</O>
+                  <O>14</O>
                 </UDim>
               </Properties>
             </Item>
@@ -3798,11 +3850,12 @@ return UIStyles
               <Properties>
                 <string name="Name">UIStroke</string>
                 <Color3 name="Color">
-                  <R>0.4392157</R>
-                  <G>0.4941176</G>
-                  <B>0.7215686</B>
+                  <R>0.2313725</R>
+                  <G>0.5098039</G>
+                  <B>0.9647059</B>
                 </Color3>
-                <float name="Transparency">0.45</float>
+                <float name="Thickness">2</float>
+                <float name="Transparency">0.35</float>
               </Properties>
             </Item>
             <Item class="UIPadding" referent="76">
@@ -3810,19 +3863,19 @@ return UIStyles
                 <string name="Name">UIPadding</string>
                 <UDim name="PaddingBottom">
                   <S>0</S>
-                  <O>8</O>
+                  <O>10</O>
                 </UDim>
                 <UDim name="PaddingLeft">
                   <S>0</S>
-                  <O>8</O>
+                  <O>12</O>
                 </UDim>
                 <UDim name="PaddingRight">
                   <S>0</S>
-                  <O>8</O>
+                  <O>12</O>
                 </UDim>
                 <UDim name="PaddingTop">
                   <S>0</S>
-                  <O>8</O>
+                  <O>10</O>
                 </UDim>
               </Properties>
             </Item>
@@ -3843,13 +3896,13 @@ return UIStyles
                 <XS>1</XS>
                 <XO>0</XO>
                 <YS>0</YS>
-                <YO>32</YO>
+                <YO>36</YO>
               </UDim2>
               <string name="Text">LABEL</string>
               <Color3 name="TextColor3">
-                <R>0.972549</R>
-                <G>0.9764706</G>
-                <B>1</B>
+                <R>0.0784314</R>
+                <G>0.145098</G>
+                <B>0.2705882</B>
               </Color3>
               <float name="TextSize">18</float>
               <bool name="TextWrapped">true</bool>
@@ -3861,16 +3914,16 @@ return UIStyles
             <Properties>
               <string name="Name">RowTemplate</string>
               <Color3 name="BackgroundColor3">
-                <R>0.2039216</R>
-                <G>0.2235294</G>
-                <B>0.3529412</B>
+                <R>0.945098</R>
+                <G>0.972549</G>
+                <B>1</B>
               </Color3>
               <int name="BorderSizePixel">0</int>
               <UDim2 name="Size">
                 <XS>1</XS>
                 <XO>-8</XO>
                 <YS>0</YS>
-                <YO>82</YO>
+                <YO>92</YO>
               </UDim2>
               <bool name="Visible">false</bool>
             </Properties>
@@ -3879,7 +3932,7 @@ return UIStyles
                 <string name="Name">UICorner</string>
                 <UDim name="CornerRadius">
                   <S>0</S>
-                  <O>14</O>
+                  <O>16</O>
                 </UDim>
               </Properties>
             </Item>
@@ -3887,11 +3940,11 @@ return UIStyles
               <Properties>
                 <string name="Name">UIStroke</string>
                 <Color3 name="Color">
-                  <R>0.4392157</R>
-                  <G>0.4941176</G>
-                  <B>0.7215686</B>
+                  <R>0.4117647</R>
+                  <G>0.627451</G>
+                  <B>1</B>
                 </Color3>
-                <float name="Thickness">1.5</float>
+                <float name="Thickness">2</float>
                 <float name="Transparency">0.45</float>
               </Properties>
             </Item>
@@ -3909,23 +3962,23 @@ return UIStyles
                 </Font>
                 <UDim2 name="Position">
                   <XS>0</XS>
-                  <XO>14</XO>
+                  <XO>16</XO>
                   <YS>0</YS>
-                  <YO>8</YO>
+                  <YO>10</YO>
                 </UDim2>
                 <UDim2 name="Size">
                   <XS>1</XS>
-                  <XO>-28</XO>
+                  <XO>-140</XO>
                   <YS>0</YS>
-                  <YO>28</YO>
+                  <YO>30</YO>
                 </UDim2>
-                <string name="Text">ROW TITLE</string>
+                <string name="Text">ITEM NAME</string>
                 <Color3 name="TextColor3">
-                  <R>0.972549</R>
-                  <G>0.9764706</G>
-                  <B>1</B>
+                  <R>0.0784314</R>
+                  <G>0.145098</G>
+                  <B>0.2705882</B>
                 </Color3>
-                <float name="TextSize">18</float>
+                <float name="TextSize">19</float>
                 <bool name="TextWrapped">true</bool>
                 <token name="TextXAlignment">0</token>
               </Properties>
@@ -3944,23 +3997,23 @@ return UIStyles
                 </Font>
                 <UDim2 name="Position">
                   <XS>0</XS>
-                  <XO>14</XO>
+                  <XO>16</XO>
                   <YS>0</YS>
-                  <YO>36</YO>
+                  <YO>42</YO>
                 </UDim2>
                 <UDim2 name="Size">
                   <XS>1</XS>
-                  <XO>-28</XO>
+                  <XO>-140</XO>
                   <YS>0</YS>
-                  <YO>38</YO>
+                  <YO>40</YO>
                 </UDim2>
-                <string name="Text">Row body text</string>
+                <string name="Text">A short, friendly explanation.</string>
                 <Color3 name="TextColor3">
-                  <R>0.7058824</R>
-                  <G>0.7333333</G>
-                  <B>0.854902</B>
+                  <R>0.3490196</R>
+                  <G>0.4313725</G>
+                  <B>0.5686275</B>
                 </Color3>
-                <float name="TextSize">14</float>
+                <float name="TextSize">15</float>
                 <bool name="TextWrapped">true</bool>
                 <token name="TextXAlignment">0</token>
               </Properties>
@@ -3971,22 +4024,22 @@ return UIStyles
           <Properties>
             <string name="Name">CurrencyHUD</string>
             <Color3 name="BackgroundColor3">
-              <R>0.0862745</R>
-              <G>0.0980392</G>
-              <B>0.1647059</B>
+              <R>1</R>
+              <G>1</G>
+              <B>1</B>
             </Color3>
             <int name="BorderSizePixel">0</int>
             <UDim2 name="Position">
               <XS>0</XS>
-              <XO>12</XO>
+              <XO>16</XO>
               <YS>0</YS>
-              <YO>12</YO>
+              <YO>16</YO>
             </UDim2>
             <UDim2 name="Size">
               <XS>0</XS>
-              <XO>240</XO>
+              <XO>268</XO>
               <YS>0</YS>
-              <YO>60</YO>
+              <YO>74</YO>
             </UDim2>
             <int name="ZIndex">5</int>
           </Properties>
@@ -3995,7 +4048,7 @@ return UIStyles
               <string name="Name">UICorner</string>
               <UDim name="CornerRadius">
                 <S>0</S>
-                <O>14</O>
+                <O>20</O>
               </UDim>
             </Properties>
           </Item>
@@ -4003,15 +4056,75 @@ return UIStyles
             <Properties>
               <string name="Name">UIStroke</string>
               <Color3 name="Color">
-                <R>0.4392157</R>
-                <G>0.4941176</G>
-                <B>0.7215686</B>
+                <R>1</R>
+                <G>0.7254902</G>
+                <B>0.1137255</B>
               </Color3>
-              <float name="Thickness">1.5</float>
-              <float name="Transparency">0.45</float>
+              <float name="Thickness">3</float>
+              <float name="Transparency">0.05</float>
             </Properties>
           </Item>
-          <Item class="TextLabel" referent="86">
+          <Item class="Frame" referent="86">
+            <Properties>
+              <string name="Name">CoinBadge</string>
+              <Color3 name="BackgroundColor3">
+                <R>1</R>
+                <G>0.7960784</G>
+                <B>0.227451</B>
+              </Color3>
+              <int name="BorderSizePixel">0</int>
+              <UDim2 name="Position">
+                <XS>0</XS>
+                <XO>12</XO>
+                <YS>0</YS>
+                <YO>12</YO>
+              </UDim2>
+              <UDim2 name="Size">
+                <XS>0</XS>
+                <XO>50</XO>
+                <YS>0</YS>
+                <YO>50</YO>
+              </UDim2>
+              <int name="ZIndex">6</int>
+            </Properties>
+            <Item class="UICorner" referent="87">
+              <Properties>
+                <string name="Name">UICorner</string>
+                <UDim name="CornerRadius">
+                  <S>1</S>
+                  <O>0</O>
+                </UDim>
+              </Properties>
+            </Item>
+            <Item class="TextLabel" referent="88">
+              <Properties>
+                <string name="Name">Symbol</string>
+                <float name="BackgroundTransparency">1</float>
+                <Font name="FontFace">
+                  <Family>
+                    <url>rbxasset://fonts/families/GothamSSm.json</url>
+                  </Family>
+                  <Weight>700</Weight>
+                  <Style>Normal</Style>
+                </Font>
+                <UDim2 name="Size">
+                  <XS>1</XS>
+                  <XO>0</XO>
+                  <YS>1</YS>
+                  <YO>0</YO>
+                </UDim2>
+                <string name="Text">$</string>
+                <Color3 name="TextColor3">
+                  <R>0.5411765</R>
+                  <G>0.3098039</G>
+                  <B>0.0235294</B>
+                </Color3>
+                <float name="TextSize">28</float>
+                <int name="ZIndex">7</int>
+              </Properties>
+            </Item>
+          </Item>
+          <Item class="TextLabel" referent="89">
             <Properties>
               <string name="Name">CoinLabel</string>
               <float name="BackgroundTransparency">1</float>
@@ -4025,29 +4138,29 @@ return UIStyles
               </Font>
               <UDim2 name="Position">
                 <XS>0</XS>
-                <XO>14</XO>
+                <XO>72</XO>
                 <YS>0</YS>
-                <YO>8</YO>
+                <YO>10</YO>
               </UDim2>
               <UDim2 name="Size">
                 <XS>1</XS>
-                <XO>-28</XO>
+                <XO>-84</XO>
                 <YS>0</YS>
-                <YO>27</YO>
+                <YO>30</YO>
               </UDim2>
-              <string name="Text">◆ 0 Coins</string>
+              <string name="Text">0 COINS</string>
               <Color3 name="TextColor3">
-                <R>1</R>
-                <G>0.7882353</G>
-                <B>0.2509804</B>
+                <R>0.0784314</R>
+                <G>0.145098</G>
+                <B>0.2705882</B>
               </Color3>
-              <float name="TextSize">20</float>
+              <float name="TextSize">22</float>
               <bool name="TextWrapped">true</bool>
               <token name="TextXAlignment">0</token>
               <int name="ZIndex">6</int>
             </Properties>
           </Item>
-          <Item class="TextLabel" referent="87">
+          <Item class="TextLabel" referent="90">
             <Properties>
               <string name="Name">BoostLabel</string>
               <float name="BackgroundTransparency">1</float>
@@ -4056,95 +4169,99 @@ return UIStyles
                 <Family>
                   <url>rbxasset://fonts/families/GothamSSm.json</url>
                 </Family>
-                <Weight>500</Weight>
+                <Weight>700</Weight>
                 <Style>Normal</Style>
               </Font>
               <UDim2 name="Position">
                 <XS>0</XS>
-                <XO>14</XO>
+                <XO>72</XO>
                 <YS>0</YS>
-                <YO>34</YO>
+                <YO>41</YO>
               </UDim2>
               <UDim2 name="Size">
                 <XS>1</XS>
-                <XO>-28</XO>
+                <XO>-84</XO>
                 <YS>0</YS>
-                <YO>18</YO>
+                <YO>21</YO>
               </UDim2>
-              <string name="Text">x1 boost</string>
+              <string name="Text">x1 BOOST  •  0 FRIENDS</string>
               <Color3 name="TextColor3">
-                <R>0.7058824</R>
-                <G>0.7333333</G>
-                <B>0.854902</B>
+                <R>0.0862745</R>
+                <G>0.6392157</G>
+                <B>0.3647059</B>
               </Color3>
-              <float name="TextSize">13</float>
+              <float name="TextSize">14</float>
               <bool name="TextWrapped">true</bool>
               <token name="TextXAlignment">0</token>
               <int name="ZIndex">6</int>
             </Properties>
           </Item>
         </Item>
-        <Item class="Frame" referent="88">
+        <Item class="Frame" referent="91">
           <Properties>
             <string name="Name">Navigation</string>
             <Vector2 name="AnchorPoint">
-              <X>0.5</X>
-              <Y>1</Y>
+              <X>1</X>
+              <Y>0.5</Y>
             </Vector2>
             <Color3 name="BackgroundColor3">
-              <R>0.0862745</R>
-              <G>0.0980392</G>
-              <B>0.1647059</B>
+              <R>0.9803922</R>
+              <G>0.9921569</G>
+              <B>1</B>
             </Color3>
             <int name="BorderSizePixel">0</int>
             <UDim2 name="Position">
-              <XS>0.5</XS>
-              <XO>0</XO>
-              <YS>1</YS>
-              <YO>-10</YO>
+              <XS>1</XS>
+              <XO>-16</XO>
+              <YS>0.5</YS>
+              <YO>0</YO>
             </UDim2>
             <UDim2 name="Size">
-              <XS>0.94</XS>
-              <XO>0</XO>
-              <YS>0</YS>
-              <YO>64</YO>
+              <XS>0</XS>
+              <XO>122</XO>
+              <YS>0.78</YS>
+              <YO>0</YO>
             </UDim2>
             <int name="ZIndex">10</int>
           </Properties>
-          <Item class="UICorner" referent="89">
+          <Item class="UICorner" referent="92">
             <Properties>
               <string name="Name">UICorner</string>
               <UDim name="CornerRadius">
                 <S>0</S>
-                <O>14</O>
+                <O>22</O>
               </UDim>
             </Properties>
           </Item>
-          <Item class="UIStroke" referent="90">
+          <Item class="UIStroke" referent="93">
             <Properties>
               <string name="Name">UIStroke</string>
               <Color3 name="Color">
-                <R>0.4392157</R>
-                <G>0.4941176</G>
-                <B>0.7215686</B>
+                <R>0.2313725</R>
+                <G>0.5098039</G>
+                <B>0.9647059</B>
               </Color3>
-              <float name="Thickness">1.5</float>
-              <float name="Transparency">0.45</float>
+              <float name="Thickness">3</float>
+              <float name="Transparency">0.12</float>
             </Properties>
           </Item>
-          <Item class="UISizeConstraint" referent="91">
+          <Item class="UISizeConstraint" referent="94">
             <Properties>
               <string name="Name">UISizeConstraint</string>
               <Vector2 name="MaxSize">
-                <X>860</X>
-                <Y>64</Y>
+                <X>122</X>
+                <Y>360</Y>
+              </Vector2>
+              <Vector2 name="MinSize">
+                <X>110</X>
+                <Y>240</Y>
               </Vector2>
             </Properties>
           </Item>
-          <Item class="ScrollingFrame" referent="92">
+          <Item class="ScrollingFrame" referent="95">
             <Properties>
               <string name="Name">Buttons</string>
-              <token name="AutomaticCanvasSize">1</token>
+              <token name="AutomaticCanvasSize">2</token>
               <float name="BackgroundTransparency">1</float>
               <int name="BorderSizePixel">0</int>
               <UDim2 name="CanvasSize">
@@ -4159,8 +4276,12 @@ return UIStyles
                 <YS>0</YS>
                 <YO>8</YO>
               </UDim2>
-              <int name="ScrollBarThickness">0</int>
-              <token name="ScrollingDirection">1</token>
+              <Color3 name="ScrollBarImageColor3">
+                <R>0.2313725</R>
+                <G>0.5098039</G>
+                <B>0.9647059</B>
+              </Color3>
+              <int name="ScrollBarThickness">4</int>
               <UDim2 name="Size">
                 <XS>1</XS>
                 <XO>-16</XO>
@@ -4169,27 +4290,27 @@ return UIStyles
               </UDim2>
               <int name="ZIndex">11</int>
             </Properties>
-            <Item class="UIListLayout" referent="93">
+            <Item class="UIListLayout" referent="96">
               <Properties>
                 <string name="Name">UIListLayout</string>
-                <token name="FillDirection">0</token>
-                <token name="HorizontalAlignment">1</token>
+                <token name="FillDirection">1</token>
+                <token name="HorizontalAlignment">0</token>
                 <UDim name="Padding">
                   <S>0</S>
                   <O>8</O>
                 </UDim>
                 <token name="SortOrder">2</token>
-                <token name="VerticalAlignment">0</token>
+                <token name="VerticalAlignment">1</token>
               </Properties>
             </Item>
-            <Item class="TextButton" referent="94">
+            <Item class="TextButton" referent="97">
               <Properties>
                 <string name="Name">BagButton</string>
                 <bool name="AutoButtonColor">false</bool>
                 <Color3 name="BackgroundColor3">
-                  <R>0.3137255</R>
-                  <G>0.5294118</G>
-                  <B>1</B>
+                  <R>0.5372549</R>
+                  <G>0.3137255</G>
+                  <B>0.9294118</B>
                 </Color3>
                 <int name="BorderSizePixel">0</int>
                 <Font name="FontFace">
@@ -4202,49 +4323,51 @@ return UIStyles
                 <int name="LayoutOrder">1</int>
                 <bool name="Selectable">true</bool>
                 <UDim2 name="Size">
-                  <XS>0</XS>
-                  <XO>100</XO>
+                  <XS>1</XS>
+                  <XO>-4</XO>
                   <YS>0</YS>
-                  <YO>48</YO>
+                  <YO>60</YO>
                 </UDim2>
                 <string name="Text">BAG</string>
                 <Color3 name="TextColor3">
-                  <R>0.972549</R>
-                  <G>0.9764706</G>
+                  <R>1</R>
+                  <G>1</G>
                   <B>1</B>
                 </Color3>
-                <float name="TextSize">15</float>
+                <float name="TextSize">16</float>
                 <bool name="TextWrapped">true</bool>
+                <int name="ZIndex">12</int>
               </Properties>
-              <Item class="UICorner" referent="95">
+              <Item class="UICorner" referent="98">
                 <Properties>
                   <string name="Name">UICorner</string>
                   <UDim name="CornerRadius">
                     <S>0</S>
-                    <O>8</O>
+                    <O>16</O>
                   </UDim>
                 </Properties>
               </Item>
-              <Item class="UIStroke" referent="96">
+              <Item class="UIStroke" referent="99">
                 <Properties>
                   <string name="Name">UIStroke</string>
                   <Color3 name="Color">
-                    <R>0.4392157</R>
-                    <G>0.4941176</G>
-                    <B>0.7215686</B>
+                    <R>0.2431373</R>
+                    <G>0.1019608</G>
+                    <B>0.5215686</B>
                   </Color3>
-                  <float name="Transparency">0.7</float>
+                  <float name="Thickness">2</float>
+                  <float name="Transparency">0.5</float>
                 </Properties>
               </Item>
             </Item>
-            <Item class="TextButton" referent="97">
+            <Item class="TextButton" referent="100">
               <Properties>
                 <string name="Name">ShopButton</string>
                 <bool name="AutoButtonColor">false</bool>
                 <Color3 name="BackgroundColor3">
-                  <R>0.3137255</R>
-                  <G>0.5294118</G>
-                  <B>1</B>
+                  <R>0.1254902</R>
+                  <G>0.7568627</G>
+                  <B>0.4470588</B>
                 </Color3>
                 <int name="BorderSizePixel">0</int>
                 <Font name="FontFace">
@@ -4257,49 +4380,51 @@ return UIStyles
                 <int name="LayoutOrder">2</int>
                 <bool name="Selectable">true</bool>
                 <UDim2 name="Size">
-                  <XS>0</XS>
-                  <XO>100</XO>
+                  <XS>1</XS>
+                  <XO>-4</XO>
                   <YS>0</YS>
-                  <YO>48</YO>
+                  <YO>60</YO>
                 </UDim2>
                 <string name="Text">SHOP</string>
                 <Color3 name="TextColor3">
-                  <R>0.972549</R>
-                  <G>0.9764706</G>
+                  <R>1</R>
+                  <G>1</G>
                   <B>1</B>
                 </Color3>
-                <float name="TextSize">15</float>
+                <float name="TextSize">16</float>
                 <bool name="TextWrapped">true</bool>
+                <int name="ZIndex">12</int>
               </Properties>
-              <Item class="UICorner" referent="98">
+              <Item class="UICorner" referent="101">
                 <Properties>
                   <string name="Name">UICorner</string>
                   <UDim name="CornerRadius">
                     <S>0</S>
-                    <O>8</O>
+                    <O>16</O>
                   </UDim>
                 </Properties>
               </Item>
-              <Item class="UIStroke" referent="99">
+              <Item class="UIStroke" referent="102">
                 <Properties>
                   <string name="Name">UIStroke</string>
                   <Color3 name="Color">
-                    <R>0.4392157</R>
-                    <G>0.4941176</G>
-                    <B>0.7215686</B>
+                    <R>0.0392157</R>
+                    <G>0.3921569</G>
+                    <B>0.2</B>
                   </Color3>
-                  <float name="Transparency">0.7</float>
+                  <float name="Thickness">2</float>
+                  <float name="Transparency">0.5</float>
                 </Properties>
               </Item>
             </Item>
-            <Item class="TextButton" referent="100">
+            <Item class="TextButton" referent="103">
               <Properties>
                 <string name="Name">GiftButton</string>
                 <bool name="AutoButtonColor">false</bool>
                 <Color3 name="BackgroundColor3">
-                  <R>0.3137255</R>
-                  <G>0.5294118</G>
-                  <B>1</B>
+                  <R>1</R>
+                  <G>0.5921569</G>
+                  <B>0.1803922</B>
                 </Color3>
                 <int name="BorderSizePixel">0</int>
                 <Font name="FontFace">
@@ -4312,49 +4437,51 @@ return UIStyles
                 <int name="LayoutOrder">3</int>
                 <bool name="Selectable">true</bool>
                 <UDim2 name="Size">
-                  <XS>0</XS>
-                  <XO>100</XO>
+                  <XS>1</XS>
+                  <XO>-4</XO>
                   <YS>0</YS>
-                  <YO>48</YO>
+                  <YO>60</YO>
                 </UDim2>
-                <string name="Text">GIFT</string>
+                <string name="Text">REWARDS</string>
                 <Color3 name="TextColor3">
-                  <R>0.972549</R>
-                  <G>0.9764706</G>
+                  <R>1</R>
+                  <G>1</G>
                   <B>1</B>
                 </Color3>
                 <float name="TextSize">15</float>
                 <bool name="TextWrapped">true</bool>
+                <int name="ZIndex">12</int>
               </Properties>
-              <Item class="UICorner" referent="101">
+              <Item class="UICorner" referent="104">
                 <Properties>
                   <string name="Name">UICorner</string>
                   <UDim name="CornerRadius">
                     <S>0</S>
-                    <O>8</O>
+                    <O>16</O>
                   </UDim>
                 </Properties>
               </Item>
-              <Item class="UIStroke" referent="102">
+              <Item class="UIStroke" referent="105">
                 <Properties>
                   <string name="Name">UIStroke</string>
                   <Color3 name="Color">
-                    <R>0.4392157</R>
-                    <G>0.4941176</G>
-                    <B>0.7215686</B>
+                    <R>0.6509804</R>
+                    <G>0.2705882</G>
+                    <B>0.0235294</B>
                   </Color3>
-                  <float name="Transparency">0.7</float>
+                  <float name="Thickness">2</float>
+                  <float name="Transparency">0.5</float>
                 </Properties>
               </Item>
             </Item>
-            <Item class="TextButton" referent="103">
+            <Item class="TextButton" referent="106">
               <Properties>
                 <string name="Name">ProfileButton</string>
                 <bool name="AutoButtonColor">false</bool>
                 <Color3 name="BackgroundColor3">
-                  <R>0.3137255</R>
-                  <G>0.5294118</G>
-                  <B>1</B>
+                  <R>0.2313725</R>
+                  <G>0.5098039</G>
+                  <B>0.9647059</B>
                 </Color3>
                 <int name="BorderSizePixel">0</int>
                 <Font name="FontFace">
@@ -4367,49 +4494,51 @@ return UIStyles
                 <int name="LayoutOrder">4</int>
                 <bool name="Selectable">true</bool>
                 <UDim2 name="Size">
-                  <XS>0</XS>
-                  <XO>100</XO>
+                  <XS>1</XS>
+                  <XO>-4</XO>
                   <YS>0</YS>
-                  <YO>48</YO>
+                  <YO>60</YO>
                 </UDim2>
                 <string name="Text">PROFILE</string>
                 <Color3 name="TextColor3">
-                  <R>0.972549</R>
-                  <G>0.9764706</G>
+                  <R>1</R>
+                  <G>1</G>
                   <B>1</B>
                 </Color3>
                 <float name="TextSize">15</float>
                 <bool name="TextWrapped">true</bool>
+                <int name="ZIndex">12</int>
               </Properties>
-              <Item class="UICorner" referent="104">
+              <Item class="UICorner" referent="107">
                 <Properties>
                   <string name="Name">UICorner</string>
                   <UDim name="CornerRadius">
                     <S>0</S>
-                    <O>8</O>
+                    <O>16</O>
                   </UDim>
                 </Properties>
               </Item>
-              <Item class="UIStroke" referent="105">
+              <Item class="UIStroke" referent="108">
                 <Properties>
                   <string name="Name">UIStroke</string>
                   <Color3 name="Color">
-                    <R>0.4392157</R>
-                    <G>0.4941176</G>
-                    <B>0.7215686</B>
+                    <R>0.1058824</R>
+                    <G>0.254902</G>
+                    <B>0.5803922</B>
                   </Color3>
-                  <float name="Transparency">0.7</float>
+                  <float name="Thickness">2</float>
+                  <float name="Transparency">0.5</float>
                 </Properties>
               </Item>
             </Item>
-            <Item class="TextButton" referent="106">
+            <Item class="TextButton" referent="109">
               <Properties>
-                <string name="Name">CodesButton</string>
+                <string name="Name">MoreButton</string>
                 <bool name="AutoButtonColor">false</bool>
                 <Color3 name="BackgroundColor3">
-                  <R>0.3137255</R>
-                  <G>0.5294118</G>
-                  <B>1</B>
+                  <R>0.9254902</R>
+                  <G>0.2862745</G>
+                  <B>0.6</B>
                 </Color3>
                 <int name="BorderSizePixel">0</int>
                 <Font name="FontFace">
@@ -4422,81 +4551,27 @@ return UIStyles
                 <int name="LayoutOrder">5</int>
                 <bool name="Selectable">true</bool>
                 <UDim2 name="Size">
-                  <XS>0</XS>
-                  <XO>100</XO>
+                  <XS>1</XS>
+                  <XO>-4</XO>
                   <YS>0</YS>
-                  <YO>48</YO>
+                  <YO>60</YO>
                 </UDim2>
-                <string name="Text">CODES</string>
+                <string name="Text">MORE</string>
                 <Color3 name="TextColor3">
-                  <R>0.972549</R>
-                  <G>0.9764706</G>
+                  <R>1</R>
+                  <G>1</G>
                   <B>1</B>
                 </Color3>
-                <float name="TextSize">15</float>
+                <float name="TextSize">16</float>
                 <bool name="TextWrapped">true</bool>
-              </Properties>
-              <Item class="UICorner" referent="107">
-                <Properties>
-                  <string name="Name">UICorner</string>
-                  <UDim name="CornerRadius">
-                    <S>0</S>
-                    <O>8</O>
-                  </UDim>
-                </Properties>
-              </Item>
-              <Item class="UIStroke" referent="108">
-                <Properties>
-                  <string name="Name">UIStroke</string>
-                  <Color3 name="Color">
-                    <R>0.4392157</R>
-                    <G>0.4941176</G>
-                    <B>0.7215686</B>
-                  </Color3>
-                  <float name="Transparency">0.7</float>
-                </Properties>
-              </Item>
-            </Item>
-            <Item class="TextButton" referent="109">
-              <Properties>
-                <string name="Name">BoardsButton</string>
-                <bool name="AutoButtonColor">false</bool>
-                <Color3 name="BackgroundColor3">
-                  <R>0.3137255</R>
-                  <G>0.5294118</G>
-                  <B>1</B>
-                </Color3>
-                <int name="BorderSizePixel">0</int>
-                <Font name="FontFace">
-                  <Family>
-                    <url>rbxasset://fonts/families/GothamSSm.json</url>
-                  </Family>
-                  <Weight>700</Weight>
-                  <Style>Normal</Style>
-                </Font>
-                <int name="LayoutOrder">6</int>
-                <bool name="Selectable">true</bool>
-                <UDim2 name="Size">
-                  <XS>0</XS>
-                  <XO>100</XO>
-                  <YS>0</YS>
-                  <YO>48</YO>
-                </UDim2>
-                <string name="Text">TOP</string>
-                <Color3 name="TextColor3">
-                  <R>0.972549</R>
-                  <G>0.9764706</G>
-                  <B>1</B>
-                </Color3>
-                <float name="TextSize">15</float>
-                <bool name="TextWrapped">true</bool>
+                <int name="ZIndex">12</int>
               </Properties>
               <Item class="UICorner" referent="110">
                 <Properties>
                   <string name="Name">UICorner</string>
                   <UDim name="CornerRadius">
                     <S>0</S>
-                    <O>8</O>
+                    <O>16</O>
                   </UDim>
                 </Properties>
               </Item>
@@ -4504,258 +4579,83 @@ return UIStyles
                 <Properties>
                   <string name="Name">UIStroke</string>
                   <Color3 name="Color">
-                    <R>0.4392157</R>
-                    <G>0.4941176</G>
-                    <B>0.7215686</B>
+                    <R>0.5411765</R>
+                    <G>0.0745098</G>
+                    <B>0.2980392</B>
                   </Color3>
-                  <float name="Transparency">0.7</float>
-                </Properties>
-              </Item>
-            </Item>
-            <Item class="TextButton" referent="112">
-              <Properties>
-                <string name="Name">FeedbackButton</string>
-                <bool name="AutoButtonColor">false</bool>
-                <Color3 name="BackgroundColor3">
-                  <R>0.3137255</R>
-                  <G>0.5294118</G>
-                  <B>1</B>
-                </Color3>
-                <int name="BorderSizePixel">0</int>
-                <Font name="FontFace">
-                  <Family>
-                    <url>rbxasset://fonts/families/GothamSSm.json</url>
-                  </Family>
-                  <Weight>700</Weight>
-                  <Style>Normal</Style>
-                </Font>
-                <int name="LayoutOrder">7</int>
-                <bool name="Selectable">true</bool>
-                <UDim2 name="Size">
-                  <XS>0</XS>
-                  <XO>100</XO>
-                  <YS>0</YS>
-                  <YO>48</YO>
-                </UDim2>
-                <string name="Text">FEEDBACK</string>
-                <Color3 name="TextColor3">
-                  <R>0.972549</R>
-                  <G>0.9764706</G>
-                  <B>1</B>
-                </Color3>
-                <float name="TextSize">14</float>
-                <bool name="TextWrapped">true</bool>
-              </Properties>
-              <Item class="UICorner" referent="113">
-                <Properties>
-                  <string name="Name">UICorner</string>
-                  <UDim name="CornerRadius">
-                    <S>0</S>
-                    <O>8</O>
-                  </UDim>
-                </Properties>
-              </Item>
-              <Item class="UIStroke" referent="114">
-                <Properties>
-                  <string name="Name">UIStroke</string>
-                  <Color3 name="Color">
-                    <R>0.4392157</R>
-                    <G>0.4941176</G>
-                    <B>0.7215686</B>
-                  </Color3>
-                  <float name="Transparency">0.7</float>
-                </Properties>
-              </Item>
-            </Item>
-            <Item class="TextButton" referent="115">
-              <Properties>
-                <string name="Name">CommunityButton</string>
-                <bool name="AutoButtonColor">false</bool>
-                <Color3 name="BackgroundColor3">
-                  <R>0.3137255</R>
-                  <G>0.5294118</G>
-                  <B>1</B>
-                </Color3>
-                <int name="BorderSizePixel">0</int>
-                <Font name="FontFace">
-                  <Family>
-                    <url>rbxasset://fonts/families/GothamSSm.json</url>
-                  </Family>
-                  <Weight>700</Weight>
-                  <Style>Normal</Style>
-                </Font>
-                <int name="LayoutOrder">8</int>
-                <bool name="Selectable">true</bool>
-                <UDim2 name="Size">
-                  <XS>0</XS>
-                  <XO>100</XO>
-                  <YS>0</YS>
-                  <YO>48</YO>
-                </UDim2>
-                <string name="Text">GROUP</string>
-                <Color3 name="TextColor3">
-                  <R>0.972549</R>
-                  <G>0.9764706</G>
-                  <B>1</B>
-                </Color3>
-                <float name="TextSize">15</float>
-                <bool name="TextWrapped">true</bool>
-              </Properties>
-              <Item class="UICorner" referent="116">
-                <Properties>
-                  <string name="Name">UICorner</string>
-                  <UDim name="CornerRadius">
-                    <S>0</S>
-                    <O>8</O>
-                  </UDim>
-                </Properties>
-              </Item>
-              <Item class="UIStroke" referent="117">
-                <Properties>
-                  <string name="Name">UIStroke</string>
-                  <Color3 name="Color">
-                    <R>0.4392157</R>
-                    <G>0.4941176</G>
-                    <B>0.7215686</B>
-                  </Color3>
-                  <float name="Transparency">0.7</float>
-                </Properties>
-              </Item>
-            </Item>
-            <Item class="TextButton" referent="118">
-              <Properties>
-                <string name="Name">SettingsButton</string>
-                <bool name="AutoButtonColor">false</bool>
-                <Color3 name="BackgroundColor3">
-                  <R>0.3137255</R>
-                  <G>0.5294118</G>
-                  <B>1</B>
-                </Color3>
-                <int name="BorderSizePixel">0</int>
-                <Font name="FontFace">
-                  <Family>
-                    <url>rbxasset://fonts/families/GothamSSm.json</url>
-                  </Family>
-                  <Weight>700</Weight>
-                  <Style>Normal</Style>
-                </Font>
-                <int name="LayoutOrder">9</int>
-                <bool name="Selectable">true</bool>
-                <UDim2 name="Size">
-                  <XS>0</XS>
-                  <XO>100</XO>
-                  <YS>0</YS>
-                  <YO>48</YO>
-                </UDim2>
-                <string name="Text">SETTINGS</string>
-                <Color3 name="TextColor3">
-                  <R>0.972549</R>
-                  <G>0.9764706</G>
-                  <B>1</B>
-                </Color3>
-                <float name="TextSize">14</float>
-                <bool name="TextWrapped">true</bool>
-              </Properties>
-              <Item class="UICorner" referent="119">
-                <Properties>
-                  <string name="Name">UICorner</string>
-                  <UDim name="CornerRadius">
-                    <S>0</S>
-                    <O>8</O>
-                  </UDim>
-                </Properties>
-              </Item>
-              <Item class="UIStroke" referent="120">
-                <Properties>
-                  <string name="Name">UIStroke</string>
-                  <Color3 name="Color">
-                    <R>0.4392157</R>
-                    <G>0.4941176</G>
-                    <B>0.7215686</B>
-                  </Color3>
-                  <float name="Transparency">0.7</float>
+                  <float name="Thickness">2</float>
+                  <float name="Transparency">0.5</float>
                 </Properties>
               </Item>
             </Item>
           </Item>
         </Item>
-        <Item class="Frame" referent="121">
+        <Item class="Frame" referent="112">
           <Properties>
-            <string name="Name">Screens</string>
-            <float name="BackgroundTransparency">1</float>
-            <int name="BorderSizePixel">0</int>
-            <UDim2 name="Size">
-              <XS>1</XS>
-              <XO>0</XO>
-              <YS>1</YS>
-              <YO>0</YO>
-            </UDim2>
-            <int name="ZIndex">20</int>
-          </Properties>
-        </Item>
-        <Item class="Frame" referent="122">
-          <Properties>
-            <string name="Name">ScreenTemplate</string>
+            <string name="Name">MoreMenu</string>
             <Vector2 name="AnchorPoint">
               <X>0.5</X>
               <Y>0.5</Y>
             </Vector2>
             <Color3 name="BackgroundColor3">
-              <R>0.1607843</R>
-              <G>0.1764706</G>
-              <B>0.2862745</B>
+              <R>1</R>
+              <G>1</G>
+              <B>1</B>
             </Color3>
             <int name="BorderSizePixel">0</int>
             <UDim2 name="Position">
               <XS>0.5</XS>
               <XO>0</XO>
-              <YS>0.48</YS>
+              <YS>0.5</YS>
               <YO>0</YO>
             </UDim2>
             <UDim2 name="Size">
-              <XS>0.9</XS>
-              <XO>0</XO>
-              <YS>0.76</YS>
+              <XS>0</XS>
+              <XO>286</XO>
+              <YS>0.72</YS>
               <YO>0</YO>
             </UDim2>
             <bool name="Visible">false</bool>
-            <int name="ZIndex">20</int>
+            <int name="ZIndex">30</int>
           </Properties>
-          <Item class="UICorner" referent="123">
+          <Item class="UICorner" referent="113">
             <Properties>
               <string name="Name">UICorner</string>
               <UDim name="CornerRadius">
                 <S>0</S>
-                <O>14</O>
+                <O>22</O>
               </UDim>
             </Properties>
           </Item>
-          <Item class="UIStroke" referent="124">
+          <Item class="UIStroke" referent="114">
             <Properties>
               <string name="Name">UIStroke</string>
               <Color3 name="Color">
-                <R>0.4392157</R>
-                <G>0.4941176</G>
-                <B>0.7215686</B>
+                <R>0.9254902</R>
+                <G>0.2862745</G>
+                <B>0.6</B>
               </Color3>
-              <float name="Thickness">1.5</float>
-              <float name="Transparency">0.45</float>
+              <float name="Thickness">3</float>
+              <float name="Transparency">0.12</float>
             </Properties>
           </Item>
-          <Item class="UISizeConstraint" referent="125">
+          <Item class="UISizeConstraint" referent="115">
             <Properties>
               <string name="Name">UISizeConstraint</string>
               <Vector2 name="MaxSize">
-                <X>760</X>
-                <Y>620</Y>
+                <X>286</X>
+                <Y>360</Y>
+              </Vector2>
+              <Vector2 name="MinSize">
+                <X>260</X>
+                <Y>240</Y>
               </Vector2>
             </Properties>
           </Item>
-          <Item class="TextLabel" referent="126">
+          <Item class="TextLabel" referent="116">
             <Properties>
               <string name="Name">Title</string>
               <float name="BackgroundTransparency">1</float>
-              <int name="BorderSizePixel">0</int>
               <Font name="FontFace">
                 <Family>
                   <url>rbxasset://fonts/families/GothamSSm.json</url>
@@ -4765,40 +4665,72 @@ return UIStyles
               </Font>
               <UDim2 name="Position">
                 <XS>0</XS>
-                <XO>20</XO>
+                <XO>18</XO>
                 <YS>0</YS>
-                <YO>12</YO>
+                <YO>14</YO>
               </UDim2>
               <UDim2 name="Size">
                 <XS>1</XS>
-                <XO>-80</XO>
+                <XO>-70</XO>
                 <YS>0</YS>
-                <YO>44</YO>
+                <YO>28</YO>
               </UDim2>
-              <string name="Text">SCREEN TITLE</string>
+              <string name="Text">MORE</string>
               <Color3 name="TextColor3">
-                <R>0.972549</R>
-                <G>0.9764706</G>
-                <B>1</B>
+                <R>0.0784314</R>
+                <G>0.145098</G>
+                <B>0.2705882</B>
               </Color3>
-              <float name="TextSize">26</float>
-              <bool name="TextWrapped">true</bool>
+              <float name="TextSize">22</float>
               <token name="TextXAlignment">0</token>
-              <int name="ZIndex">21</int>
+              <int name="ZIndex">31</int>
             </Properties>
           </Item>
-          <Item class="TextButton" referent="127">
+          <Item class="TextLabel" referent="117">
+            <Properties>
+              <string name="Name">Subtitle</string>
+              <float name="BackgroundTransparency">1</float>
+              <Font name="FontFace">
+                <Family>
+                  <url>rbxasset://fonts/families/GothamSSm.json</url>
+                </Family>
+                <Weight>500</Weight>
+                <Style>Normal</Style>
+              </Font>
+              <UDim2 name="Position">
+                <XS>0</XS>
+                <XO>18</XO>
+                <YS>0</YS>
+                <YO>43</YO>
+              </UDim2>
+              <UDim2 name="Size">
+                <XS>1</XS>
+                <XO>-36</XO>
+                <YS>0</YS>
+                <YO>22</YO>
+              </UDim2>
+              <string name="Text">Codes, rankings and settings</string>
+              <Color3 name="TextColor3">
+                <R>0.3490196</R>
+                <G>0.4313725</G>
+                <B>0.5686275</B>
+              </Color3>
+              <float name="TextSize">13</float>
+              <token name="TextXAlignment">0</token>
+              <int name="ZIndex">31</int>
+            </Properties>
+          </Item>
+          <Item class="TextButton" referent="118">
             <Properties>
               <string name="Name">CloseButton</string>
               <Vector2 name="AnchorPoint">
                 <X>1</X>
                 <Y>0</Y>
               </Vector2>
-              <bool name="AutoButtonColor">true</bool>
               <Color3 name="BackgroundColor3">
                 <R>1</R>
-                <G>0.3568627</G>
-                <B>0.4392157</B>
+                <G>0.2980392</G>
+                <B>0.3568627</B>
               </Color3>
               <int name="BorderSizePixel">0</int>
               <Font name="FontFace">
@@ -4816,30 +4748,479 @@ return UIStyles
               </UDim2>
               <UDim2 name="Size">
                 <XS>0</XS>
-                <XO>44</XO>
+                <XO>40</XO>
                 <YS>0</YS>
-                <YO>44</YO>
+                <YO>40</YO>
               </UDim2>
               <string name="Text">X</string>
               <Color3 name="TextColor3">
-                <R>0.972549</R>
-                <G>0.9764706</G>
+                <R>1</R>
+                <G>1</G>
                 <B>1</B>
               </Color3>
-              <float name="TextSize">24</float>
-              <int name="ZIndex">22</int>
+              <float name="TextSize">18</float>
+              <int name="ZIndex">32</int>
             </Properties>
-            <Item class="UICorner" referent="128">
+            <Item class="UICorner" referent="119">
               <Properties>
                 <string name="Name">UICorner</string>
                 <UDim name="CornerRadius">
                   <S>0</S>
-                  <O>8</O>
+                  <O>12</O>
                 </UDim>
               </Properties>
             </Item>
           </Item>
-          <Item class="ScrollingFrame" referent="129">
+          <Item class="ScrollingFrame" referent="120">
+            <Properties>
+              <string name="Name">Buttons</string>
+              <token name="AutomaticCanvasSize">2</token>
+              <float name="BackgroundTransparency">1</float>
+              <int name="BorderSizePixel">0</int>
+              <UDim2 name="CanvasSize">
+                <XS>0</XS>
+                <XO>0</XO>
+                <YS>0</YS>
+                <YO>0</YO>
+              </UDim2>
+              <UDim2 name="Position">
+                <XS>0</XS>
+                <XO>18</XO>
+                <YS>0</YS>
+                <YO>78</YO>
+              </UDim2>
+              <Color3 name="ScrollBarImageColor3">
+                <R>0.9254902</R>
+                <G>0.2862745</G>
+                <B>0.6</B>
+              </Color3>
+              <int name="ScrollBarThickness">5</int>
+              <UDim2 name="Size">
+                <XS>1</XS>
+                <XO>-36</XO>
+                <YS>1</YS>
+                <YO>-94</YO>
+              </UDim2>
+              <int name="ZIndex">31</int>
+            </Properties>
+            <Item class="UIListLayout" referent="121">
+              <Properties>
+                <string name="Name">UIListLayout</string>
+                <UDim name="Padding">
+                  <S>0</S>
+                  <O>8</O>
+                </UDim>
+                <token name="SortOrder">2</token>
+              </Properties>
+            </Item>
+            <Item class="TextButton" referent="122">
+              <Properties>
+                <string name="Name">CodesButton</string>
+                <bool name="AutoButtonColor">false</bool>
+                <Color3 name="BackgroundColor3">
+                  <R>0.5372549</R>
+                  <G>0.3137255</G>
+                  <B>0.9294118</B>
+                </Color3>
+                <int name="BorderSizePixel">0</int>
+                <Font name="FontFace">
+                  <Family>
+                    <url>rbxasset://fonts/families/GothamSSm.json</url>
+                  </Family>
+                  <Weight>700</Weight>
+                  <Style>Normal</Style>
+                </Font>
+                <int name="LayoutOrder">1</int>
+                <UDim2 name="Size">
+                  <XS>1</XS>
+                  <XO>0</XO>
+                  <YS>0</YS>
+                  <YO>48</YO>
+                </UDim2>
+                <string name="Text">CODES &amp; LIKES</string>
+                <Color3 name="TextColor3">
+                  <R>1</R>
+                  <G>1</G>
+                  <B>1</B>
+                </Color3>
+                <float name="TextSize">16</float>
+                <int name="ZIndex">32</int>
+              </Properties>
+              <Item class="UICorner" referent="123">
+                <Properties>
+                  <string name="Name">UICorner</string>
+                  <UDim name="CornerRadius">
+                    <S>0</S>
+                    <O>13</O>
+                  </UDim>
+                </Properties>
+              </Item>
+            </Item>
+            <Item class="TextButton" referent="124">
+              <Properties>
+                <string name="Name">BoardsButton</string>
+                <bool name="AutoButtonColor">false</bool>
+                <Color3 name="BackgroundColor3">
+                  <R>1</R>
+                  <G>0.5921569</G>
+                  <B>0.1803922</B>
+                </Color3>
+                <int name="BorderSizePixel">0</int>
+                <Font name="FontFace">
+                  <Family>
+                    <url>rbxasset://fonts/families/GothamSSm.json</url>
+                  </Family>
+                  <Weight>700</Weight>
+                  <Style>Normal</Style>
+                </Font>
+                <int name="LayoutOrder">2</int>
+                <UDim2 name="Size">
+                  <XS>1</XS>
+                  <XO>0</XO>
+                  <YS>0</YS>
+                  <YO>48</YO>
+                </UDim2>
+                <string name="Text">TOP PLAYERS</string>
+                <Color3 name="TextColor3">
+                  <R>1</R>
+                  <G>1</G>
+                  <B>1</B>
+                </Color3>
+                <float name="TextSize">16</float>
+                <int name="ZIndex">32</int>
+              </Properties>
+              <Item class="UICorner" referent="125">
+                <Properties>
+                  <string name="Name">UICorner</string>
+                  <UDim name="CornerRadius">
+                    <S>0</S>
+                    <O>13</O>
+                  </UDim>
+                </Properties>
+              </Item>
+            </Item>
+            <Item class="TextButton" referent="126">
+              <Properties>
+                <string name="Name">CommunityButton</string>
+                <bool name="AutoButtonColor">false</bool>
+                <Color3 name="BackgroundColor3">
+                  <R>0.1254902</R>
+                  <G>0.7568627</G>
+                  <B>0.4470588</B>
+                </Color3>
+                <int name="BorderSizePixel">0</int>
+                <Font name="FontFace">
+                  <Family>
+                    <url>rbxasset://fonts/families/GothamSSm.json</url>
+                  </Family>
+                  <Weight>700</Weight>
+                  <Style>Normal</Style>
+                </Font>
+                <int name="LayoutOrder">3</int>
+                <UDim2 name="Size">
+                  <XS>1</XS>
+                  <XO>0</XO>
+                  <YS>0</YS>
+                  <YO>48</YO>
+                </UDim2>
+                <string name="Text">COMMUNITY</string>
+                <Color3 name="TextColor3">
+                  <R>1</R>
+                  <G>1</G>
+                  <B>1</B>
+                </Color3>
+                <float name="TextSize">16</float>
+                <int name="ZIndex">32</int>
+              </Properties>
+              <Item class="UICorner" referent="127">
+                <Properties>
+                  <string name="Name">UICorner</string>
+                  <UDim name="CornerRadius">
+                    <S>0</S>
+                    <O>13</O>
+                  </UDim>
+                </Properties>
+              </Item>
+            </Item>
+            <Item class="TextButton" referent="128">
+              <Properties>
+                <string name="Name">FeedbackButton</string>
+                <bool name="AutoButtonColor">false</bool>
+                <Color3 name="BackgroundColor3">
+                  <R>0.9254902</R>
+                  <G>0.2862745</G>
+                  <B>0.6</B>
+                </Color3>
+                <int name="BorderSizePixel">0</int>
+                <Font name="FontFace">
+                  <Family>
+                    <url>rbxasset://fonts/families/GothamSSm.json</url>
+                  </Family>
+                  <Weight>700</Weight>
+                  <Style>Normal</Style>
+                </Font>
+                <int name="LayoutOrder">4</int>
+                <UDim2 name="Size">
+                  <XS>1</XS>
+                  <XO>0</XO>
+                  <YS>0</YS>
+                  <YO>48</YO>
+                </UDim2>
+                <string name="Text">FEEDBACK</string>
+                <Color3 name="TextColor3">
+                  <R>1</R>
+                  <G>1</G>
+                  <B>1</B>
+                </Color3>
+                <float name="TextSize">16</float>
+                <int name="ZIndex">32</int>
+              </Properties>
+              <Item class="UICorner" referent="129">
+                <Properties>
+                  <string name="Name">UICorner</string>
+                  <UDim name="CornerRadius">
+                    <S>0</S>
+                    <O>13</O>
+                  </UDim>
+                </Properties>
+              </Item>
+            </Item>
+            <Item class="TextButton" referent="130">
+              <Properties>
+                <string name="Name">SettingsButton</string>
+                <bool name="AutoButtonColor">false</bool>
+                <Color3 name="BackgroundColor3">
+                  <R>0.2313725</R>
+                  <G>0.5098039</G>
+                  <B>0.9647059</B>
+                </Color3>
+                <int name="BorderSizePixel">0</int>
+                <Font name="FontFace">
+                  <Family>
+                    <url>rbxasset://fonts/families/GothamSSm.json</url>
+                  </Family>
+                  <Weight>700</Weight>
+                  <Style>Normal</Style>
+                </Font>
+                <int name="LayoutOrder">5</int>
+                <UDim2 name="Size">
+                  <XS>1</XS>
+                  <XO>0</XO>
+                  <YS>0</YS>
+                  <YO>48</YO>
+                </UDim2>
+                <string name="Text">SETTINGS</string>
+                <Color3 name="TextColor3">
+                  <R>1</R>
+                  <G>1</G>
+                  <B>1</B>
+                </Color3>
+                <float name="TextSize">16</float>
+                <int name="ZIndex">32</int>
+              </Properties>
+              <Item class="UICorner" referent="131">
+                <Properties>
+                  <string name="Name">UICorner</string>
+                  <UDim name="CornerRadius">
+                    <S>0</S>
+                    <O>13</O>
+                  </UDim>
+                </Properties>
+              </Item>
+            </Item>
+          </Item>
+        </Item>
+        <Item class="Frame" referent="132">
+          <Properties>
+            <string name="Name">Screens</string>
+            <float name="BackgroundTransparency">1</float>
+            <int name="BorderSizePixel">0</int>
+            <UDim2 name="Size">
+              <XS>1</XS>
+              <XO>0</XO>
+              <YS>1</YS>
+              <YO>0</YO>
+            </UDim2>
+            <int name="ZIndex">40</int>
+          </Properties>
+        </Item>
+        <Item class="Frame" referent="133">
+          <Properties>
+            <string name="Name">ScreenTemplate</string>
+            <Vector2 name="AnchorPoint">
+              <X>0.5</X>
+              <Y>0.5</Y>
+            </Vector2>
+            <Color3 name="BackgroundColor3">
+              <R>1</R>
+              <G>1</G>
+              <B>1</B>
+            </Color3>
+            <int name="BorderSizePixel">0</int>
+            <UDim2 name="Position">
+              <XS>0.5</XS>
+              <XO>0</XO>
+              <YS>0.48</YS>
+              <YO>0</YO>
+            </UDim2>
+            <UDim2 name="Size">
+              <XS>0.88</XS>
+              <XO>0</XO>
+              <YS>0.74</YS>
+              <YO>0</YO>
+            </UDim2>
+            <bool name="Visible">false</bool>
+            <int name="ZIndex">40</int>
+          </Properties>
+          <Item class="UICorner" referent="134">
+            <Properties>
+              <string name="Name">UICorner</string>
+              <UDim name="CornerRadius">
+                <S>0</S>
+                <O>22</O>
+              </UDim>
+            </Properties>
+          </Item>
+          <Item class="UIStroke" referent="135">
+            <Properties>
+              <string name="Name">UIStroke</string>
+              <Color3 name="Color">
+                <R>0.2313725</R>
+                <G>0.5098039</G>
+                <B>0.9647059</B>
+              </Color3>
+              <float name="Thickness">3</float>
+              <float name="Transparency">0.12</float>
+            </Properties>
+          </Item>
+          <Item class="UISizeConstraint" referent="136">
+            <Properties>
+              <string name="Name">UISizeConstraint</string>
+              <Vector2 name="MaxSize">
+                <X>760</X>
+                <Y>620</Y>
+              </Vector2>
+              <Vector2 name="MinSize">
+                <X>300</X>
+                <Y>260</Y>
+              </Vector2>
+            </Properties>
+          </Item>
+          <Item class="Frame" referent="137">
+            <Properties>
+              <string name="Name">Header</string>
+              <Color3 name="BackgroundColor3">
+                <R>0.2313725</R>
+                <G>0.5098039</G>
+                <B>0.9647059</B>
+              </Color3>
+              <int name="BorderSizePixel">0</int>
+              <UDim2 name="Size">
+                <XS>1</XS>
+                <XO>0</XO>
+                <YS>0</YS>
+                <YO>66</YO>
+              </UDim2>
+              <int name="ZIndex">41</int>
+            </Properties>
+            <Item class="UICorner" referent="138">
+              <Properties>
+                <string name="Name">UICorner</string>
+                <UDim name="CornerRadius">
+                  <S>0</S>
+                  <O>19</O>
+                </UDim>
+              </Properties>
+            </Item>
+          </Item>
+          <Item class="TextLabel" referent="139">
+            <Properties>
+              <string name="Name">Title</string>
+              <float name="BackgroundTransparency">1</float>
+              <Font name="FontFace">
+                <Family>
+                  <url>rbxasset://fonts/families/GothamSSm.json</url>
+                </Family>
+                <Weight>700</Weight>
+                <Style>Normal</Style>
+              </Font>
+              <UDim2 name="Position">
+                <XS>0</XS>
+                <XO>20</XO>
+                <YS>0</YS>
+                <YO>12</YO>
+              </UDim2>
+              <UDim2 name="Size">
+                <XS>1</XS>
+                <XO>-82</XO>
+                <YS>0</YS>
+                <YO>42</YO>
+              </UDim2>
+              <string name="Text">SCREEN TITLE</string>
+              <Color3 name="TextColor3">
+                <R>1</R>
+                <G>1</G>
+                <B>1</B>
+              </Color3>
+              <float name="TextSize">26</float>
+              <bool name="TextWrapped">true</bool>
+              <token name="TextXAlignment">0</token>
+              <int name="ZIndex">42</int>
+            </Properties>
+          </Item>
+          <Item class="TextButton" referent="140">
+            <Properties>
+              <string name="Name">CloseButton</string>
+              <Vector2 name="AnchorPoint">
+                <X>1</X>
+                <Y>0</Y>
+              </Vector2>
+              <bool name="AutoButtonColor">true</bool>
+              <Color3 name="BackgroundColor3">
+                <R>1</R>
+                <G>0.2980392</G>
+                <B>0.3568627</B>
+              </Color3>
+              <int name="BorderSizePixel">0</int>
+              <Font name="FontFace">
+                <Family>
+                  <url>rbxasset://fonts/families/GothamSSm.json</url>
+                </Family>
+                <Weight>700</Weight>
+                <Style>Normal</Style>
+              </Font>
+              <UDim2 name="Position">
+                <XS>1</XS>
+                <XO>-12</XO>
+                <YS>0</YS>
+                <YO>12</YO>
+              </UDim2>
+              <UDim2 name="Size">
+                <XS>0</XS>
+                <XO>42</XO>
+                <YS>0</YS>
+                <YO>42</YO>
+              </UDim2>
+              <string name="Text">X</string>
+              <Color3 name="TextColor3">
+                <R>1</R>
+                <G>1</G>
+                <B>1</B>
+              </Color3>
+              <float name="TextSize">20</float>
+              <int name="ZIndex">43</int>
+            </Properties>
+            <Item class="UICorner" referent="141">
+              <Properties>
+                <string name="Name">UICorner</string>
+                <UDim name="CornerRadius">
+                  <S>0</S>
+                  <O>12</O>
+                </UDim>
+              </Properties>
+            </Item>
+          </Item>
+          <Item class="ScrollingFrame" referent="142">
             <Properties>
               <string name="Name">Content</string>
               <token name="AutomaticCanvasSize">2</token>
@@ -4855,28 +5236,28 @@ return UIStyles
                 <XS>0</XS>
                 <XO>16</XO>
                 <YS>0</YS>
-                <YO>68</YO>
+                <YO>78</YO>
               </UDim2>
               <Color3 name="ScrollBarImageColor3">
-                <R>0.3137255</R>
-                <G>0.5294118</G>
-                <B>1</B>
+                <R>0.2313725</R>
+                <G>0.5098039</G>
+                <B>0.9647059</B>
               </Color3>
-              <int name="ScrollBarThickness">6</int>
+              <int name="ScrollBarThickness">7</int>
               <UDim2 name="Size">
                 <XS>1</XS>
                 <XO>-32</XO>
                 <YS>1</YS>
-                <YO>-84</YO>
+                <YO>-94</YO>
               </UDim2>
-              <int name="ZIndex">21</int>
+              <int name="ZIndex">41</int>
             </Properties>
-            <Item class="UIPadding" referent="130">
+            <Item class="UIPadding" referent="143">
               <Properties>
                 <string name="Name">UIPadding</string>
                 <UDim name="PaddingBottom">
                   <S>0</S>
-                  <O>4</O>
+                  <O>6</O>
                 </UDim>
                 <UDim name="PaddingLeft">
                   <S>0</S>
@@ -4892,20 +5273,20 @@ return UIStyles
                 </UDim>
               </Properties>
             </Item>
-            <Item class="UIListLayout" referent="131">
+            <Item class="UIListLayout" referent="144">
               <Properties>
                 <string name="Name">UIListLayout</string>
                 <token name="HorizontalAlignment">0</token>
                 <UDim name="Padding">
                   <S>0</S>
-                  <O>8</O>
+                  <O>10</O>
                 </UDim>
                 <token name="SortOrder">2</token>
               </Properties>
             </Item>
           </Item>
         </Item>
-        <Item class="Frame" referent="132">
+        <Item class="Frame" referent="145">
           <Properties>
             <string name="Name">Toast</string>
             <Vector2 name="AnchorPoint">
@@ -4913,9 +5294,9 @@ return UIStyles
               <Y>0</Y>
             </Vector2>
             <Color3 name="BackgroundColor3">
-              <R>0.0862745</R>
-              <G>0.0980392</G>
-              <B>0.1647059</B>
+              <R>0.5372549</R>
+              <G>0.3137255</G>
+              <B>0.9294118</B>
             </Color3>
             <int name="BorderSizePixel">0</int>
             <UDim2 name="Position">
@@ -4925,48 +5306,47 @@ return UIStyles
               <YO>-90</YO>
             </UDim2>
             <UDim2 name="Size">
-              <XS>0.8</XS>
+              <XS>0.82</XS>
               <XO>0</XO>
               <YS>0</YS>
-              <YO>62</YO>
+              <YO>66</YO>
             </UDim2>
             <int name="ZIndex">100</int>
           </Properties>
-          <Item class="UICorner" referent="133">
+          <Item class="UICorner" referent="146">
             <Properties>
               <string name="Name">UICorner</string>
               <UDim name="CornerRadius">
                 <S>0</S>
-                <O>14</O>
+                <O>18</O>
               </UDim>
             </Properties>
           </Item>
-          <Item class="UIStroke" referent="134">
+          <Item class="UIStroke" referent="147">
             <Properties>
               <string name="Name">UIStroke</string>
               <Color3 name="Color">
-                <R>0.4392157</R>
-                <G>0.4941176</G>
-                <B>0.7215686</B>
+                <R>0.2431373</R>
+                <G>0.1019608</G>
+                <B>0.5215686</B>
               </Color3>
-              <float name="Thickness">1.5</float>
-              <float name="Transparency">0.45</float>
+              <float name="Thickness">3</float>
+              <float name="Transparency">0.35</float>
             </Properties>
           </Item>
-          <Item class="UISizeConstraint" referent="135">
+          <Item class="UISizeConstraint" referent="148">
             <Properties>
               <string name="Name">UISizeConstraint</string>
               <Vector2 name="MaxSize">
-                <X>560</X>
-                <Y>62</Y>
+                <X>600</X>
+                <Y>66</Y>
               </Vector2>
             </Properties>
           </Item>
-          <Item class="TextLabel" referent="136">
+          <Item class="TextLabel" referent="149">
             <Properties>
               <string name="Name">Message</string>
               <float name="BackgroundTransparency">1</float>
-              <int name="BorderSizePixel">0</int>
               <Font name="FontFace">
                 <Family>
                   <url>rbxasset://fonts/families/GothamSSm.json</url>
@@ -4976,20 +5356,20 @@ return UIStyles
               </Font>
               <UDim2 name="Position">
                 <XS>0</XS>
-                <XO>14</XO>
+                <XO>16</XO>
                 <YS>0</YS>
                 <YO>8</YO>
               </UDim2>
               <UDim2 name="Size">
                 <XS>1</XS>
-                <XO>-28</XO>
+                <XO>-32</XO>
                 <YS>1</YS>
                 <YO>-16</YO>
               </UDim2>
-              <string name="Text">Notification preview</string>
+              <string name="Text">YOU GOT A REWARD!</string>
               <Color3 name="TextColor3">
-                <R>0.972549</R>
-                <G>0.9764706</G>
+                <R>1</R>
+                <G>1</G>
                 <B>1</B>
               </Color3>
               <float name="TextSize">18</float>

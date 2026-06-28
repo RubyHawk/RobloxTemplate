@@ -45,7 +45,7 @@ local function row(parent: Instance, title: string, body: string): Frame
 end
 
 function Screens.inventory(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Inventory", context.close)
+	local root, content = base(parent, "My Bag", context.close)
 	local entries = context.state.profile.inventory
 	local anyItem = false
 	for itemId, entry in entries do
@@ -69,13 +69,13 @@ function Screens.inventory(parent: Instance, context: any): Frame
 		end
 	end
 	if not anyItem then
-		row(content, "Inventory empty", "Items and consumables appear here.")
+		row(content, "Your bag is empty", "Items and boosts you collect will appear here.")
 	end
 	return root
 end
 
 function Screens.store(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Store", context.close)
+	local root, content = base(parent, "Shop", context.close)
 	for itemId, definition in context.state.catalog do
 		if definition.priceCoins then
 			local card =
@@ -100,7 +100,7 @@ function Screens.store(parent: Instance, context: any): Frame
 			Size = UDim2.fromOffset(92, 44),
 		})
 	else
-		row(content, "Robux products", "Disabled until product IDs are configured in TemplateConfig.")
+		row(content, "Coin packs", "More shop options are coming soon!")
 	end
 	if context.state.productAvailability.coinPackLarge then
 		local card = row(content, "Large Coins Pack", "Direct developer product; Roblox confirms the price.")
@@ -127,11 +127,11 @@ function Screens.store(parent: Instance, context: any): Frame
 end
 
 function Screens.rewards(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Rewards", context.close)
+	local root, content = base(parent, "Daily Rewards", context.close)
 	row(
 		content,
 		`Daily streak: Day {context.state.profile.daily.streak}`,
-		"Claims reset at midnight UTC. Missing a day resets the streak."
+		"Come back tomorrow to keep your streak going!"
 	)
 	UIFactory.button(content, "CLAIM DAILY REWARD", function()
 		context.request("ClaimDaily", {})
@@ -155,7 +155,7 @@ function Screens.rewards(parent: Instance, context: any): Frame
 end
 
 function Screens.profile(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Player Profile", context.close)
+	local root, content = base(parent, "My Profile", context.close)
 	local profile = context.state.profile
 	row(
 		content,
@@ -165,7 +165,7 @@ function Screens.profile(parent: Instance, context: any): Frame
 		)}m`
 	)
 	local input = UIFactory.textBox(content, "Exact Roblox username")
-	local resultLabel = UIFactory.label(content, "Search displays whitelisted public stats only.", {
+	local resultLabel = UIFactory.label(content, "Search for a Roblox player to see their public stats.", {
 		Size = UDim2.new(1, -8, 0, 54),
 		TextColor3 = Theme.colors.textMuted,
 	})
@@ -198,9 +198,9 @@ function Screens.settings(parent: Instance, context: any): Frame
 		end)
 	end
 	toggle("Reduced motion", "reducedMotion", settings.reducedMotion)
-	toggle("Announcements", "announcements", settings.announcements)
-	toggle("AFK rollover", "afKRollOver", settings.afKRollOver)
-	toggle("Roblox reminders", "notifications", settings.notifications)
+	toggle("Game tips", "announcements", settings.announcements)
+	toggle("Stay connected", "afKRollOver", settings.afKRollOver)
+	toggle("Reminders", "notifications", settings.notifications)
 	UIFactory.button(content, `Music: {math.floor(settings.musicVolume * 100)}%`, function()
 		context.request(
 			"UpdateSetting",
@@ -217,16 +217,12 @@ function Screens.settings(parent: Instance, context: any): Frame
 		end
 		context.request("UpdateSetting", { key = "uiScale", value = nextScale })
 	end)
-	row(
-		content,
-		"Project defaults",
-		"Streaming enabled; native chat enabled; HTTP, paid products, Discord, and live DataStores disabled until configured."
-	)
+	row(content, "You're all set!", "Your choices save automatically. You can change them again any time.")
 	return root
 end
 
 function Screens.feedback(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Feedback & Bug Report", context.close)
+	local root, content = base(parent, "Send Feedback", context.close)
 	local categories = { "Bug", "Feedback", "Accessibility", "Other" }
 	local categoryIndex = 1
 	local categoryButton = UIFactory.button(content, "Category: Bug", nil)
@@ -277,10 +273,10 @@ local function leaderboardRows(content: Instance, rows: { any })
 end
 
 function Screens.leaderboards(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Leaderboards", context.close)
+	local root, content = base(parent, "Top Players", context.close)
 	UIFactory.label(content, "CURRENT SERVER", { Size = UDim2.new(1, -8, 0, 32), FontFace = Theme.fontBold })
 	leaderboardRows(content, context.state.serverLeaderboard)
-	UIFactory.button(content, "LOAD GLOBAL TOP 50", function()
+	UIFactory.button(content, "SHOW GLOBAL TOP 50", function()
 		task.spawn(function()
 			local response = context.query("GlobalLeaderboard", {})
 			if response.ok and response.data then
@@ -300,18 +296,13 @@ function Screens.verification(parent: Instance, context: any): Frame
 		content,
 		"Roblox Community",
 		if availability.community
-			then "Verification is enabled."
-			else "Disabled until a community ID is configured."
+			then "Community rewards are ready!"
+			else "Community rewards are coming soon."
 	)
 	row(
 		content,
-		"Discord",
-		"Verification is scaffolded but disabled. Community link is available on the experience page after setup."
-	)
-	row(
-		content,
-		"Guilds / Clans",
-		if availability.guilds then "Enabled" else "Provider contract reserved; no guild data is active."
+		"Clubs",
+		if availability.guilds then "Clubs are ready!" else "Team up with friends when clubs arrive later."
 	)
 	return root
 end

@@ -18,10 +18,7 @@
         "Size": { "UDim2": [[1, 0], [1, 0]] }
       },
       "Children": [
-        {
-          "Name": "InterfaceScale",
-          "ClassName": "UIScale"
-        },
+        { "Name": "InterfaceScale", "ClassName": "UIScale" },
         {
           "Name": "ComponentTemplates",
           "ClassName": "Folder",
@@ -31,7 +28,7 @@
               "ClassName": "TextButton",
               "Properties": {
                 "AutoButtonColor": false,
-                "BackgroundColor3": [0.3137255, 0.5294118, 1],
+                "BackgroundColor3": [0.2313725, 0.5098039, 0.9647059],
                 "BorderSizePixel": 0,
                 "FontFace": {
                   "family": "rbxasset://fonts/families/GothamSSm.json",
@@ -39,23 +36,30 @@
                   "style": "Normal"
                 },
                 "Selectable": true,
-                "Size": { "UDim2": [[1, 0], [0, 48]] },
+                "Size": { "UDim2": [[1, 0], [0, 52]] },
                 "Text": "BUTTON",
-                "TextColor3": [0.972549, 0.9764706, 1],
-                "TextSize": 16,
+                "TextColor3": [1, 1, 1],
+                "TextSize": 17,
                 "TextWrapped": true,
                 "Visible": false
               },
               "Children": [
-                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } } },
-                { "ClassName": "UIStroke", "Properties": { "Color": [0.4392157, 0.4941176, 0.7215686], "Transparency": 0.7 } }
+                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 14] } } },
+                {
+                  "ClassName": "UIStroke",
+                  "Properties": {
+                    "Color": [0.1058824, 0.254902, 0.5803922],
+                    "Thickness": 2,
+                    "Transparency": 0.55
+                  }
+                }
               ]
             },
             {
               "Name": "TextBoxTemplate",
               "ClassName": "TextBox",
               "Properties": {
-                "BackgroundColor3": [0.0431373, 0.0509804, 0.0901961],
+                "BackgroundColor3": [0.945098, 0.972549, 1],
                 "BorderSizePixel": 0,
                 "ClearTextOnFocus": false,
                 "FontFace": {
@@ -63,25 +67,32 @@
                   "weight": "Medium",
                   "style": "Normal"
                 },
-                "PlaceholderColor3": [0.7058824, 0.7333333, 0.854902],
+                "PlaceholderColor3": [0.3490196, 0.4313725, 0.5686275],
                 "PlaceholderText": "TYPE HERE",
-                "Size": { "UDim2": [[1, 0], [0, 48]] },
+                "Size": { "UDim2": [[1, 0], [0, 52]] },
                 "Text": "",
-                "TextColor3": [0.972549, 0.9764706, 1],
-                "TextSize": 16,
+                "TextColor3": [0.0784314, 0.145098, 0.2705882],
+                "TextSize": 17,
                 "TextWrapped": true,
                 "Visible": false
               },
               "Children": [
-                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } } },
-                { "ClassName": "UIStroke", "Properties": { "Color": [0.4392157, 0.4941176, 0.7215686], "Transparency": 0.45 } },
+                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 14] } } },
+                {
+                  "ClassName": "UIStroke",
+                  "Properties": {
+                    "Color": [0.2313725, 0.5098039, 0.9647059],
+                    "Thickness": 2,
+                    "Transparency": 0.35
+                  }
+                },
                 {
                   "ClassName": "UIPadding",
                   "Properties": {
-                    "PaddingBottom": { "UDim": [0, 8] },
-                    "PaddingLeft": { "UDim": [0, 8] },
-                    "PaddingRight": { "UDim": [0, 8] },
-                    "PaddingTop": { "UDim": [0, 8] }
+                    "PaddingBottom": { "UDim": [0, 10] },
+                    "PaddingLeft": { "UDim": [0, 12] },
+                    "PaddingRight": { "UDim": [0, 12] },
+                    "PaddingTop": { "UDim": [0, 10] }
                   }
                 }
               ]
@@ -97,9 +108,9 @@
                   "weight": "Medium",
                   "style": "Normal"
                 },
-                "Size": { "UDim2": [[1, 0], [0, 32]] },
+                "Size": { "UDim2": [[1, 0], [0, 36]] },
                 "Text": "LABEL",
-                "TextColor3": [0.972549, 0.9764706, 1],
+                "TextColor3": [0.0784314, 0.145098, 0.2705882],
                 "TextSize": 18,
                 "TextWrapped": true,
                 "TextXAlignment": "Left",
@@ -110,14 +121,21 @@
               "Name": "RowTemplate",
               "ClassName": "Frame",
               "Properties": {
-                "BackgroundColor3": [0.2039216, 0.2235294, 0.3529412],
+                "BackgroundColor3": [0.945098, 0.972549, 1],
                 "BorderSizePixel": 0,
-                "Size": { "UDim2": [[1, -8], [0, 82]] },
+                "Size": { "UDim2": [[1, -8], [0, 92]] },
                 "Visible": false
               },
               "Children": [
-                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 14] } } },
-                { "ClassName": "UIStroke", "Properties": { "Color": [0.4392157, 0.4941176, 0.7215686], "Transparency": 0.45, "Thickness": 1.5 } },
+                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 16] } } },
+                {
+                  "ClassName": "UIStroke",
+                  "Properties": {
+                    "Color": [0.4117647, 0.627451, 1],
+                    "Thickness": 2,
+                    "Transparency": 0.45
+                  }
+                },
                 {
                   "Name": "Title",
                   "ClassName": "TextLabel",
@@ -129,11 +147,11 @@
                       "weight": "Bold",
                       "style": "Normal"
                     },
-                    "Position": { "UDim2": [[0, 14], [0, 8]] },
-                    "Size": { "UDim2": [[1, -28], [0, 28]] },
-                    "Text": "ROW TITLE",
-                    "TextColor3": [0.972549, 0.9764706, 1],
-                    "TextSize": 18,
+                    "Position": { "UDim2": [[0, 16], [0, 10]] },
+                    "Size": { "UDim2": [[1, -140], [0, 30]] },
+                    "Text": "ITEM NAME",
+                    "TextColor3": [0.0784314, 0.145098, 0.2705882],
+                    "TextSize": 19,
                     "TextWrapped": true,
                     "TextXAlignment": "Left"
                   }
@@ -149,11 +167,11 @@
                       "weight": "Medium",
                       "style": "Normal"
                     },
-                    "Position": { "UDim2": [[0, 14], [0, 36]] },
-                    "Size": { "UDim2": [[1, -28], [0, 38]] },
-                    "Text": "Row body text",
-                    "TextColor3": [0.7058824, 0.7333333, 0.854902],
-                    "TextSize": 14,
+                    "Position": { "UDim2": [[0, 16], [0, 42]] },
+                    "Size": { "UDim2": [[1, -140], [0, 40]] },
+                    "Text": "A short, friendly explanation.",
+                    "TextColor3": [0.3490196, 0.4313725, 0.5686275],
+                    "TextSize": 15,
                     "TextWrapped": true,
                     "TextXAlignment": "Left"
                   }
@@ -166,24 +184,52 @@
           "Name": "CurrencyHUD",
           "ClassName": "Frame",
           "Properties": {
-            "BackgroundColor3": [0.0862745, 0.0980392, 0.1647059],
+            "BackgroundColor3": [1, 1, 1],
             "BorderSizePixel": 0,
-            "Position": { "UDim2": [[0, 12], [0, 12]] },
-            "Size": { "UDim2": [[0, 240], [0, 60]] },
+            "Position": { "UDim2": [[0, 16], [0, 16]] },
+            "Size": { "UDim2": [[0, 268], [0, 74]] },
             "ZIndex": 5
           },
           "Children": [
-            {
-              "ClassName": "UICorner",
-              "Properties": { "CornerRadius": { "UDim": [0, 14] } }
-            },
+            { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 20] } } },
             {
               "ClassName": "UIStroke",
               "Properties": {
-                "Color": [0.4392157, 0.4941176, 0.7215686],
-                "Thickness": 1.5,
-                "Transparency": 0.45
+                "Color": [1, 0.7254902, 0.1137255],
+                "Thickness": 3,
+                "Transparency": 0.05
               }
+            },
+            {
+              "Name": "CoinBadge",
+              "ClassName": "Frame",
+              "Properties": {
+                "BackgroundColor3": [1, 0.7960784, 0.227451],
+                "BorderSizePixel": 0,
+                "Position": { "UDim2": [[0, 12], [0, 12]] },
+                "Size": { "UDim2": [[0, 50], [0, 50]] },
+                "ZIndex": 6
+              },
+              "Children": [
+                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } } },
+                {
+                  "Name": "Symbol",
+                  "ClassName": "TextLabel",
+                  "Properties": {
+                    "BackgroundTransparency": 1,
+                    "FontFace": {
+                      "family": "rbxasset://fonts/families/GothamSSm.json",
+                      "weight": "Bold",
+                      "style": "Normal"
+                    },
+                    "Size": { "UDim2": [[1, 0], [1, 0]] },
+                    "Text": "$",
+                    "TextColor3": [0.5411765, 0.3098039, 0.0235294],
+                    "TextSize": 28,
+                    "ZIndex": 7
+                  }
+                }
+              ]
             },
             {
               "Name": "CoinLabel",
@@ -196,11 +242,11 @@
                   "weight": "Bold",
                   "style": "Normal"
                 },
-                "Position": { "UDim2": [[0, 14], [0, 8]] },
-                "Size": { "UDim2": [[1, -28], [0, 27]] },
-                "Text": "◆ 0 Coins",
-                "TextColor3": [1, 0.7882353, 0.2509804],
-                "TextSize": 20,
+                "Position": { "UDim2": [[0, 72], [0, 10]] },
+                "Size": { "UDim2": [[1, -84], [0, 30]] },
+                "Text": "0 COINS",
+                "TextColor3": [0.0784314, 0.145098, 0.2705882],
+                "TextSize": 22,
                 "TextWrapped": true,
                 "TextXAlignment": "Left",
                 "ZIndex": 6
@@ -214,14 +260,14 @@
                 "BorderSizePixel": 0,
                 "FontFace": {
                   "family": "rbxasset://fonts/families/GothamSSm.json",
-                  "weight": "Medium",
+                  "weight": "Bold",
                   "style": "Normal"
                 },
-                "Position": { "UDim2": [[0, 14], [0, 34]] },
-                "Size": { "UDim2": [[1, -28], [0, 18]] },
-                "Text": "x1 boost",
-                "TextColor3": [0.7058824, 0.7333333, 0.854902],
-                "TextSize": 13,
+                "Position": { "UDim2": [[0, 72], [0, 41]] },
+                "Size": { "UDim2": [[1, -84], [0, 21]] },
+                "Text": "x1 BOOST  •  0 FRIENDS",
+                "TextColor3": [0.0862745, 0.6392157, 0.3647059],
+                "TextSize": 14,
                 "TextWrapped": true,
                 "TextXAlignment": "Left",
                 "ZIndex": 6
@@ -233,41 +279,35 @@
           "Name": "Navigation",
           "ClassName": "Frame",
           "Properties": {
-            "AnchorPoint": [0.5, 1],
-            "BackgroundColor3": [0.0862745, 0.0980392, 0.1647059],
+            "AnchorPoint": [1, 0.5],
+            "BackgroundColor3": [0.9803922, 0.9921569, 1],
             "BorderSizePixel": 0,
-            "Position": { "UDim2": [[0.5, 0], [1, -10]] },
-            "Size": { "UDim2": [[0.94, 0], [0, 64]] },
+            "Position": { "UDim2": [[1, -16], [0.5, 0]] },
+            "Size": { "UDim2": [[0, 122], [0.78, 0]] },
             "ZIndex": 10
           },
           "Children": [
-            {
-              "ClassName": "UICorner",
-              "Properties": { "CornerRadius": { "UDim": [0, 14] } }
-            },
+            { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 22] } } },
             {
               "ClassName": "UIStroke",
               "Properties": {
-                "Color": [0.4392157, 0.4941176, 0.7215686],
-                "Thickness": 1.5,
-                "Transparency": 0.45
+                "Color": [0.2313725, 0.5098039, 0.9647059],
+                "Thickness": 3,
+                "Transparency": 0.12
               }
             },
-            {
-              "ClassName": "UISizeConstraint",
-              "Properties": { "MaxSize": [860, 64] }
-            },
+            { "ClassName": "UISizeConstraint", "Properties": { "MaxSize": [122, 360], "MinSize": [110, 240] } },
             {
               "Name": "Buttons",
               "ClassName": "ScrollingFrame",
               "Properties": {
-                "AutomaticCanvasSize": "X",
+                "AutomaticCanvasSize": "Y",
                 "BackgroundTransparency": 1,
                 "BorderSizePixel": 0,
                 "CanvasSize": { "UDim2": [[0, 0], [0, 0]] },
                 "Position": { "UDim2": [[0, 8], [0, 8]] },
-                "ScrollBarThickness": 0,
-                "ScrollingDirection": "X",
+                "ScrollBarImageColor3": [0.2313725, 0.5098039, 0.9647059],
+                "ScrollBarThickness": 4,
                 "Size": { "UDim2": [[1, -16], [1, -16]] },
                 "ZIndex": 11
               },
@@ -275,11 +315,11 @@
                 {
                   "ClassName": "UIListLayout",
                   "Properties": {
-                    "FillDirection": "Horizontal",
-                    "HorizontalAlignment": "Left",
+                    "FillDirection": "Vertical",
+                    "HorizontalAlignment": "Center",
                     "Padding": { "UDim": [0, 8] },
                     "SortOrder": "LayoutOrder",
-                    "VerticalAlignment": "Center"
+                    "VerticalAlignment": "Top"
                   }
                 },
                 {
@@ -287,24 +327,21 @@
                   "ClassName": "TextButton",
                   "Properties": {
                     "AutoButtonColor": false,
-                    "BackgroundColor3": [0.3137255, 0.5294118, 1],
+                    "BackgroundColor3": [0.5372549, 0.3137255, 0.9294118],
                     "BorderSizePixel": 0,
-                    "FontFace": {
-                      "family": "rbxasset://fonts/families/GothamSSm.json",
-                      "weight": "Bold",
-                      "style": "Normal"
-                    },
+                    "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
                     "LayoutOrder": 1,
                     "Selectable": true,
-                    "Size": { "UDim2": [[0, 100], [0, 48]] },
+                    "Size": { "UDim2": [[1, -4], [0, 60]] },
                     "Text": "BAG",
-                    "TextColor3": [0.972549, 0.9764706, 1],
-                    "TextSize": 15,
-                    "TextWrapped": true
+                    "TextColor3": [1, 1, 1],
+                    "TextSize": 16,
+                    "TextWrapped": true,
+                    "ZIndex": 12
                   },
                   "Children": [
-                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } } },
-                    { "ClassName": "UIStroke", "Properties": { "Color": [0.4392157, 0.4941176, 0.7215686], "Transparency": 0.7 } }
+                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 16] } } },
+                    { "ClassName": "UIStroke", "Properties": { "Color": [0.2431373, 0.1019608, 0.5215686], "Thickness": 2, "Transparency": 0.5 } }
                   ]
                 },
                 {
@@ -312,24 +349,21 @@
                   "ClassName": "TextButton",
                   "Properties": {
                     "AutoButtonColor": false,
-                    "BackgroundColor3": [0.3137255, 0.5294118, 1],
+                    "BackgroundColor3": [0.1254902, 0.7568627, 0.4470588],
                     "BorderSizePixel": 0,
-                    "FontFace": {
-                      "family": "rbxasset://fonts/families/GothamSSm.json",
-                      "weight": "Bold",
-                      "style": "Normal"
-                    },
+                    "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
                     "LayoutOrder": 2,
                     "Selectable": true,
-                    "Size": { "UDim2": [[0, 100], [0, 48]] },
+                    "Size": { "UDim2": [[1, -4], [0, 60]] },
                     "Text": "SHOP",
-                    "TextColor3": [0.972549, 0.9764706, 1],
-                    "TextSize": 15,
-                    "TextWrapped": true
+                    "TextColor3": [1, 1, 1],
+                    "TextSize": 16,
+                    "TextWrapped": true,
+                    "ZIndex": 12
                   },
                   "Children": [
-                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } } },
-                    { "ClassName": "UIStroke", "Properties": { "Color": [0.4392157, 0.4941176, 0.7215686], "Transparency": 0.7 } }
+                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 16] } } },
+                    { "ClassName": "UIStroke", "Properties": { "Color": [0.0392157, 0.3921569, 0.2], "Thickness": 2, "Transparency": 0.5 } }
                   ]
                 },
                 {
@@ -337,24 +371,21 @@
                   "ClassName": "TextButton",
                   "Properties": {
                     "AutoButtonColor": false,
-                    "BackgroundColor3": [0.3137255, 0.5294118, 1],
+                    "BackgroundColor3": [1, 0.5921569, 0.1803922],
                     "BorderSizePixel": 0,
-                    "FontFace": {
-                      "family": "rbxasset://fonts/families/GothamSSm.json",
-                      "weight": "Bold",
-                      "style": "Normal"
-                    },
+                    "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
                     "LayoutOrder": 3,
                     "Selectable": true,
-                    "Size": { "UDim2": [[0, 100], [0, 48]] },
-                    "Text": "GIFT",
-                    "TextColor3": [0.972549, 0.9764706, 1],
+                    "Size": { "UDim2": [[1, -4], [0, 60]] },
+                    "Text": "REWARDS",
+                    "TextColor3": [1, 1, 1],
                     "TextSize": 15,
-                    "TextWrapped": true
+                    "TextWrapped": true,
+                    "ZIndex": 12
                   },
                   "Children": [
-                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } } },
-                    { "ClassName": "UIStroke", "Properties": { "Color": [0.4392157, 0.4941176, 0.7215686], "Transparency": 0.7 } }
+                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 16] } } },
+                    { "ClassName": "UIStroke", "Properties": { "Color": [0.6509804, 0.2705882, 0.0235294], "Thickness": 2, "Transparency": 0.5 } }
                   ]
                 },
                 {
@@ -362,150 +393,152 @@
                   "ClassName": "TextButton",
                   "Properties": {
                     "AutoButtonColor": false,
-                    "BackgroundColor3": [0.3137255, 0.5294118, 1],
+                    "BackgroundColor3": [0.2313725, 0.5098039, 0.9647059],
                     "BorderSizePixel": 0,
-                    "FontFace": {
-                      "family": "rbxasset://fonts/families/GothamSSm.json",
-                      "weight": "Bold",
-                      "style": "Normal"
-                    },
+                    "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
                     "LayoutOrder": 4,
                     "Selectable": true,
-                    "Size": { "UDim2": [[0, 100], [0, 48]] },
+                    "Size": { "UDim2": [[1, -4], [0, 60]] },
                     "Text": "PROFILE",
-                    "TextColor3": [0.972549, 0.9764706, 1],
+                    "TextColor3": [1, 1, 1],
                     "TextSize": 15,
-                    "TextWrapped": true
+                    "TextWrapped": true,
+                    "ZIndex": 12
                   },
                   "Children": [
-                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } } },
-                    { "ClassName": "UIStroke", "Properties": { "Color": [0.4392157, 0.4941176, 0.7215686], "Transparency": 0.7 } }
+                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 16] } } },
+                    { "ClassName": "UIStroke", "Properties": { "Color": [0.1058824, 0.254902, 0.5803922], "Thickness": 2, "Transparency": 0.5 } }
                   ]
                 },
                 {
-                  "Name": "CodesButton",
+                  "Name": "MoreButton",
                   "ClassName": "TextButton",
                   "Properties": {
                     "AutoButtonColor": false,
-                    "BackgroundColor3": [0.3137255, 0.5294118, 1],
+                    "BackgroundColor3": [0.9254902, 0.2862745, 0.6],
                     "BorderSizePixel": 0,
-                    "FontFace": {
-                      "family": "rbxasset://fonts/families/GothamSSm.json",
-                      "weight": "Bold",
-                      "style": "Normal"
-                    },
+                    "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
                     "LayoutOrder": 5,
                     "Selectable": true,
-                    "Size": { "UDim2": [[0, 100], [0, 48]] },
-                    "Text": "CODES",
-                    "TextColor3": [0.972549, 0.9764706, 1],
-                    "TextSize": 15,
-                    "TextWrapped": true
+                    "Size": { "UDim2": [[1, -4], [0, 60]] },
+                    "Text": "MORE",
+                    "TextColor3": [1, 1, 1],
+                    "TextSize": 16,
+                    "TextWrapped": true,
+                    "ZIndex": 12
                   },
                   "Children": [
-                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } } },
-                    { "ClassName": "UIStroke", "Properties": { "Color": [0.4392157, 0.4941176, 0.7215686], "Transparency": 0.7 } }
+                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 16] } } },
+                    { "ClassName": "UIStroke", "Properties": { "Color": [0.5411765, 0.0745098, 0.2980392], "Thickness": 2, "Transparency": 0.5 } }
                   ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Name": "MoreMenu",
+          "ClassName": "Frame",
+          "Properties": {
+            "AnchorPoint": [0.5, 0.5],
+            "BackgroundColor3": [1, 1, 1],
+            "BorderSizePixel": 0,
+            "Position": { "UDim2": [[0.5, 0], [0.5, 0]] },
+            "Size": { "UDim2": [[0, 286], [0.72, 0]] },
+            "Visible": false,
+            "ZIndex": 30
+          },
+          "Children": [
+            { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 22] } } },
+            { "ClassName": "UIStroke", "Properties": { "Color": [0.9254902, 0.2862745, 0.6], "Thickness": 3, "Transparency": 0.12 } },
+            { "ClassName": "UISizeConstraint", "Properties": { "MaxSize": [286, 360], "MinSize": [260, 240] } },
+            {
+              "Name": "Title",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
+                "Position": { "UDim2": [[0, 18], [0, 14]] },
+                "Size": { "UDim2": [[1, -70], [0, 28]] },
+                "Text": "MORE",
+                "TextColor3": [0.0784314, 0.145098, 0.2705882],
+                "TextSize": 22,
+                "TextXAlignment": "Left",
+                "ZIndex": 31
+              }
+            },
+            {
+              "Name": "Subtitle",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Medium", "style": "Normal" },
+                "Position": { "UDim2": [[0, 18], [0, 43]] },
+                "Size": { "UDim2": [[1, -36], [0, 22]] },
+                "Text": "Codes, rankings and settings",
+                "TextColor3": [0.3490196, 0.4313725, 0.5686275],
+                "TextSize": 13,
+                "TextXAlignment": "Left",
+                "ZIndex": 31
+              }
+            },
+            {
+              "Name": "CloseButton",
+              "ClassName": "TextButton",
+              "Properties": {
+                "AnchorPoint": [1, 0],
+                "BackgroundColor3": [1, 0.2980392, 0.3568627],
+                "BorderSizePixel": 0,
+                "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
+                "Position": { "UDim2": [[1, -12], [0, 12]] },
+                "Size": { "UDim2": [[0, 40], [0, 40]] },
+                "Text": "X",
+                "TextColor3": [1, 1, 1],
+                "TextSize": 18,
+                "ZIndex": 32
+              },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 12] } } }]
+            },
+            {
+              "Name": "Buttons",
+              "ClassName": "ScrollingFrame",
+              "Properties": {
+                "AutomaticCanvasSize": "Y",
+                "BackgroundTransparency": 1,
+                "BorderSizePixel": 0,
+                "CanvasSize": { "UDim2": [[0, 0], [0, 0]] },
+                "Position": { "UDim2": [[0, 18], [0, 78]] },
+                "ScrollBarImageColor3": [0.9254902, 0.2862745, 0.6],
+                "ScrollBarThickness": 5,
+                "Size": { "UDim2": [[1, -36], [1, -94]] },
+                "ZIndex": 31
+              },
+              "Children": [
+                { "ClassName": "UIListLayout", "Properties": { "Padding": { "UDim": [0, 8] }, "SortOrder": "LayoutOrder" } },
+                {
+                  "Name": "CodesButton", "ClassName": "TextButton",
+                  "Properties": { "AutoButtonColor": false, "BackgroundColor3": [0.5372549, 0.3137255, 0.9294118], "BorderSizePixel": 0, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "LayoutOrder": 1, "Size": { "UDim2": [[1, 0], [0, 48]] }, "Text": "CODES & LIKES", "TextColor3": [1, 1, 1], "TextSize": 16, "ZIndex": 32 },
+                  "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 13] } } }]
                 },
                 {
-                  "Name": "BoardsButton",
-                  "ClassName": "TextButton",
-                  "Properties": {
-                    "AutoButtonColor": false,
-                    "BackgroundColor3": [0.3137255, 0.5294118, 1],
-                    "BorderSizePixel": 0,
-                    "FontFace": {
-                      "family": "rbxasset://fonts/families/GothamSSm.json",
-                      "weight": "Bold",
-                      "style": "Normal"
-                    },
-                    "LayoutOrder": 6,
-                    "Selectable": true,
-                    "Size": { "UDim2": [[0, 100], [0, 48]] },
-                    "Text": "TOP",
-                    "TextColor3": [0.972549, 0.9764706, 1],
-                    "TextSize": 15,
-                    "TextWrapped": true
-                  },
-                  "Children": [
-                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } } },
-                    { "ClassName": "UIStroke", "Properties": { "Color": [0.4392157, 0.4941176, 0.7215686], "Transparency": 0.7 } }
-                  ]
+                  "Name": "BoardsButton", "ClassName": "TextButton",
+                  "Properties": { "AutoButtonColor": false, "BackgroundColor3": [1, 0.5921569, 0.1803922], "BorderSizePixel": 0, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "LayoutOrder": 2, "Size": { "UDim2": [[1, 0], [0, 48]] }, "Text": "TOP PLAYERS", "TextColor3": [1, 1, 1], "TextSize": 16, "ZIndex": 32 },
+                  "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 13] } } }]
                 },
                 {
-                  "Name": "FeedbackButton",
-                  "ClassName": "TextButton",
-                  "Properties": {
-                    "AutoButtonColor": false,
-                    "BackgroundColor3": [0.3137255, 0.5294118, 1],
-                    "BorderSizePixel": 0,
-                    "FontFace": {
-                      "family": "rbxasset://fonts/families/GothamSSm.json",
-                      "weight": "Bold",
-                      "style": "Normal"
-                    },
-                    "LayoutOrder": 7,
-                    "Selectable": true,
-                    "Size": { "UDim2": [[0, 100], [0, 48]] },
-                    "Text": "FEEDBACK",
-                    "TextColor3": [0.972549, 0.9764706, 1],
-                    "TextSize": 14,
-                    "TextWrapped": true
-                  },
-                  "Children": [
-                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } } },
-                    { "ClassName": "UIStroke", "Properties": { "Color": [0.4392157, 0.4941176, 0.7215686], "Transparency": 0.7 } }
-                  ]
+                  "Name": "CommunityButton", "ClassName": "TextButton",
+                  "Properties": { "AutoButtonColor": false, "BackgroundColor3": [0.1254902, 0.7568627, 0.4470588], "BorderSizePixel": 0, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "LayoutOrder": 3, "Size": { "UDim2": [[1, 0], [0, 48]] }, "Text": "COMMUNITY", "TextColor3": [1, 1, 1], "TextSize": 16, "ZIndex": 32 },
+                  "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 13] } } }]
                 },
                 {
-                  "Name": "CommunityButton",
-                  "ClassName": "TextButton",
-                  "Properties": {
-                    "AutoButtonColor": false,
-                    "BackgroundColor3": [0.3137255, 0.5294118, 1],
-                    "BorderSizePixel": 0,
-                    "FontFace": {
-                      "family": "rbxasset://fonts/families/GothamSSm.json",
-                      "weight": "Bold",
-                      "style": "Normal"
-                    },
-                    "LayoutOrder": 8,
-                    "Selectable": true,
-                    "Size": { "UDim2": [[0, 100], [0, 48]] },
-                    "Text": "GROUP",
-                    "TextColor3": [0.972549, 0.9764706, 1],
-                    "TextSize": 15,
-                    "TextWrapped": true
-                  },
-                  "Children": [
-                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } } },
-                    { "ClassName": "UIStroke", "Properties": { "Color": [0.4392157, 0.4941176, 0.7215686], "Transparency": 0.7 } }
-                  ]
+                  "Name": "FeedbackButton", "ClassName": "TextButton",
+                  "Properties": { "AutoButtonColor": false, "BackgroundColor3": [0.9254902, 0.2862745, 0.6], "BorderSizePixel": 0, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "LayoutOrder": 4, "Size": { "UDim2": [[1, 0], [0, 48]] }, "Text": "FEEDBACK", "TextColor3": [1, 1, 1], "TextSize": 16, "ZIndex": 32 },
+                  "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 13] } } }]
                 },
                 {
-                  "Name": "SettingsButton",
-                  "ClassName": "TextButton",
-                  "Properties": {
-                    "AutoButtonColor": false,
-                    "BackgroundColor3": [0.3137255, 0.5294118, 1],
-                    "BorderSizePixel": 0,
-                    "FontFace": {
-                      "family": "rbxasset://fonts/families/GothamSSm.json",
-                      "weight": "Bold",
-                      "style": "Normal"
-                    },
-                    "LayoutOrder": 9,
-                    "Selectable": true,
-                    "Size": { "UDim2": [[0, 100], [0, 48]] },
-                    "Text": "SETTINGS",
-                    "TextColor3": [0.972549, 0.9764706, 1],
-                    "TextSize": 14,
-                    "TextWrapped": true
-                  },
-                  "Children": [
-                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } } },
-                    { "ClassName": "UIStroke", "Properties": { "Color": [0.4392157, 0.4941176, 0.7215686], "Transparency": 0.7 } }
-                  ]
+                  "Name": "SettingsButton", "ClassName": "TextButton",
+                  "Properties": { "AutoButtonColor": false, "BackgroundColor3": [0.2313725, 0.5098039, 0.9647059], "BorderSizePixel": 0, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "LayoutOrder": 5, "Size": { "UDim2": [[1, 0], [0, 48]] }, "Text": "SETTINGS", "TextColor3": [1, 1, 1], "TextSize": 16, "ZIndex": 32 },
+                  "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 13] } } }]
                 }
               ]
             }
@@ -514,122 +547,67 @@
         {
           "Name": "Screens",
           "ClassName": "Frame",
-          "Properties": {
-            "BackgroundTransparency": 1,
-            "BorderSizePixel": 0,
-            "Size": { "UDim2": [[1, 0], [1, 0]] },
-            "ZIndex": 20
-          }
+          "Properties": { "BackgroundTransparency": 1, "BorderSizePixel": 0, "Size": { "UDim2": [[1, 0], [1, 0]] }, "ZIndex": 40 }
         },
         {
           "Name": "ScreenTemplate",
           "ClassName": "Frame",
           "Properties": {
             "AnchorPoint": [0.5, 0.5],
-            "BackgroundColor3": [0.1607843, 0.1764706, 0.2862745],
+            "BackgroundColor3": [1, 1, 1],
             "BorderSizePixel": 0,
             "Position": { "UDim2": [[0.5, 0], [0.48, 0]] },
-            "Size": { "UDim2": [[0.9, 0], [0.76, 0]] },
+            "Size": { "UDim2": [[0.88, 0], [0.74, 0]] },
             "Visible": false,
-            "ZIndex": 20
+            "ZIndex": 40
           },
           "Children": [
+            { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 22] } } },
+            { "ClassName": "UIStroke", "Properties": { "Color": [0.2313725, 0.5098039, 0.9647059], "Thickness": 3, "Transparency": 0.12 } },
+            { "ClassName": "UISizeConstraint", "Properties": { "MaxSize": [760, 620], "MinSize": [300, 260] } },
             {
-              "ClassName": "UICorner",
-              "Properties": { "CornerRadius": { "UDim": [0, 14] } }
-            },
-            {
-              "ClassName": "UIStroke",
-              "Properties": {
-                "Color": [0.4392157, 0.4941176, 0.7215686],
-                "Thickness": 1.5,
-                "Transparency": 0.45
-              }
-            },
-            {
-              "ClassName": "UISizeConstraint",
-              "Properties": { "MaxSize": [760, 620] }
+              "Name": "Header",
+              "ClassName": "Frame",
+              "Properties": { "BackgroundColor3": [0.2313725, 0.5098039, 0.9647059], "BorderSizePixel": 0, "Size": { "UDim2": [[1, 0], [0, 66]] }, "ZIndex": 41 },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 19] } } }]
             },
             {
               "Name": "Title",
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "BorderSizePixel": 0,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/GothamSSm.json",
-                  "weight": "Bold",
-                  "style": "Normal"
-                },
+                "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
                 "Position": { "UDim2": [[0, 20], [0, 12]] },
-                "Size": { "UDim2": [[1, -80], [0, 44]] },
+                "Size": { "UDim2": [[1, -82], [0, 42]] },
                 "Text": "SCREEN TITLE",
-                "TextColor3": [0.972549, 0.9764706, 1],
+                "TextColor3": [1, 1, 1],
                 "TextSize": 26,
                 "TextWrapped": true,
                 "TextXAlignment": "Left",
-                "ZIndex": 21
+                "ZIndex": 42
               }
             },
             {
               "Name": "CloseButton",
               "ClassName": "TextButton",
               "Properties": {
-                "AnchorPoint": [1, 0],
-                "AutoButtonColor": true,
-                "BackgroundColor3": [1, 0.3568627, 0.4392157],
-                "BorderSizePixel": 0,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/GothamSSm.json",
-                  "weight": "Bold",
-                  "style": "Normal"
-                },
-                "Position": { "UDim2": [[1, -12], [0, 12]] },
-                "Size": { "UDim2": [[0, 44], [0, 44]] },
-                "Text": "X",
-                "TextColor3": [0.972549, 0.9764706, 1],
-                "TextSize": 24,
-                "ZIndex": 22
+                "AnchorPoint": [1, 0], "AutoButtonColor": true, "BackgroundColor3": [1, 0.2980392, 0.3568627], "BorderSizePixel": 0,
+                "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
+                "Position": { "UDim2": [[1, -12], [0, 12]] }, "Size": { "UDim2": [[0, 42], [0, 42]] }, "Text": "X", "TextColor3": [1, 1, 1], "TextSize": 20, "ZIndex": 43
               },
-              "Children": [
-                {
-                  "ClassName": "UICorner",
-                  "Properties": { "CornerRadius": { "UDim": [0, 8] } }
-                }
-              ]
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 12] } } }]
             },
             {
               "Name": "Content",
               "ClassName": "ScrollingFrame",
               "Properties": {
-                "AutomaticCanvasSize": "Y",
-                "BackgroundTransparency": 1,
-                "BorderSizePixel": 0,
-                "CanvasSize": { "UDim2": [[0, 0], [0, 0]] },
-                "Position": { "UDim2": [[0, 16], [0, 68]] },
-                "ScrollBarImageColor3": [0.3137255, 0.5294118, 1],
-                "ScrollBarThickness": 6,
-                "Size": { "UDim2": [[1, -32], [1, -84]] },
-                "ZIndex": 21
+                "AutomaticCanvasSize": "Y", "BackgroundTransparency": 1, "BorderSizePixel": 0, "CanvasSize": { "UDim2": [[0, 0], [0, 0]] },
+                "Position": { "UDim2": [[0, 16], [0, 78]] }, "ScrollBarImageColor3": [0.2313725, 0.5098039, 0.9647059], "ScrollBarThickness": 7,
+                "Size": { "UDim2": [[1, -32], [1, -94]] }, "ZIndex": 41
               },
               "Children": [
-                {
-                  "ClassName": "UIPadding",
-                  "Properties": {
-                    "PaddingBottom": { "UDim": [0, 4] },
-                    "PaddingLeft": { "UDim": [0, 4] },
-                    "PaddingRight": { "UDim": [0, 4] },
-                    "PaddingTop": { "UDim": [0, 4] }
-                  }
-                },
-                {
-                  "ClassName": "UIListLayout",
-                  "Properties": {
-                    "HorizontalAlignment": "Center",
-                    "Padding": { "UDim": [0, 8] },
-                    "SortOrder": "LayoutOrder"
-                  }
-                }
+                { "ClassName": "UIPadding", "Properties": { "PaddingBottom": { "UDim": [0, 6] }, "PaddingLeft": { "UDim": [0, 4] }, "PaddingRight": { "UDim": [0, 4] }, "PaddingTop": { "UDim": [0, 4] } } },
+                { "ClassName": "UIListLayout", "Properties": { "HorizontalAlignment": "Center", "Padding": { "UDim": [0, 10] }, "SortOrder": "LayoutOrder" } }
               ]
             }
           ]
@@ -638,50 +616,16 @@
           "Name": "Toast",
           "ClassName": "Frame",
           "Properties": {
-            "AnchorPoint": [0.5, 0],
-            "BackgroundColor3": [0.0862745, 0.0980392, 0.1647059],
-            "BorderSizePixel": 0,
-            "Position": { "UDim2": [[0.5, 0], [0, -90]] },
-            "Size": { "UDim2": [[0.8, 0], [0, 62]] },
-            "ZIndex": 100
+            "AnchorPoint": [0.5, 0], "BackgroundColor3": [0.5372549, 0.3137255, 0.9294118], "BorderSizePixel": 0,
+            "Position": { "UDim2": [[0.5, 0], [0, -90]] }, "Size": { "UDim2": [[0.82, 0], [0, 66]] }, "ZIndex": 100
           },
           "Children": [
+            { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 18] } } },
+            { "ClassName": "UIStroke", "Properties": { "Color": [0.2431373, 0.1019608, 0.5215686], "Thickness": 3, "Transparency": 0.35 } },
+            { "ClassName": "UISizeConstraint", "Properties": { "MaxSize": [600, 66] } },
             {
-              "ClassName": "UICorner",
-              "Properties": { "CornerRadius": { "UDim": [0, 14] } }
-            },
-            {
-              "ClassName": "UIStroke",
-              "Properties": {
-                "Color": [0.4392157, 0.4941176, 0.7215686],
-                "Thickness": 1.5,
-                "Transparency": 0.45
-              }
-            },
-            {
-              "ClassName": "UISizeConstraint",
-              "Properties": { "MaxSize": [560, 62] }
-            },
-            {
-              "Name": "Message",
-              "ClassName": "TextLabel",
-              "Properties": {
-                "BackgroundTransparency": 1,
-                "BorderSizePixel": 0,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/GothamSSm.json",
-                  "weight": "Bold",
-                  "style": "Normal"
-                },
-                "Position": { "UDim2": [[0, 14], [0, 8]] },
-                "Size": { "UDim2": [[1, -28], [1, -16]] },
-                "Text": "Notification preview",
-                "TextColor3": [0.972549, 0.9764706, 1],
-                "TextSize": 18,
-                "TextWrapped": true,
-                "TextXAlignment": "Center",
-                "ZIndex": 101
-              }
+              "Name": "Message", "ClassName": "TextLabel",
+              "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Position": { "UDim2": [[0, 16], [0, 8]] }, "Size": { "UDim2": [[1, -32], [1, -16]] }, "Text": "YOU GOT A REWARD!", "TextColor3": [1, 1, 1], "TextSize": 18, "TextWrapped": true, "TextXAlignment": "Center", "ZIndex": 101 }
             }
           ]
         }
