@@ -64,9 +64,9 @@ local Config = {
 	announcements = {
 		intervalSeconds = 180,
 		messages = {
-			"Open Inventory from the HUD to use your boosts!",
-			"Daily rewards reset at midnight UTC.",
-			"Community links are available on the experience page.",
+			"Open your Bag to use boosts you've collected!",
+			"Come back tomorrow to keep your daily streak going!",
+			"Check the game page for community news and updates.",
 		},
 	},
 

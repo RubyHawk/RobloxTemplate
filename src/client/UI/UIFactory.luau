@@ -1,11 +1,16 @@
 --!strict
 
 local TweenService = game:GetService("TweenService")
+local GuiService = game:GetService("GuiService")
 
 local Theme =
 	require(game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared").Theme)
 
 local UIFactory = {}
+
+local function hoverTweenInfo(): TweenInfo
+	return TweenInfo.new(if GuiService.ReducedMotionEnabled then 0 else 0.12)
+end
 
 local function authoredTemplate(parent: Instance, name: string): Instance?
 	local screenGui = parent:FindFirstAncestorWhichIsA("ScreenGui")
@@ -118,10 +123,10 @@ function UIFactory.button(
 	end
 	local restingColor = object.BackgroundColor3
 	object.MouseEnter:Connect(function()
-		TweenService:Create(object, TweenInfo.new(0.12), { BackgroundColor3 = Theme.colors.secondary }):Play()
+		TweenService:Create(object, hoverTweenInfo(), { BackgroundColor3 = Theme.colors.secondary }):Play()
 	end)
 	object.MouseLeave:Connect(function()
-		TweenService:Create(object, TweenInfo.new(0.12), { BackgroundColor3 = restingColor }):Play()
+		TweenService:Create(object, hoverTweenInfo(), { BackgroundColor3 = restingColor }):Play()
 	end)
 	if onActivated then
 		object.Activated:Connect(onActivated)

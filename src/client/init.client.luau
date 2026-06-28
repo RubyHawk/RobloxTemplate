@@ -1,6 +1,7 @@
 --!strict
 
 local Players = game:GetService("Players")
+local GuiService = game:GetService("GuiService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
@@ -52,21 +53,30 @@ local coinLabel = hud:WaitForChild("CoinLabel") :: TextLabel
 local boostLabel = hud:WaitForChild("BoostLabel") :: TextLabel
 local nav = root:WaitForChild("Navigation") :: Frame
 local navScroll = nav:WaitForChild("Buttons") :: ScrollingFrame
+local moreMenu = root:WaitForChild("MoreMenu") :: Frame
+local moreMenuButtons = moreMenu:WaitForChild("Buttons") :: ScrollingFrame
+local moreCloseButton = moreMenu:WaitForChild("CloseButton") :: TextButton
 local screensLayer = root:WaitForChild("Screens") :: Frame
 local toast = root:WaitForChild("Toast") :: Frame
 local toastLabel = toast:WaitForChild("Message") :: TextLabel
 local toastToken = 0
 
+local function tweenInfo(duration: number, easingStyle: Enum.EasingStyle?): TweenInfo
+	local adjustedDuration = if GuiService.ReducedMotionEnabled then 0 else duration
+	return if easingStyle
+		then TweenInfo.new(adjustedDuration, easingStyle)
+		else TweenInfo.new(adjustedDuration)
+end
+
 local function showToast(message: string)
 	toastToken += 1
 	local token = toastToken
 	toastLabel.Text = message
-	TweenService
-		:Create(toast, TweenInfo.new(0.2, Enum.EasingStyle.Back), { Position = UDim2.new(0.5, 0, 0, 12) })
+	TweenService:Create(toast, tweenInfo(0.2, Enum.EasingStyle.Back), { Position = UDim2.new(0.5, 0, 0, 12) })
 		:Play()
 	task.delay(3.5, function()
 		if token == toastToken then
-			TweenService:Create(toast, TweenInfo.new(0.2), { Position = UDim2.new(0.5, 0, 0, -90) }):Play()
+			TweenService:Create(toast, tweenInfo(0.2), { Position = UDim2.new(0.5, 0, 0, -90) }):Play()
 		end
 	end)
 end
@@ -93,10 +103,11 @@ local function ensureGalleryScreen(name: string): ScreenGui?
 end
 
 local function setupGalleryMenu()
-	local galleryMenu = optionalScreenGui("GalleryMenu")
+	local galleryMenu = ensureGalleryScreen("GalleryMenu")
 	if not galleryMenu then
 		return
 	end
+	galleryMenu.Enabled = true
 
 	local packShowroom = ensureGalleryScreen("ZxglyV5Showroom")
 	local notificationShowroom = ensureGalleryScreen("NotificationV2Showroom")
@@ -262,28 +273,68 @@ local navItems = {
 	{ "ShopButton", "Store" },
 	{ "GiftButton", "Rewards" },
 	{ "ProfileButton", "Profile" },
-	{ "CodesButton", "Codes" },
-	{ "BoardsButton", "Boards" },
-	{ "FeedbackButton", "Feedback" },
-	{ "CommunityButton", "Community" },
-	{ "SettingsButton", "Settings" },
 }
 for _, item in navItems do
 	local button = navScroll:WaitForChild(item[1]) :: TextButton
+	local screenName = item[2]
 	local restingColor = button.BackgroundColor3
 	button.MouseEnter:Connect(function()
-		TweenService:Create(button, TweenInfo.new(0.12), { BackgroundColor3 = Theme.colors.secondary }):Play()
+		TweenService:Create(button, tweenInfo(0.12), { BackgroundColor3 = Theme.colors.secondary }):Play()
 	end)
 	button.MouseLeave:Connect(function()
-		TweenService:Create(button, TweenInfo.new(0.12), { BackgroundColor3 = restingColor }):Play()
+		TweenService:Create(button, tweenInfo(0.12), { BackgroundColor3 = restingColor }):Play()
 	end)
 	button.Activated:Connect(function()
 		AudioController.play("click")
-		if registry.current == item[2] then
+		moreMenu.Visible = false
+		if registry.current == screenName then
 			registry:close()
 		else
-			registry:open(item[2])
+			registry:open(screenName)
 		end
+	end)
+end
+
+local moreButton = navScroll:WaitForChild("MoreButton") :: TextButton
+local moreButtonRestingColor = moreButton.BackgroundColor3
+moreButton.MouseEnter:Connect(function()
+	TweenService:Create(moreButton, tweenInfo(0.12), { BackgroundColor3 = Theme.colors.secondary }):Play()
+end)
+moreButton.MouseLeave:Connect(function()
+	TweenService:Create(moreButton, tweenInfo(0.12), { BackgroundColor3 = moreButtonRestingColor }):Play()
+end)
+moreButton.Activated:Connect(function()
+	AudioController.play("click")
+	registry:close()
+	moreMenu.Visible = not moreMenu.Visible
+end)
+
+moreCloseButton.Activated:Connect(function()
+	AudioController.play("click")
+	moreMenu.Visible = false
+end)
+
+local moreItems = {
+	{ "CodesButton", "Codes" },
+	{ "BoardsButton", "Boards" },
+	{ "CommunityButton", "Community" },
+	{ "FeedbackButton", "Feedback" },
+	{ "SettingsButton", "Settings" },
+}
+for _, item in moreItems do
+	local button = moreMenuButtons:WaitForChild(item[1]) :: TextButton
+	local screenName = item[2]
+	local restingColor = button.BackgroundColor3
+	button.MouseEnter:Connect(function()
+		TweenService:Create(button, tweenInfo(0.12), { BackgroundColor3 = Theme.colors.secondary }):Play()
+	end)
+	button.MouseLeave:Connect(function()
+		TweenService:Create(button, tweenInfo(0.12), { BackgroundColor3 = restingColor }):Play()
+	end)
+	button.Activated:Connect(function()
+		AudioController.play("click")
+		moreMenu.Visible = false
+		registry:open(screenName)
 	end)
 end
 
@@ -293,11 +344,11 @@ local function applyState(nextState: any)
 	end
 	local previousCoins = if state and state.profile then state.profile.coins else nextState.profile.coins
 	state = nextState
-	coinLabel.Text = `◆ {UIFactory.formatNumber(state.profile.coins)} Coins`
+	coinLabel.Text = `{UIFactory.formatNumber(state.profile.coins)} COINS`
 	boostLabel.Text = `x{string.format(
 		"%.2f",
 		(1 + state.friendBonus + state.premiumBonus) * state.potionMultiplier
-	)} total • {state.profile.social.friendCountInServer} friends`
+	)} BOOST  •  {state.profile.social.friendCountInServer} FRIENDS`
 	uiScale.Scale = state.profile.settings.uiScale
 	AudioController.applySettings(state.profile.settings)
 	if state.profile.coins > previousCoins then
@@ -330,7 +381,11 @@ end)
 
 UserInputService.InputBegan:Connect(function(input, processed)
 	if not processed and (input.KeyCode == Enum.KeyCode.ButtonB or input.KeyCode == Enum.KeyCode.Escape) then
-		registry:close()
+		if moreMenu.Visible then
+			moreMenu.Visible = false
+		else
+			registry:close()
+		end
 	end
 end)
 
