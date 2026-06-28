@@ -1,0 +1,63 @@
+{
+  "ClassName": "ScreenGui",
+  "Properties": {
+    "ClipToDeviceSafeArea": true,
+    "DisplayOrder": 1,
+    "Enabled": false,
+    "ResetOnSpawn": false,
+    "SafeAreaCompatibility": "None",
+    "ScreenInsets": "CoreUISafeInsets",
+    "ZIndexBehavior": "Sibling"
+  },
+  "Children": [
+    {
+      "Name": "Background",
+      "ClassName": "Frame",
+      "Properties": {
+        "BackgroundColor3": [0.027451, 0.0352941, 0.0666667],
+        "BorderSizePixel": 0,
+        "Size": { "UDim2": [[1, 0], [1, 0]] }
+      },
+      "Children": [
+        {
+          "Name": "Heading",
+          "ClassName": "TextLabel",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "FontFace": {
+              "family": "rbxasset://fonts/families/GothamSSm.json",
+              "weight": "Bold",
+              "style": "Normal"
+            },
+            "Position": { "UDim2": [[0.5, -320], [0, 98]] },
+            "Size": { "UDim2": [[0, 640], [0, 34]] },
+            "Text": "VISUAL UI PACK",
+            "TextColor3": [0.972549, 0.9764706, 1],
+            "TextSize": 25,
+            "TextWrapped": true,
+            "TextXAlignment": "Center"
+          }
+        },
+        {
+          "Name": "Detail",
+          "ClassName": "TextLabel",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "FontFace": {
+              "family": "rbxasset://fonts/families/GothamSSm.json",
+              "weight": "Medium",
+              "style": "Normal"
+            },
+            "Position": { "UDim2": [[0.5, -360], [0, 132]] },
+            "Size": { "UDim2": [[0, 720], [0, 28]] },
+            "Text": "Script-free visual reference. Edit the matching ScreenGui under StarterGui.",
+            "TextColor3": [0.6470588, 0.7019608, 0.8117647],
+            "TextSize": 14,
+            "TextWrapped": true,
+            "TextXAlignment": "Center"
+          }
+        }
+      ]
+    }
+  ]
+}

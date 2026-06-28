@@ -8,6 +8,12 @@
       "TemplateUI": {
         "$path": "src/ui/TemplateUI.model.json"
       },
+      "GalleryBackdrop": {
+        "$path": "src/ui/GalleryBackdrop.model.json"
+      },
+      "GalleryMenu": {
+        "$path": "src/ui/GalleryMenu.model.json"
+      },
       "ZxglyV5Showroom": {
         "$path": "assets/ui/ZxglyV5Showroom.rbxmx"
       },

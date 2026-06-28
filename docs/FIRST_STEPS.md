@@ -32,7 +32,7 @@ Inside Roblox Studio:
 
 Expected result: the loading screen disappears, the Coins HUD appears in the upper-left, and the menu bar appears along the bottom.
 
-On the `template` branch, `ZxglyV5Showroom` and `NotificationV2Showroom` are script-free visual reference galleries. `TemplateUI` is the connected UI used by the actual systems.
+On the `template` branch, use the **UI Library** bar in Play mode to switch between the connected UI, the script-free Zxgly pack, and the notification preview. Only one appears at a time.
 
 ## 4. Try the template
 
