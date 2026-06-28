@@ -2444,15 +2444,29 @@ local function optionalScreenGui(name: string): ScreenGui?
 	return if candidate and candidate:IsA("ScreenGui") then candidate else nil
 end
 
+local function ensureGalleryScreen(name: string): ScreenGui?
+	local existing = optionalScreenGui(name)
+	if existing then
+		return existing
+	end
+	local source = StarterGui:FindFirstChild(name)
+	if source and source:IsA("ScreenGui") then
+		local clone = source:Clone()
+		clone.Parent = playerGui
+		return clone
+	end
+	return nil
+end
+
 local function setupGalleryMenu()
 	local galleryMenu = optionalScreenGui("GalleryMenu")
 	if not galleryMenu then
 		return
 	end
 
-	local packShowroom = optionalScreenGui("ZxglyV5Showroom")
-	local notificationShowroom = optionalScreenGui("NotificationV2Showroom")
-	local backdrop = optionalScreenGui("GalleryBackdrop")
+	local packShowroom = ensureGalleryScreen("ZxglyV5Showroom")
+	local notificationShowroom = ensureGalleryScreen("NotificationV2Showroom")
+	local backdrop = ensureGalleryScreen("GalleryBackdrop")
 	local menuRoot = galleryMenu:WaitForChild("Root") :: Frame
 	local toolbar = menuRoot:WaitForChild("Toolbar") :: Frame
 	local modesFrame = toolbar:WaitForChild("Modes") :: Frame
