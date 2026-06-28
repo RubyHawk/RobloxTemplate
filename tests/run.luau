@@ -102,6 +102,11 @@ for _, showroomPath in
 	}
 do
 	local showroom = fs.readFile(showroomPath)
+	expectEqual(
+		string.find(showroom, '<bool name="Enabled">false</bool>', 1, true) ~= nil,
+		true,
+		`{showroomPath} is disabled until selected`
+	)
 	for _, scriptClass in { "LocalScript", "ModuleScript", "Script" } do
 		expectEqual(
 			string.find(showroom, `<Item class="{scriptClass}"`, 1, true),
@@ -109,6 +114,19 @@ do
 			`{showroomPath} contains no {scriptClass}`
 		)
 	end
+end
+
+local bootstrap = fs.readFile("bootstrap.project.json")
+if string.find(bootstrap, "ZxglyV5Showroom", 1, true) then
+	expectEqual(string.find(bootstrap, "GalleryMenu", 1, true) ~= nil, true, "gallery menu is bootstrapped")
+	expectEqual(
+		string.find(bootstrap, "GalleryBackdrop", 1, true) ~= nil,
+		true,
+		"gallery backdrop is bootstrapped"
+	)
+else
+	expectEqual(string.find(bootstrap, "GalleryMenu", 1, true), nil, "starter excludes gallery menu")
+	expectEqual(string.find(bootstrap, "GalleryBackdrop", 1, true), nil, "starter excludes gallery backdrop")
 end
 
 print(`{passed} pure Luau assertions passed`)

@@ -1,0 +1,235 @@
+{
+  "ClassName": "ScreenGui",
+  "Properties": {
+    "ClipToDeviceSafeArea": true,
+    "DisplayOrder": 200,
+    "ResetOnSpawn": false,
+    "SafeAreaCompatibility": "None",
+    "ScreenInsets": "CoreUISafeInsets",
+    "ZIndexBehavior": "Sibling"
+  },
+  "Children": [
+    {
+      "Name": "Root",
+      "ClassName": "Frame",
+      "Properties": {
+        "BackgroundTransparency": 1,
+        "BorderSizePixel": 0,
+        "Size": { "UDim2": [[1, 0], [1, 0]] }
+      },
+      "Children": [
+        {
+          "Name": "Toolbar",
+          "ClassName": "Frame",
+          "Properties": {
+            "AnchorPoint": [0.5, 0],
+            "BackgroundColor3": [0.0470588, 0.0588235, 0.1058824],
+            "BorderSizePixel": 0,
+            "Position": { "UDim2": [[0.5, 0], [0, 12]] },
+            "Size": { "UDim2": [[0.92, 0], [0, 72]] },
+            "ZIndex": 2
+          },
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": { "CornerRadius": { "UDim": [0, 14] } }
+            },
+            {
+              "ClassName": "UIStroke",
+              "Properties": {
+                "Color": [0.2745098, 0.3803922, 0.6039216],
+                "Thickness": 1.5,
+                "Transparency": 0.35
+              }
+            },
+            {
+              "ClassName": "UISizeConstraint",
+              "Properties": {
+                "MaxSize": [900, 72],
+                "MinSize": [640, 72]
+              }
+            },
+            {
+              "Name": "Title",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/GothamSSm.json",
+                  "weight": "Bold",
+                  "style": "Normal"
+                },
+                "Position": { "UDim2": [[0, 18], [0, 10]] },
+                "Size": { "UDim2": [[0, 180], [0, 24]] },
+                "Text": "UI LIBRARY",
+                "TextColor3": [0.972549, 0.9764706, 1],
+                "TextSize": 20,
+                "TextXAlignment": "Left",
+                "ZIndex": 3
+              }
+            },
+            {
+              "Name": "Subtitle",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/GothamSSm.json",
+                  "weight": "Medium",
+                  "style": "Normal"
+                },
+                "Position": { "UDim2": [[0, 18], [0, 36]] },
+                "Size": { "UDim2": [[0, 205], [0, 22]] },
+                "Text": "One preview at a time",
+                "TextColor3": [0.6470588, 0.7019608, 0.8117647],
+                "TextSize": 13,
+                "TextXAlignment": "Left",
+                "ZIndex": 3
+              }
+            },
+            {
+              "Name": "Modes",
+              "ClassName": "Frame",
+              "Properties": {
+                "AnchorPoint": [1, 0.5],
+                "BackgroundTransparency": 1,
+                "Position": { "UDim2": [[1, -12], [0.5, 0]] },
+                "Size": { "UDim2": [[1, -238], [0, 48]] },
+                "ZIndex": 3
+              },
+              "Children": [
+                {
+                  "ClassName": "UIListLayout",
+                  "Properties": {
+                    "FillDirection": "Horizontal",
+                    "HorizontalAlignment": "Right",
+                    "Padding": { "UDim": [0, 8] },
+                    "SortOrder": "LayoutOrder",
+                    "VerticalAlignment": "Center"
+                  }
+                },
+                {
+                  "Name": "ConnectedButton",
+                  "ClassName": "TextButton",
+                  "Properties": {
+                    "AutoButtonColor": false,
+                    "BackgroundColor3": [0.3137255, 0.5294118, 1],
+                    "BorderSizePixel": 0,
+                    "FontFace": {
+                      "family": "rbxasset://fonts/families/GothamSSm.json",
+                      "weight": "Bold",
+                      "style": "Normal"
+                    },
+                    "LayoutOrder": 1,
+                    "Selectable": true,
+                    "Size": { "UDim2": [[0, 160], [0, 44]] },
+                    "Text": "CONNECTED UI",
+                    "TextColor3": [0.972549, 0.9764706, 1],
+                    "TextSize": 14,
+                    "TextWrapped": true,
+                    "ZIndex": 4
+                  },
+                  "Children": [
+                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } } }
+                  ]
+                },
+                {
+                  "Name": "PackButton",
+                  "ClassName": "TextButton",
+                  "Properties": {
+                    "AutoButtonColor": false,
+                    "BackgroundColor3": [0.1058824, 0.1372549, 0.2313725],
+                    "BorderSizePixel": 0,
+                    "FontFace": {
+                      "family": "rbxasset://fonts/families/GothamSSm.json",
+                      "weight": "Bold",
+                      "style": "Normal"
+                    },
+                    "LayoutOrder": 2,
+                    "Selectable": true,
+                    "Size": { "UDim2": [[0, 130], [0, 44]] },
+                    "Text": "UI PACK",
+                    "TextColor3": [0.972549, 0.9764706, 1],
+                    "TextSize": 14,
+                    "ZIndex": 4
+                  },
+                  "Children": [
+                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } } }
+                  ]
+                },
+                {
+                  "Name": "NotificationButton",
+                  "ClassName": "TextButton",
+                  "Properties": {
+                    "AutoButtonColor": false,
+                    "BackgroundColor3": [0.1058824, 0.1372549, 0.2313725],
+                    "BorderSizePixel": 0,
+                    "FontFace": {
+                      "family": "rbxasset://fonts/families/GothamSSm.json",
+                      "weight": "Bold",
+                      "style": "Normal"
+                    },
+                    "LayoutOrder": 3,
+                    "Selectable": true,
+                    "Size": { "UDim2": [[0, 160], [0, 44]] },
+                    "Text": "NOTIFICATION",
+                    "TextColor3": [0.972549, 0.9764706, 1],
+                    "TextSize": 14,
+                    "TextWrapped": true,
+                    "ZIndex": 4
+                  },
+                  "Children": [
+                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } } }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Name": "ModeCard",
+          "ClassName": "Frame",
+          "Properties": {
+            "AnchorPoint": [0.5, 0],
+            "BackgroundColor3": [0.0470588, 0.0588235, 0.1058824],
+            "BackgroundTransparency": 0.08,
+            "BorderSizePixel": 0,
+            "Position": { "UDim2": [[0.5, 0], [0, 92]] },
+            "Size": { "UDim2": [[0.74, 0], [0, 38]] },
+            "ZIndex": 2
+          },
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": { "CornerRadius": { "UDim": [0, 10] } }
+            },
+            {
+              "ClassName": "UISizeConstraint",
+              "Properties": { "MaxSize": [720, 38] }
+            },
+            {
+              "Name": "Description",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/GothamSSm.json",
+                  "weight": "Medium",
+                  "style": "Normal"
+                },
+                "Position": { "UDim2": [[0, 12], [0, 4]] },
+                "Size": { "UDim2": [[1, -24], [1, -8]] },
+                "Text": "Connected UI: the real HUD and systems. Press Play to switch preview modes.",
+                "TextColor3": [0.7372549, 0.7882353, 0.8941176],
+                "TextSize": 13,
+                "TextWrapped": true,
+                "TextXAlignment": "Center",
+                "ZIndex": 3
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

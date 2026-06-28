@@ -72,6 +72,110 @@ local function showToast(message: string)
 end
 
 AudioController.initialize()
+
+local function optionalScreenGui(name: string): ScreenGui?
+	local candidate = playerGui:FindFirstChild(name)
+	return if candidate and candidate:IsA("ScreenGui") then candidate else nil
+end
+
+local function ensureGalleryScreen(name: string): ScreenGui?
+	local existing = optionalScreenGui(name)
+	if existing then
+		return existing
+	end
+	local source = StarterGui:FindFirstChild(name)
+	if source and source:IsA("ScreenGui") then
+		local clone = source:Clone()
+		clone.Parent = playerGui
+		return clone
+	end
+	return nil
+end
+
+local function setupGalleryMenu()
+	local galleryMenu = optionalScreenGui("GalleryMenu")
+	if not galleryMenu then
+		return
+	end
+
+	local packShowroom = ensureGalleryScreen("ZxglyV5Showroom")
+	local notificationShowroom = ensureGalleryScreen("NotificationV2Showroom")
+	local backdrop = ensureGalleryScreen("GalleryBackdrop")
+	local menuRoot = galleryMenu:WaitForChild("Root") :: Frame
+	local toolbar = menuRoot:WaitForChild("Toolbar") :: Frame
+	local modesFrame = toolbar:WaitForChild("Modes") :: Frame
+	local modeCard = menuRoot:WaitForChild("ModeCard") :: Frame
+	local description = modeCard:WaitForChild("Description") :: TextLabel
+
+	local modes = {
+		{
+			name = "Connected",
+			buttonName = "ConnectedButton",
+			description = "Connected UI: the real HUD and systems. Use this to test the starter experience.",
+			heading = "CONNECTED TEMPLATE UI",
+			detail = "The real inventory, store, rewards, profiles, settings, and HUD.",
+		},
+		{
+			name = "Pack",
+			buttonName = "PackButton",
+			description = "UI Pack: a script-free component sheet. Edit ZxglyV5Showroom under StarterGui.",
+			heading = "VISUAL UI PACK",
+			detail = "Script-free reference screens arranged as one isolated component sheet.",
+		},
+		{
+			name = "Notification",
+			buttonName = "NotificationButton",
+			description = "Notification: one isolated visual preview. Runtime messages still use secure template logic.",
+			heading = "NOTIFICATION PREVIEW",
+			detail = "Visual reference only; supplied third-party scripts were intentionally removed.",
+		},
+	}
+
+	local buttons: { [string]: TextButton } = {}
+	local function setMode(modeName: string)
+		screenGui.Enabled = modeName == "Connected"
+		if packShowroom then
+			packShowroom.Enabled = modeName == "Pack"
+		end
+		if notificationShowroom then
+			notificationShowroom.Enabled = modeName == "Notification"
+		end
+		if backdrop then
+			backdrop.Enabled = modeName ~= "Connected"
+		end
+
+		for _, mode in modes do
+			local selected = mode.name == modeName
+			buttons[mode.name].BackgroundColor3 = if selected
+				then Theme.colors.primary
+				else Theme.colors.surfaceRaised
+			if selected then
+				description.Text = mode.description
+				if backdrop then
+					local background = backdrop:WaitForChild("Background") :: Frame
+					local heading = background:WaitForChild("Heading") :: TextLabel
+					local detail = background:WaitForChild("Detail") :: TextLabel
+					heading.Text = mode.heading
+					detail.Text = mode.detail
+				end
+			end
+		end
+	end
+
+	for _, mode in modes do
+		local button = modesFrame:WaitForChild(mode.buttonName) :: TextButton
+		local modeName = mode.name
+		buttons[modeName] = button
+		button.Activated:Connect(function()
+			AudioController.play("click")
+			setMode(modeName)
+		end)
+	end
+
+	setMode("Connected")
+end
+
+setupGalleryMenu()
 local registry = ScreenRegistry.new()
 local state: any = nil
 

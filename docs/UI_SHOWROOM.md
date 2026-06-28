@@ -2,11 +2,20 @@
 
 Open the `template` version from `START_HERE.cmd`, connect Rojo, and expand **StarterGui** in Explorer.
 
+The gallery now shows one preview mode at a time. In Play mode, use the tidy **UI Library** bar:
+
+- **Connected UI** shows the real working HUD and systems.
+- **UI Pack** shows the full visual component sheet by itself.
+- **Notification** shows the notification reference by itself.
+
+The UI Pack and Notification ScreenGuis are disabled by default, so they no longer pile on top of the connected HUD. Outside Play mode, select the ScreenGui you want in Explorer and toggle its `Enabled` property to preview it while editing.
+
 ## What is there
 
 - **TemplateUI** is connected to the real inventory, store, rewards, profile, codes, boards, feedback, community, settings, toast, and HUD logic.
 - **ZxglyV5Showroom** is a script-free visual reference with its screens arranged in rows and columns.
 - **NotificationV2Showroom** is a script-free notification reference.
+- **GalleryMenu** and **GalleryBackdrop** keep previews separated and clearly labelled.
 
 The imported scripts were removed. In particular, the supplied notification system allowed a client to choose arbitrary notification text, color, and duration. The template keeps its server-validated notification path instead.
 
