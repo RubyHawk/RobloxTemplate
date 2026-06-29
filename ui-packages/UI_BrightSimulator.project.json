@@ -1,0 +1,6 @@
+{
+  "name": "TemplateUI",
+  "tree": {
+    "$path": "../src/ui/TemplateUI.model.json"
+  }
+}
