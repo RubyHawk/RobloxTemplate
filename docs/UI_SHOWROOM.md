@@ -28,10 +28,11 @@ The imported scripts were removed. In particular, the supplied notification syst
 Inside `TemplateUI → Root`:
 
 - edit **CurrencyHUD**, **Navigation**, **ScreenTemplate**, and **Toast** directly;
-- edit **ComponentTemplates → ButtonTemplate, TextBoxTemplate, LabelTemplate, RowTemplate, ItemCardTemplate, RewardTileTemplate** once to restyle every live screen;
+- expand **Screens** to edit the real inventory, store, rewards, profile, settings, feedback, codes, leaderboards, community, and global leaderboard instances;
+- toggle one screen's `Visible` property while editing, then turn it off again before saving;
 - keep object names unchanged because the runtime binds behavior by those names.
 
-The lists inside inventory, shop, profiles, and leaderboards must be created at runtime because their data changes per player. They are not visually hardcoded: they clone the Studio-authored component templates.
+Dynamic data uses pre-authored capacity: 12 inventory slots, 8 store cards, 7 reward tiles, 10 server rows, and 50 global rows. Runtime code only replaces their text/images and toggles visibility. No GUI objects are created, cloned, or destroyed during Play.
 
 ## Save safely
 

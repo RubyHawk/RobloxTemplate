@@ -17,7 +17,7 @@ Store one versioned profile object per player. Reconcile missing defaults and ap
 
 ## UI composition
 
-Every screen exports a `mount(parent, context)` function returning a handle with `setVisible` and `destroy`. The screen registry owns exclusivity and back navigation. Components read semantic tokens rather than literal colors.
+Every screen, card, input, button, layout, and finite data slot exists as an editable instance under `StarterGui.TemplateUI`. The screen binder only connects actions and applies live text, images, attributes, and visibility. It never creates, clones, or destroys GuiObjects. The screen registry owns exclusivity and back navigation.
 
 ## Integration states
 

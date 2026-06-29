@@ -19,7 +19,7 @@ Add its definition to `src/shared/Catalogs.luau`. Keep item IDs stable after rel
 
 ## Add a screen
 
-Create its visual shell or reusable component in `StarterGui.TemplateUI`, then bind it through `UIFactory` and `ScreenRegistry`. Live lists may clone the authored `RowTemplate`; do not make basic restyling depend on code. Use semantic theme tokens and verify the mobile acceptance matrix.
+Create the complete visual shell and enough finite data slots in `StarterGui.TemplateUI`, then register the existing screen through `ScreenRegistry` and bind its fields. Never create, clone, or destroy GUI objects at runtime. Use Studio-editable styling and verify the mobile acceptance matrix.
 
 ## Replace a provider
 

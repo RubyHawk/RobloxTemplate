@@ -21,7 +21,6 @@ local AudioController = require(Controllers.AudioController)
 local AfkController = require(Controllers.AfkController)
 local NotificationController = require(Controllers.NotificationController)
 local UIFactory = require(script.UI.UIFactory)
-local UIStyles = require(script.UI.UIStyles)
 local ScreenRegistry = require(script.UI.ScreenRegistry)
 local Screens = require(script.UI.Screens)
 
@@ -47,7 +46,6 @@ local playerGui = player:WaitForChild("PlayerGui")
 local screenGui = playerGui:WaitForChild("TemplateUI") :: ScreenGui
 assert(screenGui:IsA("ScreenGui"), "StarterGui.TemplateUI must be a ScreenGui")
 screenGui.Enabled = true
-UIStyles.install(screenGui)
 
 local root = screenGui:WaitForChild("Root") :: Frame
 local uiScale = root:WaitForChild("InterfaceScale") :: UIScale
@@ -118,30 +116,16 @@ local function optionalScreenGui(name: string): ScreenGui?
 	return if candidate and candidate:IsA("ScreenGui") then candidate else nil
 end
 
-local function ensureGalleryScreen(name: string): ScreenGui?
-	local existing = optionalScreenGui(name)
-	if existing then
-		return existing
-	end
-	local source = StarterGui:FindFirstChild(name)
-	if source and source:IsA("ScreenGui") then
-		local clone = source:Clone()
-		clone.Parent = playerGui
-		return clone
-	end
-	return nil
-end
-
 local function setupGalleryMenu()
-	local galleryMenu = ensureGalleryScreen("GalleryMenu")
+	local galleryMenu = optionalScreenGui("GalleryMenu")
 	if not galleryMenu then
 		return
 	end
 	galleryMenu.Enabled = true
 
-	local packShowroom = ensureGalleryScreen("ZxglyV5Showroom")
-	local notificationShowroom = ensureGalleryScreen("NotificationV2Showroom")
-	local backdrop = ensureGalleryScreen("GalleryBackdrop")
+	local packShowroom = optionalScreenGui("ZxglyV5Showroom")
+	local notificationShowroom = optionalScreenGui("NotificationV2Showroom")
+	local backdrop = optionalScreenGui("GalleryBackdrop")
 	local menuRoot = galleryMenu:WaitForChild("Root") :: Frame
 	local toolbar = menuRoot:WaitForChild("Toolbar") :: Frame
 	local modesFrame = toolbar:WaitForChild("Modes") :: Frame
@@ -232,70 +216,51 @@ local function query(action: string, payload: any): any
 	return if success then response else { ok = false, message = "Server request failed" }
 end
 
-local rebuildScreens: () -> ()
+local binder = Screens.bind(screensLayer, {
+	request = request,
+	query = query,
+	close = function()
+		registry:close()
+	end,
+	open = function(name: string)
+		registry:open(name)
+	end,
+	toast = showToast,
+	promptNotifications = function()
+		task.spawn(function()
+			local _, message = NotificationController.prompt()
+			showToast(message)
+		end)
+	end,
+	promptProduct = function(productName: string)
+		if not state then
+			return
+		end
+		local productId = state.productIds[productName]
+		if type(productId) == "number" and productId > 0 then
+			MarketplaceService:PromptProductPurchase(player, productId)
+		else
+			showToast("Product is not configured")
+		end
+	end,
+	promptExtendedOffline = function()
+		if not state then
+			return
+		end
+		local passId = state.productIds.extendedOffline
+		if type(passId) == "number" and passId > 0 then
+			MarketplaceService:PromptGamePassPurchase(player, passId)
+		else
+			showToast("Game pass is not configured")
+		end
+	end,
+	promptPremium = function()
+		MarketplaceService:PromptPremiumPurchase(player)
+	end,
+})
 
-local function context(): any
-	return {
-		state = state,
-		request = request,
-		query = query,
-		close = function()
-			registry:close()
-		end,
-		toast = showToast,
-		promptNotifications = function()
-			task.spawn(function()
-				local _, message = NotificationController.prompt()
-				showToast(message)
-			end)
-		end,
-		promptProduct = function(productName: string)
-			local productId = state.productIds[productName]
-			if type(productId) == "number" and productId > 0 then
-				MarketplaceService:PromptProductPurchase(player, productId)
-			else
-				showToast("Product is not configured")
-			end
-		end,
-		promptExtendedOffline = function()
-			local passId = state.productIds.extendedOffline
-			if type(passId) == "number" and passId > 0 then
-				MarketplaceService:PromptGamePassPurchase(player, passId)
-			else
-				showToast("Game pass is not configured")
-			end
-		end,
-		promptPremium = function()
-			MarketplaceService:PromptPremiumPurchase(player)
-		end,
-		showList = function(title: string, rows: { any })
-			local dynamic = registry.screens.Dynamic
-			if dynamic then
-				dynamic:Destroy()
-			end
-			registry:register("Dynamic", Screens.simpleList(screensLayer, context(), title, rows))
-			registry:open("Dynamic")
-		end,
-	}
-end
-
-rebuildScreens = function()
-	local current = registry.current
-	registry:destroy()
-	registry = ScreenRegistry.new()
-	local ctx = context()
-	registry:register("Inventory", Screens.inventory(screensLayer, ctx))
-	registry:register("Store", Screens.store(screensLayer, ctx))
-	registry:register("Rewards", Screens.rewards(screensLayer, ctx))
-	registry:register("Profile", Screens.profile(screensLayer, ctx))
-	registry:register("Settings", Screens.settings(screensLayer, ctx))
-	registry:register("Feedback", Screens.feedback(screensLayer, ctx))
-	registry:register("Codes", Screens.codes(screensLayer, ctx))
-	registry:register("Boards", Screens.leaderboards(screensLayer, ctx))
-	registry:register("Community", Screens.verification(screensLayer, ctx))
-	if current and registry.screens[current] then
-		registry:open(current)
-	end
+for name, screen in binder.screens do
+	registry:register(name, screen)
 end
 
 local navItems = {
@@ -400,7 +365,7 @@ local function applyState(nextState: any)
 		AudioController.play("cash")
 	end
 	AfkController.setEnabled(state.profile.settings.afKRollOver)
-	rebuildScreens()
+	binder.apply(state)
 end
 
 stateRemote.OnClientEvent:Connect(function(packet)

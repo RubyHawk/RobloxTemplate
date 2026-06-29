@@ -160,11 +160,33 @@ expectEqual(
 )
 
 local screenCopy = fs.readFile("src/client/UI/Screens.luau")
-expectEqual(
-	string.find(screenCopy, "RewardTileTemplate", 1, true) ~= nil,
-	true,
-	"daily rewards use the authored visual tile template"
-)
+for _, authoredObject in
+	{
+		'"Name":"InventoryScreen"',
+		'"Name":"StoreScreen"',
+		'"Name":"RewardsScreen"',
+		'"Name":"ProfileScreen"',
+		'"Name":"SettingsScreen"',
+		'"Name":"ItemSlot12"',
+		'"Name":"StoreSlot08"',
+		'"Name":"Day7"',
+		'"Name":"LeaderRow10"',
+		'"Name":"ListRow50"',
+	}
+do
+	expectEqual(
+		string.find(connectedUi, authoredObject, 1, true) ~= nil,
+		true,
+		`connected UI pre-authors {authoredObject}`
+	)
+end
+for _, forbiddenConstructor in { "Instance.new", ":Clone(", ":Destroy(" } do
+	expectEqual(
+		string.find(screenCopy, forbiddenConstructor, 1, true),
+		nil,
+		`screen binder does not use {forbiddenConstructor}`
+	)
+end
 for _, developerFacingCopy in { "Project defaults", "Verification is scaffolded", "Discord" } do
 	expectEqual(
 		string.find(screenCopy, developerFacingCopy, 1, true),

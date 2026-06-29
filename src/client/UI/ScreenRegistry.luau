@@ -34,12 +34,4 @@ function ScreenRegistry.close(self: ScreenRegistry)
 	self.current = nil
 end
 
-function ScreenRegistry.destroy(self: ScreenRegistry)
-	for _, screen in self.screens do
-		screen:Destroy()
-	end
-	table.clear(self.screens)
-	self.current = nil
-end
-
 return ScreenRegistry
