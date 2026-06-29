@@ -26,7 +26,7 @@ Inside Roblox Studio:
 1. Open the **Plugins** tab at the top.
 2. Click the **Rojo** button.
 3. Click **Connect** next to `localhost:34872`.
-4. Expand **StarterGui** in Explorer to see and edit the real GUI objects.
+4. Expand **StarterGui → TemplateUI → Root → Screens** in Explorer. Inventory, store, rewards, profile, settings, and leaderboard objects are all permanently visible there; toggle one screen's `Visible` property while editing it.
 5. Press **Ctrl+S** after visual changes.
 6. Press **Play** from the Home or Test tab.
 
@@ -38,11 +38,13 @@ On the `template` branch, use the **UI Library** bar in Play mode to switch betw
 
 - Open **SHOP** and buy a potion with the mock Coins.
 - Open **BAG** and use it; the HUD multiplier changes.
-- Open **GIFT** and claim the daily reward.
+- Open **REWARDS** and claim the daily reward.
 - Open **SETTINGS** and change UI scale or reduced motion.
 - On `playable-starter`, walk to the blue pad and use its prompt to earn Coins.
 
 Studio deliberately uses mock data, so these tests cannot damage a future live game’s saves.
+
+DataDelve Canary is already installed, but it is only for inspecting saved profiles in a separate published test experience. Follow [`DATA_DELVE.md`](DATA_DELVE.md) before enabling Studio API access.
 
 ## 5. Check a phone
 

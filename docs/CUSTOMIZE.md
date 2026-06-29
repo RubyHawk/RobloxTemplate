@@ -6,7 +6,7 @@ Most values live in [`src/shared/TemplateConfig.luau`](../src/shared/TemplateCon
 
 For visual editing, open `StarterGui → TemplateUI → Root` in Studio. The HUD, bottom navigation dock, screen shell, toast, and reusable component templates are ordinary editable GUI objects. Change colors, fonts, sizes, corners, strokes, and positions in Properties, then press Ctrl+S.
 
-Inventory and store cards clone `ComponentTemplates → ItemCardTemplate`. Daily rewards clone `RewardTileTemplate`. Edit those templates once instead of restyling every screen in Luau.
+Inventory cards, store cards, reward tiles, profile controls, and leaderboard rows are permanent objects under `TemplateUI → Root → Screens`. Expand the screen you want and edit its real objects directly in Studio. Runtime Luau never creates or clones GUI objects.
 
 `src/shared/Theme.luau` contains behavior colors such as hover states. A programmer can change those when creating a full theme branch.
 

@@ -21,6 +21,31 @@ foreach ($icon in $requiredIcons) {
     }
 }
 
+$runtimeUiFiles = @(
+    Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot "..\src\client\UI") -Filter "*.luau" -File
+    Get-Item -LiteralPath (Join-Path $PSScriptRoot "..\src\client\init.client.luau")
+)
+$runtimeUiConstructors = @(
+    $runtimeUiFiles | Select-String -Pattern 'Instance\.new|:Clone\(|:Destroy\('
+)
+if ($runtimeUiConstructors.Count -gt 0) {
+    $locations = $runtimeUiConstructors | ForEach-Object { "$($_.Path):$($_.LineNumber)" }
+    throw "Runtime UI must use authored StarterGui instances. Forbidden constructor found at: $($locations -join ', ')"
+}
+
+$uiModel = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\src\ui\TemplateUI.model.json") -Raw | ConvertFrom-Json
+$uiRoot = $uiModel.Children | Where-Object Name -eq "Root"
+$screens = $uiRoot.Children | Where-Object Name -eq "Screens"
+$requiredScreens = @(
+    "InventoryScreen", "StoreScreen", "RewardsScreen", "ProfileScreen", "SettingsScreen",
+    "FeedbackScreen", "CodesScreen", "BoardsScreen", "CommunityScreen", "DynamicScreen"
+)
+foreach ($screenName in $requiredScreens) {
+    if (-not ($screens.Children | Where-Object Name -eq $screenName)) {
+        throw "Authored UI screen is missing: $screenName"
+    }
+}
+
 Invoke-Checked "StyLua" { stylua --check src tests }
 Invoke-Checked "Selene" { selene src tests }
 Invoke-Checked "Wally" { wally install }

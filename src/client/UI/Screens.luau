@@ -9,451 +9,584 @@ local UIFactory = require(script.Parent.UIFactory)
 
 type IconName = IconCatalog.IconName
 
+local INVENTORY_SLOT_COUNT = 12
+local STORE_SLOT_COUNT = 8
+local SERVER_ROW_COUNT = 10
+local GLOBAL_ROW_COUNT = 50
+
 local Screens = {}
+
+local function frame(parent: Instance, name: string): Frame
+	local value = parent:WaitForChild(name)
+	assert(value:IsA("Frame"), `{value:GetFullName()} must be a Frame`)
+	return value
+end
+
+local function textButton(parent: Instance, name: string): TextButton
+	local value = parent:WaitForChild(name)
+	assert(value:IsA("TextButton"), `{value:GetFullName()} must be a TextButton`)
+	return value
+end
+
+local function textLabel(parent: Instance, name: string): TextLabel
+	local value = parent:WaitForChild(name)
+	assert(value:IsA("TextLabel"), `{value:GetFullName()} must be a TextLabel`)
+	return value
+end
+
+local function textBox(parent: Instance, name: string): TextBox
+	local value = parent:WaitForChild(name)
+	assert(value:IsA("TextBox"), `{value:GetFullName()} must be a TextBox`)
+	return value
+end
+
+local function content(screen: Frame): ScrollingFrame
+	local value = screen:WaitForChild("Content")
+	assert(value:IsA("ScrollingFrame"), `{value:GetFullName()} must be a ScrollingFrame`)
+	return value
+end
+
+local function numberedFrames(parent: Instance, prefix: string, count: number): { Frame }
+	local values = {}
+	for index = 1, count do
+		table.insert(values, frame(parent, `{prefix}{string.format("%02d", index)}`))
+	end
+	return values
+end
 
 local function applyIcon(container: Instance, name: IconName)
 	local icon = container:FindFirstChild("Icon")
 	if not icon or not icon:IsA("ImageLabel") then
 		return
 	end
-	local content = IconCatalog.get(name)
-	if content == "" then
-		return
-	end
-	icon.Image = content
-	icon.Visible = true
 	local fallback = container:FindFirstChild("Symbol") or container:FindFirstChild("Fallback")
+	local image = IconCatalog.get(name)
+	icon.Image = image
+	icon.Visible = image ~= ""
 	if fallback and fallback:IsA("GuiObject") then
-		fallback.Visible = false
+		fallback.Visible = image == ""
 	end
 end
 
-local function authoredTemplate(parent: Instance, name: string, className: string): Instance
-	local screenGui = parent:FindFirstAncestorWhichIsA("ScreenGui")
-	local root = if screenGui then screenGui:FindFirstChild("Root") else nil
-	local templates = if root then root:FindFirstChild("ComponentTemplates") else nil
-	local template = if templates then templates:FindFirstChild(name) else nil
-	assert(
-		template and template.ClassName == className,
-		`TemplateUI.Root.ComponentTemplates.{name} must be a {className}`
-	)
-	return template
+local function setRow(card: Frame, title: string, body: string, iconName: IconName?)
+	textLabel(card, "Title").Text = title
+	textLabel(card, "Body").Text = body
+	if iconName then
+		applyIcon(frame(card, "IconBadge"), iconName)
+	end
+	card.Visible = true
 end
 
-local function base(parent: Instance, title: string, close: () -> ()): (Frame, ScrollingFrame)
-	local template = parent.Parent and parent.Parent:FindFirstChild("ScreenTemplate")
-	assert(template and template:IsA("Frame"), "TemplateUI.Root.ScreenTemplate must be a Frame")
+local function setItemArtwork(slot: Frame, icon: string, glyphText: string)
+	local artwork = frame(slot, "Artwork")
+	local glyph = textLabel(artwork, "Glyph")
+	local image = artwork:WaitForChild("Icon")
+	assert(image:IsA("ImageLabel"), `{image:GetFullName()} must be an ImageLabel`)
+	image.Image = icon
+	image.Visible = icon ~= ""
+	glyph.Text = glyphText
+	glyph.Visible = icon == ""
+end
 
-	local root = template:Clone()
-	root.Name = `{title}Screen`
-	root.Visible = true
-	local titleLabel = root:WaitForChild("Title") :: TextLabel
-	titleLabel.Text = title
-	local closeButton = root:WaitForChild("CloseButton") :: TextButton
+local function setItemSlot(
+	slot: Frame,
+	title: string,
+	body: string,
+	quantityText: string,
+	actionText: string,
+	icon: string,
+	glyph: string,
+	action: string,
+	value: string
+)
+	textLabel(slot, "Title").Text = title
+	textLabel(slot, "Body").Text = body
+	textLabel(slot, "Quantity").Text = quantityText
+	textButton(slot, "ActionButton").Text = actionText
+	setItemArtwork(slot, icon, glyph)
+	slot:SetAttribute("Action", action)
+	slot:SetAttribute("Value", value)
+	slot.Visible = true
+end
+
+local function hideFrames(values: { Frame })
+	for _, value in values do
+		value.Visible = false
+		value:SetAttribute("Action", nil)
+		value:SetAttribute("Value", nil)
+	end
+end
+
+local function sortedItemIds(catalog: { [string]: any }): { string }
+	local ids = {}
+	for itemId in catalog do
+		table.insert(ids, itemId)
+	end
+	table.sort(ids, function(left, right)
+		local leftDefinition = catalog[left]
+		local rightDefinition = catalog[right]
+		if leftDefinition.priceCoins and rightDefinition.priceCoins then
+			return leftDefinition.priceCoins < rightDefinition.priceCoins
+		end
+		return leftDefinition.name < rightDefinition.name
+	end)
+	return ids
+end
+
+local function connectClose(screen: Frame, close: () -> ())
+	local closeButton = textButton(screen, "CloseButton")
 	applyIcon(closeButton, "close")
 	if IconCatalog.get("close") ~= "" then
 		closeButton.Text = ""
 	end
 	closeButton.Activated:Connect(close)
-	local content = root:WaitForChild("Content") :: ScrollingFrame
-	root.Parent = parent
-	return root, content
 end
 
-local function row(parent: Instance, title: string, body: string, iconName: IconName?): Frame
-	local template = authoredTemplate(parent, "RowTemplate", "Frame") :: Frame
-	local card = template:Clone()
-	card.Name = title
-	card.Visible = true
-	local titleLabel = card:WaitForChild("Title") :: TextLabel
-	titleLabel.Text = title
-	local bodyLabel = card:WaitForChild("Body") :: TextLabel
-	bodyLabel.Text = body
-	local iconBadge = card:WaitForChild("IconBadge") :: Frame
-	local symbol = iconBadge:WaitForChild("Symbol") :: TextLabel
-	symbol.Text = string.upper(string.sub(title, 1, 1))
-	if iconName then
-		applyIcon(iconBadge, iconName)
+function Screens.bind(parent: Instance, context: any): any
+	local screenMap: { [string]: Frame } = {
+		Inventory = frame(parent, "InventoryScreen"),
+		Store = frame(parent, "StoreScreen"),
+		Rewards = frame(parent, "RewardsScreen"),
+		Profile = frame(parent, "ProfileScreen"),
+		Settings = frame(parent, "SettingsScreen"),
+		Feedback = frame(parent, "FeedbackScreen"),
+		Codes = frame(parent, "CodesScreen"),
+		Boards = frame(parent, "BoardsScreen"),
+		Community = frame(parent, "CommunityScreen"),
+		Dynamic = frame(parent, "DynamicScreen"),
+	}
+
+	for _, screen in screenMap do
+		connectClose(screen, context.close)
 	end
-	card.Parent = parent
-	return card
-end
 
-local function itemCard(
-	parent: Instance,
-	title: string,
-	body: string,
-	actionText: string,
-	onActivated: () -> (),
-	display: { glyph: string?, icon: string? }?
-): Frame
-	local template = authoredTemplate(parent, "ItemCardTemplate", "Frame") :: Frame
-	local card = template:Clone()
-	card.Name = title
-	card.Visible = true
-	local titleLabel = card:WaitForChild("Title") :: TextLabel
-	titleLabel.Text = title
-	local bodyLabel = card:WaitForChild("Body") :: TextLabel
-	bodyLabel.Text = body
-	local artwork = card:WaitForChild("Artwork") :: Frame
-	local glyph = artwork:WaitForChild("Glyph") :: TextLabel
-	local icon = artwork:WaitForChild("Icon") :: ImageLabel
-	if display and display.icon and display.icon ~= "" then
-		icon.Image = display.icon
-		icon.Visible = true
-		glyph.Visible = false
-	else
-		glyph.Text = if display and display.glyph
-			then display.glyph
-			else string.upper(string.sub(title, 1, 1))
-	end
-	local action = card:WaitForChild("ActionButton") :: TextButton
-	action.Text = actionText
-	action.AutoButtonColor = true
-	action.Activated:Connect(onActivated)
-	card.Parent = parent
-	return card
-end
+	local state: any = nil
+	local inventoryContent = content(screenMap.Inventory)
+	local inventorySlots = numberedFrames(inventoryContent, "ItemSlot", INVENTORY_SLOT_COUNT)
+	local inventoryEmpty = frame(inventoryContent, "EmptyState")
+	local inventoryToolbar = frame(inventoryContent, "Toolbar")
+	local inventorySearch = textBox(inventoryToolbar, "SearchInput")
+	local inventoryCategory = textButton(inventoryToolbar, "CategoryButton")
+	local categories = { "All", "Consumable", "Equipment", "Misc" }
+	local categoryIndex = 1
 
-local function rewardTile(parent: Instance, day: number, amount: number, nextDay: number): Frame
-	local template = authoredTemplate(parent, "RewardTileTemplate", "Frame") :: Frame
-	local tile = template:Clone()
-	tile.Name = `Day{day}`
-	tile.LayoutOrder = day
-	tile.Visible = true
-	local dayLabel = tile:WaitForChild("DayLabel") :: TextLabel
-	dayLabel.Text = `DAY {day}`
-	local amountLabel = tile:WaitForChild("AmountLabel") :: TextLabel
-	amountLabel.Text = `+{UIFactory.formatNumber(amount)}`
-	local stateLabel = tile:WaitForChild("StateLabel") :: TextLabel
-	applyIcon(tile:WaitForChild("CoinBadge"), "coin")
-	if day == nextDay then
-		tile.BackgroundColor3 = Theme.colors.surfaceRaised
-		stateLabel.Text = "NEXT REWARD"
-		stateLabel.TextColor3 = Theme.colors.primary
-	else
-		stateLabel.Text = "COINS"
-	end
-	tile.Parent = parent
-	return tile
-end
+	local storeContent = content(screenMap.Store)
+	local storeSlots = numberedFrames(storeContent, "StoreSlot", STORE_SLOT_COUNT)
+	local rewardsContent = content(screenMap.Rewards)
+	local profileContent = content(screenMap.Profile)
+	local settingsContent = content(screenMap.Settings)
+	local feedbackContent = content(screenMap.Feedback)
+	local codesContent = content(screenMap.Codes)
+	local boardsContent = content(screenMap.Boards)
+	local communityContent = content(screenMap.Community)
+	local dynamicContent = content(screenMap.Dynamic)
+	local serverRows = numberedFrames(boardsContent, "LeaderRow", SERVER_ROW_COUNT)
+	local globalRows = numberedFrames(dynamicContent, "ListRow", GLOBAL_ROW_COUNT)
 
-function Screens.inventory(parent: Instance, context: any): Frame
-	local root, content = base(parent, "My Bag", context.close)
-	local entries = context.state.profile.inventory
-	local anyItem = false
-	for itemId, entry in entries do
-		if entry.quantity > 0 then
-			anyItem = true
-			local definition = context.state.catalog[itemId]
-			if definition then
-				local action = if definition.category == "Consumable" then "UseItem" else "ToggleEquip"
-				local label = if definition.category == "Consumable"
-					then "USE"
-					else if entry.equipped then "UNEQUIP" else "EQUIP"
-				itemCard(
-					content,
-					`{definition.name}  ×{entry.quantity}`,
-					definition.description,
-					label,
-					function()
-						context.request(action, { itemId = itemId })
-					end,
-					{
-						glyph = if definition.boostMultiplier then `x{definition.boostMultiplier}` else nil,
-						icon = definition.icon,
-					}
-				)
+	local function refreshInventory()
+		hideFrames(inventorySlots)
+		if not state then
+			inventoryEmpty.Visible = true
+			return
+		end
+		local search = string.lower(inventorySearch.Text)
+		local category = categories[categoryIndex]
+		local visibleEntries = {}
+		for _, itemId in sortedItemIds(state.catalog) do
+			local entry = state.profile.inventory[itemId]
+			local definition = state.catalog[itemId]
+			if entry and entry.quantity > 0 then
+				local categoryMatches = category == "All" or definition.category == category
+				local nameMatches = search == ""
+					or string.find(string.lower(definition.name), search, 1, true) ~= nil
+				if categoryMatches and nameMatches then
+					table.insert(visibleEntries, { itemId = itemId, entry = entry, definition = definition })
+				end
 			end
 		end
-	end
-	if not anyItem then
-		row(content, "Your bag is empty", "Items and boosts you collect will appear here.", "item")
-	end
-	return root
-end
 
-function Screens.store(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Shop", context.close)
-	for itemId, definition in context.state.catalog do
-		if definition.priceCoins then
-			itemCard(
-				content,
-				definition.name,
-				`{definition.description}  •  {UIFactory.formatNumber(definition.priceCoins)} Coins`,
-				"BUY",
-				function()
-					context.request("BuyItem", { itemId = itemId })
-				end,
-				{
-					glyph = if definition.boostMultiplier then `x{definition.boostMultiplier}` else nil,
-					icon = definition.icon,
-				}
+		for index, data in visibleEntries do
+			local slot = inventorySlots[index]
+			if not slot then
+				break
+			end
+			local action = if data.definition.category == "Consumable" then "UseItem" else "ToggleEquip"
+			local actionText = if data.definition.category == "Consumable"
+				then "USE"
+				else if data.entry.equipped then "UNEQUIP" else "EQUIP"
+			setItemSlot(
+				slot,
+				data.definition.name,
+				data.definition.description,
+				`x{data.entry.quantity}`,
+				actionText,
+				data.definition.icon,
+				if data.definition.boostMultiplier then `x{data.definition.boostMultiplier}` else "ITEM",
+				action,
+				data.itemId
+			)
+		end
+		inventoryEmpty.Visible = #visibleEntries == 0
+		if inventoryEmpty.Visible then
+			setRow(inventoryEmpty, "No matching items", "Try another search or category.", "item")
+		end
+	end
+
+	for _, slot in inventorySlots do
+		textButton(slot, "ActionButton").Activated:Connect(function()
+			local action = slot:GetAttribute("Action")
+			local itemId = slot:GetAttribute("Value")
+			if type(action) == "string" and type(itemId) == "string" then
+				context.request(action, { itemId = itemId })
+			end
+		end)
+	end
+	inventorySearch:GetPropertyChangedSignal("Text"):Connect(refreshInventory)
+	inventoryCategory.Activated:Connect(function()
+		categoryIndex = (categoryIndex % #categories) + 1
+		inventoryCategory.Text = string.upper(categories[categoryIndex])
+		refreshInventory()
+	end)
+
+	local function refreshStore()
+		hideFrames(storeSlots)
+		if not state then
+			return
+		end
+		local slotIndex = 1
+		for _, itemId in sortedItemIds(state.catalog) do
+			local definition = state.catalog[itemId]
+			if definition.priceCoins and storeSlots[slotIndex] then
+				setItemSlot(
+					storeSlots[slotIndex],
+					definition.name,
+					definition.description,
+					`{UIFactory.formatNumber(definition.priceCoins)} C`,
+					"BUY",
+					definition.icon,
+					if definition.boostMultiplier then `x{definition.boostMultiplier}` else "ITEM",
+					"BuyItem",
+					itemId
+				)
+				slotIndex += 1
+			end
+		end
+
+		local productDefinitions = {
+			{ key = "coinPackSmall", title = "Small Coins Pack", body = "A quick coin top-up." },
+			{ key = "coinPackLarge", title = "Large Coins Pack", body = "A larger coin top-up." },
+		}
+		for _, product in productDefinitions do
+			if state.productAvailability[product.key] and storeSlots[slotIndex] then
+				setItemSlot(
+					storeSlots[slotIndex],
+					product.title,
+					product.body,
+					"ROBUX",
+					"VIEW",
+					IconCatalog.get("coin"),
+					"C",
+					"PromptProduct",
+					product.key
+				)
+				slotIndex += 1
+			end
+		end
+
+		if storeSlots[slotIndex] then
+			setItemSlot(
+				storeSlots[slotIndex],
+				"Roblox Premium",
+				if state.profile.entitlements.premium
+					then "Active: permanent +10% Coins bonus."
+					else "Premium members receive a permanent +10% Coins bonus.",
+				if state.profile.entitlements.premium then "ACTIVE" else "+10%",
+				if state.profile.entitlements.premium then "OWNED" else "VIEW",
+				IconCatalog.get("premium"),
+				"P",
+				if state.profile.entitlements.premium then "None" else "PromptPremium",
+				"premium"
 			)
 		end
 	end
-	if context.state.productAvailability.coinPackSmall then
-		itemCard(
-			content,
-			"Small Coins Pack",
-			"A quick coin top-up. Roblox shows the final price.",
-			"VIEW",
-			function()
-				context.promptProduct("coinPackSmall")
-			end,
-			{ glyph = "C" }
-		)
-	else
-		row(content, "Coin packs", "More shop options are coming soon!", "cart")
-	end
-	if context.state.productAvailability.coinPackLarge then
-		itemCard(
-			content,
-			"Large Coins Pack",
-			"A larger coin top-up. Roblox shows the final price.",
-			"VIEW",
-			function()
-				context.promptProduct("coinPackLarge")
-			end,
-			{ glyph = "C" }
-		)
-	end
-	local premiumText = if context.state.profile.entitlements.premium
-		then "Active: permanent +10% Coins bonus."
-		else "Roblox Premium members receive a permanent +10% Coins bonus."
-	local premiumCard = row(content, "Roblox Premium", premiumText, "premium")
-	if not context.state.profile.entitlements.premium then
-		UIFactory.button(premiumCard, "VIEW", context.promptPremium, {
-			AnchorPoint = Vector2.new(1, 0.5),
-			Position = UDim2.new(1, -10, 0.5, 0),
-			Size = UDim2.fromOffset(92, 44),
-		})
-	end
-	return root
-end
 
-function Screens.rewards(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Daily Rewards", context.close)
-	row(
-		content,
-		`Daily streak: Day {context.state.profile.daily.streak}`,
-		"Come back tomorrow to keep your streak going!",
-		"daily"
-	)
-	local rewardStrip = Instance.new("ScrollingFrame")
-	rewardStrip.Name = "RewardStrip"
-	rewardStrip.AutomaticCanvasSize = Enum.AutomaticSize.X
-	rewardStrip.BackgroundTransparency = 1
-	rewardStrip.BorderSizePixel = 0
-	rewardStrip.CanvasSize = UDim2.new()
-	rewardStrip.ScrollingDirection = Enum.ScrollingDirection.X
-	rewardStrip.ScrollBarImageColor3 = Theme.colors.primary
-	rewardStrip.ScrollBarThickness = 4
-	rewardStrip.Size = UDim2.new(1, -8, 0, 142)
-	local rewardLayout = Instance.new("UIListLayout")
-	rewardLayout.FillDirection = Enum.FillDirection.Horizontal
-	rewardLayout.Padding = UDim.new(0, 8)
-	rewardLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	rewardLayout.Parent = rewardStrip
-	rewardStrip.Parent = content
-	local nextRewardDay = math.clamp(context.state.profile.daily.streak + 1, 1, 7)
-	for day, amount in context.state.dailyRewards do
-		rewardTile(rewardStrip, day, amount, nextRewardDay)
+	for _, slot in storeSlots do
+		textButton(slot, "ActionButton").Activated:Connect(function()
+			local action = slot:GetAttribute("Action")
+			local value = slot:GetAttribute("Value")
+			if action == "BuyItem" and type(value) == "string" then
+				context.request("BuyItem", { itemId = value })
+			elseif action == "PromptProduct" and type(value) == "string" then
+				context.promptProduct(value)
+			elseif action == "PromptPremium" then
+				context.promptPremium()
+			end
+		end)
 	end
-	UIFactory.button(content, "CLAIM DAILY REWARD", function()
+
+	local rewardStrip = rewardsContent:WaitForChild("RewardStrip")
+	local rewardTiles = {}
+	for day = 1, 7 do
+		table.insert(rewardTiles, frame(rewardStrip, `Day{day}`))
+	end
+	textButton(rewardsContent, "ClaimDailyButton").Activated:Connect(function()
 		context.request("ClaimDaily", {})
 	end)
-	local pending = context.state.offline
-	row(
-		content,
-		"Offline earnings",
-		`{UIFactory.formatNumber(pending.amount)} Coins ready from {math.floor(pending.elapsed / 60)} minutes.`,
-		"offline"
-	)
-	UIFactory.button(content, "CLAIM OFFLINE EARNINGS", function()
+	textButton(rewardsContent, "ClaimOfflineButton").Activated:Connect(function()
 		context.request("ClaimOffline", {})
-	end, { BackgroundColor3 = Theme.colors.success })
-	if
-		context.state.productAvailability.extendedOffline
-		and not context.state.profile.entitlements.extendedOffline
-	then
-		UIFactory.button(content, "EXTEND OFFLINE CAP TO 12 HOURS", context.promptExtendedOffline)
-	end
-	return root
-end
+	end)
+	textButton(rewardsContent, "ExtendedOfflineButton").Activated:Connect(context.promptExtendedOffline)
 
-function Screens.profile(parent: Instance, context: any): Frame
-	local root, content = base(parent, "My Profile", context.close)
-	local profile = context.state.profile
-	row(
-		content,
-		Players.LocalPlayer.DisplayName,
-		`Coins: {UIFactory.formatNumber(profile.coins)}  •  Joins: {profile.stats.joins}  •  Playtime: {math.floor(
-			profile.stats.playSeconds / 60
-		)}m`,
-		"profile"
-	)
-	row(content, "Find a player", "Search an exact Roblox username to view public stats.", "search")
-	local input = UIFactory.textBox(content, "Exact Roblox username")
-	local resultLabel = UIFactory.label(content, "Search for a Roblox player to see their public stats.", {
-		Size = UDim2.new(1, -8, 0, 54),
-		TextColor3 = Theme.colors.textMuted,
-	})
-	UIFactory.button(content, "SEARCH PLAYER", function()
-		resultLabel.Text = "Searching…"
+	local profileSearch = textBox(profileContent, "SearchInput")
+	local profileResult = frame(profileContent, "SearchResult")
+	textButton(profileContent, "SearchButton").Activated:Connect(function()
+		setRow(profileResult, "Searching…", "Looking up public player stats.", "search")
 		task.spawn(function()
-			local response = context.query("SearchProfile", { username = input.Text })
+			local response = context.query("SearchProfile", { username = profileSearch.Text })
 			if response.ok and response.data then
 				local found = response.data
-				resultLabel.Text = `{found.displayName} (@{found.username}) • {UIFactory.formatNumber(
-					found.coins
-				)} Coins • {found.joins} joins`
+				setRow(
+					profileResult,
+					`{found.displayName} (@{found.username})`,
+					`{UIFactory.formatNumber(found.coins)} Coins • {found.joins} joins`,
+					"profile"
+				)
 			else
-				resultLabel.Text = response.message or "Player was not found"
+				setRow(
+					profileResult,
+					"Player not found",
+					response.message or "Check the exact username.",
+					"search"
+				)
 			end
 		end)
 	end)
-	return root
-end
 
-function Screens.settings(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Settings", context.close)
-	local settings = context.state.profile.settings
-	local function toggle(label: string, key: string, value: boolean)
-		UIFactory.button(content, `{label}: {if value then "ON" else "OFF"}`, function()
-			if key == "notifications" and not value then
+	local settingsButtons = {
+		reducedMotion = textButton(settingsContent, "ReducedMotionButton"),
+		announcements = textButton(settingsContent, "AnnouncementsButton"),
+		afKRollOver = textButton(settingsContent, "AfkButton"),
+		notifications = textButton(settingsContent, "NotificationsButton"),
+	}
+	for key, settingsButton in settingsButtons do
+		local settingKey = key
+		settingsButton.Activated:Connect(function()
+			if not state then
+				return
+			end
+			local current = state.profile.settings[settingKey]
+			if settingKey == "notifications" and not current then
 				context.promptNotifications()
 			end
-			context.request("UpdateSetting", { key = key, value = not value })
+			context.request("UpdateSetting", { key = settingKey, value = not current })
 		end)
 	end
-	toggle("Reduced motion", "reducedMotion", settings.reducedMotion)
-	toggle("Game tips", "announcements", settings.announcements)
-	toggle("Stay connected", "afKRollOver", settings.afKRollOver)
-	toggle("Reminders", "notifications", settings.notifications)
-	UIFactory.button(content, `Music: {math.floor(settings.musicVolume * 100)}%`, function()
-		context.request(
-			"UpdateSetting",
-			{ key = "musicVolume", value = (settings.musicVolume + 0.25) % 1.25 }
-		)
-	end)
-	UIFactory.button(content, `SFX: {math.floor(settings.sfxVolume * 100)}%`, function()
-		context.request("UpdateSetting", { key = "sfxVolume", value = (settings.sfxVolume + 0.25) % 1.25 })
-	end)
-	UIFactory.button(content, `UI Scale: {math.floor(settings.uiScale * 100)}%`, function()
-		local nextScale = settings.uiScale + 0.1
-		if nextScale > 1.2 then
-			nextScale = 0.8
+	textButton(settingsContent, "MusicButton").Activated:Connect(function()
+		if state then
+			context.request(
+				"UpdateSetting",
+				{ key = "musicVolume", value = (state.profile.settings.musicVolume + 0.25) % 1.25 }
+			)
 		end
-		context.request("UpdateSetting", { key = "uiScale", value = nextScale })
 	end)
-	row(
-		content,
-		"You're all set!",
-		"Your choices save automatically. You can change them again any time.",
-		"settings"
-	)
-	return root
-end
-
-function Screens.feedback(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Send Feedback", context.close)
-	local categories = { "Bug", "Feedback", "Accessibility", "Other" }
-	local categoryIndex = 1
-	local categoryButton = UIFactory.button(content, "Category: Bug", nil)
-	categoryButton.Activated:Connect(function()
-		categoryIndex = (categoryIndex % #categories) + 1
-		categoryButton.Text = `Category: {categories[categoryIndex]}`
+	textButton(settingsContent, "SfxButton").Activated:Connect(function()
+		if state then
+			context.request(
+				"UpdateSetting",
+				{ key = "sfxVolume", value = (state.profile.settings.sfxVolume + 0.25) % 1.25 }
+			)
+		end
 	end)
-	local input = UIFactory.textBox(content, "Describe the issue (3–500 characters)", {
-		MultiLine = true,
-		Size = UDim2.new(1, -8, 0, 140),
-		TextYAlignment = Enum.TextYAlignment.Top,
-	})
-	UIFactory.button(content, "SUBMIT", function()
-		context.request("SubmitFeedback", { category = categories[categoryIndex], message = input.Text })
-	end, { BackgroundColor3 = Theme.colors.success })
-	return root
-end
-
-function Screens.codes(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Likes & Codes", context.close)
-	local likes = context.state.likes
-	row(
-		content,
-		`Likes: {UIFactory.formatNumber(likes.value or 0)}`,
-		likes.reason or "Thanks for supporting the experience!",
-		"likes"
-	)
-	for _, milestone in context.state.likesMilestones do
-		local unlocked = (likes.value or 0) >= milestone.likes
-		local detail = if unlocked
-			then `{milestone.label} - Code: {milestone.code}`
-			else `{milestone.label} - Locked`
-		row(content, `{milestone.likes} Likes`, detail, "codes")
-	end
-	local input = UIFactory.textBox(content, "Enter code")
-	UIFactory.button(content, "REDEEM CODE", function()
-		context.request("RedeemCode", { code = input.Text })
+	textButton(settingsContent, "ScaleButton").Activated:Connect(function()
+		if state then
+			local nextScale = state.profile.settings.uiScale + 0.1
+			if nextScale > 1.2 then
+				nextScale = 0.8
+			end
+			context.request("UpdateSetting", { key = "uiScale", value = nextScale })
+		end
 	end)
-	return root
-end
 
-local function leaderboardRows(content: Instance, rows: { any })
-	for index, entry in rows do
-		row(
-			content,
-			`#{entry.rank or index}  {entry.name}`,
-			`{UIFactory.formatNumber(entry.value)} Coins`,
-			"leaderboard"
+	local feedbackCategories = { "Bug", "Feedback", "Accessibility", "Other" }
+	local feedbackCategoryIndex = 1
+	local feedbackCategoryButton = textButton(feedbackContent, "CategoryButton")
+	local feedbackInput = textBox(feedbackContent, "MessageInput")
+	feedbackCategoryButton.Activated:Connect(function()
+		feedbackCategoryIndex = (feedbackCategoryIndex % #feedbackCategories) + 1
+		feedbackCategoryButton.Text = `CATEGORY: {string.upper(feedbackCategories[feedbackCategoryIndex])}`
+	end)
+	textButton(feedbackContent, "SubmitButton").Activated:Connect(function()
+		context.request(
+			"SubmitFeedback",
+			{ category = feedbackCategories[feedbackCategoryIndex], message = feedbackInput.Text }
 		)
-	end
-	if #rows == 0 then
-		row(content, "No players yet", "Leaderboard data appears after profiles load.", "friends")
-	end
-end
+	end)
 
-function Screens.leaderboards(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Top Players", context.close)
-	UIFactory.label(content, "CURRENT SERVER", { Size = UDim2.new(1, -8, 0, 32), FontFace = Theme.fontBold })
-	leaderboardRows(content, context.state.serverLeaderboard)
-	UIFactory.button(content, "SHOW GLOBAL TOP 50", function()
+	local codeInput = textBox(codesContent, "CodeInput")
+	textButton(codesContent, "RedeemButton").Activated:Connect(function()
+		context.request("RedeemCode", { code = codeInput.Text })
+	end)
+
+	local function showList(title: string, rows: { any })
+		textLabel(screenMap.Dynamic, "Title").Text = title
+		hideFrames(globalRows)
+		for index, entry in rows do
+			local rowValue = globalRows[index]
+			if not rowValue then
+				break
+			end
+			setRow(
+				rowValue,
+				`#{entry.rank or index}  {entry.name}`,
+				`{UIFactory.formatNumber(entry.value)} Coins`,
+				"leaderboard"
+			)
+		end
+		context.open("Dynamic")
+	end
+
+	textButton(boardsContent, "GlobalButton").Activated:Connect(function()
 		task.spawn(function()
 			local response = context.query("GlobalLeaderboard", {})
 			if response.ok and response.data then
-				context.showList("Global Leaderboard", response.data)
+				showList("Global Leaderboard", response.data)
 			else
 				context.toast(response.message or "Global leaderboard unavailable")
 			end
 		end)
 	end)
-	return root
-end
 
-function Screens.verification(parent: Instance, context: any): Frame
-	local root, content = base(parent, "Community", context.close)
-	local availability = context.state.integrationAvailability
-	row(
-		content,
-		"Roblox Community",
-		if availability.community
-			then "Community rewards are ready!"
-			else "Community rewards are coming soon.",
-		"verification"
-	)
-	row(
-		content,
-		"Clubs",
-		if availability.guilds then "Clubs are ready!" else "Team up with friends when clubs arrive later.",
-		"community"
-	)
-	return root
-end
+	local function apply(nextState: any)
+		state = nextState
+		refreshInventory()
+		refreshStore()
 
-function Screens.simpleList(parent: Instance, context: any, title: string, rows: { any }): Frame
-	local root, content = base(parent, title, context.close)
-	leaderboardRows(content, rows)
-	return root
+		local streakCard = frame(rewardsContent, "StreakCard")
+		setRow(
+			streakCard,
+			`Daily streak: Day {state.profile.daily.streak}`,
+			"Come back tomorrow to keep your streak going!",
+			"daily"
+		)
+		local nextRewardDay = math.clamp(state.profile.daily.streak + 1, 1, 7)
+		for day, tile in rewardTiles do
+			textLabel(tile, "AmountLabel").Text = `+{UIFactory.formatNumber(state.dailyRewards[day])}`
+			local stateLabel = textLabel(tile, "StateLabel")
+			if day == nextRewardDay then
+				tile.BackgroundColor3 = Theme.colors.surfaceRaised
+				stateLabel.Text = "NEXT REWARD"
+				stateLabel.TextColor3 = Theme.colors.primary
+			else
+				tile.BackgroundColor3 = Theme.colors.surface
+				stateLabel.Text = "COINS"
+				stateLabel.TextColor3 = Theme.colors.textMuted
+			end
+			applyIcon(frame(tile, "CoinBadge"), "coin")
+		end
+		setRow(
+			frame(rewardsContent, "OfflineCard"),
+			"Offline earnings",
+			`{UIFactory.formatNumber(state.offline.amount)} Coins ready from {math.floor(
+				state.offline.elapsed / 60
+			)} minutes.`,
+			"offline"
+		)
+		textButton(rewardsContent, "ExtendedOfflineButton").Visible = state.productAvailability.extendedOffline
+			and not state.profile.entitlements.extendedOffline
+
+		setRow(
+			frame(profileContent, "StatsCard"),
+			Players.LocalPlayer.DisplayName,
+			`Coins: {UIFactory.formatNumber(state.profile.coins)} • Joins: {state.profile.stats.joins} • Playtime: {math.floor(
+				state.profile.stats.playSeconds / 60
+			)}m`,
+			"profile"
+		)
+		setRow(
+			frame(profileContent, "SearchIntro"),
+			"Find a player",
+			"Search an exact Roblox username to view public stats.",
+			"search"
+		)
+
+		local settings = state.profile.settings
+		settingsButtons.reducedMotion.Text =
+			`REDUCED MOTION: {if settings.reducedMotion then "ON" else "OFF"}`
+		settingsButtons.announcements.Text = `GAME TIPS: {if settings.announcements then "ON" else "OFF"}`
+		settingsButtons.afKRollOver.Text = `STAY CONNECTED: {if settings.afKRollOver then "ON" else "OFF"}`
+		settingsButtons.notifications.Text = `REMINDERS: {if settings.notifications then "ON" else "OFF"}`
+		textButton(settingsContent, "MusicButton").Text = `MUSIC: {math.floor(settings.musicVolume * 100)}%`
+		textButton(settingsContent, "SfxButton").Text = `SFX: {math.floor(settings.sfxVolume * 100)}%`
+		textButton(settingsContent, "ScaleButton").Text = `UI SCALE: {math.floor(settings.uiScale * 100)}%`
+		setRow(
+			frame(settingsContent, "SavedCard"),
+			"You're all set!",
+			"Your choices save automatically. You can change them again any time.",
+			"settings"
+		)
+
+		setRow(
+			frame(codesContent, "LikesCard"),
+			`Likes: {UIFactory.formatNumber(state.likes.value or 0)}`,
+			state.likes.reason or "Thanks for supporting the experience!",
+			"likes"
+		)
+		for index = 1, 4 do
+			local milestoneCard = frame(codesContent, `Milestone{string.format("%02d", index)}`)
+			local milestone = state.likesMilestones[index]
+			if milestone then
+				local unlocked = (state.likes.value or 0) >= milestone.likes
+				setRow(
+					milestoneCard,
+					`{milestone.likes} Likes`,
+					if unlocked
+						then `{milestone.label} - Code: {milestone.code}`
+						else `{milestone.label} - Locked`,
+					"codes"
+				)
+			else
+				milestoneCard.Visible = false
+			end
+		end
+
+		hideFrames(serverRows)
+		for index, entry in state.serverLeaderboard do
+			local rowValue = serverRows[index]
+			if not rowValue then
+				break
+			end
+			setRow(
+				rowValue,
+				`#{entry.rank or index}  {entry.name}`,
+				`{UIFactory.formatNumber(entry.value)} Coins`,
+				"leaderboard"
+			)
+		end
+
+		local availability = state.integrationAvailability
+		setRow(
+			frame(communityContent, "CommunityCard"),
+			"Roblox Community",
+			if availability.community
+				then "Community rewards are ready!"
+				else "Community rewards are coming soon.",
+			"verification"
+		)
+		setRow(
+			frame(communityContent, "ClubsCard"),
+			"Clubs",
+			if availability.guilds
+				then "Clubs are ready!"
+				else "Team up with friends when clubs arrive later.",
+			"community"
+		)
+	end
+
+	return {
+		screens = screenMap,
+		apply = apply,
+		showList = showList,
+	}
 end
 
 return Screens

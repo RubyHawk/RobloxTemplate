@@ -13,8 +13,8 @@ description: Build, extend, review, or debug the reusable Roblox Luau template, 
 4. Keep gameplay-specific behavior behind configuration or a provider. Keep reusable services independent of a map.
 5. Treat the server as authoritative. Validate and rate-limit every client request before reading or mutating state.
 6. Add a profile migration whenever persisted shape changes. Preserve old and unknown values where safe.
-7. Prefer Studio-authored GUI instances and reusable component templates for visual structure. Runtime code may populate live data, clone authored templates, and bind behavior, but must not hide ordinary visual editing behind Luau.
-8. Build connected UI through `UIFactory` and `ScreenRegistry`, use theme tokens, and support safe insets, touch, gamepad, reduced motion, and UI scale.
+7. Keep all visual UI as permanent Studio-authored instances under `StarterGui`. Pre-author finite inventory, shop, reward, and leaderboard slots; runtime code may populate and show/hide them, but must not create, clone, or destroy GuiObjects.
+8. Bind connected screens through `ScreenRegistry`, use Studio-editable properties and current Roblox styling tools, and support safe insets, touch, gamepad, reduced motion, and UI scale. `UIFactory` is formatting-only and must not construct instances.
 9. Keep integrations disabled when IDs, secrets, consent, or hosting are absent. Provide a visible unavailable state rather than fake success.
 10. Add or update tests, then run the commands in `AGENTS.md`.
 
