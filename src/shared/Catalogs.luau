@@ -1,5 +1,7 @@
 --!strict
 
+local IconCatalog = require(script.Parent.IconCatalog)
+
 export type ItemDefinition = {
 	id: string,
 	name: string,
@@ -18,7 +20,7 @@ local Items: { [string]: ItemDefinition } = {
 		name = "Double Coins Potion",
 		description = "Applies the strongest x2 Coins boost for 15 minutes.",
 		category = "Consumable",
-		icon = "",
+		icon = IconCatalog.get("potionX2"),
 		maxStack = 99,
 		priceCoins = 1000,
 		boostMultiplier = 2,
@@ -29,7 +31,7 @@ local Items: { [string]: ItemDefinition } = {
 		name = "Triple Coins Potion",
 		description = "Applies the strongest x3 Coins boost for 10 minutes.",
 		category = "Consumable",
-		icon = "",
+		icon = IconCatalog.get("potionX3"),
 		maxStack = 99,
 		priceCoins = 2500,
 		boostMultiplier = 3,
@@ -40,7 +42,7 @@ local Items: { [string]: ItemDefinition } = {
 		name = "Starter Tool",
 		description = "An equipment placeholder for map branches.",
 		category = "Equipment",
-		icon = "",
+		icon = IconCatalog.get("starterTool"),
 		maxStack = 1,
 		priceCoins = 500,
 	},

@@ -7,6 +7,20 @@ function Invoke-Checked([string]$Name, [scriptblock]$Command) {
     }
 }
 
+$requiredIcons = @(
+    "bag.png", "cart.png", "close.png", "codes.png", "coin.png", "community.png", "daily.png",
+    "feedback.png", "friends.png", "item.png", "leaderboard.png", "likes.png", "more.png",
+    "notifications.png", "offline.png", "potion_x2.png", "potion_x3.png", "premium.png",
+    "profile.png", "rewards.png", "search.png", "settings.png", "shop.png", "starter_tool.png",
+    "verification.png"
+)
+foreach ($icon in $requiredIcons) {
+    $iconPath = Join-Path $PSScriptRoot "..\assets\icons\gvesster-basic\$icon"
+    if (-not (Test-Path -LiteralPath $iconPath -PathType Leaf)) {
+        throw "Required icon source is missing: $icon"
+    }
+}
+
 Invoke-Checked "StyLua" { stylua --check src tests }
 Invoke-Checked "Selene" { selene src tests }
 Invoke-Checked "Wally" { wally install }

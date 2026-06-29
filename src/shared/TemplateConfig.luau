@@ -106,6 +106,37 @@ local Config = {
 		lootboxOpen = "",
 		spin = "",
 	},
+
+	-- Upload the matching files from assets/icons/gvesster-basic, then paste the
+	-- Roblox image asset IDs here. Leave an entry empty to keep its authored
+	-- Studio fallback visible.
+	icons = {
+		bag = "",
+		shop = "",
+		rewards = "",
+		profile = "",
+		more = "",
+		codes = "",
+		leaderboard = "",
+		community = "",
+		feedback = "",
+		settings = "",
+		coin = "",
+		daily = "",
+		offline = "",
+		premium = "",
+		search = "",
+		close = "",
+		likes = "",
+		friends = "",
+		notifications = "",
+		cart = "",
+		verification = "",
+		item = "",
+		starterTool = "",
+		potionX2 = "",
+		potionX3 = "",
+	},
 }
 
 return table.freeze(Config)

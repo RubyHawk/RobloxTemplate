@@ -158,6 +158,18 @@
                         "TextColor3": [0.2039216, 0.4705882, 0.9647059],
                         "TextSize": 21
                       }
+                    },
+                    {
+                      "Name": "Icon",
+                      "ClassName": "ImageLabel",
+                      "Properties": {
+                        "BackgroundTransparency": 1,
+                        "Image": "",
+                        "Position": { "UDim2": [[0, 8], [0, 8]] },
+                        "ScaleType": "Fit",
+                        "Size": { "UDim2": [[1, -16], [1, -16]] },
+                        "Visible": false
+                      }
                     }
                   ]
                 },
@@ -355,6 +367,18 @@
                         "TextColor3": [0.4666667, 0.2509804, 0.0235294],
                         "TextSize": 22
                       }
+                    },
+                    {
+                      "Name": "Icon",
+                      "ClassName": "ImageLabel",
+                      "Properties": {
+                        "BackgroundTransparency": 1,
+                        "Image": "",
+                        "Position": { "UDim2": [[0, 6], [0, 6]] },
+                        "ScaleType": "Fit",
+                        "Size": { "UDim2": [[1, -12], [1, -12]] },
+                        "Visible": false
+                      }
                     }
                   ]
                 },
@@ -488,6 +512,19 @@
                     "TextSize": 26,
                     "ZIndex": 7
                   }
+                },
+                {
+                  "Name": "Icon",
+                  "ClassName": "ImageLabel",
+                  "Properties": {
+                    "BackgroundTransparency": 1,
+                    "Image": "",
+                    "Position": { "UDim2": [[0, 7], [0, 7]] },
+                    "ScaleType": "Fit",
+                    "Size": { "UDim2": [[1, -14], [1, -14]] },
+                    "Visible": false,
+                    "ZIndex": 7
+                  }
                 }
               ]
             },
@@ -619,7 +656,8 @@
                       "Properties": { "AnchorPoint": [0.5, 0], "BackgroundColor3": [0.2039216, 0.4705882, 0.9647059], "BorderSizePixel": 0, "Position": { "UDim2": [[0.5, 0], [0, 5]] }, "Size": { "UDim2": [[0, 36], [0, 36]] }, "ZIndex": 13 },
                       "Children": [
                         { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } } },
-                        { "Name": "Icon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "rbxasset://textures/ui/TopBar/inventoryOff@3x.png", "ImageColor3": [1, 1, 1], "Position": { "UDim2": [[0, 7], [0, 7]] }, "ScaleType": "Fit", "Size": { "UDim2": [[1, -14], [1, -14]] }, "ZIndex": 14 } }
+                        { "Name": "Icon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "rbxasset://textures/ui/TopBar/inventoryOff@3x.png", "ImageColor3": [1, 1, 1], "Position": { "UDim2": [[0, 7], [0, 7]] }, "ScaleType": "Fit", "Size": { "UDim2": [[1, -14], [1, -14]] }, "ZIndex": 14 } },
+                        { "Name": "PackIcon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "", "Position": { "UDim2": [[0, 5], [0, 5]] }, "ScaleType": "Fit", "Size": { "UDim2": [[1, -10], [1, -10]] }, "Visible": false, "ZIndex": 15 } }
                       ]
                     },
                     { "Name": "Label", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Position": { "UDim2": [[0, 2], [0, 45]] }, "Size": { "UDim2": [[1, -4], [0, 18]] }, "Text": "BAG", "TextColor3": [0.0862745, 0.1529412, 0.2862745], "TextSize": 12, "TextWrapped": true, "ZIndex": 13 } }
@@ -647,7 +685,8 @@
                       "Properties": { "AnchorPoint": [0.5, 0], "BackgroundColor3": [0.2039216, 0.4705882, 0.9647059], "BorderSizePixel": 0, "Position": { "UDim2": [[0.5, 0], [0, 5]] }, "Size": { "UDim2": [[0, 36], [0, 36]] }, "ZIndex": 13 },
                       "Children": [
                         { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } } },
-                        { "Name": "Icon", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Size": { "UDim2": [[1, 0], [1, 0]] }, "Text": "$", "TextColor3": [1, 1, 1], "TextSize": 22, "ZIndex": 14 } }
+                        { "Name": "Icon", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Size": { "UDim2": [[1, 0], [1, 0]] }, "Text": "$", "TextColor3": [1, 1, 1], "TextSize": 22, "ZIndex": 14 } },
+                        { "Name": "PackIcon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "", "Position": { "UDim2": [[0, 5], [0, 5]] }, "ScaleType": "Fit", "Size": { "UDim2": [[1, -10], [1, -10]] }, "Visible": false, "ZIndex": 15 } }
                       ]
                     },
                     { "Name": "Label", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Position": { "UDim2": [[0, 2], [0, 45]] }, "Size": { "UDim2": [[1, -4], [0, 18]] }, "Text": "SHOP", "TextColor3": [0.0862745, 0.1529412, 0.2862745], "TextSize": 12, "TextWrapped": true, "ZIndex": 13 } }
@@ -675,7 +714,8 @@
                       "Properties": { "AnchorPoint": [0.5, 0], "BackgroundColor3": [1, 0.7686275, 0.1803922], "BorderSizePixel": 0, "Position": { "UDim2": [[0.5, 0], [0, 5]] }, "Size": { "UDim2": [[0, 36], [0, 36]] }, "ZIndex": 13 },
                       "Children": [
                         { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } } },
-                        { "Name": "Icon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "rbxasset://textures/ui/InspectMenu/ico_favorite@3x.png", "ImageColor3": [1, 1, 1], "Position": { "UDim2": [[0, 8], [0, 8]] }, "ScaleType": "Fit", "Size": { "UDim2": [[1, -16], [1, -16]] }, "ZIndex": 14 } }
+                        { "Name": "Icon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "rbxasset://textures/ui/InspectMenu/ico_favorite@3x.png", "ImageColor3": [1, 1, 1], "Position": { "UDim2": [[0, 8], [0, 8]] }, "ScaleType": "Fit", "Size": { "UDim2": [[1, -16], [1, -16]] }, "ZIndex": 14 } },
+                        { "Name": "PackIcon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "", "Position": { "UDim2": [[0, 5], [0, 5]] }, "ScaleType": "Fit", "Size": { "UDim2": [[1, -10], [1, -10]] }, "Visible": false, "ZIndex": 15 } }
                       ]
                     },
                     { "Name": "Label", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Position": { "UDim2": [[0, 2], [0, 45]] }, "Size": { "UDim2": [[1, -4], [0, 18]] }, "Text": "REWARDS", "TextColor3": [0.4666667, 0.2509804, 0.0235294], "TextSize": 11, "TextWrapped": true, "ZIndex": 13 } }
@@ -703,7 +743,8 @@
                       "Properties": { "AnchorPoint": [0.5, 0], "BackgroundColor3": [0.2039216, 0.4705882, 0.9647059], "BorderSizePixel": 0, "Position": { "UDim2": [[0.5, 0], [0, 5]] }, "Size": { "UDim2": [[0, 36], [0, 36]] }, "ZIndex": 13 },
                       "Children": [
                         { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } } },
-                        { "Name": "Icon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "rbxasset://textures/ui/Settings/MenuBarIcons/PlayersTabIcon@2x.png", "ImageColor3": [1, 1, 1], "Position": { "UDim2": [[0, 7], [0, 7]] }, "ScaleType": "Fit", "Size": { "UDim2": [[1, -14], [1, -14]] }, "ZIndex": 14 } }
+                        { "Name": "Icon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "rbxasset://textures/ui/Settings/MenuBarIcons/PlayersTabIcon@2x.png", "ImageColor3": [1, 1, 1], "Position": { "UDim2": [[0, 7], [0, 7]] }, "ScaleType": "Fit", "Size": { "UDim2": [[1, -14], [1, -14]] }, "ZIndex": 14 } },
+                        { "Name": "PackIcon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "", "Position": { "UDim2": [[0, 5], [0, 5]] }, "ScaleType": "Fit", "Size": { "UDim2": [[1, -10], [1, -10]] }, "Visible": false, "ZIndex": 15 } }
                       ]
                     },
                     { "Name": "Label", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Position": { "UDim2": [[0, 2], [0, 45]] }, "Size": { "UDim2": [[1, -4], [0, 18]] }, "Text": "PROFILE", "TextColor3": [0.0862745, 0.1529412, 0.2862745], "TextSize": 11, "TextWrapped": true, "ZIndex": 13 } }
@@ -731,7 +772,8 @@
                       "Properties": { "AnchorPoint": [0.5, 0], "BackgroundColor3": [0.2039216, 0.4705882, 0.9647059], "BorderSizePixel": 0, "Position": { "UDim2": [[0.5, 0], [0, 5]] }, "Size": { "UDim2": [[0, 36], [0, 36]] }, "ZIndex": 13 },
                       "Children": [
                         { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } } },
-                        { "Name": "Icon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "rbxasset://textures/ui/TopBar/moreOff@3x.png", "ImageColor3": [1, 1, 1], "Position": { "UDim2": [[0, 7], [0, 7]] }, "ScaleType": "Fit", "Size": { "UDim2": [[1, -14], [1, -14]] }, "ZIndex": 14 } }
+                        { "Name": "Icon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "rbxasset://textures/ui/TopBar/moreOff@3x.png", "ImageColor3": [1, 1, 1], "Position": { "UDim2": [[0, 7], [0, 7]] }, "ScaleType": "Fit", "Size": { "UDim2": [[1, -14], [1, -14]] }, "ZIndex": 14 } },
+                        { "Name": "PackIcon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "", "Position": { "UDim2": [[0, 5], [0, 5]] }, "ScaleType": "Fit", "Size": { "UDim2": [[1, -10], [1, -10]] }, "Visible": false, "ZIndex": 15 } }
                       ]
                     },
                     { "Name": "Label", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Position": { "UDim2": [[0, 2], [0, 45]] }, "Size": { "UDim2": [[1, -4], [0, 18]] }, "Text": "MORE", "TextColor3": [0.0862745, 0.1529412, 0.2862745], "TextSize": 12, "TextWrapped": true, "ZIndex": 13 } }
@@ -802,7 +844,10 @@
                 "TextSize": 18,
                 "ZIndex": 32
               },
-              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 12] } } }]
+              "Children": [
+                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 12] } } },
+                { "Name": "Icon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "", "Position": { "UDim2": [[0, 9], [0, 9]] }, "ScaleType": "Fit", "Size": { "UDim2": [[1, -18], [1, -18]] }, "Visible": false, "ZIndex": 33 } }
+              ]
             },
             {
               "Name": "Buttons",
@@ -822,28 +867,58 @@
                 { "ClassName": "UIGridLayout", "Properties": { "CellPadding": { "UDim2": [[0, 10], [0, 10]] }, "CellSize": { "UDim2": [[0.5, -5], [0, 68]] }, "FillDirectionMaxCells": 2, "SortOrder": "LayoutOrder" } },
                 {
                   "Name": "CodesButton", "ClassName": "TextButton",
-                  "Properties": { "AutoButtonColor": false, "BackgroundColor3": [1, 1, 1], "BorderSizePixel": 0, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "LayoutOrder": 1, "Size": { "UDim2": [[1, 0], [0, 68]] }, "Text": "#  CODES & LIKES", "TextColor3": [0.0862745, 0.1529412, 0.2862745], "TextSize": 14, "TextWrapped": true, "ZIndex": 32 },
-                  "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 15] } } }, { "ClassName": "UIStroke", "Properties": { "Color": [0.1215686, 0.2392157, 0.4392157], "Thickness": 2, "Transparency": 0.75 } }]
+                  "Properties": { "AutoButtonColor": false, "BackgroundColor3": [1, 1, 1], "BorderSizePixel": 0, "LayoutOrder": 1, "Size": { "UDim2": [[1, 0], [0, 68]] }, "Text": "", "ZIndex": 32 },
+                  "Children": [
+                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 15] } } },
+                    { "ClassName": "UIStroke", "Properties": { "Color": [0.1215686, 0.2392157, 0.4392157], "Thickness": 2, "Transparency": 0.75 } },
+                    { "Name": "Fallback", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Position": { "UDim2": [[0, 10], [0.5, -19]] }, "Size": { "UDim2": [[0, 38], [0, 38]] }, "Text": "#", "TextColor3": [0.2039216, 0.4705882, 0.9647059], "TextSize": 21, "ZIndex": 33 } },
+                    { "Name": "Icon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "", "Position": { "UDim2": [[0, 14], [0.5, -15]] }, "ScaleType": "Fit", "Size": { "UDim2": [[0, 30], [0, 30]] }, "Visible": false, "ZIndex": 34 } },
+                    { "Name": "Label", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Position": { "UDim2": [[0, 52], [0, 8]] }, "Size": { "UDim2": [[1, -60], [1, -16]] }, "Text": "CODES & LIKES", "TextColor3": [0.0862745, 0.1529412, 0.2862745], "TextSize": 13, "TextWrapped": true, "TextXAlignment": "Left", "ZIndex": 33 } }
+                  ]
                 },
                 {
                   "Name": "BoardsButton", "ClassName": "TextButton",
-                  "Properties": { "AutoButtonColor": false, "BackgroundColor3": [1, 1, 1], "BorderSizePixel": 0, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "LayoutOrder": 2, "Size": { "UDim2": [[1, 0], [0, 68]] }, "Text": "1st  TOP PLAYERS", "TextColor3": [0.0862745, 0.1529412, 0.2862745], "TextSize": 14, "TextWrapped": true, "ZIndex": 32 },
-                  "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 15] } } }, { "ClassName": "UIStroke", "Properties": { "Color": [0.1215686, 0.2392157, 0.4392157], "Thickness": 2, "Transparency": 0.75 } }]
+                  "Properties": { "AutoButtonColor": false, "BackgroundColor3": [1, 1, 1], "BorderSizePixel": 0, "LayoutOrder": 2, "Size": { "UDim2": [[1, 0], [0, 68]] }, "Text": "", "ZIndex": 32 },
+                  "Children": [
+                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 15] } } },
+                    { "ClassName": "UIStroke", "Properties": { "Color": [0.1215686, 0.2392157, 0.4392157], "Thickness": 2, "Transparency": 0.75 } },
+                    { "Name": "Fallback", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Position": { "UDim2": [[0, 10], [0.5, -19]] }, "Size": { "UDim2": [[0, 38], [0, 38]] }, "Text": "1st", "TextColor3": [0.2039216, 0.4705882, 0.9647059], "TextSize": 14, "ZIndex": 33 } },
+                    { "Name": "Icon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "", "Position": { "UDim2": [[0, 14], [0.5, -15]] }, "ScaleType": "Fit", "Size": { "UDim2": [[0, 30], [0, 30]] }, "Visible": false, "ZIndex": 34 } },
+                    { "Name": "Label", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Position": { "UDim2": [[0, 52], [0, 8]] }, "Size": { "UDim2": [[1, -60], [1, -16]] }, "Text": "TOP PLAYERS", "TextColor3": [0.0862745, 0.1529412, 0.2862745], "TextSize": 13, "TextWrapped": true, "TextXAlignment": "Left", "ZIndex": 33 } }
+                  ]
                 },
                 {
                   "Name": "CommunityButton", "ClassName": "TextButton",
-                  "Properties": { "AutoButtonColor": false, "BackgroundColor3": [1, 1, 1], "BorderSizePixel": 0, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "LayoutOrder": 3, "Size": { "UDim2": [[1, 0], [0, 68]] }, "Text": "+  COMMUNITY", "TextColor3": [0.0862745, 0.1529412, 0.2862745], "TextSize": 14, "TextWrapped": true, "ZIndex": 32 },
-                  "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 15] } } }, { "ClassName": "UIStroke", "Properties": { "Color": [0.1215686, 0.2392157, 0.4392157], "Thickness": 2, "Transparency": 0.75 } }]
+                  "Properties": { "AutoButtonColor": false, "BackgroundColor3": [1, 1, 1], "BorderSizePixel": 0, "LayoutOrder": 3, "Size": { "UDim2": [[1, 0], [0, 68]] }, "Text": "", "ZIndex": 32 },
+                  "Children": [
+                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 15] } } },
+                    { "ClassName": "UIStroke", "Properties": { "Color": [0.1215686, 0.2392157, 0.4392157], "Thickness": 2, "Transparency": 0.75 } },
+                    { "Name": "Fallback", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Position": { "UDim2": [[0, 10], [0.5, -19]] }, "Size": { "UDim2": [[0, 38], [0, 38]] }, "Text": "+", "TextColor3": [0.2039216, 0.4705882, 0.9647059], "TextSize": 22, "ZIndex": 33 } },
+                    { "Name": "Icon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "", "Position": { "UDim2": [[0, 14], [0.5, -15]] }, "ScaleType": "Fit", "Size": { "UDim2": [[0, 30], [0, 30]] }, "Visible": false, "ZIndex": 34 } },
+                    { "Name": "Label", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Position": { "UDim2": [[0, 52], [0, 8]] }, "Size": { "UDim2": [[1, -60], [1, -16]] }, "Text": "COMMUNITY", "TextColor3": [0.0862745, 0.1529412, 0.2862745], "TextSize": 13, "TextWrapped": true, "TextXAlignment": "Left", "ZIndex": 33 } }
+                  ]
                 },
                 {
                   "Name": "FeedbackButton", "ClassName": "TextButton",
-                  "Properties": { "AutoButtonColor": false, "BackgroundColor3": [1, 1, 1], "BorderSizePixel": 0, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "LayoutOrder": 4, "Size": { "UDim2": [[1, 0], [0, 68]] }, "Text": "!  FEEDBACK", "TextColor3": [0.0862745, 0.1529412, 0.2862745], "TextSize": 14, "TextWrapped": true, "ZIndex": 32 },
-                  "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 15] } } }, { "ClassName": "UIStroke", "Properties": { "Color": [0.1215686, 0.2392157, 0.4392157], "Thickness": 2, "Transparency": 0.75 } }]
+                  "Properties": { "AutoButtonColor": false, "BackgroundColor3": [1, 1, 1], "BorderSizePixel": 0, "LayoutOrder": 4, "Size": { "UDim2": [[1, 0], [0, 68]] }, "Text": "", "ZIndex": 32 },
+                  "Children": [
+                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 15] } } },
+                    { "ClassName": "UIStroke", "Properties": { "Color": [0.1215686, 0.2392157, 0.4392157], "Thickness": 2, "Transparency": 0.75 } },
+                    { "Name": "Fallback", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Position": { "UDim2": [[0, 10], [0.5, -19]] }, "Size": { "UDim2": [[0, 38], [0, 38]] }, "Text": "!", "TextColor3": [0.2039216, 0.4705882, 0.9647059], "TextSize": 22, "ZIndex": 33 } },
+                    { "Name": "Icon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "", "Position": { "UDim2": [[0, 14], [0.5, -15]] }, "ScaleType": "Fit", "Size": { "UDim2": [[0, 30], [0, 30]] }, "Visible": false, "ZIndex": 34 } },
+                    { "Name": "Label", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Position": { "UDim2": [[0, 52], [0, 8]] }, "Size": { "UDim2": [[1, -60], [1, -16]] }, "Text": "FEEDBACK", "TextColor3": [0.0862745, 0.1529412, 0.2862745], "TextSize": 13, "TextWrapped": true, "TextXAlignment": "Left", "ZIndex": 33 } }
+                  ]
                 },
                 {
                   "Name": "SettingsButton", "ClassName": "TextButton",
-                  "Properties": { "AutoButtonColor": false, "BackgroundColor3": [1, 1, 1], "BorderSizePixel": 0, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "LayoutOrder": 5, "Size": { "UDim2": [[1, 0], [0, 68]] }, "Text": "O  SETTINGS", "TextColor3": [0.0862745, 0.1529412, 0.2862745], "TextSize": 14, "TextWrapped": true, "ZIndex": 32 },
-                  "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 15] } } }, { "ClassName": "UIStroke", "Properties": { "Color": [0.1215686, 0.2392157, 0.4392157], "Thickness": 2, "Transparency": 0.75 } }]
+                  "Properties": { "AutoButtonColor": false, "BackgroundColor3": [1, 1, 1], "BorderSizePixel": 0, "LayoutOrder": 5, "Size": { "UDim2": [[1, 0], [0, 68]] }, "Text": "", "ZIndex": 32 },
+                  "Children": [
+                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 15] } } },
+                    { "ClassName": "UIStroke", "Properties": { "Color": [0.1215686, 0.2392157, 0.4392157], "Thickness": 2, "Transparency": 0.75 } },
+                    { "Name": "Fallback", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Position": { "UDim2": [[0, 10], [0.5, -19]] }, "Size": { "UDim2": [[0, 38], [0, 38]] }, "Text": "O", "TextColor3": [0.2039216, 0.4705882, 0.9647059], "TextSize": 19, "ZIndex": 33 } },
+                    { "Name": "Icon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "", "Position": { "UDim2": [[0, 14], [0.5, -15]] }, "ScaleType": "Fit", "Size": { "UDim2": [[0, 30], [0, 30]] }, "Visible": false, "ZIndex": 34 } },
+                    { "Name": "Label", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Position": { "UDim2": [[0, 52], [0, 8]] }, "Size": { "UDim2": [[1, -60], [1, -16]] }, "Text": "SETTINGS", "TextColor3": [0.0862745, 0.1529412, 0.2862745], "TextSize": 13, "TextWrapped": true, "TextXAlignment": "Left", "ZIndex": 33 } }
+                  ]
                 }
               ]
             }
@@ -900,7 +975,10 @@
                 "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
                 "Position": { "UDim2": [[1, -14], [0, 14]] }, "Size": { "UDim2": [[0, 44], [0, 44]] }, "Text": "×", "TextColor3": [1, 1, 1], "TextSize": 25, "ZIndex": 43
               },
-              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 12] } } }]
+              "Children": [
+                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 12] } } },
+                { "Name": "Icon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "", "Position": { "UDim2": [[0, 10], [0, 10]] }, "ScaleType": "Fit", "Size": { "UDim2": [[1, -20], [1, -20]] }, "Visible": false, "ZIndex": 44 } }
+              ]
             },
             {
               "Name": "Content",
@@ -933,7 +1011,8 @@
               "Properties": { "BackgroundColor3": [1, 0.7686275, 0.1803922], "BorderSizePixel": 0, "Position": { "UDim2": [[0, 10], [0.5, -22]] }, "Size": { "UDim2": [[0, 44], [0, 44]] }, "ZIndex": 101 },
               "Children": [
                 { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } } },
-                { "Name": "Symbol", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Size": { "UDim2": [[1, 0], [1, 0]] }, "Text": "!", "TextColor3": [0.4666667, 0.2509804, 0.0235294], "TextSize": 24, "ZIndex": 102 } }
+                { "Name": "Symbol", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" }, "Size": { "UDim2": [[1, 0], [1, 0]] }, "Text": "!", "TextColor3": [0.4666667, 0.2509804, 0.0235294], "TextSize": 24, "ZIndex": 102 } },
+                { "Name": "Icon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "", "Position": { "UDim2": [[0, 7], [0, 7]] }, "ScaleType": "Fit", "Size": { "UDim2": [[1, -14], [1, -14]] }, "Visible": false, "ZIndex": 103 } }
               ]
             },
             {
