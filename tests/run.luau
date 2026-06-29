@@ -137,6 +137,9 @@ for _, requiredObject in
 		'"Name": "MoreButton"',
 		'"Name": "MoreMenu"',
 		'"Name": "ScreenTemplate"',
+		'"Name": "ItemCardTemplate"',
+		'"Name": "RewardTileTemplate"',
+		'"Name": "AddCoinsButton"',
 	}
 do
 	expectEqual(
@@ -146,12 +149,22 @@ do
 	)
 end
 expectEqual(
+	string.find(connectedUi, '"AnchorPoint": [0.5, 1]', 1, true) ~= nil,
+	true,
+	"connected UI uses a compact bottom navigation dock"
+)
+expectEqual(
 	string.find(connectedUi, '"Text": "TOP"', 1, true),
 	nil,
 	"secondary actions are not crowded into the main navigation"
 )
 
 local screenCopy = fs.readFile("src/client/UI/Screens.luau")
+expectEqual(
+	string.find(screenCopy, "RewardTileTemplate", 1, true) ~= nil,
+	true,
+	"daily rewards use the authored visual tile template"
+)
 for _, developerFacingCopy in { "Project defaults", "Verification is scaffolded", "Discord" } do
 	expectEqual(
 		string.find(screenCopy, developerFacingCopy, 1, true),

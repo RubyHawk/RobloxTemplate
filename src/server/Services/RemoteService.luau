@@ -60,6 +60,7 @@ function RemoteService.snapshot(player: Player): any
 		potionMultiplier = Calculations.potionMultiplier(profile.boosts, os.time()),
 		offline = RewardService.getPendingOffline(player),
 		likes = likes,
+		dailyRewards = Config.rewards.daily,
 		likesMilestones = Config.rewards.likesMilestones,
 		serverLeaderboard = LeaderboardService.serverBoard(),
 		productAvailability = {

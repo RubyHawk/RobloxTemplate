@@ -8,6 +8,18 @@ local UIFactory = require(script.Parent.UIFactory)
 
 local Screens = {}
 
+local function authoredTemplate(parent: Instance, name: string, className: string): Instance
+	local screenGui = parent:FindFirstAncestorWhichIsA("ScreenGui")
+	local root = if screenGui then screenGui:FindFirstChild("Root") else nil
+	local templates = if root then root:FindFirstChild("ComponentTemplates") else nil
+	local template = if templates then templates:FindFirstChild(name) else nil
+	assert(
+		template and template.ClassName == className,
+		`TemplateUI.Root.ComponentTemplates.{name} must be a {className}`
+	)
+	return template
+end
+
 local function base(parent: Instance, title: string, close: () -> ()): (Frame, ScrollingFrame)
 	local template = parent.Parent and parent.Parent:FindFirstChild("ScreenTemplate")
 	assert(template and template:IsA("Frame"), "TemplateUI.Root.ScreenTemplate must be a Frame")
@@ -25,14 +37,7 @@ local function base(parent: Instance, title: string, close: () -> ()): (Frame, S
 end
 
 local function row(parent: Instance, title: string, body: string): Frame
-	local screenGui = parent:FindFirstAncestorWhichIsA("ScreenGui")
-	local root = if screenGui then screenGui:FindFirstChild("Root") else nil
-	local templates = if root then root:FindFirstChild("ComponentTemplates") else nil
-	local template = if templates then templates:FindFirstChild("RowTemplate") else nil
-	assert(
-		template and template:IsA("Frame"),
-		"TemplateUI.Root.ComponentTemplates.RowTemplate must be a Frame"
-	)
+	local template = authoredTemplate(parent, "RowTemplate", "Frame") :: Frame
 	local card = template:Clone()
 	card.Name = title
 	card.Visible = true
@@ -40,8 +45,69 @@ local function row(parent: Instance, title: string, body: string): Frame
 	titleLabel.Text = title
 	local bodyLabel = card:WaitForChild("Body") :: TextLabel
 	bodyLabel.Text = body
+	local iconBadge = card:WaitForChild("IconBadge") :: Frame
+	local symbol = iconBadge:WaitForChild("Symbol") :: TextLabel
+	symbol.Text = string.upper(string.sub(title, 1, 1))
 	card.Parent = parent
 	return card
+end
+
+local function itemCard(
+	parent: Instance,
+	title: string,
+	body: string,
+	actionText: string,
+	onActivated: () -> (),
+	display: { glyph: string?, icon: string? }?
+): Frame
+	local template = authoredTemplate(parent, "ItemCardTemplate", "Frame") :: Frame
+	local card = template:Clone()
+	card.Name = title
+	card.Visible = true
+	local titleLabel = card:WaitForChild("Title") :: TextLabel
+	titleLabel.Text = title
+	local bodyLabel = card:WaitForChild("Body") :: TextLabel
+	bodyLabel.Text = body
+	local artwork = card:WaitForChild("Artwork") :: Frame
+	local glyph = artwork:WaitForChild("Glyph") :: TextLabel
+	local icon = artwork:WaitForChild("Icon") :: ImageLabel
+	if display and display.icon and display.icon ~= "" then
+		icon.Image = display.icon
+		icon.Visible = true
+		glyph.Visible = false
+	else
+		glyph.Text = if display and display.glyph
+			then display.glyph
+			else string.upper(string.sub(title, 1, 1))
+	end
+	local action = card:WaitForChild("ActionButton") :: TextButton
+	action.Text = actionText
+	action.AutoButtonColor = true
+	action.Activated:Connect(onActivated)
+	card.Parent = parent
+	return card
+end
+
+local function rewardTile(parent: Instance, day: number, amount: number, nextDay: number): Frame
+	local template = authoredTemplate(parent, "RewardTileTemplate", "Frame") :: Frame
+	local tile = template:Clone()
+	tile.Name = `Day{day}`
+	tile.LayoutOrder = day
+	tile.Visible = true
+	local dayLabel = tile:WaitForChild("DayLabel") :: TextLabel
+	dayLabel.Text = `DAY {day}`
+	local amountLabel = tile:WaitForChild("AmountLabel") :: TextLabel
+	amountLabel.Text = `+{UIFactory.formatNumber(amount)}`
+	local stateLabel = tile:WaitForChild("StateLabel") :: TextLabel
+	if day == nextDay then
+		tile.BackgroundColor3 = Theme.colors.surfaceRaised
+		stateLabel.Text = "NEXT REWARD"
+		stateLabel.TextColor3 = Theme.colors.primary
+	else
+		stateLabel.Text = "COINS"
+	end
+	tile.Parent = parent
+	return tile
 end
 
 function Screens.inventory(parent: Instance, context: any): Frame
@@ -53,18 +119,23 @@ function Screens.inventory(parent: Instance, context: any): Frame
 			anyItem = true
 			local definition = context.state.catalog[itemId]
 			if definition then
-				local card = row(content, `{definition.name}  ×{entry.quantity}`, definition.description)
 				local action = if definition.category == "Consumable" then "UseItem" else "ToggleEquip"
 				local label = if definition.category == "Consumable"
 					then "USE"
 					else if entry.equipped then "UNEQUIP" else "EQUIP"
-				UIFactory.button(card, label, function()
-					context.request(action, { itemId = itemId })
-				end, {
-					AnchorPoint = Vector2.new(1, 0.5),
-					Position = UDim2.new(1, -10, 0.5, 0),
-					Size = UDim2.fromOffset(106, 44),
-				})
+				itemCard(
+					content,
+					`{definition.name}  ×{entry.quantity}`,
+					definition.description,
+					label,
+					function()
+						context.request(action, { itemId = itemId })
+					end,
+					{
+						glyph = if definition.boostMultiplier then `x{definition.boostMultiplier}` else nil,
+						icon = definition.icon,
+					}
+				)
 			end
 		end
 	end
@@ -78,39 +149,46 @@ function Screens.store(parent: Instance, context: any): Frame
 	local root, content = base(parent, "Shop", context.close)
 	for itemId, definition in context.state.catalog do
 		if definition.priceCoins then
-			local card =
-				row(content, definition.name, `{definition.description}  •  {definition.priceCoins} Coins`)
-			UIFactory.button(card, "BUY", function()
-				context.request("BuyItem", { itemId = itemId })
-			end, {
-				AnchorPoint = Vector2.new(1, 0.5),
-				Position = UDim2.new(1, -10, 0.5, 0),
-				Size = UDim2.fromOffset(92, 44),
-				BackgroundColor3 = Theme.colors.success,
-			})
+			itemCard(
+				content,
+				definition.name,
+				`{definition.description}  •  {UIFactory.formatNumber(definition.priceCoins)} Coins`,
+				"BUY",
+				function()
+					context.request("BuyItem", { itemId = itemId })
+				end,
+				{
+					glyph = if definition.boostMultiplier then `x{definition.boostMultiplier}` else nil,
+					icon = definition.icon,
+				}
+			)
 		end
 	end
 	if context.state.productAvailability.coinPackSmall then
-		local card = row(content, "Small Coins Pack", "Direct developer product; Roblox confirms the price.")
-		UIFactory.button(card, "ROBUX", function()
-			context.promptProduct("coinPackSmall")
-		end, {
-			AnchorPoint = Vector2.new(1, 0.5),
-			Position = UDim2.new(1, -10, 0.5, 0),
-			Size = UDim2.fromOffset(92, 44),
-		})
+		itemCard(
+			content,
+			"Small Coins Pack",
+			"A quick coin top-up. Roblox shows the final price.",
+			"VIEW",
+			function()
+				context.promptProduct("coinPackSmall")
+			end,
+			{ glyph = "C" }
+		)
 	else
 		row(content, "Coin packs", "More shop options are coming soon!")
 	end
 	if context.state.productAvailability.coinPackLarge then
-		local card = row(content, "Large Coins Pack", "Direct developer product; Roblox confirms the price.")
-		UIFactory.button(card, "ROBUX", function()
-			context.promptProduct("coinPackLarge")
-		end, {
-			AnchorPoint = Vector2.new(1, 0.5),
-			Position = UDim2.new(1, -10, 0.5, 0),
-			Size = UDim2.fromOffset(92, 44),
-		})
+		itemCard(
+			content,
+			"Large Coins Pack",
+			"A larger coin top-up. Roblox shows the final price.",
+			"VIEW",
+			function()
+				context.promptProduct("coinPackLarge")
+			end,
+			{ glyph = "C" }
+		)
 	end
 	local premiumText = if context.state.profile.entitlements.premium
 		then "Active: permanent +10% Coins bonus."
@@ -133,6 +211,26 @@ function Screens.rewards(parent: Instance, context: any): Frame
 		`Daily streak: Day {context.state.profile.daily.streak}`,
 		"Come back tomorrow to keep your streak going!"
 	)
+	local rewardStrip = Instance.new("ScrollingFrame")
+	rewardStrip.Name = "RewardStrip"
+	rewardStrip.AutomaticCanvasSize = Enum.AutomaticSize.X
+	rewardStrip.BackgroundTransparency = 1
+	rewardStrip.BorderSizePixel = 0
+	rewardStrip.CanvasSize = UDim2.new()
+	rewardStrip.ScrollingDirection = Enum.ScrollingDirection.X
+	rewardStrip.ScrollBarImageColor3 = Theme.colors.primary
+	rewardStrip.ScrollBarThickness = 4
+	rewardStrip.Size = UDim2.new(1, -8, 0, 142)
+	local rewardLayout = Instance.new("UIListLayout")
+	rewardLayout.FillDirection = Enum.FillDirection.Horizontal
+	rewardLayout.Padding = UDim.new(0, 8)
+	rewardLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	rewardLayout.Parent = rewardStrip
+	rewardStrip.Parent = content
+	local nextRewardDay = math.clamp(context.state.profile.daily.streak + 1, 1, 7)
+	for day, amount in context.state.dailyRewards do
+		rewardTile(rewardStrip, day, amount, nextRewardDay)
+	end
 	UIFactory.button(content, "CLAIM DAILY REWARD", function()
 		context.request("ClaimDaily", {})
 	end)
