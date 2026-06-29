@@ -3,10 +3,30 @@
 local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
+local IconCatalog = require(Shared.IconCatalog)
 local Theme = require(Shared.Theme)
 local UIFactory = require(script.Parent.UIFactory)
 
+type IconName = IconCatalog.IconName
+
 local Screens = {}
+
+local function applyIcon(container: Instance, name: IconName)
+	local icon = container:FindFirstChild("Icon")
+	if not icon or not icon:IsA("ImageLabel") then
+		return
+	end
+	local content = IconCatalog.get(name)
+	if content == "" then
+		return
+	end
+	icon.Image = content
+	icon.Visible = true
+	local fallback = container:FindFirstChild("Symbol") or container:FindFirstChild("Fallback")
+	if fallback and fallback:IsA("GuiObject") then
+		fallback.Visible = false
+	end
+end
 
 local function authoredTemplate(parent: Instance, name: string, className: string): Instance
 	local screenGui = parent:FindFirstAncestorWhichIsA("ScreenGui")
@@ -30,13 +50,17 @@ local function base(parent: Instance, title: string, close: () -> ()): (Frame, S
 	local titleLabel = root:WaitForChild("Title") :: TextLabel
 	titleLabel.Text = title
 	local closeButton = root:WaitForChild("CloseButton") :: TextButton
+	applyIcon(closeButton, "close")
+	if IconCatalog.get("close") ~= "" then
+		closeButton.Text = ""
+	end
 	closeButton.Activated:Connect(close)
 	local content = root:WaitForChild("Content") :: ScrollingFrame
 	root.Parent = parent
 	return root, content
 end
 
-local function row(parent: Instance, title: string, body: string): Frame
+local function row(parent: Instance, title: string, body: string, iconName: IconName?): Frame
 	local template = authoredTemplate(parent, "RowTemplate", "Frame") :: Frame
 	local card = template:Clone()
 	card.Name = title
@@ -48,6 +72,9 @@ local function row(parent: Instance, title: string, body: string): Frame
 	local iconBadge = card:WaitForChild("IconBadge") :: Frame
 	local symbol = iconBadge:WaitForChild("Symbol") :: TextLabel
 	symbol.Text = string.upper(string.sub(title, 1, 1))
+	if iconName then
+		applyIcon(iconBadge, iconName)
+	end
 	card.Parent = parent
 	return card
 end
@@ -99,6 +126,7 @@ local function rewardTile(parent: Instance, day: number, amount: number, nextDay
 	local amountLabel = tile:WaitForChild("AmountLabel") :: TextLabel
 	amountLabel.Text = `+{UIFactory.formatNumber(amount)}`
 	local stateLabel = tile:WaitForChild("StateLabel") :: TextLabel
+	applyIcon(tile:WaitForChild("CoinBadge"), "coin")
 	if day == nextDay then
 		tile.BackgroundColor3 = Theme.colors.surfaceRaised
 		stateLabel.Text = "NEXT REWARD"
@@ -140,7 +168,7 @@ function Screens.inventory(parent: Instance, context: any): Frame
 		end
 	end
 	if not anyItem then
-		row(content, "Your bag is empty", "Items and boosts you collect will appear here.")
+		row(content, "Your bag is empty", "Items and boosts you collect will appear here.", "item")
 	end
 	return root
 end
@@ -176,7 +204,7 @@ function Screens.store(parent: Instance, context: any): Frame
 			{ glyph = "C" }
 		)
 	else
-		row(content, "Coin packs", "More shop options are coming soon!")
+		row(content, "Coin packs", "More shop options are coming soon!", "cart")
 	end
 	if context.state.productAvailability.coinPackLarge then
 		itemCard(
@@ -193,7 +221,7 @@ function Screens.store(parent: Instance, context: any): Frame
 	local premiumText = if context.state.profile.entitlements.premium
 		then "Active: permanent +10% Coins bonus."
 		else "Roblox Premium members receive a permanent +10% Coins bonus."
-	local premiumCard = row(content, "Roblox Premium", premiumText)
+	local premiumCard = row(content, "Roblox Premium", premiumText, "premium")
 	if not context.state.profile.entitlements.premium then
 		UIFactory.button(premiumCard, "VIEW", context.promptPremium, {
 			AnchorPoint = Vector2.new(1, 0.5),
@@ -209,7 +237,8 @@ function Screens.rewards(parent: Instance, context: any): Frame
 	row(
 		content,
 		`Daily streak: Day {context.state.profile.daily.streak}`,
-		"Come back tomorrow to keep your streak going!"
+		"Come back tomorrow to keep your streak going!",
+		"daily"
 	)
 	local rewardStrip = Instance.new("ScrollingFrame")
 	rewardStrip.Name = "RewardStrip"
@@ -238,7 +267,8 @@ function Screens.rewards(parent: Instance, context: any): Frame
 	row(
 		content,
 		"Offline earnings",
-		`{UIFactory.formatNumber(pending.amount)} Coins ready from {math.floor(pending.elapsed / 60)} minutes.`
+		`{UIFactory.formatNumber(pending.amount)} Coins ready from {math.floor(pending.elapsed / 60)} minutes.`,
+		"offline"
 	)
 	UIFactory.button(content, "CLAIM OFFLINE EARNINGS", function()
 		context.request("ClaimOffline", {})
@@ -260,8 +290,10 @@ function Screens.profile(parent: Instance, context: any): Frame
 		Players.LocalPlayer.DisplayName,
 		`Coins: {UIFactory.formatNumber(profile.coins)}  •  Joins: {profile.stats.joins}  •  Playtime: {math.floor(
 			profile.stats.playSeconds / 60
-		)}m`
+		)}m`,
+		"profile"
 	)
+	row(content, "Find a player", "Search an exact Roblox username to view public stats.", "search")
 	local input = UIFactory.textBox(content, "Exact Roblox username")
 	local resultLabel = UIFactory.label(content, "Search for a Roblox player to see their public stats.", {
 		Size = UDim2.new(1, -8, 0, 54),
@@ -315,7 +347,12 @@ function Screens.settings(parent: Instance, context: any): Frame
 		end
 		context.request("UpdateSetting", { key = "uiScale", value = nextScale })
 	end)
-	row(content, "You're all set!", "Your choices save automatically. You can change them again any time.")
+	row(
+		content,
+		"You're all set!",
+		"Your choices save automatically. You can change them again any time.",
+		"settings"
+	)
 	return root
 end
 
@@ -345,14 +382,15 @@ function Screens.codes(parent: Instance, context: any): Frame
 	row(
 		content,
 		`Likes: {UIFactory.formatNumber(likes.value or 0)}`,
-		likes.reason or "Thanks for supporting the experience!"
+		likes.reason or "Thanks for supporting the experience!",
+		"likes"
 	)
 	for _, milestone in context.state.likesMilestones do
 		local unlocked = (likes.value or 0) >= milestone.likes
 		local detail = if unlocked
 			then `{milestone.label} - Code: {milestone.code}`
 			else `{milestone.label} - Locked`
-		row(content, `{milestone.likes} Likes`, detail)
+		row(content, `{milestone.likes} Likes`, detail, "codes")
 	end
 	local input = UIFactory.textBox(content, "Enter code")
 	UIFactory.button(content, "REDEEM CODE", function()
@@ -363,10 +401,15 @@ end
 
 local function leaderboardRows(content: Instance, rows: { any })
 	for index, entry in rows do
-		row(content, `#{entry.rank or index}  {entry.name}`, `{UIFactory.formatNumber(entry.value)} Coins`)
+		row(
+			content,
+			`#{entry.rank or index}  {entry.name}`,
+			`{UIFactory.formatNumber(entry.value)} Coins`,
+			"leaderboard"
+		)
 	end
 	if #rows == 0 then
-		row(content, "No players yet", "Leaderboard data appears after profiles load.")
+		row(content, "No players yet", "Leaderboard data appears after profiles load.", "friends")
 	end
 end
 
@@ -395,12 +438,14 @@ function Screens.verification(parent: Instance, context: any): Frame
 		"Roblox Community",
 		if availability.community
 			then "Community rewards are ready!"
-			else "Community rewards are coming soon."
+			else "Community rewards are coming soon.",
+		"verification"
 	)
 	row(
 		content,
 		"Clubs",
-		if availability.guilds then "Clubs are ready!" else "Team up with friends when clubs arrive later."
+		if availability.guilds then "Clubs are ready!" else "Team up with friends when clubs arrive later.",
+		"community"
 	)
 	return root
 end

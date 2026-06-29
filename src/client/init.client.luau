@@ -10,8 +10,11 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Template"):WaitForChild("Shared")
+local IconCatalog = require(Shared.IconCatalog)
 local RemoteNames = require(Shared.RemoteNames)
 local Theme = require(Shared.Theme)
+
+type IconName = IconCatalog.IconName
 
 local Controllers = script.Controllers
 local AudioController = require(Controllers.AudioController)
@@ -61,6 +64,32 @@ local screensLayer = root:WaitForChild("Screens") :: Frame
 local toast = root:WaitForChild("Toast") :: Frame
 local toastLabel = toast:WaitForChild("Message") :: TextLabel
 local toastToken = 0
+
+local function applyIcon(container: Instance, name: IconName, imageName: string, fallbackName: string?)
+	local image = container:FindFirstChild(imageName)
+	if not image or not image:IsA("ImageLabel") then
+		return
+	end
+	local content = IconCatalog.get(name)
+	if content == "" then
+		return
+	end
+	image.Image = content
+	image.Visible = true
+	if fallbackName then
+		local fallback = container:FindFirstChild(fallbackName)
+		if fallback and fallback:IsA("GuiObject") then
+			fallback.Visible = false
+		end
+	end
+end
+
+applyIcon(hud:WaitForChild("CoinBadge"), "coin", "Icon", "Symbol")
+applyIcon(toast:WaitForChild("IconBadge"), "notifications", "Icon", "Symbol")
+applyIcon(moreCloseButton, "close", "Icon", nil)
+if IconCatalog.get("close") ~= "" then
+	moreCloseButton.Text = ""
+end
 
 local function tweenInfo(duration: number, easingStyle: Enum.EasingStyle?): TweenInfo
 	local adjustedDuration = if GuiService.ReducedMotionEnabled then 0 else duration
@@ -270,14 +299,16 @@ rebuildScreens = function()
 end
 
 local navItems = {
-	{ "BagButton", "Inventory" },
-	{ "ShopButton", "Store" },
-	{ "GiftButton", "Rewards" },
-	{ "ProfileButton", "Profile" },
+	{ "BagButton", "Inventory", "bag" },
+	{ "ShopButton", "Store", "shop" },
+	{ "GiftButton", "Rewards", "rewards" },
+	{ "ProfileButton", "Profile", "profile" },
 }
 for _, item in navItems do
 	local button = navScroll:WaitForChild(item[1]) :: TextButton
 	local screenName = item[2]
+	local iconName = item[3] :: IconName
+	applyIcon(button:WaitForChild("IconBubble"), iconName, "PackIcon", "Icon")
 	local restingColor = button.BackgroundColor3
 	button.MouseEnter:Connect(function()
 		TweenService:Create(button, tweenInfo(0.12), { BackgroundColor3 = Theme.colors.surfaceRaised }):Play()
@@ -297,6 +328,7 @@ for _, item in navItems do
 end
 
 local moreButton = navScroll:WaitForChild("MoreButton") :: TextButton
+applyIcon(moreButton:WaitForChild("IconBubble"), "more", "PackIcon", "Icon")
 local moreButtonRestingColor = moreButton.BackgroundColor3
 moreButton.MouseEnter:Connect(function()
 	TweenService:Create(moreButton, tweenInfo(0.12), { BackgroundColor3 = Theme.colors.surfaceRaised }):Play()
@@ -326,15 +358,17 @@ addCoinsButton.Activated:Connect(function()
 end)
 
 local moreItems = {
-	{ "CodesButton", "Codes" },
-	{ "BoardsButton", "Boards" },
-	{ "CommunityButton", "Community" },
-	{ "FeedbackButton", "Feedback" },
-	{ "SettingsButton", "Settings" },
+	{ "CodesButton", "Codes", "codes" },
+	{ "BoardsButton", "Boards", "leaderboard" },
+	{ "CommunityButton", "Community", "community" },
+	{ "FeedbackButton", "Feedback", "feedback" },
+	{ "SettingsButton", "Settings", "settings" },
 }
 for _, item in moreItems do
 	local button = moreMenuButtons:WaitForChild(item[1]) :: TextButton
 	local screenName = item[2]
+	local iconName = item[3] :: IconName
+	applyIcon(button, iconName, "Icon", "Fallback")
 	local restingColor = button.BackgroundColor3
 	button.MouseEnter:Connect(function()
 		TweenService:Create(button, tweenInfo(0.12), { BackgroundColor3 = Theme.colors.surfaceRaised }):Play()

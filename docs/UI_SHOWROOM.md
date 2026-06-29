@@ -43,4 +43,4 @@ Rojo deliberately ignores unknown objects under StarterGui, so visual edits surv
 
 Keep the huge workbench on `template`. A finished starter branch should contain one coherent connected theme, not every showroom screen. Future theme branches should use names such as `playable-starter-bright`, `playable-starter-dark`, or `playable-starter-pastel`, each with its own saved place file.
 
-The supplied icon PNG files are local source art. Roblox cannot display local disk paths in a live experience; upload chosen icons through Roblox, then place their asset IDs on the relevant `ImageLabel` or `ImageButton`. Follow the included icon license.
+The connected UI is wired for all 25 selected Gvesster icons. Roblox cannot display local disk paths in a live experience, so follow [`ICON_PACK.md`](ICON_PACK.md) once to upload the files and paste their IDs into `TemplateConfig.icons`. Follow the included icon license.

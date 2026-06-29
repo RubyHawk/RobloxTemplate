@@ -31,6 +31,6 @@ Copy one item inside [`src/shared/Catalogs.luau`](../src/shared/Catalogs.luau), 
 
 Keep every ID at `0` or `""` until the corresponding asset exists. Then follow [`PLATFORM_SETUP.md`](PLATFORM_SETUP.md) and fill the `identity`, `products`, `notifications`, and `audio` sections.
 
-For inventory art, upload an icon through Roblox and put its asset ID in the matching catalog item's `icon` field. The card automatically hides its text fallback when a real icon is configured.
+For the included UI and inventory art, follow [`ICON_PACK.md`](ICON_PACK.md). All selected icons share the `TemplateConfig.icons` block and automatically replace their readable fallbacks after IDs are configured.
 
 After any change, double-click `3_CHECK.cmd`.
