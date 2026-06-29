@@ -4,7 +4,9 @@ Most values live in [`src/shared/TemplateConfig.luau`](../src/shared/TemplateCon
 
 ## Change colors
 
-For visual editing, open `StarterGui → TemplateUI → Root` in Studio. The HUD, navigation, screen shell, toast, and reusable component templates are ordinary editable GUI objects. Change colors, fonts, sizes, corners, strokes, and positions in Properties, then press Ctrl+S.
+For visual editing, open `StarterGui → TemplateUI → Root` in Studio. The HUD, bottom navigation dock, screen shell, toast, and reusable component templates are ordinary editable GUI objects. Change colors, fonts, sizes, corners, strokes, and positions in Properties, then press Ctrl+S.
+
+Inventory and store cards clone `ComponentTemplates → ItemCardTemplate`. Daily rewards clone `RewardTileTemplate`. Edit those templates once instead of restyling every screen in Luau.
 
 `src/shared/Theme.luau` contains behavior colors such as hover states. A programmer can change those when creating a full theme branch.
 
@@ -28,5 +30,7 @@ Copy one item inside [`src/shared/Catalogs.luau`](../src/shared/Catalogs.luau), 
 ## Add Roblox IDs later
 
 Keep every ID at `0` or `""` until the corresponding asset exists. Then follow [`PLATFORM_SETUP.md`](PLATFORM_SETUP.md) and fill the `identity`, `products`, `notifications`, and `audio` sections.
+
+For inventory art, upload an icon through Roblox and put its asset ID in the matching catalog item's `icon` field. The card automatically hides its text fallback when a real icon is configured.
 
 After any change, double-click `3_CHECK.cmd`.

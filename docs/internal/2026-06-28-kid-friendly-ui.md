@@ -6,9 +6,9 @@ The first connected HUD looked like a generic dark admin dashboard and placed ni
 
 ## Decision
 
-The connected UI now has one coin card and five primary actions: Bag, Shop, Rewards, Profile, and More. Codes, rankings, community, feedback, and settings live in a separate More drawer. The visual language is bright and playful, but every action remains text-labelled so meaning does not depend on color.
+The connected UI now has one compact coin card and a five-action bottom dock: Bag, Shop, Rewards, Profile, and More. Each primary action combines an icon with a short label. Codes, rankings, community, feedback, and settings live in a separate two-column menu. Inventory, store, and daily rewards use authored visual card templates rather than generic text-only rows.
 
-The UI uses large touch targets, high-contrast dark text on light surfaces or white text on saturated buttons, wrapped text, safe insets, and reduced-motion-aware tweens. It avoids countdown pressure, fake scarcity, and other manipulative patterns aimed at children.
+The UI uses one dominant blue identity with yellow reserved for rewards and green for positive actions. It keeps large touch targets, high-contrast dark text on light surfaces or white text on saturated buttons, wrapped text, safe insets, and reduced-motion-aware tweens. It avoids countdown pressure, fake scarcity, and other manipulative patterns aimed at children.
 
 ## Official guidance checked
 

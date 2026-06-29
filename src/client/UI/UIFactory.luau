@@ -123,7 +123,7 @@ function UIFactory.button(
 	end
 	local restingColor = object.BackgroundColor3
 	object.MouseEnter:Connect(function()
-		TweenService:Create(object, hoverTweenInfo(), { BackgroundColor3 = Theme.colors.secondary }):Play()
+		TweenService:Create(object, hoverTweenInfo(), { BackgroundColor3 = Theme.colors.primaryHover }):Play()
 	end)
 	object.MouseLeave:Connect(function()
 		TweenService:Create(object, hoverTweenInfo(), { BackgroundColor3 = restingColor }):Play()

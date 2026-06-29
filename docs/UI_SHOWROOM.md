@@ -21,14 +21,14 @@ The imported scripts were removed. In particular, the supplied notification syst
 
 ## Connected starter design
 
-`TemplateUI` targets a mainstream kid-friendly Roblox experience: a bright coin card, five large labelled actions, and one More drawer for secondary features. Color is never the only cue; every action has readable text. The connected starter is intentionally calmer than the visual reference packs.
+`TemplateUI` targets a mainstream kid-friendly Roblox experience: a compact coin card, five icon-and-label actions in a bottom dock, visual item cards, and a seven-day reward strip. Color is never the only cue; every action has readable text. The connected starter is intentionally calmer than the visual reference packs.
 
 ## What to edit
 
 Inside `TemplateUI → Root`:
 
 - edit **CurrencyHUD**, **Navigation**, **ScreenTemplate**, and **Toast** directly;
-- edit **ComponentTemplates → ButtonTemplate, TextBoxTemplate, LabelTemplate, RowTemplate** once to restyle every live screen;
+- edit **ComponentTemplates → ButtonTemplate, TextBoxTemplate, LabelTemplate, RowTemplate, ItemCardTemplate, RewardTileTemplate** once to restyle every live screen;
 - keep object names unchanged because the runtime binds behavior by those names.
 
 The lists inside inventory, shop, profiles, and leaderboards must be created at runtime because their data changes per player. They are not visually hardcoded: they clone the Studio-authored component templates.

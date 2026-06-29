@@ -51,6 +51,7 @@ local uiScale = root:WaitForChild("InterfaceScale") :: UIScale
 local hud = root:WaitForChild("CurrencyHUD") :: Frame
 local coinLabel = hud:WaitForChild("CoinLabel") :: TextLabel
 local boostLabel = hud:WaitForChild("BoostLabel") :: TextLabel
+local addCoinsButton = hud:WaitForChild("AddCoinsButton") :: TextButton
 local nav = root:WaitForChild("Navigation") :: Frame
 local navScroll = nav:WaitForChild("Buttons") :: ScrollingFrame
 local moreMenu = root:WaitForChild("MoreMenu") :: Frame
@@ -76,7 +77,7 @@ local function showToast(message: string)
 		:Play()
 	task.delay(3.5, function()
 		if token == toastToken then
-			TweenService:Create(toast, tweenInfo(0.2), { Position = UDim2.new(0.5, 0, 0, -90) }):Play()
+			TweenService:Create(toast, tweenInfo(0.2), { Position = UDim2.new(0.5, 0, 0, -180) }):Play()
 		end
 	end)
 end
@@ -279,7 +280,7 @@ for _, item in navItems do
 	local screenName = item[2]
 	local restingColor = button.BackgroundColor3
 	button.MouseEnter:Connect(function()
-		TweenService:Create(button, tweenInfo(0.12), { BackgroundColor3 = Theme.colors.secondary }):Play()
+		TweenService:Create(button, tweenInfo(0.12), { BackgroundColor3 = Theme.colors.surfaceRaised }):Play()
 	end)
 	button.MouseLeave:Connect(function()
 		TweenService:Create(button, tweenInfo(0.12), { BackgroundColor3 = restingColor }):Play()
@@ -298,7 +299,7 @@ end
 local moreButton = navScroll:WaitForChild("MoreButton") :: TextButton
 local moreButtonRestingColor = moreButton.BackgroundColor3
 moreButton.MouseEnter:Connect(function()
-	TweenService:Create(moreButton, tweenInfo(0.12), { BackgroundColor3 = Theme.colors.secondary }):Play()
+	TweenService:Create(moreButton, tweenInfo(0.12), { BackgroundColor3 = Theme.colors.surfaceRaised }):Play()
 end)
 moreButton.MouseLeave:Connect(function()
 	TweenService:Create(moreButton, tweenInfo(0.12), { BackgroundColor3 = moreButtonRestingColor }):Play()
@@ -314,6 +315,16 @@ moreCloseButton.Activated:Connect(function()
 	moreMenu.Visible = false
 end)
 
+addCoinsButton.Activated:Connect(function()
+	AudioController.play("click")
+	moreMenu.Visible = false
+	if registry.current == "Store" then
+		registry:close()
+	else
+		registry:open("Store")
+	end
+end)
+
 local moreItems = {
 	{ "CodesButton", "Codes" },
 	{ "BoardsButton", "Boards" },
@@ -326,7 +337,7 @@ for _, item in moreItems do
 	local screenName = item[2]
 	local restingColor = button.BackgroundColor3
 	button.MouseEnter:Connect(function()
-		TweenService:Create(button, tweenInfo(0.12), { BackgroundColor3 = Theme.colors.secondary }):Play()
+		TweenService:Create(button, tweenInfo(0.12), { BackgroundColor3 = Theme.colors.surfaceRaised }):Play()
 	end)
 	button.MouseLeave:Connect(function()
 		TweenService:Create(button, tweenInfo(0.12), { BackgroundColor3 = restingColor }):Play()
@@ -344,7 +355,7 @@ local function applyState(nextState: any)
 	end
 	local previousCoins = if state and state.profile then state.profile.coins else nextState.profile.coins
 	state = nextState
-	coinLabel.Text = `{UIFactory.formatNumber(state.profile.coins)} COINS`
+	coinLabel.Text = UIFactory.formatNumber(state.profile.coins)
 	boostLabel.Text = `x{string.format(
 		"%.2f",
 		(1 + state.friendBonus + state.premiumBonus) * state.potionMultiplier
