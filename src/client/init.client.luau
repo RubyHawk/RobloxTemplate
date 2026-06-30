@@ -213,12 +213,13 @@ setupGalleryMenu()
 local registry = ScreenRegistry.new()
 local state: any = nil
 
-local function request(action: string, payload: any)
-	AudioController.play("click")
+local function request(action: string, payload: any, audioCue: string?)
+	AudioController.play(audioCue or "click")
 	requestRemote:FireServer({ action = action, payload = payload })
 end
 
 local function query(action: string, payload: any): any
+	AudioController.play("click")
 	local success, response = pcall(function()
 		return queryRemote:InvokeServer(action, payload)
 	end)
@@ -229,19 +230,23 @@ local binder = Screens.bind(screensLayer, {
 	request = request,
 	query = query,
 	close = function()
+		AudioController.play("click")
 		registry:close()
 	end,
 	open = function(name: string)
 		registry:open(name)
 	end,
 	toast = showToast,
+	playAudio = AudioController.play,
 	promptNotifications = function()
+		AudioController.play("click")
 		task.spawn(function()
 			local _, message = NotificationController.prompt()
 			showToast(message)
 		end)
 	end,
 	promptProduct = function(productName: string)
+		AudioController.play("click")
 		if not state then
 			return
 		end
@@ -253,6 +258,7 @@ local binder = Screens.bind(screensLayer, {
 		end
 	end,
 	promptExtendedOffline = function()
+		AudioController.play("click")
 		if not state then
 			return
 		end
@@ -264,6 +270,7 @@ local binder = Screens.bind(screensLayer, {
 		end
 	end,
 	promptPremium = function()
+		AudioController.play("click")
 		MarketplaceService:PromptPremiumPurchase(player)
 	end,
 })
@@ -273,15 +280,16 @@ for name, screen in binder.screens do
 end
 
 local navItems = {
-	{ "BagButton", "Inventory", "bag" },
-	{ "ShopButton", "Store", "shop" },
-	{ "GiftButton", "Rewards", "rewards" },
-	{ "ProfileButton", "Profile", "profile" },
+	{ "BagButton", "Inventory", "bag", "inventory" },
+	{ "ShopButton", "Store", "shop", "click" },
+	{ "GiftButton", "Rewards", "rewards", "click" },
+	{ "ProfileButton", "Profile", "profile", "click" },
 }
 for _, item in navItems do
 	local button = navScroll:WaitForChild(item[1]) :: TextButton
 	local screenName = item[2]
 	local iconName = item[3] :: IconName
+	local audioCue = item[4] :: string
 	applyIcon(button:WaitForChild("IconBubble"), iconName, "PackIcon", "Icon")
 	local restingColor = button.BackgroundColor3
 	button.MouseEnter:Connect(function()
@@ -291,7 +299,7 @@ for _, item in navItems do
 		TweenService:Create(button, tweenInfo(0.12), { BackgroundColor3 = restingColor }):Play()
 	end)
 	button.Activated:Connect(function()
-		AudioController.play("click")
+		AudioController.play(audioCue)
 		moreMenu.Visible = false
 		if registry.current == screenName then
 			registry:close()
@@ -389,6 +397,7 @@ stateRemote.OnClientEvent:Connect(function(packet)
 			AudioController.play("reward")
 		end
 	elseif packet.kind == "Announcement" and state and state.profile.settings.announcements then
+		AudioController.play("notification")
 		showToast(packet.message)
 		local channels = TextChatService:FindFirstChild("TextChannels")
 		local systemChannel = if channels then channels:FindFirstChild("RBXSystem") else nil

@@ -1,5 +1,6 @@
 --!strict
 
+local Players = game:GetService("Players")
 local SoundService = game:GetService("SoundService")
 
 local Config = require(
@@ -7,54 +8,74 @@ local Config = require(
 )
 
 local AudioController = {}
-local sounds: { [string]: Sound } = {}
-local musicGroup: SoundGroup
-local sfxGroup: SoundGroup
+local players: { [string]: AudioPlayer } = {}
+local initialized = false
+local musicVolume = 0.5
+local sfxVolume = 0.7
 
-local function group(name: string): SoundGroup
-	local existing = SoundService:FindFirstChild(name)
-	if existing and existing:IsA("SoundGroup") then
-		return existing
+local function normalizeAssetId(assetId: string): string
+	if string.match(assetId, "^%d+$") then
+		return `rbxassetid://{assetId}`
 	end
-	local created = Instance.new("SoundGroup")
-	created.Name = name
-	created.Parent = SoundService
-	return created
+	return assetId
+end
+
+local function applyVolume(name: string, player: AudioPlayer)
+	player.Volume = if name == "music" then musicVolume else sfxVolume
 end
 
 function AudioController.initialize()
-	musicGroup = group("TemplateMusic")
-	sfxGroup = group("TemplateSFX")
+	if initialized then
+		return
+	end
+	initialized = true
+
+	local container = Instance.new("Folder")
+	container.Name = "TemplateAudio"
+	container.Parent = SoundService
+
+	local output = Instance.new("AudioDeviceOutput")
+	output.Name = "PlayerOutput"
+	output.Player = Players.LocalPlayer
+	output.Parent = container
+
 	for name, assetId in Config.audio do
-		if assetId ~= "" then
-			local sound = Instance.new("Sound")
-			sound.Name = name
-			sound.SoundId = assetId
-			sound.SoundGroup = if name == "music" then musicGroup else sfxGroup
-			sound.Looped = name == "music"
-			sound.Parent = SoundService
-			sounds[name] = sound
+		if type(assetId) == "string" and assetId ~= "" then
+			local player = Instance.new("AudioPlayer")
+			player.Name = name
+			player.AudioContent = Content.fromUri(normalizeAssetId(assetId))
+			player.AutoLoad = true
+			player.Looping = name == "music"
+			applyVolume(name, player)
+			player.Parent = container
+			players[name] = player
+
+			local wire = Instance.new("Wire")
+			wire.Name = `{name}ToOutput`
+			wire.SourceInstance = player
+			wire.TargetInstance = output
+			wire.Parent = container
 		end
 	end
-	if sounds.music then
-		sounds.music:Play()
+	if players.music then
+		players.music:Play()
 	end
 end
 
 function AudioController.applySettings(settings: any)
-	if musicGroup then
-		musicGroup.Volume = math.clamp(settings.musicVolume or 0.5, 0, 1)
-	end
-	if sfxGroup then
-		sfxGroup.Volume = math.clamp(settings.sfxVolume or 0.7, 0, 1)
+	musicVolume = math.clamp(settings.musicVolume or 0.5, 0, 1)
+	sfxVolume = math.clamp(settings.sfxVolume or 0.7, 0, 1)
+	for name, player in players do
+		applyVolume(name, player)
 	end
 end
 
 function AudioController.play(name: string)
-	local sound = sounds[name]
-	if sound then
-		sound.TimePosition = 0
-		sound:Play()
+	local player = players[name]
+	if player then
+		player:Stop()
+		player.TimePosition = 0
+		player:Play()
 	end
 end
 

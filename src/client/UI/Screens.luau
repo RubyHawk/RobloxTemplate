@@ -239,12 +239,13 @@ function Screens.bind(parent: Instance, context: any): any
 			local action = slot:GetAttribute("Action")
 			local itemId = slot:GetAttribute("Value")
 			if type(action) == "string" and type(itemId) == "string" then
-				context.request(action, { itemId = itemId })
+				context.request(action, { itemId = itemId }, "inventory")
 			end
 		end)
 	end
 	inventorySearch:GetPropertyChangedSignal("Text"):Connect(refreshInventory)
 	inventoryCategory.Activated:Connect(function()
+		context.playAudio("click")
 		categoryIndex = (categoryIndex % #categories) + 1
 		inventoryCategory.Text = string.upper(categories[categoryIndex])
 		refreshInventory()

@@ -99,12 +99,15 @@ local Config = {
 
 	audio = {
 		music = "",
-		click = "",
-		cash = "",
-		reward = "",
-		inventory = "",
-		lootboxOpen = "",
-		spin = "",
+		-- Public Roblox-owned sounds selected from Sound Kit v1.6.0 (asset 7209483381).
+		-- Keeping the IDs here makes every map branch free to replace the sound theme.
+		click = "rbxassetid://12221967", -- button.wav
+		cash = "rbxassetid://12222054", -- Kerplunk.wav
+		reward = "rbxassetid://12222253", -- victory.wav
+		inventory = "rbxassetid://12222170", -- switch.wav
+		lootboxOpen = "rbxassetid://910988901", -- Deploy1
+		spin = "rbxassetid://12221976", -- clickfast.wav
+		notification = "rbxassetid://12222076", -- Pageturn1
 	},
 
 	-- These public demo IDs come from the user-supplied Zxgly V5 pack so the
