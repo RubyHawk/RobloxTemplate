@@ -48,6 +48,12 @@ assert(screenGui:IsA("ScreenGui"), "StarterGui.TemplateUI must be a ScreenGui")
 screenGui.Enabled = true
 
 local root = screenGui:WaitForChild("Root") :: Frame
+local showcaseCanvas = root:FindFirstChild("ShowcaseCanvas")
+if showcaseCanvas and showcaseCanvas:IsA("GuiObject") then
+	-- The source model is an editable WYSIWYG showroom. Gameplay only hides it;
+	-- every connected screen and data slot remains a permanent StarterGui instance.
+	showcaseCanvas.Visible = false
+end
 local uiScale = root:WaitForChild("InterfaceScale") :: UIScale
 local hud = root:WaitForChild("CurrencyHUD") :: Frame
 local coinLabel = hud:WaitForChild("CoinLabel") :: TextLabel
@@ -143,9 +149,9 @@ local function setupGalleryMenu()
 		{
 			name = "Pack",
 			buttonName = "PackButton",
-			description = "UI Pack: a script-free component sheet. Edit ZxglyV5Showroom under StarterGui.",
-			heading = "VISUAL UI PACK",
-			detail = "Script-free reference screens arranged as one isolated component sheet.",
+			description = "UI Pack: the editable Giga Simulator showroom. Every visible control is a StarterGui instance.",
+			heading = "GIGA SIMULATOR UI PACK",
+			detail = "Bright icon-driven HUD, shop, inventory, rewards, codes, settings, and boards.",
 		},
 		{
 			name = "Notification",
@@ -158,9 +164,12 @@ local function setupGalleryMenu()
 
 	local buttons: { [string]: TextButton } = {}
 	local function setMode(modeName: string)
-		screenGui.Enabled = modeName == "Connected"
+		screenGui.Enabled = modeName == "Connected" or modeName == "Pack"
+		if showcaseCanvas and showcaseCanvas:IsA("GuiObject") then
+			showcaseCanvas.Visible = modeName == "Pack"
+		end
 		if packShowroom then
-			packShowroom.Enabled = modeName == "Pack"
+			packShowroom.Enabled = false
 		end
 		if notificationShowroom then
 			notificationShowroom.Enabled = modeName == "Notification"

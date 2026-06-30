@@ -107,35 +107,35 @@ local Config = {
 		spin = "",
 	},
 
-	-- Upload the matching files from assets/icons/gvesster-basic, then paste the
-	-- Roblox image asset IDs here. Leave an entry empty to keep its authored
-	-- Studio fallback visible.
+	-- These public demo IDs come from the user-supplied Zxgly V5 pack so the
+	-- starter is icon-rich immediately. Replace any entry with an uploaded file
+	-- from assets/icons/gvesster-basic when branding a map branch.
 	icons = {
-		bag = "",
-		shop = "",
-		rewards = "",
-		profile = "",
-		more = "",
-		codes = "",
-		leaderboard = "",
-		community = "",
-		feedback = "",
-		settings = "",
-		coin = "",
-		daily = "",
-		offline = "",
-		premium = "",
+		bag = "94001317361506", -- backpack
+		shop = "118554800883386", -- shop basket
+		rewards = "125907024425133", -- reward egg
+		profile = "132073513775656", -- blue cat
+		more = "78666886648909", -- quest scroll
+		codes = "128511762212540", -- code ticket
+		leaderboard = "72712419474456", -- ranking bars
+		community = "121433088081713", -- cow pet
+		feedback = "89113974252559", -- feedback book
+		settings = "94272687133453", -- settings gear
+		coin = "105300168575798", -- cash stack
+		daily = "71479056537473", -- calendar
+		offline = "107794977982643", -- timer
+		premium = "111977708425543", -- Robux token
 		search = "",
 		close = "",
-		likes = "",
-		friends = "",
-		notifications = "",
-		cart = "",
-		verification = "",
-		item = "",
-		starterTool = "",
-		potionX2 = "",
-		potionX3 = "",
+		likes = "128953798572692", -- dog pet
+		friends = "71515579128420", -- pig pet
+		notifications = "107794977982643", -- timer
+		cart = "118554800883386", -- shop basket
+		verification = "121433088081713", -- cow pet
+		item = "125907024425133", -- reward egg
+		starterTool = "134119181427014", -- sword
+		potionX2 = "72854331493787", -- x2 clover
+		potionX3 = "102321175672770", -- potion bottle
 	},
 }
 

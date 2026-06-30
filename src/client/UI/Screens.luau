@@ -162,7 +162,8 @@ function Screens.bind(parent: Instance, context: any): any
 
 	local state: any = nil
 	local inventoryContent = content(screenMap.Inventory)
-	local inventorySlots = numberedFrames(inventoryContent, "ItemSlot", INVENTORY_SLOT_COUNT)
+	local inventoryGrid = frame(inventoryContent, "ItemsGrid")
+	local inventorySlots = numberedFrames(inventoryGrid, "ItemSlot", INVENTORY_SLOT_COUNT)
 	local inventoryEmpty = frame(inventoryContent, "EmptyState")
 	local inventoryToolbar = frame(inventoryContent, "Toolbar")
 	local inventorySearch = textBox(inventoryToolbar, "SearchInput")
@@ -171,7 +172,8 @@ function Screens.bind(parent: Instance, context: any): any
 	local categoryIndex = 1
 
 	local storeContent = content(screenMap.Store)
-	local storeSlots = numberedFrames(storeContent, "StoreSlot", STORE_SLOT_COUNT)
+	local storeGrid = frame(storeContent, "ProductsGrid")
+	local storeSlots = numberedFrames(storeGrid, "StoreSlot", STORE_SLOT_COUNT)
 	local rewardsContent = content(screenMap.Rewards)
 	local profileContent = content(screenMap.Profile)
 	local settingsContent = content(screenMap.Settings)
