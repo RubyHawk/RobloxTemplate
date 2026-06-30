@@ -13,6 +13,10 @@ end
 local screenGui = script.Parent
 assert(screenGui:IsA("ScreenGui"), "PackagePreview must be inside the TemplateUI ScreenGui")
 local root = screenGui:WaitForChild("Root") :: Frame
+local showcaseCanvas = root:FindFirstChild("ShowcaseCanvas")
+if showcaseCanvas and showcaseCanvas:IsA("GuiObject") then
+	showcaseCanvas.Visible = false
+end
 local screens = root:WaitForChild("Screens") :: Frame
 local moreMenu = root:WaitForChild("MoreMenu") :: Frame
 local navButtons = (root:WaitForChild("Navigation") :: Frame):WaitForChild("Buttons") :: ScrollingFrame
@@ -108,26 +112,31 @@ end
 
 local hud = root:WaitForChild("CurrencyHUD") :: Frame
 setLabel(hud, "CoinLabel", "12.5K")
-setLabel(hud, "BoostLabel", "x2.00 BOOST  •  2 FRIENDS")(hud:WaitForChild("AddCoinsButton") :: TextButton).Activated:Connect(
-	function()
-		openScreen("Store")
-	end
-)
+setLabel(hud, "BoostLabel", "x2.00 BOOST  •  2 FRIENDS")
+local addCoinsButton = hud:WaitForChild("AddCoinsButton") :: TextButton
+addCoinsButton.Activated:Connect(function()
+	openScreen("Store")
+end)
 
 local function fillItemSlot(
-	content: ScrollingFrame,
+	container: Instance,
 	slotName: string,
 	title: string,
 	body: string,
 	quantity: string,
-	glyph: string
+	glyph: string,
+	image: string
 )
-	local slot = content:WaitForChild(slotName) :: Frame
+	local slot = container:WaitForChild(slotName) :: Frame
 	setLabel(slot, "Title", title)
 	setLabel(slot, "Body", body)
 	setLabel(slot, "Quantity", quantity)
 	local artwork = slot:WaitForChild("Artwork") :: Frame
 	setLabel(artwork, "Glyph", glyph)
+	local icon = artwork:WaitForChild("Icon") :: ImageLabel
+	icon.Image = image
+	icon.Visible = image ~= ""
+	(artwork:WaitForChild("Glyph") :: TextLabel).Visible = image == ""
 	local action = slot:WaitForChild("ActionButton") :: TextButton
 	action.Text = if string.find(slotName, "Store", 1, true) then "BUY" else "USE"
 	action.Activated:Connect(function()
@@ -137,42 +146,64 @@ local function fillItemSlot(
 end
 
 local inventoryContent = screenMap.Inventory:WaitForChild("Content") :: ScrollingFrame
+local inventoryGrid = inventoryContent:WaitForChild("ItemsGrid") :: Frame
 fillItemSlot(
-	inventoryContent,
+	inventoryGrid,
 	"ItemSlot01",
 	"Double Coins Potion",
 	"Earn x2 Coins for 15 minutes.",
 	"x3",
-	"x2"
+	"x2",
+	"rbxassetid://72854331493787"
 )
 fillItemSlot(
-	inventoryContent,
+	inventoryGrid,
 	"ItemSlot02",
 	"Triple Coins Potion",
 	"Earn x3 Coins for 10 minutes.",
 	"x1",
-	"x3"
+	"x3",
+	"rbxassetid://102321175672770"
 )
-fillItemSlot(inventoryContent, "ItemSlot03", "Starter Hammer", "A bright starter equipment item.", "x1", "H")
+fillItemSlot(
+	inventoryGrid,
+	"ItemSlot03",
+	"Starter Sword",
+	"A bright starter equipment item.",
+	"x1",
+	"S",
+	"rbxassetid://134119181427014"
+)
 
 local storeContent = screenMap.Store:WaitForChild("Content") :: ScrollingFrame
+local productsGrid = storeContent:WaitForChild("ProductsGrid") :: Frame
 fillItemSlot(
-	storeContent,
+	productsGrid,
 	"StoreSlot01",
 	"Double Coins Potion",
 	"A quick boost for your next session.",
 	"1K C",
-	"x2"
+	"x2",
+	"rbxassetid://72854331493787"
 )
 fillItemSlot(
-	storeContent,
+	productsGrid,
 	"StoreSlot02",
 	"Triple Coins Potion",
 	"The strongest temporary coin boost.",
 	"2.5K C",
-	"x3"
+	"x3",
+	"rbxassetid://102321175672770"
 )
-fillItemSlot(storeContent, "StoreSlot03", "Starter Hammer", "A useful starter equipment item.", "500 C", "H")
+fillItemSlot(
+	productsGrid,
+	"StoreSlot03",
+	"Starter Sword",
+	"A useful starter equipment item.",
+	"500 C",
+	"S",
+	"rbxassetid://134119181427014"
+)
 
 local rewardsContent = screenMap.Rewards:WaitForChild("Content") :: ScrollingFrame
 for _, buttonName in { "ClaimDailyButton", "ClaimOfflineButton", "ExtendedOfflineButton" } do
@@ -230,4 +261,4 @@ end)
 
 closeScreens()
 moreMenu.Visible = false
-showToast("UI_BrightSimulator preview — install TemplateCore for live data")
+showToast("Giga Simulator UI preview — install TemplateCore for live data")

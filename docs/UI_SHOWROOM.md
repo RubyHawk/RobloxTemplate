@@ -2,46 +2,48 @@
 
 Open the `template` version from `START_HERE.cmd`, connect Rojo, and expand **StarterGui** in Explorer.
 
-The gallery now shows one preview mode at a time. In Play mode, use the tidy **UI Library** bar:
+The gallery shows one preview mode at a time. In Play mode, use the **UI Library** bar:
 
 - **Connected UI** shows the real working HUD and systems.
-- **UI Pack** shows the full visual component sheet by itself.
+- **UI Pack** shows the editable Giga Simulator component sheet.
 - **Notification** shows the notification reference by itself.
 
-The UI Pack and Notification ScreenGuis are disabled by default, so they no longer pile on top of the connected HUD. Outside Play mode, select the ScreenGui you want in Explorer and toggle its `Enabled` property to preview it while editing.
+In Studio edit mode, `TemplateUI > Root > ShowcaseCanvas` is intentionally visible. Pressing Play hides that design-library canvas and uses the connected HUD/screens.
 
 ## What is there
 
-- **TemplateUI** is connected to the real inventory, store, rewards, profile, codes, boards, feedback, community, settings, toast, and HUD logic.
-- **ZxglyV5Showroom** is a script-free visual reference with its screens arranged in rows and columns.
+- **TemplateUI > Root > ShowcaseCanvas** is the editable Giga Simulator design library arranged in a coherent grid.
+- **TemplateUI > Root > Screens** contains the gameplay-bound inventory, shop, rewards, profile, settings, feedback, codes, boards, community, and global list.
+- **ZxglyV5Showroom** remains as the raw imported source reference.
 - **NotificationV2Showroom** is a script-free notification reference.
-- **GalleryMenu** and **GalleryBackdrop** keep previews separated and clearly labelled.
+- **GalleryMenu** and **GalleryBackdrop** keep previews separated and labelled.
 
-The imported scripts were removed. In particular, the supplied notification system allowed a client to choose arbitrary notification text, color, and duration. The template keeps its server-validated notification path instead.
+The imported scripts were removed. The supplied notification system allowed a client to choose arbitrary notification text, color, and duration; the template keeps its server-validated notification path instead.
 
 ## Connected starter design
 
-`TemplateUI` now uses the distinct **Candy Pop** simulator theme: a top-right currency card, deep-purple dock, purple/cyan modal headers, gold reward accents, chunky visual item cards, and a seven-day reward strip. Color is never the only cue; every action has readable text.
+`TemplateUI` uses the bright **Giga Simulator** style: compact floating windows, thick dark outlines, floating circular icon navigation, wide illustrated shop offers, a two-column inventory, real cartoon pack artwork, a white currency pill, and a seven-day reward strip. Color is never the only cue; every action has readable text.
 
 ## What to edit
 
-Inside `TemplateUI → Root`:
+Inside `TemplateUI > Root`:
 
+- use **ShowcaseCanvas** to compare and remix the design-library examples;
 - edit **CurrencyHUD**, **Navigation**, **ScreenTemplate**, and **Toast** directly;
-- expand **Screens** to edit the real inventory, store, rewards, profile, settings, feedback, codes, leaderboards, community, and global leaderboard instances;
-- toggle one screen's `Visible` property while editing, then turn it off again before saving;
-- keep object names unchanged because the runtime binds behavior by those names.
+- edit the gameplay-bound versions under **Screens** when a change must appear in Play mode;
+- toggle one connected screen's `Visible` property while editing, then turn it off again before saving;
+- keep connected object names unchanged because runtime behavior binds to those names.
 
-Dynamic data uses pre-authored capacity: 12 inventory slots, 8 store cards, 7 reward tiles, 10 server rows, and 50 global rows. Runtime code only replaces their text/images and toggles visibility. No GUI objects are created, cloned, or destroyed during Play.
+Dynamic data uses pre-authored capacity: 12 inventory slots, 8 store cards, 7 reward tiles, 10 server rows, and 50 global rows. Runtime code only replaces text/images and toggles visibility. No GUI objects are created, cloned, or destroyed during Play.
 
 ## Save safely
 
-Press **Ctrl+S** in Studio. The branch place is stored in `places/` and is no longer rebuilt every time the launcher opens it. Commit the changed place with the rest of the branch when the design is ready.
+Press **Ctrl+S** in Studio. The branch place is stored in `places/` and is not rebuilt every time the launcher opens it. Commit the changed place with the rest of the branch when the design is ready.
 
-Rojo deliberately ignores unknown objects under StarterGui, so visual edits survive code sync. Keep the Rojo window open for code updates.
+Rojo ignores unknown objects under StarterGui, so visual edits survive code sync. Keep the Rojo window open for code updates.
 
 ## Making starter themes
 
-Keep the huge workbench on `template`. A finished starter branch should contain one coherent connected theme, not every showroom screen. Future theme branches should use names such as `playable-starter-bright`, `playable-starter-dark`, or `playable-starter-pastel`, each with its own saved place file.
+Keep the huge workbench on `template`. A finished starter branch should contain one coherent connected theme, not every raw imported showroom. Future theme branches can use names such as `playable-starter-bright`, `playable-starter-dark`, or `playable-starter-pastel`.
 
-The connected UI is wired for all 25 selected Gvesster icons. Roblox cannot display local disk paths in a live experience, so follow [`ICON_PACK.md`](ICON_PACK.md) once to upload the files and paste their IDs into `TemplateConfig.icons`. Follow the included icon license.
+The starter uses public image IDs from the user-supplied Zxgly pack for its initial cash, reward, pet, calendar, potion, multiplier, and equipment art. The 25 selected Gvesster PNG files remain available as replacement source art. Roblox cannot display local disk paths in a live experience, so follow [`ICON_PACK.md`](ICON_PACK.md) when uploading a branded replacement set. Follow both packs' licenses.
