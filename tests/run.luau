@@ -130,31 +130,32 @@ else
 end
 
 local connectedUi = fs.readFile("src/ui/TemplateUI.model.json")
+local compactConnectedUi = string.gsub(connectedUi, "%s+", "")
 for _, requiredObject in
 	{
-		'"Name": "CurrencyHUD"',
-		'"Name": "Navigation"',
-		'"Name": "MoreButton"',
-		'"Name": "MoreMenu"',
-		'"Name": "ScreenTemplate"',
-		'"Name": "ItemCardTemplate"',
-		'"Name": "RewardTileTemplate"',
-		'"Name": "AddCoinsButton"',
+		'"Name":"CurrencyHUD"',
+		'"Name":"Navigation"',
+		'"Name":"MoreButton"',
+		'"Name":"MoreMenu"',
+		'"Name":"ScreenTemplate"',
+		'"Name":"ItemCardTemplate"',
+		'"Name":"RewardTileTemplate"',
+		'"Name":"AddCoinsButton"',
 	}
 do
 	expectEqual(
-		string.find(connectedUi, requiredObject, 1, true) ~= nil,
+		string.find(compactConnectedUi, requiredObject, 1, true) ~= nil,
 		true,
 		`connected UI includes {requiredObject}`
 	)
 end
 expectEqual(
-	string.find(connectedUi, '"AnchorPoint": [0.5, 1]', 1, true) ~= nil,
+	string.find(compactConnectedUi, '"AnchorPoint":[0.5,1]', 1, true) ~= nil,
 	true,
 	"connected UI uses a compact bottom navigation dock"
 )
 expectEqual(
-	string.find(connectedUi, '"Text": "TOP"', 1, true),
+	string.find(compactConnectedUi, '"Text":"TOP"', 1, true),
 	nil,
 	"secondary actions are not crowded into the main navigation"
 )
@@ -175,7 +176,7 @@ for _, authoredObject in
 	}
 do
 	expectEqual(
-		string.find(connectedUi, authoredObject, 1, true) ~= nil,
+		string.find(compactConnectedUi, authoredObject, 1, true) ~= nil,
 		true,
 		`connected UI pre-authors {authoredObject}`
 	)

@@ -1,6 +1,9 @@
 {
   "name": "TemplateUI",
   "tree": {
-    "$path": "../src/ui/TemplateUI.model.json"
+    "$path": "../src/ui/TemplateUI.model.json",
+    "PackagePreview": {
+      "$path": "PackagePreview.client.luau"
+    }
   }
 }

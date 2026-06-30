@@ -20,7 +20,7 @@ DataDelve primary sources checked:
 - Inventory has 12 authored slots, the store has 8 authored cards, daily rewards have 7 authored tiles, the server board has 10 authored rows, and the global board has 50 authored rows.
 - Runtime UI code only binds actions and updates text, images, attributes, colors, and visibility. It cannot call `Instance.new`, `Clone`, or `Destroy` for GUI work; the repository check enforces this.
 - The HUD stays compact while secondary features open in exclusive modal screens.
-- The layout uses `CoreUISafeInsets`, minimum touch-friendly controls, scrolling content, consistent close buttons, one primary blue brand color, and semantic gold/green/red accents.
+- The layout uses `CoreUISafeInsets`, minimum touch-friendly controls, scrolling content, consistent close buttons, one primary purple brand color, cyan highlights, and semantic gold/green/red accents.
 - Icons remain visual-first with text labels for young players and localization clarity.
 - Ordinary layout, color, font, corner, stroke, and position changes are editable in Studio without changing Luau.
 

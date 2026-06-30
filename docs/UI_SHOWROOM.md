@@ -21,7 +21,7 @@ The imported scripts were removed. In particular, the supplied notification syst
 
 ## Connected starter design
 
-`TemplateUI` targets a mainstream kid-friendly Roblox experience: a compact coin card, five icon-and-label actions in a bottom dock, visual item cards, and a seven-day reward strip. Color is never the only cue; every action has readable text. The connected starter is intentionally calmer than the visual reference packs.
+`TemplateUI` now uses the distinct **Candy Pop** simulator theme: a top-right currency card, deep-purple dock, purple/cyan modal headers, gold reward accents, chunky visual item cards, and a seven-day reward strip. Color is never the only cue; every action has readable text.
 
 ## What to edit
 
