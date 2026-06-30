@@ -196,4 +196,31 @@ for _, developerFacingCopy in { "Project defaults", "Verification is scaffolded"
 	)
 end
 
+local audioConfig = fs.readFile("src/shared/TemplateConfig.luau")
+for _, audioId in { "12221967", "12222054", "12222253", "12222170", "910988901", "12221976", "12222076" } do
+	expectEqual(
+		string.find(audioConfig, audioId, 1, true) ~= nil,
+		true,
+		`audio config includes selected public sound {audioId}`
+	)
+end
+
+local audioController = fs.readFile("src/client/Controllers/AudioController.luau")
+for _, modernAudioObject in
+	{ 'Instance.new("AudioPlayer")', 'Instance.new("AudioDeviceOutput")', 'Instance.new("Wire")' }
+do
+	expectEqual(
+		string.find(audioController, modernAudioObject, 1, true) ~= nil,
+		true,
+		`audio controller uses {modernAudioObject}`
+	)
+end
+for _, legacyAudioObject in { 'Instance.new("Sound")', 'Instance.new("SoundGroup")' } do
+	expectEqual(
+		string.find(audioController, legacyAudioObject, 1, true),
+		nil,
+		`audio controller avoids discouraged {legacyAudioObject}`
+	)
+end
+
 print(`{passed} pure Luau assertions passed`)
