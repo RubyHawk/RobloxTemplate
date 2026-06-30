@@ -1,7 +1,6 @@
 {
   "name": "RobloxTemplateGallery",
   "emitLegacyScripts": true,
-  "servePlaceIds": [],
   "tree": {
     "$className": "DataModel",
     "ReplicatedFirst": {
