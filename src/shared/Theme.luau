@@ -28,8 +28,8 @@ local Theme = {
 		xl = 28,
 	},
 	touchTarget = 44,
-	font = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Medium),
-	fontBold = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold),
+	font = Font.new("rbxasset://fonts/families/Nunito.json", Enum.FontWeight.ExtraBold),
+	fontBold = Font.new("rbxasset://fonts/families/FredokaOne.json", Enum.FontWeight.Regular),
 }
 
 return table.freeze(Theme)
