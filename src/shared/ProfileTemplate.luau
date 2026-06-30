@@ -30,7 +30,6 @@ function ProfileTemplate.create(now: number): PlayerProfile
 			dismissed = false,
 		},
 		selectedPack = "",
-		selectedTheme = "",
 		inventory = {
 			double_coins_potion = { quantity = 1 },
 		},

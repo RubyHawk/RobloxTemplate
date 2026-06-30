@@ -36,9 +36,9 @@ local Config = {
 		seedCanaryProfiles = false,
 	},
 
-	-- UI pack layer. Each game picks an active pack; widgets bind to a finite
-	-- pool of pre-authored HUD slots whose sizes are pinned here so the authored
-	-- model, pack descriptors, and binder/validator can never drift apart.
+	-- UI pack layer. Each game picks a complete physical root under PackRoots;
+	-- data binds only to its finite authored slots. These capacities are shared
+	-- contracts, not runtime-generated geometry.
 	ui = {
 		defaultPackId = "incremental",
 		allowPlayerPackSelection = false,
@@ -156,17 +156,16 @@ local Config = {
 		starterTool = "134119181427014", -- sword
 		potionX2 = "72854331493787", -- x2 clover
 		potionX3 = "102321175672770", -- potion bottle
-		-- UI-pack stat icons. Left blank so the widget's text Symbol shows until a
-		-- map branch uploads art and pastes the asset id here.
-		health = "",
-		stamina = "",
-		energy = "",
-		gem = "",
-		income = "",
-		multiplier = "",
-		rebirth = "",
-		objective = "",
-		ability = "",
+		-- Physical HUD-pack art from the supplied cloud-backed icon library.
+		health = "102321175672770",
+		stamina = "134119181427014",
+		energy = "112199618835872",
+		gem = "112199618835872",
+		income = "105300168575798",
+		multiplier = "72854331493787",
+		rebirth = "98256236318792",
+		objective = "78666886648909",
+		ability = "134119181427014",
 	},
 }
 

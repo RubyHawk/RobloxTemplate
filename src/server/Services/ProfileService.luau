@@ -112,6 +112,7 @@ function ProfileService.load(player: Player): PlayerProfileV1?
 		loaded = Migrations.migrate(mockProfiles[player.UserId] or ProfileTemplate.create(now), now)
 		if loaded then
 			loaded.coins = math.max(loaded.coins, Config.studio.mockStartingCoins)
+			loaded.currencies[Config.economy.primaryCurrencyId] = loaded.coins
 		end
 	else
 		for attempt = 1, 5 do

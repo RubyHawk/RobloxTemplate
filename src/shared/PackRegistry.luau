@@ -1,7 +1,7 @@
 --!strict
 
 -- Registry of UI packs. A pack is frozen data (see src/shared/packs/*) that maps
--- the finite pool of pre-authored HUD slots to player-state paths. The active
+-- the finite slots inside a complete physical HUD root to player-state paths. The active
 -- pack is chosen per game via Config.ui.defaultPackId, or per player via
 -- profile.selectedPack when Config.ui.allowPlayerPackSelection is on.
 

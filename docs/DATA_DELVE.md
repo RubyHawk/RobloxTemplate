@@ -11,7 +11,7 @@ Use it only after publishing a separate private test experience:
 
 Do not enable Studio API access on the live production experience. Roblox states that Studio accesses the same data as live servers and can overwrite production profiles.
 
-The saved profile contains readable sections for Coins, the `currencies` map, `upgrades`, `unlocks`, `progress`, tutorial flags, `selectedPack`/`selectedTheme`, inventory, boosts, settings, statistics, daily rewards, redemptions, entitlements, social verification, guild reservation, and timestamps. Schema versioning and migrations remain controlled by the template code; do not casually delete unknown fields in DataDelve.
+The saved profile contains readable sections for Coins, the `currencies` map, `upgrades`, `unlocks`, `progress`, tutorial flags, `selectedPack`, inventory, boosts, settings, statistics, daily rewards, redemptions, entitlements, social verification, guild reservation, and timestamps. Schema versioning and migrations remain controlled by the template code; do not casually delete unknown fields in DataDelve.
 
 ## Predictable canary test data
 

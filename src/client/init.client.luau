@@ -49,6 +49,12 @@ assert(screenGui:IsA("ScreenGui"), "StarterGui.TemplateUI must be a ScreenGui")
 screenGui.Enabled = true
 
 local root = screenGui:WaitForChild("Root") :: Frame
+local packRoots = root:WaitForChild("PackRoots") :: Frame
+for _, packRoot in packRoots:GetChildren() do
+	if packRoot:IsA("GuiObject") then
+		packRoot.Visible = false
+	end
+end
 local showcaseCanvas = root:FindFirstChild("ShowcaseCanvas")
 if showcaseCanvas and showcaseCanvas:IsA("GuiObject") then
 	-- The source model is an editable WYSIWYG showroom. Gameplay only hides it;
@@ -362,9 +368,8 @@ for _, item in moreItems do
 	end)
 end
 
--- The active UI pack drives the authored StatRail/ActionRail/ProgressRail pool and
--- replaces the single legacy currency pill. Different games select a different
--- pack (Config.ui.defaultPackId) with no UI rewrite.
+-- The active UI pack selects one complete, physically authored HUD root. Code
+-- only binds content and behavior; layout and styling remain editable in Studio.
 local packController = PackController.start({
 	root = root,
 	registry = registry,

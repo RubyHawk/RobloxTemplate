@@ -13,6 +13,13 @@ end
 local screenGui = script.Parent
 assert(screenGui:IsA("ScreenGui"), "PackagePreview must be inside the TemplateUI ScreenGui")
 local root = screenGui:WaitForChild("Root") :: Frame
+local packRoots = root:WaitForChild("PackRoots") :: Frame
+for _, packRoot in packRoots:GetChildren() do
+	if packRoot:IsA("GuiObject") then
+		packRoot.Visible = packRoot.Name == "IncrementalPackRoot"
+	end
+end
+(root:WaitForChild("CurrencyHUD") :: Frame).Visible = false
 local showcaseCanvas = root:FindFirstChild("ShowcaseCanvas")
 if showcaseCanvas and showcaseCanvas:IsA("GuiObject") then
 	showcaseCanvas.Visible = false
@@ -75,6 +82,15 @@ local navMap = {
 	GiftButton = "Rewards",
 	ProfileButton = "Profile",
 }
+
+local incrementalActions = (packRoots:WaitForChild("IncrementalPackRoot") :: Frame):WaitForChild("ActionRail")
+local actionScreens = { "Store", "Rewards" }
+for index, screenName in actionScreens do
+	local action = incrementalActions:WaitForChild(`ActionSlot{string.format("%02d", index)}`) :: TextButton
+	action.Activated:Connect(function()
+		openScreen(screenName)
+	end)
+end
 for buttonName, screenName in navMap do
 	local button = navButtons:WaitForChild(buttonName) :: TextButton
 	button.Activated:Connect(function()

@@ -10,7 +10,7 @@ type PackDescriptor = Types.PackDescriptor
 local pack: PackDescriptor = {
 	id = "incremental",
 	displayName = "Incremental",
-	themeId = "incremental",
+	authoredRoot = "IncrementalPackRoot",
 
 	currencies = {
 		{ id = "coins", displayName = "Coins", icon = "coin", primary = true },

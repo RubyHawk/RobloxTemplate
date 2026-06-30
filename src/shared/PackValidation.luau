@@ -20,6 +20,9 @@ function PackValidation.check(descriptor: any, pool: PoolSizes): (boolean, strin
 		return false, "descriptor.id must be a non-empty string"
 	end
 	local id = descriptor.id
+	if type(descriptor.authoredRoot) ~= "string" or descriptor.authoredRoot == "" then
+		return false, `pack "{id}" must name a physical authoredRoot`
+	end
 
 	if type(descriptor.currencies) ~= "table" then
 		return false, `pack "{id}" must list currencies`

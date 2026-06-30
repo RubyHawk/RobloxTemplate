@@ -47,9 +47,6 @@ function RemoteService.snapshot(player: Player): any
 	end
 	local likes = LikesService.getLikes()
 	local pack = PackRegistry.resolveFor(profile)
-	local themeId = if profile.selectedTheme ~= nil and profile.selectedTheme ~= ""
-		then profile.selectedTheme
-		else pack.themeId
 	return {
 		profile = profile,
 		catalog = Catalogs.items,
@@ -57,7 +54,6 @@ function RemoteService.snapshot(player: Player): any
 		version = Config.version,
 		serverTime = os.time(),
 		packId = pack.id,
-		themeId = themeId,
 		currencies = profile.currencies,
 		friendBonus = Calculations.friendBonus(
 			profile.social.friendCountInServer,

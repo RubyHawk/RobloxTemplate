@@ -1,11 +1,10 @@
 --!strict
 
--- Generalizes the old hardcoded HUD block (and the Screens slot-pool pattern) into
--- a data-driven binder over a finite pool of PRE-AUTHORED widget slots. It only
--- reads authored instances and sets text/image/colour/size/visibility plus wires
--- one Activated handler per action slot -- it never creates, clones, or destroys
--- a GuiObject. A pack descriptor decides which slots are shown and what each binds
--- to, so different games get different HUDs with zero new instances.
+-- Binds data to one of several PHYSICALLY AUTHORED HUD roots. Every pack owns
+-- its own editable geometry, colors, strokes, icons, and layout under
+-- StarterGui.TemplateUI.Root.PackRoots. Runtime only selects a root, replaces
+-- content, changes progress fill sizes, toggles authored slots, and connects
+-- actions. It never constructs, clones, destroys, or code-themes GuiObjects.
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
 local Config = require(Shared.TemplateConfig)
@@ -13,7 +12,6 @@ local IconCatalog = require(Shared.IconCatalog)
 
 local Store = require(script.Parent.Store)
 local UIFactory = require(script.Parent.UIFactory)
-local ThemeProvider = require(script.Parent.ThemeProvider)
 
 type IconName = IconCatalog.IconName
 
@@ -22,9 +20,8 @@ WidgetBinder.__index = WidgetBinder
 
 export type WidgetBinder = typeof(setmetatable(
 	{} :: {
-		statRail: Frame,
-		progressRail: Frame,
-		actionRail: Frame,
+		packRoots: Frame,
+		activeRoot: Frame?,
 		statSlots: { Frame },
 		progressSlots: { Frame },
 		actionSlots: { TextButton },
@@ -34,14 +31,26 @@ export type WidgetBinder = typeof(setmetatable(
 	WidgetBinder
 ))
 
-local function child(parent: Instance, name: string): Instance
-	return parent:WaitForChild(name)
+local function frame(parent: Instance, name: string): Frame
+	local value = parent:WaitForChild(name)
+	assert(value:IsA("Frame"), `{value:GetFullName()} must be a Frame`)
+	return value
 end
 
-local function numbered(parent: Instance, prefix: string, count: number): { any }
+local function numberedFrames(parent: Instance, prefix: string, count: number): { Frame }
 	local values = {}
 	for index = 1, count do
-		table.insert(values, child(parent, `{prefix}{string.format("%02d", index)}`))
+		table.insert(values, frame(parent, `{prefix}{string.format("%02d", index)}`))
+	end
+	return values
+end
+
+local function numberedButtons(parent: Instance, prefix: string, count: number): { TextButton }
+	local values = {}
+	for index = 1, count do
+		local value = parent:WaitForChild(`{prefix}{string.format("%02d", index)}`)
+		assert(value:IsA("TextButton"), `{value:GetFullName()} must be a TextButton`)
+		table.insert(values, value)
 	end
 	return values
 end
@@ -69,40 +78,35 @@ end
 
 local function applyIcon(container: Instance, iconName: string?)
 	local icon = findGui(container, "Icon")
-	local symbol = findGui(container, "Symbol") or findGui(container, "Label")
+	local symbol = findGui(container, "Symbol")
 	local image = if iconName ~= nil and iconName ~= "" then IconCatalog.get(iconName :: IconName) else ""
 	if icon and icon:IsA("ImageLabel") then
 		icon.Image = image
 		icon.Visible = image ~= ""
 	end
-	if symbol and symbol:IsA("GuiObject") and findGui(container, "Symbol") == symbol then
+	if symbol then
 		symbol.Visible = image == ""
 	end
 end
 
 function WidgetBinder.new(root: Frame): WidgetBinder
-	local statRail = child(root, "StatRail") :: Frame
-	local progressRail = child(root, "ProgressRail") :: Frame
-	local actionRail = child(root, "ActionRail") :: Frame
 	return setmetatable({
-		statRail = statRail,
-		progressRail = progressRail,
-		actionRail = actionRail,
-		statSlots = numbered(statRail, "StatWidget", Config.ui.statWidgetPoolSize),
-		progressSlots = numbered(progressRail, "ProgressBar", Config.ui.progressBarPoolSize),
-		actionSlots = numbered(actionRail, "ActionSlot", Config.ui.actionSlotPoolSize),
+		packRoots = frame(root, "PackRoots"),
+		activeRoot = nil,
+		statSlots = {},
+		progressSlots = {},
+		actionSlots = {},
 		cleanup = {},
 		actionConnections = {},
 	}, WidgetBinder)
 end
 
-local function hideAll(slots: { any })
-	for _, slot in slots do
-		slot.Visible = false
+local function hideAll(values: { any })
+	for _, value in values do
+		value.Visible = false
 	end
 end
 
--- Tears down subscriptions/connections from a previous pack before re-binding.
 function WidgetBinder.unbind(self: WidgetBinder)
 	for _, dispose in self.cleanup do
 		dispose()
@@ -112,23 +116,40 @@ function WidgetBinder.unbind(self: WidgetBinder)
 		connection:Disconnect()
 	end
 	table.clear(self.actionConnections)
+	if self.activeRoot then
+		self.activeRoot.Visible = false
+	end
 end
 
-local function bindStat(self: WidgetBinder, slot: Frame, binding: any, store: Store.Store, theme: any)
+function WidgetBinder.selectRoot(self: WidgetBinder, descriptor: any)
+	for _, candidate in self.packRoots:GetChildren() do
+		if candidate:IsA("GuiObject") then
+			candidate.Visible = false
+		end
+	end
+	local selected = frame(self.packRoots, descriptor.authoredRoot)
+	local statRail = frame(selected, "StatRail")
+	local progressRail = frame(selected, "ProgressRail")
+	local actionRail = frame(selected, "ActionRail")
+	self.activeRoot = selected
+	self.statSlots = numberedFrames(statRail, "StatWidget", Config.ui.statWidgetPoolSize)
+	self.progressSlots = numberedFrames(progressRail, "ProgressBar", Config.ui.progressBarPoolSize)
+	self.actionSlots = numberedButtons(actionRail, "ActionSlot", Config.ui.actionSlotPoolSize)
+	selected.Visible = true
+	statRail.Visible = true
+	progressRail.Visible = true
+	actionRail.Visible = true
+end
+
+local function bindStat(self: WidgetBinder, slot: Frame, binding: any, store: Store.Store)
 	local valueLabel = findGui(slot, "Value")
 	local captionLabel = findGui(slot, "Caption")
 	local bar = findGui(slot, "Bar")
 	local fill = if bar then findGui(bar, "Fill") else nil
-	local color = ThemeProvider.color(theme, binding.color, "text")
 
 	applyIcon(slot, binding.icon)
-	slot.BackgroundColor3 = theme.colors.surface
 	if captionLabel and captionLabel:IsA("TextLabel") then
 		captionLabel.Text = binding.caption or ""
-		captionLabel.TextColor3 = theme.colors.textMuted
-	end
-	if valueLabel and valueLabel:IsA("TextLabel") then
-		valueLabel.TextColor3 = color
 	end
 
 	local function readValue(): number
@@ -138,15 +159,13 @@ local function bindStat(self: WidgetBinder, slot: Frame, binding: any, store: St
 		if valueLabel and valueLabel:IsA("TextLabel") then
 			valueLabel.Text = formatValue(binding.format, readValue())
 		end
-		if bar and binding.bar and fill and fill:IsA("GuiObject") then
+		if bar and binding.bar and fill then
 			local maxValue = binding.bar.max
 			if binding.bar.maxPath then
 				maxValue = tonumber(store:get(binding.bar.maxPath, maxValue or 1))
 			end
 			maxValue = if maxValue and maxValue > 0 then maxValue else 1
-			local fraction = math.clamp(readValue() / maxValue, 0, 1)
-			fill.Size = UDim2.new(fraction, 0, 1, 0)
-			fill.BackgroundColor3 = ThemeProvider.color(theme, binding.bar.color or binding.color, "primary")
+			fill.Size = UDim2.fromScale(math.clamp(readValue() / maxValue, 0, 1), 1)
 		end
 	end
 
@@ -160,18 +179,9 @@ local function bindStat(self: WidgetBinder, slot: Frame, binding: any, store: St
 	slot.Visible = true
 end
 
-function WidgetBinder.bind(
-	self: WidgetBinder,
-	descriptor: any,
-	store: Store.Store,
-	theme: any,
-	onAction: (any) -> ()
-)
+function WidgetBinder.bind(self: WidgetBinder, descriptor: any, store: Store.Store, onAction: (any) -> ())
 	WidgetBinder.unbind(self)
-
-	self.statRail.Visible = true
-	self.progressRail.Visible = true
-	self.actionRail.Visible = true
+	WidgetBinder.selectRoot(self, descriptor)
 	hideAll(self.statSlots)
 	hideAll(self.progressSlots)
 	hideAll(self.actionSlots)
@@ -179,14 +189,14 @@ function WidgetBinder.bind(
 	for _, binding in descriptor.hud.stats do
 		local slot = self.statSlots[binding.slot]
 		if slot then
-			bindStat(self, slot, binding, store, theme)
+			bindStat(self, slot, binding, store)
 		end
 	end
 
 	for _, binding in descriptor.hud.progress or {} do
 		local slot = self.progressSlots[binding.slot]
 		if slot then
-			bindStat(self, slot, binding, store, theme)
+			bindStat(self, slot, binding, store)
 		end
 	end
 
@@ -195,10 +205,8 @@ function WidgetBinder.bind(
 		if slot then
 			local label = findGui(slot, "Label")
 			applyIcon(slot, binding.icon)
-			slot.BackgroundColor3 = ThemeProvider.color(theme, binding.color, "primary")
 			if label and label:IsA("TextLabel") then
 				label.Text = binding.label
-				label.TextColor3 = theme.colors.text
 			end
 			local capturedBinding = binding
 			self.actionConnections[binding.slot] = slot.Activated:Connect(function()
@@ -209,15 +217,14 @@ function WidgetBinder.bind(
 	end
 end
 
--- Drives an ActionSlot's CooldownFill (0 = ready, 1 = full cooldown).
 function WidgetBinder.setCooldown(self: WidgetBinder, slotIndex: number, fraction: number)
 	local slot = self.actionSlots[slotIndex]
 	if not slot then
 		return
 	end
 	local fill = findGui(slot, "CooldownFill")
-	if fill and fill:IsA("GuiObject") then
-		fill.Size = UDim2.new(1, 0, math.clamp(fraction, 0, 1), 0)
+	if fill then
+		fill.Size = UDim2.fromScale(1, math.clamp(fraction, 0, 1))
 	end
 end
 

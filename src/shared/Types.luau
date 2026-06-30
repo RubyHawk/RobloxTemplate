@@ -75,7 +75,6 @@ export type PlayerProfileV2 = PlayerProfileV1 & {
 		dismissed: boolean,
 	},
 	selectedPack: string,
-	selectedTheme: string,
 }
 
 -- Alias for "the current profile shape". Bump this when a new schema version
@@ -102,12 +101,11 @@ export type ClientSnapshot = {
 	features: { [string]: boolean },
 	currencies: { [string]: number }?,
 	packId: string?,
-	themeId: string?,
 }
 
 -- ===== UI pack contracts =====
 -- A pack is frozen *data* (never behavior). It maps a finite pool of pre-authored
--- HUD widget slots to player-state paths, plus theme, currencies, and navigation.
+-- HUD widget slots inside a named physical root to state paths and actions.
 
 export type StatBinding = {
 	slot: number, -- StatWidget index (1..Config.ui.statWidgetPoolSize)
@@ -148,7 +146,7 @@ export type NavItem = {
 export type PackDescriptor = {
 	id: string,
 	displayName: string,
-	themeId: string,
+	authoredRoot: string,
 	currencies: { CurrencyDefinition },
 	hud: {
 		stats: { StatBinding },

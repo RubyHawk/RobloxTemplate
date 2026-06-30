@@ -27,7 +27,6 @@ function SeedProfiles.all(): { [string]: any }
 	incremental.daily.streak = 4
 	incremental.stats.totalCoinsEarned = 980000
 	incremental.selectedPack = "incremental"
-	incremental.selectedTheme = "incremental"
 
 	local combat = base()
 	combat.coins = 8200
@@ -36,7 +35,6 @@ function SeedProfiles.all(): { [string]: any }
 	combat.unlocks = { swordTier2 = true }
 	combat.stats.totalCoinsEarned = 41000
 	combat.selectedPack = "combat"
-	combat.selectedTheme = "combat"
 
 	return {
 		incremental = incremental,

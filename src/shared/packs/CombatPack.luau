@@ -1,8 +1,8 @@
 --!strict
 
 -- Combat pack. Proves the architecture is reusable: the SAME authored slot pool
--- renders a completely different HUD (vital bars + ability buttons + objective)
--- purely through this descriptor and a theme override. Health/stamina are
+-- binds a completely different, physically authored HUD (vital bars + ability
+-- buttons + objective). Health/stamina are
 -- client-local UI state fed from the character (see VitalsFeeder); gold and the
 -- objective come from the server snapshot.
 
@@ -12,7 +12,7 @@ type PackDescriptor = Types.PackDescriptor
 local pack: PackDescriptor = {
 	id = "combat",
 	displayName = "Combat",
-	themeId = "combat",
+	authoredRoot = "CombatPackRoot",
 
 	currencies = {
 		{ id = "coins", displayName = "Gold", icon = "coin", primary = true },

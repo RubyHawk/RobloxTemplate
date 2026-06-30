@@ -5,7 +5,6 @@ local MigrationCore = require("../src/shared/MigrationCore")
 local ReceiptLedger = require("../src/shared/ReceiptLedger")
 local SessionLock = require("../src/server/Util/SessionLock")
 local Store = require("../src/client/UI/Store")
-local TableMerge = require("../src/shared/TableMerge")
 local ProfileMigrationSteps = require("../src/shared/ProfileMigrationSteps")
 local PackValidation = require("../src/shared/PackValidation")
 local fs = require("@lune/fs")
@@ -89,15 +88,6 @@ unsubscribe()
 store:set({ currencies = { coins = 7 } })
 expectEqual(observed, 999, "unsubscribe stops notifications")
 
--- ===== Theme deep merge =====
-local mergeBase = { colors = { primary = "P", text = "T" }, radius = { small = 1 } }
-local merged = TableMerge.deep(mergeBase, { colors = { primary = "X", accent = "A" } })
-expectEqual(merged.colors.primary, "X", "deep merge overrides nested value")
-expectEqual(merged.colors.text, "T", "deep merge keeps base nested value")
-expectEqual(merged.colors.accent, "A", "deep merge adds override value")
-expectEqual(merged.radius.small, 1, "deep merge keeps untouched subtree")
-expectEqual(mergeBase.colors.primary, "P", "deep merge does not mutate base")
-
 -- ===== Profile v1 -> v2 migration step =====
 local upgradeV1 = { schemaVersion = 1, coins = 5000 }
 ProfileMigrationSteps.v1ToV2(upgradeV1)
@@ -132,6 +122,7 @@ expectEqual(reconciledV2.legacyThing, "x", "reconcile preserves unknown data")
 local pool = { stat = 6, action = 4, progress = 2 }
 local goodPack = {
 	id = "demo",
+	authoredRoot = "DemoPackRoot",
 	currencies = { { id = "coins", primary = true } },
 	hud = {
 		stats = { { slot = 1, path = "currencies.coins" }, { slot = 6, path = "x" } },
@@ -144,6 +135,7 @@ local goodPack = {
 expectEqual((PackValidation.check(goodPack, pool)), true, "valid pack descriptor passes validation")
 local badSlotPack = {
 	id = "bad",
+	authoredRoot = "BadPackRoot",
 	currencies = { { id = "c", primary = true } },
 	hud = { stats = { { slot = 7, path = "x" } }, actions = {} },
 	screens = {},
@@ -152,6 +144,7 @@ local badSlotPack = {
 expectEqual((PackValidation.check(badSlotPack, pool)), false, "stat slot out of pool range fails")
 local noPrimaryPack = {
 	id = "np",
+	authoredRoot = "NoPrimaryPackRoot",
 	currencies = { { id = "c" } },
 	hud = { stats = {}, actions = {} },
 	screens = {},
@@ -160,6 +153,7 @@ local noPrimaryPack = {
 expectEqual((PackValidation.check(noPrimaryPack, pool)), false, "missing primary currency fails")
 local badNavPack = {
 	id = "bn",
+	authoredRoot = "BadNavPackRoot",
 	currencies = { { id = "c", primary = true } },
 	hud = { stats = {}, actions = {} },
 	screens = { "Profile" },
@@ -301,6 +295,9 @@ end
 -- The UI pack layer binds a finite pool of PRE-AUTHORED slots; assert they exist.
 for _, authoredPoolObject in
 	{
+		'"Name":"PackRoots"',
+		'"Name":"IncrementalPackRoot"',
+		'"Name":"CombatPackRoot"',
 		'"Name":"StatRail"',
 		'"Name":"ProgressRail"',
 		'"Name":"ActionRail"',
@@ -322,7 +319,6 @@ for _, uiModulePath in
 	{
 		"src/client/UI/Store.luau",
 		"src/client/UI/WidgetBinder.luau",
-		"src/client/UI/ThemeProvider.luau",
 		"src/client/UI/PackController.luau",
 		"src/client/UI/VitalsFeeder.luau",
 	}
@@ -335,6 +331,15 @@ do
 			`{uiModulePath} does not use {forbiddenConstructor}`
 		)
 	end
+end
+
+local widgetBinderSource = fs.readFile("src/client/UI/WidgetBinder.luau")
+for _, forbiddenStyleMutation in { "BackgroundColor3 =", "TextColor3 =", ".Position =" } do
+	expectEqual(
+		string.find(widgetBinderSource, forbiddenStyleMutation, 1, true),
+		nil,
+		`physical pack binder does not code-style with {forbiddenStyleMutation}`
+	)
 end
 
 print(`{passed} pure Luau assertions passed`)

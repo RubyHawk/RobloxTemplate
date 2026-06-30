@@ -1,7 +1,7 @@
 --!strict
 
 -- Orchestrates the active UI pack: resolves it from the server snapshot, resolves
--- its theme, feeds the reactive Store, binds the authored HUD pool via
+-- its physical authored root, feeds the reactive Store, binds that root via
 -- WidgetBinder, gates which nav screens are reachable, hides the legacy single
 -- currency pill, and routes widget actions. Keeps init.client.luau thin and holds
 -- every pack-specific decision in one place.
@@ -11,7 +11,6 @@ local PackRegistry = require(Shared.PackRegistry)
 
 local Store = require(script.Parent.Store)
 local WidgetBinder = require(script.Parent.WidgetBinder)
-local ThemeProvider = require(script.Parent.ThemeProvider)
 local VitalsFeeder = require(script.Parent.VitalsFeeder)
 
 local PackController = {}
@@ -41,7 +40,6 @@ function PackController.start(options: any): any
 		store = Store.new(),
 		binder = WidgetBinder.new(options.root),
 		descriptor = nil :: any,
-		theme = nil :: any,
 		vitals = nil :: any,
 		cooldownActive = {} :: { [number]: boolean },
 		cooldownTokens = {} :: { [number]: number },
@@ -70,17 +68,11 @@ function PackController.initPack(self: any, snapshot: any)
 	end
 	self.descriptor = descriptor
 
-	local themeId = snapshot.themeId
-	if themeId == nil or themeId == "" then
-		themeId = descriptor.themeId
-	end
-	self.theme = ThemeProvider.resolve(themeId)
-
 	if descriptor.localFeeds and descriptor.localFeeds.health then
 		self.vitals = VitalsFeeder.start(self.store)
 	end
 
-	self.binder:bind(descriptor, self.store, self.theme, function(binding)
+	self.binder:bind(descriptor, self.store, function(binding)
 		self:onAction(binding)
 	end)
 

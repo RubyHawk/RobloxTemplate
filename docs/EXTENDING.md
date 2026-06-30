@@ -23,12 +23,11 @@ Create the complete visual shell and enough finite data slots in `StarterGui.Tem
 
 ## Add a UI pack
 
-A UI pack chooses which authored HUD slots are shown and what they bind to, so a
-new game gets a different HUD with no UI rewrite. Add `src/shared/packs/MyPack.luau`
-(a frozen `Types.PackDescriptor`), register it in `src/shared/PackRegistry.luau`,
-and select it with `Config.ui.defaultPackId`. Keep slot indices within the pool
-sizes in `Config.ui` and never construct GuiObjects. See [UI packs](UI_PACKS.md)
-for the slot pool, binding fields, and state paths.
+A UI pack owns a complete physical HUD Frame under `TemplateUI > Root > PackRoots`.
+Author that hierarchy in Studio, add `src/shared/packs/MyPack.luau` with its
+`authoredRoot` name and data bindings, register it in `PackRegistry.luau`, and
+select it with `Config.ui.defaultPackId`. Keep slot names stable and never
+construct GuiObjects during Play. See [UI packs](UI_PACKS.md).
 
 ## Replace a provider
 
