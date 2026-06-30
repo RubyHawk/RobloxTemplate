@@ -21,6 +21,15 @@ Add its definition to `src/shared/Catalogs.luau`. Keep item IDs stable after rel
 
 Create the complete visual shell and enough finite data slots in `StarterGui.TemplateUI`, then register the existing screen through `ScreenRegistry` and bind its fields. Never create, clone, or destroy GUI objects at runtime. Use Studio-editable styling and verify the mobile acceptance matrix.
 
+## Add a UI pack
+
+A UI pack chooses which authored HUD slots are shown and what they bind to, so a
+new game gets a different HUD with no UI rewrite. Add `src/shared/packs/MyPack.luau`
+(a frozen `Types.PackDescriptor`), register it in `src/shared/PackRegistry.luau`,
+and select it with `Config.ui.defaultPackId`. Keep slot indices within the pool
+sizes in `Config.ui` and never construct GuiObjects. See [UI packs](UI_PACKS.md)
+for the slot pool, binding fields, and state paths.
+
 ## Replace a provider
 
 Map branches can replace `DefaultEconomyRateProvider`, `LikesService`, community verification, notification scheduling, or public profile lookup while preserving the contract in `src/shared/Providers.luau`.

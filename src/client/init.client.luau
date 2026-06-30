@@ -23,6 +23,7 @@ local NotificationController = require(Controllers.NotificationController)
 local UIFactory = require(script.UI.UIFactory)
 local ScreenRegistry = require(script.UI.ScreenRegistry)
 local Screens = require(script.UI.Screens)
+local PackController = require(script.UI.PackController)
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild(RemoteNames.folder)
@@ -272,6 +273,8 @@ for name, screen in binder.screens do
 	registry:register(name, screen)
 end
 
+local navButtonsByScreen: { [string]: GuiObject } = {}
+
 local navItems = {
 	{ "BagButton", "Inventory", "bag" },
 	{ "ShopButton", "Store", "shop" },
@@ -282,6 +285,7 @@ for _, item in navItems do
 	local button = navScroll:WaitForChild(item[1]) :: TextButton
 	local screenName = item[2]
 	local iconName = item[3] :: IconName
+	navButtonsByScreen[screenName] = button
 	applyIcon(button:WaitForChild("IconBubble"), iconName, "PackIcon", "Icon")
 	local restingColor = button.BackgroundColor3
 	button.MouseEnter:Connect(function()
@@ -342,6 +346,7 @@ for _, item in moreItems do
 	local button = moreMenuButtons:WaitForChild(item[1]) :: TextButton
 	local screenName = item[2]
 	local iconName = item[3] :: IconName
+	navButtonsByScreen[screenName] = button
 	applyIcon(button, iconName, "Icon", "Fallback")
 	local restingColor = button.BackgroundColor3
 	button.MouseEnter:Connect(function()
@@ -356,6 +361,23 @@ for _, item in moreItems do
 		registry:open(screenName)
 	end)
 end
+
+-- The active UI pack drives the authored StatRail/ActionRail/ProgressRail pool and
+-- replaces the single legacy currency pill. Different games select a different
+-- pack (Config.ui.defaultPackId) with no UI rewrite.
+local packController = PackController.start({
+	root = root,
+	registry = registry,
+	openScreen = function(name: string)
+		registry:open(name)
+	end,
+	request = request,
+	playClick = function()
+		AudioController.play("click")
+	end,
+	navButtons = navButtonsByScreen,
+	legacyHud = hud,
+})
 
 local function applyState(nextState: any)
 	if nextState == nil or nextState.profile == nil then
@@ -375,6 +397,7 @@ local function applyState(nextState: any)
 	end
 	AfkController.setEnabled(state.profile.settings.afKRollOver)
 	binder.apply(state)
+	packController:applySnapshot(state)
 end
 
 stateRemote.OnClientEvent:Connect(function(packet)

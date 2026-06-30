@@ -4,6 +4,10 @@ local Calculations = require("../src/shared/Calculations")
 local MigrationCore = require("../src/shared/MigrationCore")
 local ReceiptLedger = require("../src/shared/ReceiptLedger")
 local SessionLock = require("../src/server/Util/SessionLock")
+local Store = require("../src/client/UI/Store")
+local TableMerge = require("../src/shared/TableMerge")
+local ProfileMigrationSteps = require("../src/shared/ProfileMigrationSteps")
+local PackValidation = require("../src/shared/PackValidation")
 local fs = require("@lune/fs")
 
 local passed = 0
@@ -63,6 +67,105 @@ expectEqual(migrated.unknown, "keep", "migration preserves unknown data")
 local receipts = {}
 expectEqual(ReceiptLedger.claim(receipts, "purchase"), true, "first receipt grants")
 expectEqual(ReceiptLedger.claim(receipts, "purchase"), false, "duplicate receipt rejected")
+
+-- ===== Reactive store (HUD data binding) =====
+local store = Store.new()
+expectEqual(store:get("missing.path", 42), 42, "store returns default for missing path")
+store:set({ currencies = { coins = 100 } })
+expectEqual(store:get("currencies.coins", 0), 100, "store reads nested value after set")
+store:setLocal("local.health", 75)
+expectEqual(store:get("local.health", 0), 75, "store reads client-local value")
+store:set({ currencies = { coins = 250 } })
+expectEqual(store:get("local.health", 0), 75, "store preserves local subtree across set")
+expectEqual(store:get("currencies.coins", 0), 250, "store updates server value across set")
+local observed: any = nil
+local unsubscribe = store:subscribe("currencies.coins", function(value)
+	observed = value
+end)
+expectEqual(observed, 250, "subscribe fires immediately with current value")
+store:set({ currencies = { coins = 999 } })
+expectEqual(observed, 999, "subscribe fires on set")
+unsubscribe()
+store:set({ currencies = { coins = 7 } })
+expectEqual(observed, 999, "unsubscribe stops notifications")
+
+-- ===== Theme deep merge =====
+local mergeBase = { colors = { primary = "P", text = "T" }, radius = { small = 1 } }
+local merged = TableMerge.deep(mergeBase, { colors = { primary = "X", accent = "A" } })
+expectEqual(merged.colors.primary, "X", "deep merge overrides nested value")
+expectEqual(merged.colors.text, "T", "deep merge keeps base nested value")
+expectEqual(merged.colors.accent, "A", "deep merge adds override value")
+expectEqual(merged.radius.small, 1, "deep merge keeps untouched subtree")
+expectEqual(mergeBase.colors.primary, "P", "deep merge does not mutate base")
+
+-- ===== Profile v1 -> v2 migration step =====
+local upgradeV1 = { schemaVersion = 1, coins = 5000 }
+ProfileMigrationSteps.v1ToV2(upgradeV1)
+expectEqual(upgradeV1.currencies.coins, 5000, "v1->v2 seeds currencies from coins")
+local keepV1 = { schemaVersion = 1, coins = 1, currencies = { coins = 999, gems = 3 } }
+ProfileMigrationSteps.v1ToV2(keepV1)
+expectEqual(keepV1.currencies.coins, 999, "v1->v2 does not clobber existing currencies")
+expectEqual(keepV1.currencies.gems, 3, "v1->v2 preserves existing secondary currency")
+local emptyV1 = { schemaVersion = 1 }
+ProfileMigrationSteps.v1ToV2(emptyV1)
+expectEqual(emptyV1.currencies.coins, 0, "v1->v2 defaults missing coins to 0")
+
+local reconciledV2 = MigrationCore.migrate({
+	schemaVersion = 1,
+	coins = 50,
+	currencies = { coins = 50 },
+	legacyThing = "x",
+}, {
+	schemaVersion = 2,
+	coins = 0,
+	currencies = { coins = 0, gems = 0 },
+	upgrades = {},
+	progress = { rebirths = 0 },
+}, 2)
+expectEqual(reconciledV2.schemaVersion, 2, "reconcile stamps v2")
+expectEqual(reconciledV2.coins, 50, "reconcile preserves coins")
+expectEqual(reconciledV2.currencies.gems, 0, "reconcile adds missing secondary currency")
+expectEqual(reconciledV2.progress.rebirths, 0, "reconcile adds progress section")
+expectEqual(reconciledV2.legacyThing, "x", "reconcile preserves unknown data")
+
+-- ===== Pack descriptor validation =====
+local pool = { stat = 6, action = 4, progress = 2 }
+local goodPack = {
+	id = "demo",
+	currencies = { { id = "coins", primary = true } },
+	hud = {
+		stats = { { slot = 1, path = "currencies.coins" }, { slot = 6, path = "x" } },
+		progress = { { slot = 2, path = "p" } },
+		actions = { { slot = 4, action = "OpenScreen", screen = "Profile" } },
+	},
+	screens = { "Profile" },
+	navigation = { { screen = "Profile" } },
+}
+expectEqual((PackValidation.check(goodPack, pool)), true, "valid pack descriptor passes validation")
+local badSlotPack = {
+	id = "bad",
+	currencies = { { id = "c", primary = true } },
+	hud = { stats = { { slot = 7, path = "x" } }, actions = {} },
+	screens = {},
+	navigation = {},
+}
+expectEqual((PackValidation.check(badSlotPack, pool)), false, "stat slot out of pool range fails")
+local noPrimaryPack = {
+	id = "np",
+	currencies = { { id = "c" } },
+	hud = { stats = {}, actions = {} },
+	screens = {},
+	navigation = {},
+}
+expectEqual((PackValidation.check(noPrimaryPack, pool)), false, "missing primary currency fails")
+local badNavPack = {
+	id = "bn",
+	currencies = { { id = "c", primary = true } },
+	hud = { stats = {}, actions = {} },
+	screens = { "Profile" },
+	navigation = { { screen = "Store" } },
+}
+expectEqual((PackValidation.check(badNavPack, pool)), false, "nav to a disabled screen fails")
 
 for _, servicePath in
 	{
@@ -193,6 +296,45 @@ for _, developerFacingCopy in { "Project defaults", "Verification is scaffolded"
 		nil,
 		`player UI hides developer wording: {developerFacingCopy}`
 	)
+end
+
+-- The UI pack layer binds a finite pool of PRE-AUTHORED slots; assert they exist.
+for _, authoredPoolObject in
+	{
+		'"Name":"StatRail"',
+		'"Name":"ProgressRail"',
+		'"Name":"ActionRail"',
+		'"Name":"StatWidget06"',
+		'"Name":"ProgressBar02"',
+		'"Name":"ActionSlot04"',
+		'"Name":"CooldownFill"',
+	}
+do
+	expectEqual(
+		string.find(compactConnectedUi, authoredPoolObject, 1, true) ~= nil,
+		true,
+		`connected UI pre-authors {authoredPoolObject}`
+	)
+end
+
+-- The pack HUD binders must populate authored slots, never construct GuiObjects.
+for _, uiModulePath in
+	{
+		"src/client/UI/Store.luau",
+		"src/client/UI/WidgetBinder.luau",
+		"src/client/UI/ThemeProvider.luau",
+		"src/client/UI/PackController.luau",
+		"src/client/UI/VitalsFeeder.luau",
+	}
+do
+	local moduleSource = fs.readFile(uiModulePath)
+	for _, forbiddenConstructor in { "Instance.new", ":Clone(", ":Destroy(" } do
+		expectEqual(
+			string.find(moduleSource, forbiddenConstructor, 1, true),
+			nil,
+			`{uiModulePath} does not use {forbiddenConstructor}`
+		)
+	end
 end
 
 print(`{passed} pure Luau assertions passed`)

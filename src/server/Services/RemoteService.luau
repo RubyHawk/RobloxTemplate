@@ -7,6 +7,7 @@ local Catalogs = require(Shared.Catalogs)
 local Config = require(Shared.TemplateConfig)
 local Calculations = require(Shared.Calculations)
 local RemoteNames = require(Shared.RemoteNames)
+local PackRegistry = require(Shared.PackRegistry)
 
 local RateLimiter = require(script.Parent.Parent.Util.RateLimiter)
 local AfkService = require(script.Parent.AfkService)
@@ -45,12 +46,19 @@ function RemoteService.snapshot(player: Player): any
 		return nil
 	end
 	local likes = LikesService.getLikes()
+	local pack = PackRegistry.resolveFor(profile)
+	local themeId = if profile.selectedTheme ~= nil and profile.selectedTheme ~= ""
+		then profile.selectedTheme
+		else pack.themeId
 	return {
 		profile = profile,
 		catalog = Catalogs.items,
 		features = Config.features,
 		version = Config.version,
 		serverTime = os.time(),
+		packId = pack.id,
+		themeId = themeId,
+		currencies = profile.currencies,
 		friendBonus = Calculations.friendBonus(
 			profile.social.friendCountInServer,
 			Config.economy.friendBonusPerFriend,

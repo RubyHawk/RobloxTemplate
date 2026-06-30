@@ -28,6 +28,23 @@ local Config = {
 		useLiveDataStore = false,
 		mockStartingCoins = 2500,
 		openComponentGallery = true,
+		-- When true (Studio only), ProfileService persists to a separate
+		-- "<profileStoreName>_canary" DataStore and SeedProfiles writes
+		-- deterministic fixtures there for inspection in Data Delve Canary.
+		-- Production data is never touched. Keep false on the live experience.
+		useCanaryStore = false,
+		seedCanaryProfiles = false,
+	},
+
+	-- UI pack layer. Each game picks an active pack; widgets bind to a finite
+	-- pool of pre-authored HUD slots whose sizes are pinned here so the authored
+	-- model, pack descriptors, and binder/validator can never drift apart.
+	ui = {
+		defaultPackId = "incremental",
+		allowPlayerPackSelection = false,
+		statWidgetPoolSize = 6,
+		actionSlotPoolSize = 4,
+		progressBarPoolSize = 2,
 	},
 
 	identity = {
@@ -38,6 +55,9 @@ local Config = {
 
 	economy = {
 		primaryCurrency = "Coins",
+		-- Stable data key for the primary currency inside profile.currencies. The
+		-- top-level profile.coins field mirrors currencies[primaryCurrencyId].
+		primaryCurrencyId = "coins",
 		baseOfflineRatePerSecond = 1,
 		friendBonusPerFriend = 0.10,
 		friendBonusCap = 0.50,
@@ -136,6 +156,17 @@ local Config = {
 		starterTool = "134119181427014", -- sword
 		potionX2 = "72854331493787", -- x2 clover
 		potionX3 = "102321175672770", -- potion bottle
+		-- UI-pack stat icons. Left blank so the widget's text Symbol shows until a
+		-- map branch uploads art and pastes the asset id here.
+		health = "",
+		stamina = "",
+		energy = "",
+		gem = "",
+		income = "",
+		multiplier = "",
+		rebirth = "",
+		objective = "",
+		ability = "",
 	},
 }
 

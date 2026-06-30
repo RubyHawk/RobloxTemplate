@@ -28,6 +28,15 @@ export type IconName =
 	| "starterTool"
 	| "potionX2"
 	| "potionX3"
+	| "health"
+	| "stamina"
+	| "energy"
+	| "gem"
+	| "income"
+	| "multiplier"
+	| "rebirth"
+	| "objective"
+	| "ability"
 
 export type SourceDefinition = {
 	file: string,
@@ -63,6 +72,15 @@ local sources: { [IconName]: SourceDefinition } = {
 	starterTool = { file = "starter_tool.png", fallback = "" },
 	potionX2 = { file = "potion_x2.png", fallback = "" },
 	potionX3 = { file = "potion_x3.png", fallback = "" },
+	health = { file = "health.png", fallback = "" },
+	stamina = { file = "stamina.png", fallback = "" },
+	energy = { file = "energy.png", fallback = "" },
+	gem = { file = "gem.png", fallback = "" },
+	income = { file = "income.png", fallback = "" },
+	multiplier = { file = "multiplier.png", fallback = "" },
+	rebirth = { file = "rebirth.png", fallback = "" },
+	objective = { file = "objective.png", fallback = "" },
+	ability = { file = "ability.png", fallback = "" },
 }
 
 local configured: { [IconName]: string } = Config.icons

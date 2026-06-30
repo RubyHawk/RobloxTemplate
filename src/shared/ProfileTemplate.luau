@@ -1,14 +1,36 @@
 --!strict
 
 local Types = require(script.Parent.Types)
-type PlayerProfileV1 = Types.PlayerProfileV1
+type PlayerProfile = Types.PlayerProfile
 
 local ProfileTemplate = {}
 
-function ProfileTemplate.create(now: number): PlayerProfileV1
+-- Bump alongside Migrations.CURRENT_VERSION whenever the persisted shape changes.
+ProfileTemplate.CURRENT_VERSION = 2
+
+function ProfileTemplate.create(now: number): PlayerProfile
 	return {
-		schemaVersion = 1,
+		schemaVersion = ProfileTemplate.CURRENT_VERSION,
 		coins = 0,
+		currencies = {
+			-- "coins" mirrors the top-level `coins` field for back-compat; secondary
+			-- currencies (gems, etc.) live only here. See EconomyService.
+			coins = 0,
+			gems = 0,
+		},
+		upgrades = {},
+		unlocks = {},
+		progress = {
+			rebirths = 0,
+			prestige = 0,
+			objectives = {},
+		},
+		tutorial = {
+			completedSteps = {},
+			dismissed = false,
+		},
+		selectedPack = "",
+		selectedTheme = "",
 		inventory = {
 			double_coins_potion = { quantity = 1 },
 		},

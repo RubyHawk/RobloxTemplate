@@ -7,6 +7,7 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):Wai
 local Config = require(Shared.TemplateConfig)
 local Migrations = require(Shared.Migrations)
 local ProfileTemplate = require(Shared.ProfileTemplate)
+local SeedProfiles = require(Shared.SeedProfiles)
 local Types = require(Shared.Types)
 local SessionLock = require(script.Parent.Parent.Util.SessionLock)
 
@@ -44,14 +45,27 @@ local function keyFor(player: Player): string
 	return `player:{player.UserId}`
 end
 
+-- In Studio, persist to a physically separate "<name>_canary" DataStore so
+-- SeedProfiles and Data Delve inspection can never touch production data.
+local function useCanary(): boolean
+	return RunService:IsStudio() and Config.studio.useCanaryStore
+end
+
 local function shouldMock(): boolean
-	return RunService:IsStudio() and not Config.studio.useLiveDataStore
+	return RunService:IsStudio() and not Config.studio.useLiveDataStore and not useCanary()
+end
+
+local function storeName(): string
+	if useCanary() then
+		return `{Config.profileStoreName}_canary`
+	end
+	return Config.profileStoreName
 end
 
 local function getStore(): GlobalDataStore
 	local current = store
 	if current == nil then
-		current = DataStoreService:GetDataStore(Config.profileStoreName)
+		current = DataStoreService:GetDataStore(storeName())
 		store = current
 	end
 	return current
@@ -191,6 +205,26 @@ function ProfileService.startAutosave()
 			end
 		end
 	end)
+end
+
+-- Writes deterministic fixtures to the canary store for Data Delve inspection.
+-- No-op unless running in Studio with useCanaryStore enabled, so production is
+-- never seeded. Keys are "seed:<archetype>".
+function ProfileService.seedCanary()
+	if not useCanary() then
+		return
+	end
+	for key, profile in SeedProfiles.all() do
+		local migrated = Migrations.migrate(profile, os.time())
+		local success = pcall(function()
+			getStore():UpdateAsync(`seed:{key}`, function(): Envelope
+				return { data = migrated, lock = nil, updatedAt = os.time() }
+			end)
+		end)
+		if not success then
+			warn(`[ProfileService] failed to seed canary profile "{key}"`)
+		end
+	end
 end
 
 function ProfileService.close()

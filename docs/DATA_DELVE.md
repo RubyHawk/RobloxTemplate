@@ -11,7 +11,23 @@ Use it only after publishing a separate private test experience:
 
 Do not enable Studio API access on the live production experience. Roblox states that Studio accesses the same data as live servers and can overwrite production profiles.
 
-The saved profile contains readable sections for Coins, inventory, boosts, settings, statistics, daily rewards, redemptions, entitlements, social verification, guild reservation, and timestamps. Schema versioning and migrations remain controlled by the template code; do not casually delete unknown fields in DataDelve.
+The saved profile contains readable sections for Coins, the `currencies` map, `upgrades`, `unlocks`, `progress`, tutorial flags, `selectedPack`/`selectedTheme`, inventory, boosts, settings, statistics, daily rewards, redemptions, entitlements, social verification, guild reservation, and timestamps. Schema versioning and migrations remain controlled by the template code; do not casually delete unknown fields in DataDelve.
+
+## Predictable canary test data
+
+To inspect deterministic fixtures without touching production, the template can
+write seeded profiles to a physically separate store:
+
+1. In `src/shared/TemplateConfig.luau`, set `studio.useCanaryStore = true` and
+   `studio.seedCanaryProfiles = true`.
+2. Run the game once in Studio (with Studio API access on the **test** experience).
+   `ProfileService` now persists to `RobloxTemplate_Profile_v1_canary`, and seeding
+   writes `seed:incremental` and `seed:combat` fixtures (see `SeedProfiles.luau`).
+3. In DataDelve Canary, open `RobloxTemplate_Profile_v1_canary` and inspect those
+   keys; their values are fixed every run, so they are easy to diff.
+
+The production store name is never used while `useCanaryStore` is on. Keep both
+flags `false` on the live experience.
 
 Sources:
 

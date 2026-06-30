@@ -1,6 +1,10 @@
 --!strict
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Template"):WaitForChild("Shared")
+local Config = require(Shared.TemplateConfig)
 
 local Services = script.Services
 local AnnouncementService = require(Services.AnnouncementService)
@@ -20,6 +24,12 @@ StoreService.initialize()
 ProfileService.startAutosave()
 LeaderboardService.start()
 AnnouncementService.start(RemoteService.broadcastAnnouncement)
+
+if Config.studio.seedCanaryProfiles then
+	-- Writes deterministic fixtures to the Studio canary store for Data Delve.
+	-- No-op outside Studio / when the canary store is off.
+	ProfileService.seedCanary()
+end
 
 local function playerAdded(player: Player)
 	task.spawn(function()

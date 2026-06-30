@@ -9,3 +9,4 @@ Add a short dated note here whenever the team researches or changes a reusable s
 - [2026-06-29: licensed icon pack integration](2026-06-29-icon-pack-integration.md)
 - [2026-06-28: kid-friendly connected UI](2026-06-28-kid-friendly-ui.md)
 - [2026-06-29: 2025–2026 Roblox UI asset survey](2026-06-29-ui-asset-survey.md)
+- [2026-06-30: reusable UI pack system](2026-06-30-ui-pack-system.md)
