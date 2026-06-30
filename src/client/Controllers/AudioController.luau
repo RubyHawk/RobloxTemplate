@@ -43,7 +43,7 @@ function AudioController.initialize()
 		if type(assetId) == "string" and assetId ~= "" then
 			local player = Instance.new("AudioPlayer")
 			player.Name = name
-			player.AudioContent = Content.fromUri(normalizeAssetId(assetId))
+			player.Asset = normalizeAssetId(assetId)
 			player.AutoLoad = true
 			player.Looping = name == "music"
 			applyVolume(name, player)

@@ -197,7 +197,7 @@ for _, developerFacingCopy in { "Project defaults", "Verification is scaffolded"
 end
 
 local audioConfig = fs.readFile("src/shared/TemplateConfig.luau")
-for _, audioId in { "12221967", "12222054", "12222253", "12222170", "910988901", "12221976", "12222076" } do
+for _, audioId in { "12221967", "12222054", "12222253", "12222170", "12222200", "12221976", "12222076" } do
 	expectEqual(
 		string.find(audioConfig, audioId, 1, true) ~= nil,
 		true,
@@ -220,6 +220,25 @@ for _, legacyAudioObject in { 'Instance.new("Sound")', 'Instance.new("SoundGroup
 		string.find(audioController, legacyAudioObject, 1, true),
 		nil,
 		`audio controller avoids discouraged {legacyAudioObject}`
+	)
+end
+expectEqual(
+	string.find(audioController, "player.Asset = ", 1, true) ~= nil,
+	true,
+	"audio controller assigns the public, documented AudioPlayer.Asset property"
+)
+expectEqual(
+	string.find(audioController, "AudioContent", 1, true),
+	nil,
+	"audio controller avoids the Hidden AudioPlayer.AudioContent property"
+)
+
+local initClient = fs.readFile("src/client/init.client.luau")
+for _, silentBackgroundCall in { 'query("InitialState", {}, "")', 'request("AfkRollover", {}, "")' } do
+	expectEqual(
+		string.find(initClient, silentBackgroundCall, 1, true) ~= nil,
+		true,
+		`background polling and AFK rollover stay silent: {silentBackgroundCall}`
 	)
 end
 

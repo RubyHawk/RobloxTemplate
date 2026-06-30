@@ -105,7 +105,7 @@ local Config = {
 		cash = "rbxassetid://12222054", -- Kerplunk.wav
 		reward = "rbxassetid://12222253", -- victory.wav
 		inventory = "rbxassetid://12222170", -- switch.wav
-		lootboxOpen = "rbxassetid://910988901", -- Deploy1
+		lootboxOpen = "rbxassetid://12222200", -- swoosh.wav
 		spin = "rbxassetid://12221976", -- clickfast.wav
 		notification = "rbxassetid://12222076", -- Pageturn1
 	},

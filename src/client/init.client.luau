@@ -218,8 +218,8 @@ local function request(action: string, payload: any, audioCue: string?)
 	requestRemote:FireServer({ action = action, payload = payload })
 end
 
-local function query(action: string, payload: any): any
-	AudioController.play("click")
+local function query(action: string, payload: any, audioCue: string?): any
+	AudioController.play(audioCue or "click")
 	local success, response = pcall(function()
 		return queryRemote:InvokeServer(action, payload)
 	end)
@@ -418,12 +418,12 @@ UserInputService.InputBegan:Connect(function(input, processed)
 end)
 
 AfkController.initialize(function()
-	request("AfkRollover", {})
+	request("AfkRollover", {}, "")
 end, showToast)
 
 task.spawn(function()
 	for _ = 1, 30 do
-		local response = query("InitialState", {})
+		local response = query("InitialState", {}, "")
 		if response.ok and response.data then
 			applyState(response.data)
 			return

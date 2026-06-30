@@ -415,6 +415,7 @@ function Screens.bind(parent: Instance, context: any): any
 	local feedbackCategoryButton = textButton(feedbackContent, "CategoryButton")
 	local feedbackInput = textBox(feedbackContent, "MessageInput")
 	feedbackCategoryButton.Activated:Connect(function()
+		context.playAudio("click")
 		feedbackCategoryIndex = (feedbackCategoryIndex % #feedbackCategories) + 1
 		feedbackCategoryButton.Text = `CATEGORY: {string.upper(feedbackCategories[feedbackCategoryIndex])}`
 	end)
