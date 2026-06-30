@@ -2,18 +2,18 @@
 
 local Theme = {
 	colors = {
-		background = Color3.fromRGB(245, 249, 255),
+		background = Color3.fromRGB(250, 246, 255),
 		surface = Color3.fromRGB(255, 255, 255),
-		surfaceRaised = Color3.fromRGB(232, 241, 255),
-		primary = Color3.fromRGB(52, 120, 246),
-		primaryHover = Color3.fromRGB(35, 95, 218),
-		secondary = Color3.fromRGB(91, 77, 222),
+		surfaceRaised = Color3.fromRGB(243, 232, 255),
+		primary = Color3.fromRGB(124, 58, 237),
+		primaryHover = Color3.fromRGB(101, 40, 196),
+		secondary = Color3.fromRGB(63, 185, 255),
 		accent = Color3.fromRGB(255, 196, 46),
-		success = Color3.fromRGB(38, 190, 112),
-		danger = Color3.fromRGB(246, 73, 86),
-		text = Color3.fromRGB(22, 39, 73),
-		textMuted = Color3.fromRGB(91, 111, 145),
-		stroke = Color3.fromRGB(31, 61, 112),
+		success = Color3.fromRGB(20, 206, 151),
+		danger = Color3.fromRGB(255, 65, 121),
+		text = Color3.fromRGB(28, 17, 51),
+		textMuted = Color3.fromRGB(104, 86, 135),
+		stroke = Color3.fromRGB(55, 31, 92),
 	},
 	radius = {
 		small = UDim.new(0, 8),

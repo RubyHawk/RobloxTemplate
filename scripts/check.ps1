@@ -24,6 +24,7 @@ foreach ($icon in $requiredIcons) {
 $runtimeUiFiles = @(
     Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot "..\src\client\UI") -Filter "*.luau" -File
     Get-Item -LiteralPath (Join-Path $PSScriptRoot "..\src\client\init.client.luau")
+    Get-Item -LiteralPath (Join-Path $PSScriptRoot "..\ui-packages\PackagePreview.client.luau")
 )
 $runtimeUiConstructors = @(
     $runtimeUiFiles | Select-String -Pattern 'Instance\.new|:Clone\(|:Destroy\('
@@ -46,8 +47,8 @@ foreach ($screenName in $requiredScreens) {
     }
 }
 
-Invoke-Checked "StyLua" { stylua --check src tests }
-Invoke-Checked "Selene" { selene src tests }
+Invoke-Checked "StyLua" { stylua --check src tests ui-packages }
+Invoke-Checked "Selene" { selene src tests ui-packages }
 Invoke-Checked "Wally" { wally install }
 Invoke-Checked "Rojo build" { rojo build bootstrap.project.json --output RobloxTemplate.rbxlx }
 Invoke-Checked "Reusable UI package build" {
