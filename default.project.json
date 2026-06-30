@@ -1,7 +1,6 @@
 {
   "name": "RobloxPlayableStarter",
   "emitLegacyScripts": true,
-  "servePlaceIds": [],
   "tree": {
     "$className": "DataModel",
     "ReplicatedFirst": {
