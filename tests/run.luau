@@ -241,4 +241,49 @@ for _, silentBackgroundCall in { 'query("InitialState", {}, "")', 'request("AfkR
 	)
 end
 
+local responsiveController = fs.readFile("src/client/Controllers/ResponsiveController.luau")
+for _, requiredMarker in
+	{
+		"clampNavigation",
+		"clampModalsAgainstHud",
+		"findSizeConstraint",
+		"collectModalRoots",
+		"originalMaxSize",
+	}
+do
+	expectEqual(
+		string.find(responsiveController, requiredMarker, 1, true) ~= nil,
+		true,
+		`responsive controller clamps overflow/overlap on short viewports: {requiredMarker}`
+	)
+end
+
+-- StoreScreen's header was 60 tall while its own Body label already
+-- reserved 92px (Title + wrapped 2-line Body); found via mechanical
+-- rendering at phone width, where the description wraps and visibly
+-- spills out of the yellow header. Fixed to 100 tall with ProductsGrid and
+-- CanvasSize shifted to match; the licensed ShowcaseCanvas duplicate
+-- (ZIndex 192) is intentionally left untouched, same as every other
+-- restyle pass in this file.
+expectEqual(
+	string.find(
+		compactConnectedUi,
+		'"LayoutOrder":1,"Size":{"UDim2":[[1,0],[0,100]]},"Visible":true,"ZIndex":42,',
+		1,
+		true
+	) ~= nil,
+	true,
+	"real StoreHeader grows to fit its own wrapped 2-line Body label"
+)
+expectEqual(
+	string.find(
+		compactConnectedUi,
+		'"Position":{"UDim2":[[0,0],[0,112]]},"Size":{"UDim2":[[1,0],[0,1024]]},"ZIndex":41',
+		1,
+		true
+	) ~= nil,
+	true,
+	"ProductsGrid shifts down to match the taller StoreHeader"
+)
+
 print(`{passed} pure Luau assertions passed`)
