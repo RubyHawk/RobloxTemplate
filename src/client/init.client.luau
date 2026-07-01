@@ -20,6 +20,7 @@ local Controllers = script.Controllers
 local AudioController = require(Controllers.AudioController)
 local AfkController = require(Controllers.AfkController)
 local NotificationController = require(Controllers.NotificationController)
+local ResponsiveController = require(Controllers.ResponsiveController)
 local UIFactory = require(script.UI.UIFactory)
 local ScreenRegistry = require(script.UI.ScreenRegistry)
 local Screens = require(script.UI.Screens)
@@ -55,6 +56,7 @@ if showcaseCanvas and showcaseCanvas:IsA("GuiObject") then
 	showcaseCanvas.Visible = false
 end
 local uiScale = root:WaitForChild("InterfaceScale") :: UIScale
+ResponsiveController.initialize(root, uiScale)
 local hud = root:WaitForChild("CurrencyHUD") :: Frame
 local coinLabel = hud:WaitForChild("CoinLabel") :: TextLabel
 local boostLabel = hud:WaitForChild("BoostLabel") :: TextLabel
@@ -376,7 +378,7 @@ local function applyState(nextState: any)
 		"%.2f",
 		(1 + state.friendBonus + state.premiumBonus) * state.potionMultiplier
 	)} BOOST  •  {state.profile.social.friendCountInServer} FRIENDS`
-	uiScale.Scale = state.profile.settings.uiScale
+	ResponsiveController.setPlayerScale(state.profile.settings.uiScale)
 	AudioController.applySettings(state.profile.settings)
 	if state.profile.coins > previousCoins then
 		AudioController.play("cash")

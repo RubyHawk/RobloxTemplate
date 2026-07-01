@@ -16,6 +16,7 @@ node_modules/
 .cache/
 coverage/
 build/
+__pycache__/
 !assets/icons/gvesster-basic/*.png
 !assets/icons/gvesster-basic/LICENSE.txt
 
