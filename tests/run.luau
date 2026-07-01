@@ -249,6 +249,8 @@ for _, requiredMarker in
 		"findSizeConstraint",
 		"collectModalRoots",
 		"originalMaxSize",
+		"updateHudVisibility",
+		"modalNeedsHudHidden",
 	}
 do
 	expectEqual(

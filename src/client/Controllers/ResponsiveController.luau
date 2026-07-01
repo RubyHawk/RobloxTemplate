@@ -29,6 +29,7 @@ local navigation: Frame? = nil
 local hud: Frame? = nil
 local modalRoots: { GuiObject } = {}
 local originalMaxSize: { [GuiObject]: Vector2 } = {}
+local modalNeedsHudHidden: { [GuiObject]: boolean } = {}
 
 local function currentCamera(): Camera
 	local camera = Workspace.CurrentCamera
@@ -123,6 +124,14 @@ end
 -- AnchorPoint math ties AbsolutePosition + AnchorPoint*AbsoluteSize back to
 -- the size-invariant center point, so this is stable across repeated calls
 -- instead of ratcheting the constraint down permanently.
+--
+-- On any landscape phone (viewport height under ~560, which is every real
+-- phone rotated sideways - not just unusually small ones) the modal's own
+-- authored MinSize floor is taller than the space actually free below the
+-- HUD, so shrinking alone can't fully clear it without also violating that
+-- floor. Records which modals are in that state; updateHudVisibility()
+-- hides the HUD only while one of those is actually the open screen,
+-- rather than accepting a permanent partial overlap.
 local function clampModalsAgainstHud()
 	local hudFrame = hud
 	if not hudFrame then
@@ -143,9 +152,29 @@ local function clampModalsAgainstHud()
 		local centerYPx = modal.AbsolutePosition.Y + modal.AnchorPoint.Y * modal.AbsoluteSize.Y
 		local safeHeightPx = 2 * (centerYPx - hudBottomPx - HUD_CLEARANCE_GAP)
 		local safeHeightRaw = safeHeightPx / scale
+		modalNeedsHudHidden[modal] = safeHeightRaw < constraint.MinSize.Y
 		constraint.MaxSize =
 			Vector2.new(original.X, math.max(constraint.MinSize.Y, math.min(original.Y, safeHeightRaw)))
 	end
+end
+
+-- Only suppresses the HUD while a screen that actually can't fit under it
+-- (see clampModalsAgainstHud above) is the one currently open; restores it
+-- the instant that screen closes or the viewport gains enough height
+-- (e.g. rotating back to portrait).
+local function updateHudVisibility()
+	local hudFrame = hud
+	if not hudFrame then
+		return
+	end
+	local shouldHide = false
+	for _, modal in modalRoots do
+		if (modal :: GuiObject).Visible and modalNeedsHudHidden[modal] then
+			shouldHide = true
+			break
+		end
+	end
+	hudFrame.Visible = not shouldHide
 end
 
 local function apply()
@@ -170,6 +199,7 @@ local function apply()
 
 	clampNavigation(size)
 	clampModalsAgainstHud()
+	updateHudVisibility()
 end
 
 function ResponsiveController.initialize(rootFrame: Frame, scale: UIScale)
@@ -178,6 +208,13 @@ function ResponsiveController.initialize(rootFrame: Frame, scale: UIScale)
 	navigation = rootFrame:FindFirstChild("Navigation") :: Frame?
 	hud = rootFrame:FindFirstChild("CurrencyHUD") :: Frame?
 	collectModalRoots(rootFrame)
+
+	-- A modal can open/close without any resize (e.g. tapping Shop while
+	-- already in landscape phone mode), so HUD visibility has to react to
+	-- that independently of apply()'s resize-driven pass.
+	for _, modal in modalRoots do
+		(modal :: GuiObject):GetPropertyChangedSignal("Visible"):Connect(updateHudVisibility)
+	end
 
 	local function hookCamera(camera: Camera)
 		camera:GetPropertyChangedSignal("ViewportSize"):Connect(apply)
