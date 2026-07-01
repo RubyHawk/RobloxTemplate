@@ -24,7 +24,10 @@
     },
     "StarterGui": {
       "$className": "StarterGui",
-      "$ignoreUnknownInstances": true
+      "$ignoreUnknownInstances": true,
+      "$properties": {
+        "ScreenOrientation": "Sensor"
+      }
     },
     "StarterPlayer": {
       "StarterPlayerScripts": {
