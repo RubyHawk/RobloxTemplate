@@ -44,13 +44,14 @@ function LeaderboardService.updateLeaderstats(player: Player)
 		folder.Name = "leaderstats"
 		folder.Parent = player
 	end
-	local coins = folder:FindFirstChild("Coins") :: IntValue?
-	if coins == nil then
-		coins = Instance.new("IntValue")
-		coins.Name = "Coins"
-		coins.Parent = folder
+	local statName = Config.economy.primaryCurrency
+	local stat = folder:FindFirstChild(statName) :: IntValue?
+	if stat == nil then
+		stat = Instance.new("IntValue")
+		stat.Name = statName
+		stat.Parent = folder
 	end
-	coins.Value = math.clamp(math.floor(profile.coins), 0, 2147483647)
+	stat.Value = math.clamp(math.floor(profile.coins), 0, 2147483647)
 end
 
 function LeaderboardService.serverBoard(): { any }

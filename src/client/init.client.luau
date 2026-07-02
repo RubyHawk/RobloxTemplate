@@ -384,24 +384,28 @@ local function applyState(nextState: any)
 	if nextState == nil or nextState.profile == nil then
 		return
 	end
-	local primaryId = if nextState.currencyDefinitions and nextState.currencyDefinitions[1]
-		then nextState.currencyDefinitions[1].id
-		else "coins"
+	local definitions = if type(nextState.currencyDefinitions) == "table"
+		then nextState.currencyDefinitions
+		else {}
+	local balances = if type(nextState.profile.currencies) == "table"
+		then nextState.profile.currencies
+		else {}
+	local primaryId = if definitions[1] then definitions[1].id else "coins"
 	local previousPrimary = if state
 			and state.profile
-			and state.profile.currencies
+			and type(state.profile.currencies) == "table"
 		then state.profile.currencies[primaryId] or state.profile.coins
-		else nextState.profile.currencies[primaryId] or nextState.profile.coins
+		else balances[primaryId] or nextState.profile.coins
 	state = nextState
 	for index, slot in currencySlots do
-		local definition = state.currencyDefinitions[index]
+		local definition = definitions[index]
 		slot.Visible = definition ~= nil
 		if definition then
 			local amount = slot:WaitForChild("AmountLabel") :: TextLabel
 			local caption = slot:WaitForChild("Caption") :: TextLabel
 			local symbol = slot:WaitForChild("Symbol") :: TextLabel
 			local accent = slot:WaitForChild("Accent") :: Frame
-			amount.Text = UIFactory.formatNumber(state.profile.currencies[definition.id] or 0)
+			amount.Text = UIFactory.formatNumber(balances[definition.id] or 0)
 			caption.Text = string.upper(definition.name)
 			symbol.Text = definition.symbol
 			local color = definition.color
@@ -416,7 +420,7 @@ local function applyState(nextState: any)
 	)} BOOST  •  {state.profile.social.friendCountInServer} FRIENDS`
 	ResponsiveController.setPlayerScale(state.profile.settings.uiScale)
 	AudioController.applySettings(state.profile.settings)
-	if (state.profile.currencies[primaryId] or state.profile.coins) > previousPrimary then
+	if (balances[primaryId] or state.profile.coins) > previousPrimary then
 		AudioController.play("cash")
 	end
 	local features = state.features

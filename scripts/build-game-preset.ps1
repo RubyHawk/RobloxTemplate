@@ -37,8 +37,26 @@ $generated = Join-Path $root "build\designer\$preset"
 $exports = Join-Path $root "exports"
 New-Item -ItemType Directory -Path $generated, $exports -Force | Out-Null
 
+# ConvertTo-Json is not safe here: Windows PowerShell escapes non-ASCII text
+# (a symbol like ◆) as \uXXXX, which is valid JSON but a malformed escape in
+# Luau, so the generated module would fail to parse. Emit raw UTF-8 and only
+# escape what Luau requires.
 function ConvertTo-LuauString([string]$Value) {
-    return ConvertTo-Json $Value -Compress
+    $builder = [System.Text.StringBuilder]::new()
+    [void]$builder.Append('"')
+    foreach ($char in $Value.ToCharArray()) {
+        if ($char -eq '"') {
+            [void]$builder.Append('\"')
+        } elseif ($char -eq '\') {
+            [void]$builder.Append('\\')
+        } elseif ([char]::IsControl($char)) {
+            [void]$builder.Append('\' + [string][int]$char)
+        } else {
+            [void]$builder.Append($char)
+        }
+    }
+    [void]$builder.Append('"')
+    return $builder.ToString()
 }
 
 function Limit-Number([int64]$Value, [int64]$Minimum, [int64]$Maximum) {
@@ -79,6 +97,11 @@ New-Item -ItemType Directory -Path $sharedCopy -Force | Out-Null
 Copy-Item -Path (Join-Path $root "src\shared\*") -Destination $sharedCopy -Recurse -Force
 $configPath = Join-Path $sharedCopy "DesignerConfig.luau"
 [System.IO.File]::WriteAllLines($configPath, $lines, [System.Text.UTF8Encoding]::new($false))
+
+# Rojo embeds module source without parsing it, so a syntax error here would
+# only surface as a dead experience in Studio. Parse and validate immediately.
+& lune run (Join-Path $root "scripts\validate-designer-config.luau") $configPath
+if ($LASTEXITCODE -ne 0) { throw "Generated DesignerConfig.luau failed validation." }
 
 function Update-ProjectPaths($Node) {
     if ($null -eq $Node -or $Node -is [string] -or $Node -is [ValueType]) { return }

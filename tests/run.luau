@@ -30,6 +30,30 @@ expectEqual(normalizedCurrencies[1].color[1], 255, "currency color clamps high c
 expectEqual(normalizedCurrencies[1].color[2], 0, "currency color clamps low channels")
 expectEqual(normalizedCurrencies[2].id, "gems", "duplicate currency IDs are rejected")
 
+local configuredCurrencies = CurrencyConfig.normalize({
+	{ id = "gold", name = "Gold", symbol = "G", startingAmount = 500 },
+	{ id = "crystals", name = "Crystals", symbol = "C", startingAmount = 10 },
+})
+local seededBalances = CurrencyConfig.startingBalances(configuredCurrencies)
+expectEqual(seededBalances.gold, 500, "fresh profiles seed the configured starting balance")
+expectEqual(seededBalances.crystals, 10, "fresh profiles seed every configured currency")
+
+local freshProfile = { coins = seededBalances.gold, currencies = seededBalances }
+CurrencyConfig.reconcileProfileCurrencies(freshProfile, configuredCurrencies, "gold", 2)
+expectEqual(freshProfile.currencies.gold, 500, "reconcile keeps the fresh starting balance")
+expectEqual(freshProfile.coins, 500, "legacy coins field mirrors the primary balance")
+
+local legacyProfile = { coins = 100 }
+CurrencyConfig.reconcileProfileCurrencies(legacyProfile, configuredCurrencies, "gold", 1)
+expectEqual(legacyProfile.currencies.gold, 100, "legacy coins migrate into the primary currency")
+expectEqual(legacyProfile.currencies.crystals, 10, "new currencies start at their configured balance")
+expectEqual(legacyProfile.coins, 100, "migrated profiles keep the mirrored coins field")
+
+local savedProfile = { coins = 42, currencies = { gold = 42, crystals = "corrupt" } }
+CurrencyConfig.reconcileProfileCurrencies(savedProfile, configuredCurrencies, "gold", 2)
+expectEqual(savedProfile.currencies.gold, 42, "saved balances are never re-granted")
+expectEqual(savedProfile.currencies.crystals, 10, "corrupt balances reset to the starting amount")
+
 local canClaim, streak = Calculations.dailyClaim(9, 2, 10 * 86400, 7)
 expectEqual(canClaim, true, "daily can claim")
 expectEqual(streak, 3, "daily increments")

@@ -161,6 +161,21 @@ function Screens.bind(parent: Instance, context: any): any
 	end
 
 	local state: any = nil
+	-- The primary currency is the first configured definition; every runtime
+	-- string that talks about earnings uses its configured display name so a
+	-- recipe that renames it (e.g. Gold) never shows stale "Coins" copy.
+	local function primaryCurrencyName(): string
+		local definition = if state and type(state.currencyDefinitions) == "table"
+			then state.currencyDefinitions[1]
+			else nil
+		return if definition and type(definition.name) == "string" then definition.name else "Coins"
+	end
+	local function primaryCurrencySymbol(): string
+		local definition = if state and type(state.currencyDefinitions) == "table"
+			then state.currencyDefinitions[1]
+			else nil
+		return if definition and type(definition.symbol) == "string" then definition.symbol else "C"
+	end
 	local inventoryContent = content(screenMap.Inventory)
 	local inventoryGrid = frame(inventoryContent, "ItemsGrid")
 	local inventorySlots = numberedFrames(inventoryGrid, "ItemSlot", INVENTORY_SLOT_COUNT)
@@ -264,7 +279,7 @@ function Screens.bind(parent: Instance, context: any): any
 					storeSlots[slotIndex],
 					definition.name,
 					definition.description,
-					`{UIFactory.formatNumber(definition.priceCoins)} C`,
+					`{UIFactory.formatNumber(definition.priceCoins)} {primaryCurrencySymbol()}`,
 					"BUY",
 					definition.icon,
 					if definition.boostMultiplier then `x{definition.boostMultiplier}` else "ITEM",
@@ -276,8 +291,16 @@ function Screens.bind(parent: Instance, context: any): any
 		end
 
 		local productDefinitions = {
-			{ key = "coinPackSmall", title = "Small Coins Pack", body = "A quick coin top-up." },
-			{ key = "coinPackLarge", title = "Large Coins Pack", body = "A larger coin top-up." },
+			{
+				key = "coinPackSmall",
+				title = `Small {primaryCurrencyName()} Pack`,
+				body = `A quick {primaryCurrencyName()} top-up.`,
+			},
+			{
+				key = "coinPackLarge",
+				title = `Large {primaryCurrencyName()} Pack`,
+				body = `A larger {primaryCurrencyName()} top-up.`,
+			},
 		}
 		for _, product in productDefinitions do
 			if state.productAvailability[product.key] and storeSlots[slotIndex] then
@@ -301,8 +324,8 @@ function Screens.bind(parent: Instance, context: any): any
 				storeSlots[slotIndex],
 				"Roblox Premium",
 				if state.profile.entitlements.premium
-					then "Active: permanent +10% Coins bonus."
-					else "Premium members receive a permanent +10% Coins bonus.",
+					then `Active: permanent +10% {primaryCurrencyName()} bonus.`
+					else `Premium members receive a permanent +10% {primaryCurrencyName()} bonus.`,
 				if state.profile.entitlements.premium then "ACTIVE" else "+10%",
 				if state.profile.entitlements.premium then "OWNED" else "VIEW",
 				IconCatalog.get("premium"),
@@ -351,7 +374,7 @@ function Screens.bind(parent: Instance, context: any): any
 				setRow(
 					profileResult,
 					`{found.displayName} (@{found.username})`,
-					`{UIFactory.formatNumber(found.coins)} Coins • {found.joins} joins`,
+					`{UIFactory.formatNumber(found.coins)} {primaryCurrencyName()} • {found.joins} joins`,
 					"profile"
 				)
 			else
@@ -442,7 +465,7 @@ function Screens.bind(parent: Instance, context: any): any
 			setRow(
 				rowValue,
 				`#{entry.rank or index}  {entry.name}`,
-				`{UIFactory.formatNumber(entry.value)} Coins`,
+				`{UIFactory.formatNumber(entry.value)} {primaryCurrencyName()}`,
 				"leaderboard"
 			)
 		end
@@ -482,7 +505,7 @@ function Screens.bind(parent: Instance, context: any): any
 				stateLabel.TextColor3 = Theme.colors.primary
 			else
 				tile.BackgroundColor3 = Theme.colors.surface
-				stateLabel.Text = "COINS"
+				stateLabel.Text = string.upper(primaryCurrencyName())
 				stateLabel.TextColor3 = Theme.colors.textMuted
 			end
 			applyIcon(frame(tile, "CoinBadge"), "coin")
@@ -490,7 +513,7 @@ function Screens.bind(parent: Instance, context: any): any
 		setRow(
 			frame(rewardsContent, "OfflineCard"),
 			"Offline earnings",
-			`{UIFactory.formatNumber(state.offline.amount)} Coins ready from {math.floor(
+			`{UIFactory.formatNumber(state.offline.amount)} {primaryCurrencyName()} ready from {math.floor(
 				state.offline.elapsed / 60
 			)} minutes.`,
 			"offline"
@@ -501,7 +524,7 @@ function Screens.bind(parent: Instance, context: any): any
 		setRow(
 			frame(profileContent, "StatsCard"),
 			Players.LocalPlayer.DisplayName,
-			`Coins: {UIFactory.formatNumber(state.profile.coins)} • Joins: {state.profile.stats.joins} • Playtime: {math.floor(
+			`{primaryCurrencyName()}: {UIFactory.formatNumber(state.profile.coins)} • Joins: {state.profile.stats.joins} • Playtime: {math.floor(
 				state.profile.stats.playSeconds / 60
 			)}m`,
 			"profile"
@@ -562,7 +585,7 @@ function Screens.bind(parent: Instance, context: any): any
 			setRow(
 				rowValue,
 				`#{entry.rank or index}  {entry.name}`,
-				`{UIFactory.formatNumber(entry.value)} Coins`,
+				`{UIFactory.formatNumber(entry.value)} {primaryCurrencyName()}`,
 				"leaderboard"
 			)
 		end
