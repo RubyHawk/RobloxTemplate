@@ -42,7 +42,7 @@ On the `template` branch, use the **UI Library** bar in Play mode to switch betw
 - Open **BAG** and use it; the HUD multiplier changes.
 - Open **REWARDS** and claim the daily reward.
 - Open **SETTINGS** and change UI scale or reduced motion.
-- On `playable-starter`, walk to the blue pad and use its prompt to earn Coins.
+- On `playable-starter`, the blue pad earns the primary currency. A generated game with two or more currencies also shows a teal pad for the second currency.
 
 The `template` showroom deliberately uses mock data. A `playable-starter` uses real saved data after it is published and **Studio Access to API Services** is enabled for that separate test experience.
 

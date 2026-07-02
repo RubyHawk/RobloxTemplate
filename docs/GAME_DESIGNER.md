@@ -27,6 +27,10 @@ When editing a generated experience, save or publish that generated place. To ma
 
 Each enabled currency has a server-owned saved balance. The profile schema migrates older `coins` data into the selected primary currency. The HUD contains five permanent editable slots and only displays the configured number. Disabled systems are hidden on the client and rejected by server remotes.
 
+Starting balances apply when a profile first sees a currency. Existing balances are never re-granted. In the generated starter, the blue pad proves the primary currency and a teal pad proves the second configured currency; the teal pad hides for one-currency games.
+
+The generated `DesignerConfig.luau` is parsed and shape-checked before Rojo builds, so broken symbols or malformed recipes fail immediately instead of opening a dead place.
+
 Advanced Roblox IDs, reward amounts, product definitions, audio, and platform integrations remain in `src/shared/TemplateConfig.luau`; they are intentionally not guessed by the Designer.
 
 ## Figma and Studio

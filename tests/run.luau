@@ -31,6 +31,22 @@ expectEqual(normalizedCurrencies[1].color[1], 255, "currency color clamps high c
 expectEqual(normalizedCurrencies[1].color[2], 0, "currency color clamps low channels")
 expectEqual(normalizedCurrencies[2].id, "gems", "duplicate currency IDs are rejected")
 
+local configuredCurrencies = CurrencyConfig.normalize({
+	{ id = "gold", name = "Gold", symbol = "G", startingAmount = 500 },
+	{ id = "crystals", name = "Crystals", symbol = "C", startingAmount = 10 },
+})
+local seededBalances = CurrencyConfig.startingBalances(configuredCurrencies)
+expectEqual(seededBalances.gold, 500, "fresh profiles seed the configured starting balance")
+expectEqual(seededBalances.crystals, 10, "fresh profiles seed every configured currency")
+local legacyCurrencyProfile = { coins = 100 }
+CurrencyConfig.reconcileProfileCurrencies(legacyCurrencyProfile, configuredCurrencies, "gold", 1)
+expectEqual(legacyCurrencyProfile.currencies.gold, 100, "legacy coins migrate to primary currency")
+expectEqual(legacyCurrencyProfile.currencies.crystals, 10, "new currencies receive starting balance")
+local savedCurrencyProfile = { coins = 42, currencies = { gold = 42, crystals = "corrupt" } }
+CurrencyConfig.reconcileProfileCurrencies(savedCurrencyProfile, configuredCurrencies, "gold", 4)
+expectEqual(savedCurrencyProfile.currencies.gold, 42, "saved balances are not re-granted")
+expectEqual(savedCurrencyProfile.currencies.crystals, 10, "corrupt balances recover safely")
+
 local canClaim, streak = Calculations.dailyClaim(9, 2, 10 * 86400, 7)
 expectEqual(canClaim, true, "daily can claim")
 expectEqual(streak, 3, "daily increments")
@@ -292,7 +308,15 @@ for _, forbiddenConstructor in { "Instance.new", ":Clone(", ":Destroy(" } do
 end
 
 local playableProject = fs.readFile("default.project.json")
-for _, authoredWorldObject in { '"ExampleEarningPad"', '"EarnPrompt"', '"PlayableStarterClient"' } do
+for _, authoredWorldObject in
+	{
+		'"ExampleEarningPad"',
+		'"EarnPrompt"',
+		'"BonusEarningPad"',
+		'"BonusPrompt"',
+		'"PlayableStarterClient"',
+	}
+do
 	expectEqual(
 		string.find(playableProject, authoredWorldObject, 1, true) ~= nil,
 		true,

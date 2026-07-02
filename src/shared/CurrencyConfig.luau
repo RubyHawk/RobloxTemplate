@@ -86,4 +86,38 @@ function CurrencyConfig.normalize(raw: any): { Definition }
 	return result
 end
 
+function CurrencyConfig.startingBalances(currencies: { Definition }): { [string]: number }
+	local balances: { [string]: number } = {}
+	for _, definition in currencies do
+		balances[definition.id] = definition.startingAmount
+	end
+	return balances
+end
+
+function CurrencyConfig.reconcileProfileCurrencies(
+	profile: any,
+	currencies: { Definition },
+	primaryId: string,
+	previousVersion: number
+)
+	if type(profile.currencies) ~= "table" then
+		profile.currencies = {}
+	end
+	if previousVersion < 2 then
+		profile.currencies[primaryId] = if type(profile.coins) == "number" then profile.coins else 0
+	end
+	for _, definition in currencies do
+		local balance = profile.currencies[definition.id]
+		if
+			type(balance) ~= "number"
+			or balance ~= balance
+			or balance == math.huge
+			or balance == -math.huge
+		then
+			profile.currencies[definition.id] = definition.startingAmount
+		end
+	end
+	profile.coins = profile.currencies[primaryId]
+end
+
 return CurrencyConfig

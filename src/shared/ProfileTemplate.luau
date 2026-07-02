@@ -1,16 +1,14 @@
 --!strict
 
-local Types = require(script.Parent.Types)
+local CurrencyConfig = require(script.Parent.CurrencyConfig)
 local Config = require(script.Parent.TemplateConfig)
+local Types = require(script.Parent.Types)
 type PlayerProfileV1 = Types.PlayerProfileV1
 
 local ProfileTemplate = {}
 
 function ProfileTemplate.create(now: number): PlayerProfileV1
-	local currencies: { [string]: number } = {}
-	for _, definition in Config.economy.currencies do
-		currencies[definition.id] = definition.startingAmount
-	end
+	local currencies = CurrencyConfig.startingBalances(Config.economy.currencies)
 	return {
 		schemaVersion = 4,
 		coins = currencies[Config.economy.primaryCurrencyId] or 0,

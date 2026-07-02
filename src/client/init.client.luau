@@ -58,17 +58,25 @@ end
 local uiScale = root:WaitForChild("InterfaceScale") :: UIScale
 ResponsiveController.initialize(root, uiScale)
 local hud = root:WaitForChild("CurrencyHUD") :: Frame
-hud.Visible = false
-local currencyTray = root:WaitForChild("CurrencyTray") :: Frame
-local currencySlotsRoot = currencyTray:WaitForChild("Slots") :: ScrollingFrame
+local currencyTray = root:WaitForChild("CurrencyTray", 10) :: Frame?
 local currencySlots: { Frame } = {}
-for index = 1, 5 do
-	table.insert(
-		currencySlots,
-		currencySlotsRoot:WaitForChild(`CurrencySlot{string.format("%02d", index)}`) :: Frame
+if currencyTray then
+	hud.Visible = false
+	local currencySlotsRoot = currencyTray:WaitForChild("Slots") :: ScrollingFrame
+	for index = 1, 5 do
+		table.insert(
+			currencySlots,
+			currencySlotsRoot:WaitForChild(`CurrencySlot{string.format("%02d", index)}`) :: Frame
+		)
+	end
+else
+	warn(
+		"TemplateUI is missing CurrencyTray; rebuild the place from bootstrap.project.json to show all configured currencies"
 	)
 end
-local boostLabel = currencyTray:WaitForChild("BoostLabel") :: TextLabel
+local boostLabel = (
+	if currencyTray then currencyTray:WaitForChild("BoostLabel") else hud:WaitForChild("BoostLabel")
+) :: TextLabel
 local addCoinsButton = hud:WaitForChild("AddCoinsButton") :: TextButton
 local nav = root:WaitForChild("Navigation") :: Frame
 local navScroll = nav:WaitForChild("Buttons") :: ScrollingFrame
@@ -384,24 +392,28 @@ local function applyState(nextState: any)
 	if nextState == nil or nextState.profile == nil then
 		return
 	end
-	local primaryId = if nextState.currencyDefinitions and nextState.currencyDefinitions[1]
-		then nextState.currencyDefinitions[1].id
-		else "coins"
+	local definitions = if type(nextState.currencyDefinitions) == "table"
+		then nextState.currencyDefinitions
+		else {}
+	local balances = if type(nextState.profile.currencies) == "table"
+		then nextState.profile.currencies
+		else {}
+	local primaryId = if definitions[1] then definitions[1].id else "coins"
 	local previousPrimary = if state
 			and state.profile
-			and state.profile.currencies
+			and type(state.profile.currencies) == "table"
 		then state.profile.currencies[primaryId] or state.profile.coins
-		else nextState.profile.currencies[primaryId] or nextState.profile.coins
+		else balances[primaryId] or nextState.profile.coins
 	state = nextState
 	for index, slot in currencySlots do
-		local definition = state.currencyDefinitions[index]
+		local definition = definitions[index]
 		slot.Visible = definition ~= nil
 		if definition then
 			local amount = slot:WaitForChild("AmountLabel") :: TextLabel
 			local caption = slot:WaitForChild("Caption") :: TextLabel
 			local symbol = slot:WaitForChild("Symbol") :: TextLabel
 			local accent = slot:WaitForChild("Accent") :: Frame
-			amount.Text = UIFactory.formatNumber(state.profile.currencies[definition.id] or 0)
+			amount.Text = UIFactory.formatNumber(balances[definition.id] or 0)
 			caption.Text = string.upper(definition.name)
 			symbol.Text = definition.symbol
 			local color = definition.color
@@ -410,13 +422,17 @@ local function applyState(nextState: any)
 			end
 		end
 	end
+	local legacyCoinLabel = hud:FindFirstChild("CoinLabel")
+	if legacyCoinLabel and legacyCoinLabel:IsA("TextLabel") then
+		legacyCoinLabel.Text = UIFactory.formatNumber(balances[primaryId] or state.profile.coins or 0)
+	end
 	boostLabel.Text = `x{string.format(
 		"%.2f",
 		(1 + state.friendBonus + state.premiumBonus) * state.potionMultiplier
 	)} BOOST  •  {state.profile.social.friendCountInServer} FRIENDS`
 	ResponsiveController.setPlayerScale(state.profile.settings.uiScale)
 	AudioController.applySettings(state.profile.settings)
-	if (state.profile.currencies[primaryId] or state.profile.coins) > previousPrimary then
+	if (balances[primaryId] or state.profile.coins) > previousPrimary then
 		AudioController.play("cash")
 	end
 	local features = state.features

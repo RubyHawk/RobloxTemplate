@@ -43,8 +43,25 @@ $generated = Join-Path $root "build\designer\$preset"
 $exports = Join-Path $root "exports"
 New-Item -ItemType Directory -Path $generated, $exports -Force | Out-Null
 
+# ConvertTo-Json escapes non-ASCII text as \uXXXX in Windows PowerShell.
+# That is valid JSON but not a valid Luau string escape, so emit UTF-8 and
+# escape only characters Luau requires.
 function ConvertTo-LuauString([string]$Value) {
-    return ConvertTo-Json $Value -Compress
+    $builder = [System.Text.StringBuilder]::new()
+    [void]$builder.Append('"')
+    foreach ($char in $Value.ToCharArray()) {
+        if ($char -eq '"') {
+            [void]$builder.Append('\"')
+        } elseif ($char -eq '\') {
+            [void]$builder.Append('\\')
+        } elseif ([char]::IsControl($char)) {
+            [void]$builder.Append('\' + [string][int]$char)
+        } else {
+            [void]$builder.Append($char)
+        }
+    }
+    [void]$builder.Append('"')
+    return $builder.ToString()
 }
 
 function Limit-Number([int64]$Value, [int64]$Minimum, [int64]$Maximum) {
@@ -86,6 +103,9 @@ New-Item -ItemType Directory -Path $sharedCopy -Force | Out-Null
 Copy-Item -Path (Join-Path $root "src\shared\*") -Destination $sharedCopy -Recurse -Force
 $configPath = Join-Path $sharedCopy "DesignerConfig.luau"
 [System.IO.File]::WriteAllLines($configPath, $lines, [System.Text.UTF8Encoding]::new($false))
+
+& lune run (Join-Path $root "scripts\validate-designer-config.luau") $configPath
+if ($LASTEXITCODE -ne 0) { throw "Generated DesignerConfig.luau failed validation." }
 
 function Update-ProjectPaths($Node) {
     if ($null -eq $Node -or $Node -is [string] -or $Node -is [ValueType]) { return }

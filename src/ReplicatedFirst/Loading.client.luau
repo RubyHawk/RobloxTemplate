@@ -6,8 +6,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
-local gui = playerGui:WaitForChild("TemplateLoading") :: ScreenGui
-assert(gui:IsA("ScreenGui"), "StarterGui.TemplateLoading must be a ScreenGui")
+local gui = playerGui:WaitForChild("TemplateLoading", 15)
+if gui == nil or not gui:IsA("ScreenGui") then
+	return
+end
 
 local background = gui:WaitForChild("Background") :: Frame
 local card = background:WaitForChild("Card") :: Frame
