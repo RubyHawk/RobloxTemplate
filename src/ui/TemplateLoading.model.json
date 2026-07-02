@@ -1,0 +1,278 @@
+{
+  "ClassName": "ScreenGui",
+  "Properties": {
+    "DisplayOrder": 1000,
+    "Enabled": false,
+    "IgnoreGuiInset": true,
+    "ResetOnSpawn": false,
+    "ZIndexBehavior": "Sibling"
+  },
+  "Children": [
+    {
+      "Name": "Background",
+      "ClassName": "Frame",
+      "Properties": {
+        "BackgroundColor3": [0.0588235, 0.7411765, 0.9647059],
+        "BorderSizePixel": 0,
+        "Size": { "UDim2": [[1, 0], [1, 0]] },
+        "ZIndex": 1
+      },
+      "Children": [
+        {
+          "Name": "SkyGradient",
+          "ClassName": "UIGradient",
+          "Properties": {
+            "Color": {
+              "ColorSequence": {
+                "keypoints": [
+                  { "time": 0, "color": [0.0588235, 0.7411765, 0.9647059] },
+                  { "time": 1, "color": [0.4862745, 0.227451, 0.9294118] }
+                ]
+              }
+            },
+            "Rotation": 35
+          },
+          "Children": []
+        },
+        {
+          "Name": "BubbleLeft",
+          "ClassName": "Frame",
+          "Properties": {
+            "AnchorPoint": [0.5, 0.5],
+            "BackgroundColor3": [1, 0.1843137, 0.5372549],
+            "BackgroundTransparency": 0.18,
+            "BorderSizePixel": 0,
+            "Position": { "UDim2": [[0.13, 0], [0.25, 0]] },
+            "Rotation": -12,
+            "Size": { "UDim2": [[0, 150], [0, 150]] },
+            "ZIndex": 2
+          },
+          "Children": [
+            { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } }, "Children": [] },
+            { "ClassName": "UIStroke", "Properties": { "Color": [0.025, 0.035, 0.09], "Thickness": 5, "Transparency": 0.55 }, "Children": [] },
+            {
+              "Name": "Star",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/FredokaOne.json", "weight": "Regular", "style": "Normal" },
+                "Size": { "UDim2": [[1, 0], [1, 0]] },
+                "Text": "★",
+                "TextColor3": [1, 0.79, 0.04],
+                "TextScaled": true,
+                "TextStrokeColor3": [0.025, 0.035, 0.09],
+                "TextStrokeTransparency": 0,
+                "ZIndex": 3
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "BubbleRight",
+          "ClassName": "Frame",
+          "Properties": {
+            "AnchorPoint": [0.5, 0.5],
+            "BackgroundColor3": [0.12, 0.9, 0.22],
+            "BackgroundTransparency": 0.2,
+            "BorderSizePixel": 0,
+            "Position": { "UDim2": [[0.87, 0], [0.72, 0]] },
+            "Rotation": 14,
+            "Size": { "UDim2": [[0, 120], [0, 120]] },
+            "ZIndex": 2
+          },
+          "Children": [
+            { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } }, "Children": [] },
+            { "ClassName": "UIStroke", "Properties": { "Color": [0.025, 0.035, 0.09], "Thickness": 5, "Transparency": 0.55 }, "Children": [] },
+            {
+              "Name": "Bolt",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/FredokaOne.json", "weight": "Regular", "style": "Normal" },
+                "Size": { "UDim2": [[1, 0], [1, 0]] },
+                "Text": "⚡",
+                "TextColor3": [1, 1, 1],
+                "TextScaled": true,
+                "TextStrokeColor3": [0.025, 0.035, 0.09],
+                "TextStrokeTransparency": 0,
+                "ZIndex": 3
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "CardShadow",
+          "ClassName": "Frame",
+          "Properties": {
+            "AnchorPoint": [0.5, 0.5],
+            "BackgroundColor3": [0.025, 0.035, 0.09],
+            "BackgroundTransparency": 0.3,
+            "BorderSizePixel": 0,
+            "Position": { "UDim2": [[0.5, 0], [0.5, 10]] },
+            "Size": { "UDim2": [[0.84, 0], [0, 310]] },
+            "ZIndex": 4
+          },
+          "Children": [
+            { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 28] } }, "Children": [] },
+            { "ClassName": "UISizeConstraint", "Properties": { "MaxSize": [560, 310], "MinSize": [300, 270] }, "Children": [] }
+          ]
+        },
+        {
+          "Name": "Card",
+          "ClassName": "Frame",
+          "Properties": {
+            "AnchorPoint": [0.5, 0.5],
+            "BackgroundColor3": [1, 1, 1],
+            "BorderSizePixel": 0,
+            "Position": { "UDim2": [[0.5, 0], [0.5, 0]] },
+            "Size": { "UDim2": [[0.84, 0], [0, 310]] },
+            "ZIndex": 5
+          },
+          "Children": [
+            { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 28] } }, "Children": [] },
+            { "ClassName": "UIStroke", "Properties": { "Color": [0.025, 0.035, 0.09], "Thickness": 5, "Transparency": 0 }, "Children": [] },
+            { "ClassName": "UISizeConstraint", "Properties": { "MaxSize": [560, 310], "MinSize": [300, 270] }, "Children": [] },
+            {
+              "Name": "Badge",
+              "ClassName": "Frame",
+              "Properties": {
+                "AnchorPoint": [0.5, 0],
+                "BackgroundColor3": [1, 0.79, 0.04],
+                "BorderSizePixel": 0,
+                "Position": { "UDim2": [[0.5, 0], [0, -42]] },
+                "Rotation": -5,
+                "Size": { "UDim2": [[0, 88], [0, 88]] },
+                "ZIndex": 7
+              },
+              "Children": [
+                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } }, "Children": [] },
+                { "ClassName": "UIStroke", "Properties": { "Color": [0.025, 0.035, 0.09], "Thickness": 5, "Transparency": 0 }, "Children": [] },
+                {
+                  "Name": "Icon",
+                  "ClassName": "TextLabel",
+                  "Properties": {
+                    "BackgroundTransparency": 1,
+                    "FontFace": { "family": "rbxasset://fonts/families/FredokaOne.json", "weight": "Regular", "style": "Normal" },
+                    "Size": { "UDim2": [[1, 0], [1, 0]] },
+                    "Text": "★",
+                    "TextColor3": [1, 1, 1],
+                    "TextScaled": true,
+                    "TextStrokeColor3": [0.025, 0.035, 0.09],
+                    "TextStrokeTransparency": 0,
+                    "ZIndex": 8
+                  },
+                  "Children": []
+                }
+              ]
+            },
+            {
+              "Name": "Eyebrow",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal" },
+                "Position": { "UDim2": [[0.08, 0], [0, 58]] },
+                "Size": { "UDim2": [[0.84, 0], [0, 24]] },
+                "Text": "WELCOME TO",
+                "TextColor3": [0.4862745, 0.227451, 0.9294118],
+                "TextSize": 16,
+                "ZIndex": 6
+              },
+              "Children": []
+            },
+            {
+              "Name": "Title",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/FredokaOne.json", "weight": "Regular", "style": "Normal" },
+                "Position": { "UDim2": [[0.05, 0], [0, 82]] },
+                "Size": { "UDim2": [[0.9, 0], [0, 58]] },
+                "Text": "YOUR NEXT ADVENTURE!",
+                "TextColor3": [0.0588235, 0.7411765, 0.9647059],
+                "TextScaled": true,
+                "TextStrokeColor3": [0.025, 0.035, 0.09],
+                "TextStrokeTransparency": 0,
+                "ZIndex": 6
+              },
+              "Children": []
+            },
+            {
+              "Name": "Status",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal" },
+                "Position": { "UDim2": [[0.08, 0], [0, 157]] },
+                "Size": { "UDim2": [[0.84, 0], [0, 28]] },
+                "Text": "LOADING YOUR REWARDS...",
+                "TextColor3": [0.16, 0.18, 0.3],
+                "TextSize": 18,
+                "ZIndex": 6
+              },
+              "Children": []
+            },
+            {
+              "Name": "ProgressTrack",
+              "ClassName": "Frame",
+              "Properties": {
+                "BackgroundColor3": [0.87, 0.89, 0.95],
+                "BorderSizePixel": 0,
+                "Position": { "UDim2": [[0.08, 0], [0, 205]] },
+                "Size": { "UDim2": [[0.84, 0], [0, 34]] },
+                "ZIndex": 6
+              },
+              "Children": [
+                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } }, "Children": [] },
+                { "ClassName": "UIStroke", "Properties": { "Color": [0.025, 0.035, 0.09], "Thickness": 4, "Transparency": 0 }, "Children": [] },
+                {
+                  "Name": "Fill",
+                  "ClassName": "Frame",
+                  "Properties": {
+                    "BackgroundColor3": [0.12, 0.9, 0.22],
+                    "BorderSizePixel": 0,
+                    "Size": { "UDim2": [[0.08, 0], [1, 0]] },
+                    "ZIndex": 7
+                  },
+                  "Children": [
+                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } }, "Children": [] },
+                    {
+                      "Name": "Gloss",
+                      "ClassName": "UIGradient",
+                      "Properties": {
+                        "Color": { "ColorSequence": { "keypoints": [
+                          { "time": 0, "color": [0.45, 1, 0.52] },
+                          { "time": 1, "color": [0.04, 0.72, 0.16] }
+                        ] } },
+                        "Rotation": 90
+                      },
+                      "Children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "Name": "Tip",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal" },
+                "Position": { "UDim2": [[0.08, 0], [0, 252]] },
+                "Size": { "UDim2": [[0.84, 0], [0, 30]] },
+                "Text": "TIP: PLAY WITH FRIENDS FOR A COIN BOOST!",
+                "TextColor3": [1, 0.1843137, 0.5372549],
+                "TextSize": 14,
+                "TextWrapped": true,
+                "ZIndex": 6
+              },
+              "Children": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -7,6 +7,8 @@
 - Preserve profile compatibility with explicit schema migrations. Never silently discard unknown saved data.
 - Before work on Roblox chat, policy, monetization, notifications, privacy, or platform APIs, read the newest official topic documentation and record the date and links under `docs/internal/`.
 - Keep every visual UI structure in editable StarterGui instances. Runtime code may bind behavior, replace text/images, and show/hide pre-authored data slots, but must never create, clone, or destroy GuiObjects.
+- Keep each game UI preset as a physically independent authored model tree. Never link, alias, or regenerate one preset from another after creation; UI Plus edits to one pack must not change any other pack.
+- Game recipes may enable one to five configured currencies. Every displayed currency must have a server-authoritative saved balance and a pre-authored HUD slot.
 - Keep connected UI token-styled, safe-area aware, touch friendly, and usable in phone portrait and landscape.
 - Run StyLua, Selene, Rojo build, Luau specs, worker tests, and skill validation before committing.
 - Do not add direct Discord links, paid random-item mechanics, secrets, or live external integrations to the repository.

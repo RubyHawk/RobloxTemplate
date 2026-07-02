@@ -1,0 +1,18 @@
+{
+  "preset": "incremental",
+  "currencies": [
+    { "id": "coins", "name": "Coins", "symbol": "$", "startingAmount": 2500, "color": [255, 202, 10] },
+    { "id": "gems", "name": "Gems", "symbol": "◆", "startingAmount": 25, "color": [55, 135, 255] }
+  ],
+  "features": {
+    "store": true,
+    "inventory": true,
+    "dailyRewards": true,
+    "offlineEarnings": true,
+    "profiles": true,
+    "leaderboards": true,
+    "codes": true,
+    "feedback": true,
+    "communityVerification": false
+  }
+}

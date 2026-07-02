@@ -6,6 +6,8 @@ Double-click `START_HERE.cmd` in the project folder.
 
 Choose **Open Playable Starter** or **Open Template**. The launcher switches versions, installs anything required on the first run, opens that branch's saved place, starts Rojo, and opens Roblox Studio.
 
+Choose **Design a Game Preset** when you want a clean Incremental/RPG package with configurable currencies and systems instead of the general workbench.
+
 Success looks like this:
 
 ```text
@@ -26,7 +28,7 @@ Inside Roblox Studio:
 1. Open the **Plugins** tab at the top.
 2. Click the **Rojo** button.
 3. Click **Connect** next to `localhost:34872`.
-4. Expand **StarterGui → TemplateUI → Root → Screens** in Explorer. Inventory, store, rewards, profile, settings, and leaderboard objects are all permanently visible there; toggle one screen's `Visible` property while editing it.
+4. Expand **StarterGui** in Explorer. `TemplateUI` contains the HUD and screens, `TemplateLoading` contains the loading screen, and `StarterSignUI` contains the playable earning-pad sign. Temporarily enable/show the object you are editing, then hide it again before saving.
 5. Press **Ctrl+S** after visual changes.
 6. Press **Play** from the Home or Test tab.
 

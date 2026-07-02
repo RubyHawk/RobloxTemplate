@@ -1,6 +1,7 @@
 --!strict
 
 local Calculations = require("../src/shared/Calculations")
+local CurrencyConfig = require("../src/shared/CurrencyConfig")
 local MigrationCore = require("../src/shared/MigrationCore")
 local ReceiptLedger = require("../src/shared/ReceiptLedger")
 local SessionLock = require("../src/server/Util/SessionLock")
@@ -14,6 +15,20 @@ local function expectEqual(actual: any, expected: any, label: string)
 	end
 	passed += 1
 end
+
+local normalizedCurrencies = CurrencyConfig.normalize({
+	{ id = "coins", name = "Coins", symbol = "$", color = { 999, -2, 20 }, startingAmount = 5 },
+	{ id = "coins", name = "Duplicate", symbol = "D" },
+	{ id = "gems", name = "Gems", symbol = "◆", startingAmount = 10 },
+	{ id = "stars", name = "Stars", symbol = "★" },
+	{ id = "tokens", name = "Tokens", symbol = "T" },
+	{ id = "event", name = "Event", symbol = "!" },
+	{ id = "sixth", name = "Sixth", symbol = "6" },
+})
+expectEqual(#normalizedCurrencies, 5, "currency configuration caps authored slots at five")
+expectEqual(normalizedCurrencies[1].color[1], 255, "currency color clamps high channels")
+expectEqual(normalizedCurrencies[1].color[2], 0, "currency color clamps low channels")
+expectEqual(normalizedCurrencies[2].id, "gems", "duplicate currency IDs are rejected")
 
 local canClaim, streak = Calculations.dailyClaim(9, 2, 10 * 86400, 7)
 expectEqual(canClaim, true, "daily can claim")
@@ -117,6 +132,16 @@ do
 end
 
 local bootstrap = fs.readFile("bootstrap.project.json")
+expectEqual(
+	string.find(bootstrap, "TemplateLoading.model.json", 1, true) ~= nil,
+	true,
+	"loading screen is bootstrapped from an authored StarterGui model"
+)
+expectEqual(
+	string.find(bootstrap, "StarterSignUI.model.json", 1, true) ~= nil,
+	true,
+	"playable sign is bootstrapped from an authored StarterGui model"
+)
 if string.find(bootstrap, "ZxglyV5Showroom", 1, true) then
 	expectEqual(string.find(bootstrap, "GalleryMenu", 1, true) ~= nil, true, "gallery menu is bootstrapped")
 	expectEqual(
@@ -146,6 +171,70 @@ do
 		string.find(compactConnectedUi, requiredObject, 1, true) ~= nil,
 		true,
 		`connected UI includes {requiredObject}`
+	)
+end
+for _, preset in { "incremental", "rpg" } do
+	local presetUi = fs.readFile(`src/ui/presets/{preset}/TemplateUI.model.json`)
+	expectEqual(
+		string.find(presetUi, '"Name": "CurrencySlot05"', 1, true) ~= nil
+			or string.find(presetUi, '"Name":"CurrencySlot05"', 1, true) ~= nil,
+		true,
+		`{preset} preset pre-authors all five configurable currency slots`
+	)
+	expectEqual(
+		string.find(presetUi, '"Enabled": false', 1, true) ~= nil
+			or string.find(presetUi, '"Enabled":false', 1, true) ~= nil,
+		true,
+		`{preset} preset stays isolated until selected`
+	)
+end
+local incrementalPreset = fs.readFile("src/ui/presets/incremental/TemplateUI.model.json")
+local rpgPreset = fs.readFile("src/ui/presets/rpg/TemplateUI.model.json")
+expectEqual(incrementalPreset == rpgPreset, false, "RPG and Incremental are independent visual files")
+expectEqual(
+	string.find(rpgPreset, '"Text": "MERCHANT"', 1, true) ~= nil
+		or string.find(rpgPreset, '"Text":"MERCHANT"', 1, true) ~= nil,
+	true,
+	"RPG preset carries its own game-specific labels"
+)
+
+local loadingUi = fs.readFile("src/ui/TemplateLoading.model.json")
+for _, authoredLoadingObject in
+	{ '"Name": "Card"', '"Name": "Status"', '"Name": "ProgressTrack"', '"Name": "Fill"' }
+do
+	expectEqual(
+		string.find(loadingUi, authoredLoadingObject, 1, true) ~= nil,
+		true,
+		`loading UI pre-authors {authoredLoadingObject}`
+	)
+end
+
+local starterSignUi = fs.readFile("src/ui/StarterSignUI.model.json")
+for _, authoredSignObject in { '"Name": "Header"', '"Name": "Instruction"', '"Name": "Reward"' } do
+	expectEqual(
+		string.find(starterSignUi, authoredSignObject, 1, true) ~= nil,
+		true,
+		`starter sign pre-authors {authoredSignObject}`
+	)
+end
+
+local authoredVisualBinders = fs.readFile("src/ReplicatedFirst/Loading.client.luau")
+	.. fs.readFile("src/starter/StarterExample.server.luau")
+	.. fs.readFile("src/starter-client/StarterExample.client.luau")
+for _, forbiddenConstructor in { "Instance.new", ":Clone(", ":Destroy(" } do
+	expectEqual(
+		string.find(authoredVisualBinders, forbiddenConstructor, 1, true),
+		nil,
+		`loading and starter sign binders do not use {forbiddenConstructor}`
+	)
+end
+
+local playableProject = fs.readFile("default.project.json")
+for _, authoredWorldObject in { '"ExampleEarningPad"', '"EarnPrompt"', '"PlayableStarterClient"' } do
+	expectEqual(
+		string.find(playableProject, authoredWorldObject, 1, true) ~= nil,
+		true,
+		`playable project pre-authors {authoredWorldObject}`
 	)
 end
 expectEqual(
@@ -251,6 +340,7 @@ for _, requiredMarker in
 		"originalMaxSize",
 		"updateHudVisibility",
 		"modalNeedsHudHidden",
+		"safeWidthRaw",
 	}
 do
 	expectEqual(

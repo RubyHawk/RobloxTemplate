@@ -25,6 +25,17 @@ local stateRemote: RemoteEvent
 local requestRemote: RemoteEvent
 local queryRemote: RemoteFunction
 
+local requestFeatures: { [string]: string } = {
+	BuyItem = "store",
+	UseItem = "inventory",
+	ToggleEquip = "inventory",
+	ClaimDaily = "dailyRewards",
+	ClaimOffline = "offlineEarnings",
+	RedeemCode = "codes",
+	UpdateSetting = "settings",
+	SubmitFeedback = "feedback",
+}
+
 local function getOrCreate(className: string, name: string, parent: Instance): Instance
 	local existing = parent:FindFirstChild(name)
 	if existing and existing.ClassName == className then
@@ -47,6 +58,7 @@ function RemoteService.snapshot(player: Player): any
 	local likes = LikesService.getLikes()
 	return {
 		profile = profile,
+		currencyDefinitions = Config.economy.currencies,
 		catalog = Catalogs.items,
 		features = Config.features,
 		version = Config.version,
@@ -101,6 +113,11 @@ local function handleRequest(player: Player, packet: any)
 	local payload = packet.payload
 	if not limiter:allow(player, action, 6, 1) then
 		result(player, false, "Please slow down")
+		return
+	end
+	local requiredFeature = requestFeatures[action]
+	if requiredFeature and Config.features[requiredFeature] ~= true then
+		result(player, false, "This system is not enabled in this game")
 		return
 	end
 
@@ -165,10 +182,16 @@ local function handleQuery(player: Player, action: any, payload: any): any
 	if action == "InitialState" then
 		return { ok = true, data = RemoteService.snapshot(player) }
 	elseif action == "SearchProfile" then
+		if Config.features.profiles ~= true then
+			return { ok = false, message = "Profiles are not enabled in this game" }
+		end
 		local username = if type(payload) == "table" then payload.username else nil
 		local ok, data = PublicProfileService.find(username)
 		return { ok = ok, data = if ok then data else nil, message = if ok then nil else data }
 	elseif action == "GlobalLeaderboard" then
+		if Config.features.leaderboards ~= true then
+			return { ok = false, message = "Leaderboards are not enabled in this game" }
+		end
 		local ok, data = LeaderboardService.globalBoard()
 		return { ok = ok, data = if ok then data else nil, message = if ok then nil else data }
 	end
@@ -188,7 +211,9 @@ function RemoteService.initialize()
 	requestRemote.OnServerEvent:Connect(handleRequest)
 	queryRemote.OnServerInvoke = handleQuery
 	ProfileService.changed:Connect(function(player)
-		LeaderboardService.updateLeaderstats(player)
+		if Config.features.leaderboards then
+			LeaderboardService.updateLeaderstats(player)
+		end
 		RemoteService.publish(player)
 	end)
 end

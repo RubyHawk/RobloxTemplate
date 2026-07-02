@@ -24,6 +24,9 @@ foreach ($icon in $requiredIcons) {
 $runtimeUiFiles = @(
     Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot "..\src\client\UI") -Filter "*.luau" -File
     Get-Item -LiteralPath (Join-Path $PSScriptRoot "..\src\client\init.client.luau")
+    Get-Item -LiteralPath (Join-Path $PSScriptRoot "..\src\ReplicatedFirst\Loading.client.luau")
+    Get-Item -LiteralPath (Join-Path $PSScriptRoot "..\src\starter\StarterExample.server.luau")
+    Get-Item -LiteralPath (Join-Path $PSScriptRoot "..\src\starter-client\StarterExample.client.luau")
     Get-Item -LiteralPath (Join-Path $PSScriptRoot "..\ui-packages\PackagePreview.client.luau")
 )
 $runtimeUiConstructors = @(
@@ -53,6 +56,21 @@ Invoke-Checked "Wally" { wally install }
 Invoke-Checked "Rojo build" { rojo build bootstrap.project.json --output RobloxTemplate.rbxlx }
 Invoke-Checked "Reusable UI package build" {
     rojo build ui-packages\UI_BrightSimulator.project.json --output build\UI_BrightSimulator.rbxm
+}
+Invoke-Checked "Incremental preset package build" {
+    rojo build ui-packages\UI_Incremental.project.json --output build\UI_Incremental.rbxm
+}
+Invoke-Checked "RPG preset package build" {
+    rojo build ui-packages\UI_RPG.project.json --output build\UI_RPG.rbxm
+}
+Invoke-Checked "Game Designer UI smoke test" {
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\game-designer.ps1 -SmokeTest
+}
+Invoke-Checked "Incremental configured experience build" {
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-game-preset.ps1 -RecipePath config-presets\incremental.json -NoStudio
+}
+Invoke-Checked "RPG configured experience build" {
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-game-preset.ps1 -RecipePath config-presets\rpg.json -NoStudio
 }
 Invoke-Checked "Luau tests" { lune run tests/run }
 Invoke-Checked "Worker type check" { npm --prefix worker run typecheck }

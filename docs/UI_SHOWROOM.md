@@ -14,6 +14,8 @@ In Studio edit mode, `TemplateUI > Root > ShowcaseCanvas` is intentionally visib
 
 - **TemplateUI > Root > ShowcaseCanvas** is the editable Giga Simulator design library arranged in a coherent grid.
 - **TemplateUI > Root > Screens** contains the gameplay-bound inventory, shop, rewards, profile, settings, feedback, codes, boards, community, and global list.
+- **TemplateLoading** is the editable loading screen. It stays disabled in edit mode; temporarily set `Enabled` to true to restyle it, then turn it off before saving.
+- **StarterSignUI** is the editable playable-starter world sign. Its client binder only attaches the authored billboard to the earning pad.
 - **ZxglyV5Showroom** remains as the raw imported source reference.
 - **NotificationV2Showroom** is a script-free notification reference.
 - **GalleryMenu** and **GalleryBackdrop** keep previews separated and labelled.
@@ -35,6 +37,8 @@ Inside `TemplateUI > Root`:
 - keep connected object names unchanged because runtime behavior binds to those names.
 
 Dynamic data uses pre-authored capacity: 12 inventory slots, 8 store cards, 7 reward tiles, 10 server rows, and 50 global rows. Runtime code only replaces text/images and toggles visibility. No GUI objects are created, cloned, or destroyed during Play.
+
+The loading screen and starter sign follow the same rule: their complete visual trees are under `StarterGui`; their scripts only update progress, visibility, and the billboard's `Adornee`.
 
 ## Save safely
 

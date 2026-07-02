@@ -29,6 +29,7 @@ export type GuildReservation = {
 export type PlayerProfileV1 = {
 	schemaVersion: number,
 	coins: number,
+	currencies: { [string]: number },
 	inventory: { [string]: InventoryEntry },
 	boosts: { BoostState },
 	settings: PlayerSettings,
@@ -71,6 +72,7 @@ export type PublicProfile = {
 
 export type ClientSnapshot = {
 	profile: PlayerProfileV1,
+	currencyDefinitions: { any },
 	friendBonus: number,
 	premiumBonus: number,
 	potionMultiplier: number,

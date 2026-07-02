@@ -17,6 +17,8 @@ description: Build, extend, review, or debug the reusable Roblox Luau template, 
 8. Bind connected screens through `ScreenRegistry`, use Studio-editable properties and current Roblox styling tools, and support safe insets, touch, gamepad, reduced motion, and UI scale. `UIFactory` is formatting-only and must not construct instances.
 9. Keep integrations disabled when IDs, secrets, consent, or hosting are absent. Provide a visible unavailable state rather than fake success.
 10. Add or update tests, then run the commands in `AGENTS.md`.
+11. Treat each UI preset as an independent product: separate `TemplateUI`, loading, and sign models with the same binding contract. Never share GUI instances between presets or overwrite an existing preset from a bootstrap script.
+12. Use the Game Designer recipe boundary for preset selection, feature flags, and one-to-five currencies. Keep balances server-authoritative, migrate profile data explicitly, and reject disabled feature remotes on the server.
 
 ## Hard boundaries
 

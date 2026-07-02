@@ -1,6 +1,9 @@
 --!strict
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Template"):WaitForChild("Shared").TemplateConfig)
 
 local Services = script.Services
 local AnnouncementService = require(Services.AnnouncementService)
@@ -16,10 +19,16 @@ local StoreService = require(Services.StoreService)
 local EconomyRateProvider = require(script.Providers.DefaultEconomyRateProvider)
 
 RemoteService.initialize()
-StoreService.initialize()
+if Config.features.store then
+	StoreService.initialize()
+end
 ProfileService.startAutosave()
-LeaderboardService.start()
-AnnouncementService.start(RemoteService.broadcastAnnouncement)
+if Config.features.leaderboards then
+	LeaderboardService.start()
+end
+if Config.features.crossServerChat then
+	AnnouncementService.start(RemoteService.broadcastAnnouncement)
+end
 
 local function playerAdded(player: Player)
 	task.spawn(function()
@@ -36,18 +45,30 @@ local function playerAdded(player: Player)
 		player:GetPropertyChangedSignal("MembershipType"):Connect(function()
 			SocialService.refresh(player)
 		end)
-		RewardService.prepareOffline(player)
-		LeaderboardService.updateLeaderstats(player)
-		PublicProfileService.publish(player)
+		if Config.features.offlineEarnings then
+			RewardService.prepareOffline(player)
+		end
+		if Config.features.leaderboards then
+			LeaderboardService.updateLeaderstats(player)
+		end
+		if Config.features.profiles then
+			PublicProfileService.publish(player)
+		end
 		RemoteService.publish(player)
 		SocialService.refreshAll()
 	end)
 end
 
 local function playerRemoving(player: Player)
-	NotificationService.scheduleOnLeave(player)
-	PublicProfileService.publish(player)
-	LeaderboardService.flushPlayer(player)
+	if Config.features.notifications then
+		NotificationService.scheduleOnLeave(player)
+	end
+	if Config.features.profiles then
+		PublicProfileService.publish(player)
+	end
+	if Config.features.leaderboards then
+		LeaderboardService.flushPlayer(player)
+	end
 	RewardService.forget(player)
 	FeedbackService.forget(player)
 	RemoteService.forget(player)
@@ -71,7 +92,9 @@ task.spawn(function()
 				profile.lastSeenAt = os.time()
 				profile.offlineRateSnapshot = EconomyRateProvider.getRate(player)
 				ProfileService.markDirty(player, "playtime")
-				PublicProfileService.publish(player)
+				if Config.features.profiles then
+					PublicProfileService.publish(player)
+				end
 			end
 		end
 	end

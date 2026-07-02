@@ -12,6 +12,7 @@ end
 
 local screenGui = script.Parent
 assert(screenGui:IsA("ScreenGui"), "PackagePreview must be inside the TemplateUI ScreenGui")
+screenGui.Enabled = true
 local root = screenGui:WaitForChild("Root") :: Frame
 local showcaseCanvas = root:FindFirstChild("ShowcaseCanvas")
 if showcaseCanvas and showcaseCanvas:IsA("GuiObject") then
@@ -111,8 +112,14 @@ for _, screen in screenMap do
 end
 
 local hud = root:WaitForChild("CurrencyHUD") :: Frame
-setLabel(hud, "CoinLabel", "12.5K")
-setLabel(hud, "BoostLabel", "x2.00 BOOST  •  2 FRIENDS")
+hud.Visible = false
+local currencyTray = root:WaitForChild("CurrencyTray") :: Frame
+local currencySlots = currencyTray:WaitForChild("Slots") :: ScrollingFrame
+local primaryCurrency = currencySlots:WaitForChild("CurrencySlot01") :: Frame
+setLabel(primaryCurrency, "AmountLabel", "12.5K")
+setLabel(primaryCurrency, "Caption", "COINS")
+setLabel(primaryCurrency, "Symbol", "$")
+setLabel(currencyTray, "BoostLabel", "x2.00 BOOST  •  2 FRIENDS")
 local addCoinsButton = hud:WaitForChild("AddCoinsButton") :: TextButton
 addCoinsButton.Activated:Connect(function()
 	openScreen("Store")

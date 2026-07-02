@@ -1,0 +1,9 @@
+{
+  "name": "UI_Incremental",
+  "tree": {
+    "$path": "../src/ui/presets/incremental/TemplateUI.model.json",
+    "PackagePreview": {
+      "$path": "PackagePreview.client.luau"
+    }
+  }
+}

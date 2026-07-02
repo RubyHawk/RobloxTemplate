@@ -1,0 +1,9 @@
+{
+  "name": "UI_RPG",
+  "tree": {
+    "$path": "../src/ui/presets/rpg/TemplateUI.model.json",
+    "PackagePreview": {
+      "$path": "PackagePreview.client.luau"
+    }
+  }
+}

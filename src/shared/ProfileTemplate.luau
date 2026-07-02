@@ -7,8 +7,11 @@ local ProfileTemplate = {}
 
 function ProfileTemplate.create(now: number): PlayerProfileV1
 	return {
-		schemaVersion = 1,
+		schemaVersion = 2,
 		coins = 0,
+		currencies = {
+			coins = 0,
+		},
 		inventory = {
 			double_coins_potion = { quantity = 1 },
 		},

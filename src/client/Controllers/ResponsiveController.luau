@@ -1,6 +1,5 @@
 --!strict
 
-local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
@@ -105,15 +104,24 @@ local function clampNavigation(viewportSize: Vector2)
 		originalMaxSize[nav] = original
 	end
 	local scale = if uiScale then math.max(uiScale.Scale, 0.0001) else 1
+	local anchorX = nav.AnchorPoint.X
 	local anchorY = nav.AnchorPoint.Y
+	local centerXPx = nav.AbsolutePosition.X + anchorX * nav.AbsoluteSize.X
 	local centerYPx = nav.AbsolutePosition.Y + anchorY * nav.AbsoluteSize.Y
+	local safeByLeft = if anchorX > 0 then (centerXPx - NAV_EDGE_MARGIN) / anchorX else math.huge
+	local safeByRight = if anchorX < 1
+		then (viewportSize.X - NAV_EDGE_MARGIN - centerXPx) / (1 - anchorX)
+		else math.huge
 	local safeByTop = if anchorY > 0 then (centerYPx - NAV_EDGE_MARGIN) / anchorY else math.huge
 	local safeByBottom = if anchorY < 1
 		then (viewportSize.Y - NAV_EDGE_MARGIN - centerYPx) / (1 - anchorY)
 		else math.huge
 	local safeHeightRaw = math.min(safeByTop, safeByBottom) / scale
-	constraint.MaxSize =
-		Vector2.new(original.X, math.max(constraint.MinSize.Y, math.min(original.Y, safeHeightRaw)))
+	local safeWidthRaw = math.min(safeByLeft, safeByRight) / scale
+	constraint.MaxSize = Vector2.new(
+		math.max(constraint.MinSize.X, math.min(original.X, safeWidthRaw)),
+		math.max(constraint.MinSize.Y, math.min(original.Y, safeHeightRaw))
+	)
 end
 
 -- CurrencyHUD is fixed near the top of the screen and stays visible while a
@@ -206,7 +214,7 @@ function ResponsiveController.initialize(rootFrame: Frame, scale: UIScale)
 	root = rootFrame
 	uiScale = scale
 	navigation = rootFrame:FindFirstChild("Navigation") :: Frame?
-	hud = rootFrame:FindFirstChild("CurrencyHUD") :: Frame?
+	hud = (rootFrame:FindFirstChild("CurrencyTray") or rootFrame:FindFirstChild("CurrencyHUD")) :: Frame?
 	collectModalRoots(rootFrame)
 
 	-- A modal can open/close without any resize (e.g. tapping Shop while

@@ -7,6 +7,30 @@
       "$className": "StarterGui",
       "TemplateUI": {
         "$path": "src/ui/TemplateUI.model.json"
+      },
+      "TemplateLoading": {
+        "$path": "src/ui/TemplateLoading.model.json"
+      },
+      "StarterSignUI": {
+        "$path": "src/ui/StarterSignUI.model.json"
+      },
+      "IncrementalPresetUI": {
+        "$path": "src/ui/presets/incremental/TemplateUI.model.json"
+      },
+      "IncrementalPresetLoading": {
+        "$path": "src/ui/presets/incremental/TemplateLoading.model.json"
+      },
+      "IncrementalPresetSign": {
+        "$path": "src/ui/presets/incremental/StarterSignUI.model.json"
+      },
+      "RPGPresetUI": {
+        "$path": "src/ui/presets/rpg/TemplateUI.model.json"
+      },
+      "RPGPresetLoading": {
+        "$path": "src/ui/presets/rpg/TemplateLoading.model.json"
+      },
+      "RPGPresetSign": {
+        "$path": "src/ui/presets/rpg/StarterSignUI.model.json"
       }
     }
   }

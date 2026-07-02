@@ -94,7 +94,7 @@ function Switch-ToVersion([string]$Branch) {
 [xml]$xaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Roblox Map Launcher" Width="720" Height="650"
+        Title="Roblox Map Launcher" Width="720" Height="780"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="#0B1020" FontFamily="Segoe UI">
     <Window.Resources>
@@ -157,6 +157,8 @@ function Switch-ToVersion([string]$Branch) {
             <RowDefinition Height="112"/>
             <RowDefinition Height="14"/>
             <RowDefinition Height="112"/>
+            <RowDefinition Height="14"/>
+            <RowDefinition Height="112"/>
             <RowDefinition Height="24"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -186,7 +188,14 @@ function Switch-ToVersion([string]$Branch) {
             </StackPanel>
         </Button>
 
-        <Grid Grid.Row="7">
+        <Button x:Name="DesignerButton" Grid.Row="7" Style="{StaticResource SecondaryButton}">
+            <StackPanel>
+                <TextBlock Text="DESIGN A GAME PRESET" FontSize="18" FontWeight="Bold"/>
+                <TextBlock Text="Choose an independent UI pack, 1-5 currencies, and shared systems." Foreground="#B9C7DE" FontSize="13" FontWeight="Normal" Margin="0,7,0,0"/>
+            </StackPanel>
+        </Button>
+
+        <Grid Grid.Row="9">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="12"/>
@@ -196,7 +205,7 @@ function Switch-ToVersion([string]$Branch) {
             <Button x:Name="CheckButton" Grid.Column="2" Style="{StaticResource SmallButton}" Content="Run project checks"/>
         </Grid>
 
-        <TextBlock Grid.Row="8" Text="Tip: close older Studio windows after changing versions. A fresh window opens automatically."
+        <TextBlock Grid.Row="10" Text="Tip: generated presets are separate files, so UI Plus edits never leak into another pack."
                    Foreground="#7384A3" FontSize="12" VerticalAlignment="Bottom" TextAlignment="Center" Margin="0,0,0,4"/>
     </Grid>
 </Window>
@@ -207,6 +216,7 @@ $window = [System.Windows.Markup.XamlReader]::Load($reader)
 $currentStatus = $window.FindName("CurrentStatus")
 $playableButton = $window.FindName("PlayableButton")
 $templateButton = $window.FindName("TemplateButton")
+$designerButton = $window.FindName("DesignerButton")
 $setupButton = $window.FindName("SetupButton")
 $checkButton = $window.FindName("CheckButton")
 
@@ -247,6 +257,11 @@ $templateButton.Add_Click({
         Show-LauncherMessage "The launcher hit an unexpected error. Nothing was deleted.`n`nDetails were saved to build\launcher.log." "Could not open template" ([System.Windows.MessageBoxImage]::Error)
         $window.IsEnabled = $true
     }
+})
+
+$designerButton.Add_Click({
+    Start-CommandWindow "5_GAME_DESIGNER.cmd"
+    $window.Close()
 })
 
 $setupButton.Add_Click({ Start-CommandWindow "1_SETUP.cmd" })

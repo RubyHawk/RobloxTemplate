@@ -33,6 +33,9 @@
       "StarterPlayerScripts": {
         "TemplateClient": {
           "$path": "src/client"
+        },
+        "PlayableStarterClient": {
+          "$path": "src/starter-client"
         }
       }
     },
@@ -59,6 +62,27 @@
           "Size": [128, 1, 128],
           "Color": [0.08, 0.09, 0.14],
           "Material": "SmoothPlastic"
+        }
+      },
+      "ExampleEarningPad": {
+        "$className": "Part",
+        "$properties": {
+          "Anchored": true,
+          "CanCollide": true,
+          "Color": [0.3137255, 0.5294118, 1],
+          "Material": "Neon",
+          "Position": [0, 1, -18],
+          "Size": [12, 1, 12]
+        },
+        "EarnPrompt": {
+          "$className": "ProximityPrompt",
+          "$properties": {
+            "ActionText": "Earn 10 Coins",
+            "ObjectText": "Coin Trainer",
+            "HoldDuration": 0.25,
+            "MaxActivationDistance": 12,
+            "RequiresLineOfSight": false
+          }
         }
       }
     },

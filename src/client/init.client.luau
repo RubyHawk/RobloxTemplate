@@ -58,8 +58,17 @@ end
 local uiScale = root:WaitForChild("InterfaceScale") :: UIScale
 ResponsiveController.initialize(root, uiScale)
 local hud = root:WaitForChild("CurrencyHUD") :: Frame
-local coinLabel = hud:WaitForChild("CoinLabel") :: TextLabel
-local boostLabel = hud:WaitForChild("BoostLabel") :: TextLabel
+hud.Visible = false
+local currencyTray = root:WaitForChild("CurrencyTray") :: Frame
+local currencySlotsRoot = currencyTray:WaitForChild("Slots") :: ScrollingFrame
+local currencySlots: { Frame } = {}
+for index = 1, 5 do
+	table.insert(
+		currencySlots,
+		currencySlotsRoot:WaitForChild(`CurrencySlot{string.format("%02d", index)}`) :: Frame
+	)
+end
+local boostLabel = currencyTray:WaitForChild("BoostLabel") :: TextLabel
 local addCoinsButton = hud:WaitForChild("AddCoinsButton") :: TextButton
 local nav = root:WaitForChild("Navigation") :: Frame
 local navScroll = nav:WaitForChild("Buttons") :: ScrollingFrame
@@ -287,11 +296,13 @@ local navItems = {
 	{ "GiftButton", "Rewards", "rewards", "click" },
 	{ "ProfileButton", "Profile", "profile", "click" },
 }
+local navButtonsByScreen: { [string]: TextButton } = {}
 for _, item in navItems do
 	local button = navScroll:WaitForChild(item[1]) :: TextButton
 	local screenName = item[2]
 	local iconName = item[3] :: IconName
 	local audioCue = item[4] :: string
+	navButtonsByScreen[screenName] = button
 	applyIcon(button:WaitForChild("IconBubble"), iconName, "PackIcon", "Icon")
 	local restingColor = button.BackgroundColor3
 	button.MouseEnter:Connect(function()
@@ -348,10 +359,12 @@ local moreItems = {
 	{ "FeedbackButton", "Feedback", "feedback" },
 	{ "SettingsButton", "Settings", "settings" },
 }
+local moreButtonsByScreen: { [string]: TextButton } = {}
 for _, item in moreItems do
 	local button = moreMenuButtons:WaitForChild(item[1]) :: TextButton
 	local screenName = item[2]
 	local iconName = item[3] :: IconName
+	moreButtonsByScreen[screenName] = button
 	applyIcon(button, iconName, "Icon", "Fallback")
 	local restingColor = button.BackgroundColor3
 	button.MouseEnter:Connect(function()
@@ -371,17 +384,53 @@ local function applyState(nextState: any)
 	if nextState == nil or nextState.profile == nil then
 		return
 	end
-	local previousCoins = if state and state.profile then state.profile.coins else nextState.profile.coins
+	local primaryId = if nextState.currencyDefinitions and nextState.currencyDefinitions[1]
+		then nextState.currencyDefinitions[1].id
+		else "coins"
+	local previousPrimary = if state
+			and state.profile
+			and state.profile.currencies
+		then state.profile.currencies[primaryId] or state.profile.coins
+		else nextState.profile.currencies[primaryId] or nextState.profile.coins
 	state = nextState
-	coinLabel.Text = UIFactory.formatNumber(state.profile.coins)
+	for index, slot in currencySlots do
+		local definition = state.currencyDefinitions[index]
+		slot.Visible = definition ~= nil
+		if definition then
+			local amount = slot:WaitForChild("AmountLabel") :: TextLabel
+			local caption = slot:WaitForChild("Caption") :: TextLabel
+			local symbol = slot:WaitForChild("Symbol") :: TextLabel
+			local accent = slot:WaitForChild("Accent") :: Frame
+			amount.Text = UIFactory.formatNumber(state.profile.currencies[definition.id] or 0)
+			caption.Text = string.upper(definition.name)
+			symbol.Text = definition.symbol
+			local color = definition.color
+			if type(color) == "table" then
+				accent.BackgroundColor3 = Color3.fromRGB(color[1] or 255, color[2] or 202, color[3] or 10)
+			end
+		end
+	end
 	boostLabel.Text = `x{string.format(
 		"%.2f",
 		(1 + state.friendBonus + state.premiumBonus) * state.potionMultiplier
 	)} BOOST  •  {state.profile.social.friendCountInServer} FRIENDS`
 	ResponsiveController.setPlayerScale(state.profile.settings.uiScale)
 	AudioController.applySettings(state.profile.settings)
-	if state.profile.coins > previousCoins then
+	if (state.profile.currencies[primaryId] or state.profile.coins) > previousPrimary then
 		AudioController.play("cash")
+	end
+	local features = state.features
+	if type(features) == "table" then
+		navButtonsByScreen.Inventory.Visible = features.inventory ~= false
+		navButtonsByScreen.Store.Visible = features.store ~= false
+		navButtonsByScreen.Rewards.Visible = features.dailyRewards ~= false
+			or features.offlineEarnings ~= false
+		navButtonsByScreen.Profile.Visible = features.profiles ~= false
+		moreButtonsByScreen.Codes.Visible = features.codes ~= false
+		moreButtonsByScreen.Boards.Visible = features.leaderboards ~= false
+		moreButtonsByScreen.Community.Visible = features.communityVerification ~= false
+		moreButtonsByScreen.Feedback.Visible = features.feedback ~= false
+		moreButtonsByScreen.Settings.Visible = features.settings ~= false
 	end
 	AfkController.setEnabled(state.profile.settings.afKRollOver)
 	binder.apply(state)

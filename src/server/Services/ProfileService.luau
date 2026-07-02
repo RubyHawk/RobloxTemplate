@@ -97,7 +97,14 @@ function ProfileService.load(player: Player): PlayerProfileV1?
 	if shouldMock() then
 		loaded = Migrations.migrate(mockProfiles[player.UserId] or ProfileTemplate.create(now), now)
 		if loaded then
-			loaded.coins = math.max(loaded.coins, Config.studio.mockStartingCoins)
+			for index, definition in Config.economy.currencies do
+				local minimum = definition.startingAmount
+				if index == 1 then
+					minimum = math.max(minimum, Config.studio.mockStartingCoins)
+				end
+				loaded.currencies[definition.id] = math.max(loaded.currencies[definition.id] or 0, minimum)
+			end
+			loaded.coins = loaded.currencies[Config.economy.primaryCurrencyId]
 		end
 	else
 		for attempt = 1, 5 do
@@ -134,6 +141,12 @@ function ProfileService.load(player: Player): PlayerProfileV1?
 	if loaded == nil or player.Parent == nil then
 		return nil
 	end
+	for _, definition in Config.economy.currencies do
+		if type(loaded.currencies[definition.id]) ~= "number" then
+			loaded.currencies[definition.id] = definition.startingAmount
+		end
+	end
+	loaded.coins = loaded.currencies[Config.economy.primaryCurrencyId]
 	loaded.stats.joins += 1
 	loaded.updatedAt = now
 	profiles[player] = loaded

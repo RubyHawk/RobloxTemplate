@@ -5,7 +5,7 @@ You do not need to understand Git, Rojo, Wally, or the notification worker to op
 ## Open the project
 
 1. Double-click **`START_HERE.cmd`**.
-2. Choose **Open Playable Starter** or **Open Template**.
+2. Choose **Open Playable Starter**, **Open Template**, or **Design a Game Preset**.
 3. Keep the black window open when Roblox Studio starts.
 4. In Studio, select **Plugins → Rojo → Connect**.
 5. Edit UI objects under **StarterGui**, press **Ctrl+S**, then press **Play**.
@@ -15,6 +15,8 @@ You should see a Coins HUD and buttons for the inventory, store, rewards, profil
 The launcher installs anything missing, switches to the chosen branch, opens that branch's saved editable place, and replaces any old Rojo session. It does not rebuild over your Studio UI edits. Its **Repair setup** and **Run project checks** buttons explain problems in plain language.
 
 The numbered CMD files remain available as manual shortcuts, but your non-programmer coworker only needs `START_HERE.cmd`.
+
+**Design a Game Preset** selects an independent Incremental or RPG UI package, one-to-five server-backed currencies, and shared systems, then generates a playable test experience. See [`docs/GAME_DESIGNER.md`](docs/GAME_DESIGNER.md).
 
 ## Which branch should I use?
 

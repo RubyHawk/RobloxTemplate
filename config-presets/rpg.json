@@ -1,0 +1,19 @@
+{
+  "preset": "rpg",
+  "currencies": [
+    { "id": "gold", "name": "Gold", "symbol": "G", "startingAmount": 500, "color": [227, 156, 31] },
+    { "id": "crystals", "name": "Crystals", "symbol": "◆", "startingAmount": 10, "color": [62, 126, 214] },
+    { "id": "honor", "name": "Honor", "symbol": "★", "startingAmount": 0, "color": [97, 74, 163] }
+  ],
+  "features": {
+    "store": true,
+    "inventory": true,
+    "dailyRewards": true,
+    "offlineEarnings": false,
+    "profiles": true,
+    "leaderboards": true,
+    "codes": true,
+    "feedback": true,
+    "communityVerification": false
+  }
+}

@@ -1,11 +1,19 @@
 --!strict
 
+local CurrencyConfig = require(script.Parent.CurrencyConfig)
+local DesignerConfig = require(script.Parent.DesignerConfig)
+
+local configuredCurrencies = CurrencyConfig.normalize(DesignerConfig.currencies)
+
 local Config = {
 	version = "0.1.0",
 	profileStoreName = "RobloxTemplate_Profile_v1",
 	publicProfileStoreName = "RobloxTemplate_PublicProfiles_v1",
 	feedbackStoreName = "RobloxTemplate_Feedback_v1",
 	leaderboardStoreName = "RobloxTemplate_CoinsLeaderboard_v1",
+	ui = {
+		preset = if DesignerConfig.preset == "rpg" then "rpg" else "incremental",
+	},
 
 	features = {
 		store = true,
@@ -16,6 +24,8 @@ local Config = {
 		leaderboards = true,
 		crossServerChat = true,
 		feedback = true,
+		codes = true,
+		settings = true,
 		likesBoard = true,
 		notifications = true,
 		afKRollOver = true,
@@ -37,7 +47,9 @@ local Config = {
 	},
 
 	economy = {
-		primaryCurrency = "Coins",
+		primaryCurrency = configuredCurrencies[1].name,
+		primaryCurrencyId = configuredCurrencies[1].id,
+		currencies = configuredCurrencies,
 		baseOfflineRatePerSecond = 1,
 		friendBonusPerFriend = 0.10,
 		friendBonusCap = 0.50,
@@ -141,5 +153,13 @@ local Config = {
 		potionX3 = "102321175672770", -- potion bottle
 	},
 }
+
+if type(DesignerConfig.features) == "table" then
+	for feature, enabled in DesignerConfig.features do
+		if Config.features[feature] ~= nil and type(enabled) == "boolean" then
+			Config.features[feature] = enabled
+		end
+	end
+end
 
 return table.freeze(Config)
