@@ -44,7 +44,7 @@ function RewardService.claimOffline(player: Player): (boolean, string)
 	end
 	pendingOffline[player] = nil
 	EconomyService.awardRaw(player, pending.amount, "offline")
-	return true, `Claimed {pending.amount} Coins`
+	return true, `Claimed {pending.amount} {Config.economy.primaryCurrency}`
 end
 
 function RewardService.claimDaily(player: Player): (boolean, string)
@@ -66,7 +66,7 @@ function RewardService.claimDaily(player: Player): (boolean, string)
 	profile.daily.streak = nextStreak
 	EconomyService.awardRaw(player, amount, "daily")
 	ProfileService.markDirty(player, "daily:claim")
-	return true, `Day {nextStreak}: {amount} Coins`
+	return true, `Day {nextStreak}: {amount} {Config.economy.primaryCurrency}`
 end
 
 function RewardService.redeemCode(player: Player, rawCode: any): (boolean, string)

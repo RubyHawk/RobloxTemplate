@@ -59,6 +59,9 @@ function EconomyService.awardCurrencyRaw(
 		return false, 0
 	end
 	local granted = math.floor(math.min(amount, 1e12))
+	if granted <= 0 then
+		return false, 0
+	end
 	profile.currencies[currencyId] = math.min((profile.currencies[currencyId] or 0) + granted, 9e15)
 	synchronizeLegacyCoins(profile, currencyId)
 	if currencyId == Config.economy.primaryCurrencyId then
@@ -93,6 +96,9 @@ function EconomyService.spendCurrency(
 		return false
 	end
 	local cost = math.floor(amount)
+	if cost <= 0 then
+		return false
+	end
 	local balance = profile.currencies[currencyId] or 0
 	if balance < cost then
 		return false

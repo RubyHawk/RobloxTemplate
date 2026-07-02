@@ -254,7 +254,15 @@ for _, forbiddenConstructor in { "Instance.new", ":Clone(", ":Destroy(" } do
 end
 
 local playableProject = fs.readFile("default.project.json")
-for _, authoredWorldObject in { '"ExampleEarningPad"', '"EarnPrompt"', '"PlayableStarterClient"' } do
+for _, authoredWorldObject in
+	{
+		'"ExampleEarningPad"',
+		'"EarnPrompt"',
+		'"BonusEarningPad"',
+		'"BonusPrompt"',
+		'"PlayableStarterClient"',
+	}
+do
 	expectEqual(
 		string.find(playableProject, authoredWorldObject, 1, true) ~= nil,
 		true,

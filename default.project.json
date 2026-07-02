@@ -84,6 +84,27 @@
             "RequiresLineOfSight": false
           }
         }
+      },
+      "BonusEarningPad": {
+        "$className": "Part",
+        "$properties": {
+          "Anchored": true,
+          "CanCollide": true,
+          "Color": [0.0196078, 0.8196078, 0.7019608],
+          "Material": "Neon",
+          "Position": [18, 1, -18],
+          "Size": [12, 1, 12]
+        },
+        "BonusPrompt": {
+          "$className": "ProximityPrompt",
+          "$properties": {
+            "ActionText": "Earn Bonus Currency",
+            "ObjectText": "Bonus Trainer",
+            "HoldDuration": 0.25,
+            "MaxActivationDistance": 12,
+            "RequiresLineOfSight": false
+          }
+        }
       }
     },
     "TextChatService": {

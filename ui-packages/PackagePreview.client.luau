@@ -113,6 +113,7 @@ end
 
 local hud = root:WaitForChild("CurrencyHUD") :: Frame
 hud.Visible = false
+setLabel(hud, "CoinLabel", "12.5K")
 local currencyTray = root:WaitForChild("CurrencyTray") :: Frame
 local currencySlots = currencyTray:WaitForChild("Slots") :: ScrollingFrame
 local primaryCurrency = currencySlots:WaitForChild("CurrencySlot01") :: Frame

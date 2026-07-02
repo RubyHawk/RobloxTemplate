@@ -414,6 +414,12 @@ local function applyState(nextState: any)
 			end
 		end
 	end
+	-- The classic CurrencyHUD stays authored and editable; keep its label live
+	-- so a designer who re-enables it in Studio still sees the real balance.
+	local legacyCoinLabel = hud:FindFirstChild("CoinLabel")
+	if legacyCoinLabel and legacyCoinLabel:IsA("TextLabel") then
+		legacyCoinLabel.Text = UIFactory.formatNumber(balances[primaryId] or state.profile.coins or 0)
+	end
 	boostLabel.Text = `x{string.format(
 		"%.2f",
 		(1 + state.friendBonus + state.premiumBonus) * state.potionMultiplier

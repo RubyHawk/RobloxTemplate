@@ -25,4 +25,10 @@ When editing a generated experience, save or publish that generated place. To ma
 
 Each enabled currency has a server-owned saved balance. The profile schema migrates older `coins` data into the selected primary currency. The HUD contains five permanent editable slots and only displays the configured number. Disabled systems are hidden on the client and rejected by server remotes.
 
+Starting balances apply the first time a profile sees a currency: new players receive every configured starting amount, and adding a currency to an existing game grants its starting amount to returning players once. Balances a player already has are never re-granted or overwritten. Renaming the primary currency flows through the leaderstats column, reward messages, and every connected screen.
+
+In the generated test experience, the blue pad pays the primary currency (with the earnings multiplier) and the teal bonus pad pays the second configured currency, so a multi-currency recipe can be verified in Play mode immediately. With a single currency the bonus pad hides itself.
+
+Every generated `DesignerConfig.luau` is parsed and shape-checked by `scripts/validate-designer-config.luau` before Rojo builds the experience, so a generation bug fails the build instead of shipping a broken place.
+
 Advanced Roblox IDs, reward amounts, product definitions, audio, and platform integrations remain in `src/shared/TemplateConfig.luau`; they are intentionally not guessed by the Designer.
