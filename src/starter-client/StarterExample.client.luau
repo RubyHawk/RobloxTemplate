@@ -7,8 +7,15 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage:WaitForChild("Template"):WaitForChild("Shared").TemplateConfig)
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
-local sign = playerGui:WaitForChild("StarterSignUI")
-assert(sign:IsA("BillboardGui"), "StarterGui.StarterSignUI must be an authored BillboardGui")
+-- The sign is optional polish; a place saved before it existed simply keeps
+-- the earning pad without a billboard.
+local sign = playerGui:WaitForChild("StarterSignUI", 10)
+if sign == nil or not sign:IsA("BillboardGui") then
+	warn(
+		"StarterGui.StarterSignUI is missing; rebuild the place from bootstrap.project.json to show the pad sign"
+	)
+	return
+end
 
 local pad = Workspace:WaitForChild("ExampleEarningPad")
 assert(pad:IsA("BasePart"), "Workspace.ExampleEarningPad must be an authored BasePart")

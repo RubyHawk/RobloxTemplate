@@ -20,8 +20,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
-local gui = playerGui:WaitForChild("TemplateLoading") :: ScreenGui
-assert(gui:IsA("ScreenGui"), "StarterGui.TemplateLoading must be a ScreenGui")
+-- A place without the authored loading pack keeps Roblox's default loading
+-- screen; never park this thread forever on a missing ScreenGui.
+local gui = playerGui:WaitForChild("TemplateLoading", 15)
+if gui == nil or not gui:IsA("ScreenGui") then
+	return
+end
 
 local background = gui:WaitForChild("Background") :: Frame
 local card = background:WaitForChild("Card") :: Frame
@@ -1047,6 +1051,20 @@ local function bindPad(padName: string, promptName: string): (BasePart, Proximit
 	return pad, prompt
 end
 
+-- A place saved before an authored object existed must not park this script
+-- (and every binding after it) on WaitForChild forever.
+local function findPad(padName: string, promptName: string): (BasePart?, ProximityPrompt?)
+	local pad = Workspace:WaitForChild(padName, 10)
+	if pad == nil or not pad:IsA("BasePart") then
+		return nil, nil
+	end
+	local prompt = pad:WaitForChild(promptName, 10)
+	if prompt == nil or not prompt:IsA("ProximityPrompt") then
+		return nil, nil
+	end
+	return pad, prompt
+end
+
 local function allowAward(player: Player, padKey: string): boolean
 	local now = os.clock()
 	local perPad = lastAwardAt[player]
@@ -1061,6 +1079,10 @@ local function allowAward(player: Player, padKey: string): boolean
 	return true
 end
 
+Players.PlayerRemoving:Connect(function(player)
+	lastAwardAt[player] = nil
+end)
+
 local _, earnPrompt = bindPad("ExampleEarningPad", "EarnPrompt")
 earnPrompt.ActionText = `Earn 10 {Config.economy.primaryCurrency}`
 earnPrompt.ObjectText = `{Config.economy.primaryCurrency} Trainer`
@@ -1073,8 +1095,12 @@ end)
 -- The bonus pad makes a multi-currency recipe provable in Play mode: it pays
 -- the second configured currency directly (no earnings multiplier; that bonus
 -- only applies to the primary currency). Single-currency recipes hide it.
-local bonusPad, bonusPrompt = bindPad("BonusEarningPad", "BonusPrompt")
-if #Config.economy.currencies >= 2 then
+local bonusPad, bonusPrompt = findPad("BonusEarningPad", "BonusPrompt")
+if bonusPad == nil or bonusPrompt == nil then
+	warn(
+		"Workspace.BonusEarningPad is missing; rebuild the place from bootstrap.project.json to demo a second currency"
+	)
+elseif #Config.economy.currencies >= 2 then
 	local bonusCurrency = Config.economy.currencies[2]
 	bonusPrompt.ActionText = `Earn 5 {bonusCurrency.name}`
 	bonusPrompt.ObjectText = `{bonusCurrency.name} Trainer`
@@ -1090,10 +1116,6 @@ else
 	bonusPad.CanQuery = false
 	bonusPad.CanTouch = false
 end
-
-Players.PlayerRemoving:Connect(function(player)
-	lastAwardAt[player] = nil
-end)
 ]]></string>
         </Properties>
       </Item>
@@ -2882,8 +2904,15 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage:WaitForChild("Template"):WaitForChild("Shared").TemplateConfig)
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
-local sign = playerGui:WaitForChild("StarterSignUI")
-assert(sign:IsA("BillboardGui"), "StarterGui.StarterSignUI must be an authored BillboardGui")
+-- The sign is optional polish; a place saved before it existed simply keeps
+-- the earning pad without a billboard.
+local sign = playerGui:WaitForChild("StarterSignUI", 10)
+if sign == nil or not sign:IsA("BillboardGui") then
+	warn(
+		"StarterGui.StarterSignUI is missing; rebuild the place from bootstrap.project.json to show the pad sign"
+	)
+	return
+end
 
 local pad = Workspace:WaitForChild("ExampleEarningPad")
 assert(pad:IsA("BasePart"), "Workspace.ExampleEarningPad must be an authored BasePart")
@@ -2965,17 +2994,28 @@ end
 local uiScale = root:WaitForChild("InterfaceScale") :: UIScale
 ResponsiveController.initialize(root, uiScale)
 local hud = root:WaitForChild("CurrencyHUD") :: Frame
-hud.Visible = false
-local currencyTray = root:WaitForChild("CurrencyTray") :: Frame
-local currencySlotsRoot = currencyTray:WaitForChild("Slots") :: ScrollingFrame
+-- A place saved before the CurrencyTray existed (a stale local
+-- places/*.rbxlx) must fall back to the authored CurrencyHUD instead of
+-- parking the whole UI on WaitForChild forever.
+local currencyTray = root:WaitForChild("CurrencyTray", 10) :: Frame?
 local currencySlots: { Frame } = {}
-for index = 1, 5 do
-	table.insert(
-		currencySlots,
-		currencySlotsRoot:WaitForChild(`CurrencySlot{string.format("%02d", index)}`) :: Frame
+if currencyTray then
+	hud.Visible = false
+	local currencySlotsRoot = currencyTray:WaitForChild("Slots") :: ScrollingFrame
+	for index = 1, 5 do
+		table.insert(
+			currencySlots,
+			currencySlotsRoot:WaitForChild(`CurrencySlot{string.format("%02d", index)}`) :: Frame
+		)
+	end
+else
+	warn(
+		"TemplateUI is missing CurrencyTray; rebuild the place from bootstrap.project.json to show all configured currencies"
 	)
 end
-local boostLabel = currencyTray:WaitForChild("BoostLabel") :: TextLabel
+local boostLabel = (
+	if currencyTray then currencyTray:WaitForChild("BoostLabel") else hud:WaitForChild("BoostLabel")
+) :: TextLabel
 local addCoinsButton = hud:WaitForChild("AddCoinsButton") :: TextButton
 local nav = root:WaitForChild("Navigation") :: Frame
 local navScroll = nav:WaitForChild("Buttons") :: ScrollingFrame

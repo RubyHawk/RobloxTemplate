@@ -18,6 +18,20 @@ local function bindPad(padName: string, promptName: string): (BasePart, Proximit
 	return pad, prompt
 end
 
+-- A place saved before an authored object existed must not park this script
+-- (and every binding after it) on WaitForChild forever.
+local function findPad(padName: string, promptName: string): (BasePart?, ProximityPrompt?)
+	local pad = Workspace:WaitForChild(padName, 10)
+	if pad == nil or not pad:IsA("BasePart") then
+		return nil, nil
+	end
+	local prompt = pad:WaitForChild(promptName, 10)
+	if prompt == nil or not prompt:IsA("ProximityPrompt") then
+		return nil, nil
+	end
+	return pad, prompt
+end
+
 local function allowAward(player: Player, padKey: string): boolean
 	local now = os.clock()
 	local perPad = lastAwardAt[player]
@@ -32,6 +46,10 @@ local function allowAward(player: Player, padKey: string): boolean
 	return true
 end
 
+Players.PlayerRemoving:Connect(function(player)
+	lastAwardAt[player] = nil
+end)
+
 local _, earnPrompt = bindPad("ExampleEarningPad", "EarnPrompt")
 earnPrompt.ActionText = `Earn 10 {Config.economy.primaryCurrency}`
 earnPrompt.ObjectText = `{Config.economy.primaryCurrency} Trainer`
@@ -44,8 +62,12 @@ end)
 -- The bonus pad makes a multi-currency recipe provable in Play mode: it pays
 -- the second configured currency directly (no earnings multiplier; that bonus
 -- only applies to the primary currency). Single-currency recipes hide it.
-local bonusPad, bonusPrompt = bindPad("BonusEarningPad", "BonusPrompt")
-if #Config.economy.currencies >= 2 then
+local bonusPad, bonusPrompt = findPad("BonusEarningPad", "BonusPrompt")
+if bonusPad == nil or bonusPrompt == nil then
+	warn(
+		"Workspace.BonusEarningPad is missing; rebuild the place from bootstrap.project.json to demo a second currency"
+	)
+elseif #Config.economy.currencies >= 2 then
 	local bonusCurrency = Config.economy.currencies[2]
 	bonusPrompt.ActionText = `Earn 5 {bonusCurrency.name}`
 	bonusPrompt.ObjectText = `{bonusCurrency.name} Trainer`
@@ -61,7 +83,3 @@ else
 	bonusPad.CanQuery = false
 	bonusPad.CanTouch = false
 end
-
-Players.PlayerRemoving:Connect(function(player)
-	lastAwardAt[player] = nil
-end)

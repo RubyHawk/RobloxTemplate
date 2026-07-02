@@ -58,17 +58,28 @@ end
 local uiScale = root:WaitForChild("InterfaceScale") :: UIScale
 ResponsiveController.initialize(root, uiScale)
 local hud = root:WaitForChild("CurrencyHUD") :: Frame
-hud.Visible = false
-local currencyTray = root:WaitForChild("CurrencyTray") :: Frame
-local currencySlotsRoot = currencyTray:WaitForChild("Slots") :: ScrollingFrame
+-- A place saved before the CurrencyTray existed (a stale local
+-- places/*.rbxlx) must fall back to the authored CurrencyHUD instead of
+-- parking the whole UI on WaitForChild forever.
+local currencyTray = root:WaitForChild("CurrencyTray", 10) :: Frame?
 local currencySlots: { Frame } = {}
-for index = 1, 5 do
-	table.insert(
-		currencySlots,
-		currencySlotsRoot:WaitForChild(`CurrencySlot{string.format("%02d", index)}`) :: Frame
+if currencyTray then
+	hud.Visible = false
+	local currencySlotsRoot = currencyTray:WaitForChild("Slots") :: ScrollingFrame
+	for index = 1, 5 do
+		table.insert(
+			currencySlots,
+			currencySlotsRoot:WaitForChild(`CurrencySlot{string.format("%02d", index)}`) :: Frame
+		)
+	end
+else
+	warn(
+		"TemplateUI is missing CurrencyTray; rebuild the place from bootstrap.project.json to show all configured currencies"
 	)
 end
-local boostLabel = currencyTray:WaitForChild("BoostLabel") :: TextLabel
+local boostLabel = (
+	if currencyTray then currencyTray:WaitForChild("BoostLabel") else hud:WaitForChild("BoostLabel")
+) :: TextLabel
 local addCoinsButton = hud:WaitForChild("AddCoinsButton") :: TextButton
 local nav = root:WaitForChild("Navigation") :: Frame
 local navScroll = nav:WaitForChild("Buttons") :: ScrollingFrame
