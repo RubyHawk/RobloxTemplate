@@ -2,6 +2,7 @@
 
 local Calculations = require("../src/shared/Calculations")
 local CurrencyConfig = require("../src/shared/CurrencyConfig")
+local DataStoreKeys = require("../src/shared/DataStoreKeys")
 local MigrationCore = require("../src/shared/MigrationCore")
 local ReceiptLedger = require("../src/shared/ReceiptLedger")
 local SessionLock = require("../src/server/Util/SessionLock")
@@ -75,6 +76,33 @@ expectEqual(migrated.schemaVersion, 1, "profile version migration")
 expectEqual(migrated.settings.musicVolume, 0.5, "profile reconciliation")
 expectEqual(migrated.unknown, "keep", "migration preserves unknown data")
 
+local repaired = MigrationCore.migrate({ schemaVersion = 1, settings = "broken", coins = 0 / 0 }, {
+	schemaVersion = 1,
+	coins = 0,
+	settings = { musicVolume = 0.5 },
+}, 1)
+expectEqual(type(repaired.settings), "table", "migration repairs invalid nested table types")
+expectEqual(repaired.coins, 0, "migration repairs non-finite persisted numbers")
+local futureOk = pcall(function()
+	MigrationCore.migrate({ schemaVersion = 99 }, { schemaVersion = 1 }, 1)
+end)
+expectEqual(futureOk, false, "future profile schemas are refused instead of overwritten")
+
+expectEqual(DataStoreKeys.profile(123), "player:123", "profile key is documented and stable")
+expectEqual(DataStoreKeys.publicProfile(123), "user:123", "public profile key is documented")
+expectEqual(
+	DataStoreKeys.feedback(123, 456, "abc"),
+	"user:123:report:456:abc",
+	"feedback keys can be listed or erased by user prefix"
+)
+
+local rewardServiceSource = fs.readFile("src/server/Services/RewardService.luau")
+expectEqual(
+	string.find(rewardServiceSource, "profile.offline.pendingAmount", 1, true) ~= nil,
+	true,
+	"unclaimed offline earnings live in the saved profile"
+)
+
 local receipts = {}
 expectEqual(ReceiptLedger.claim(receipts, "purchase"), true, "first receipt grants")
 expectEqual(ReceiptLedger.claim(receipts, "purchase"), false, "duplicate receipt rejected")
@@ -94,6 +122,40 @@ do
 		`{servicePath} does not open DataStores while loading`
 	)
 end
+
+local templateConfigSource = fs.readFile("src/shared/TemplateConfig.luau")
+expectEqual(
+	string.find(templateConfigSource, "useLiveDataStore", 1, true),
+	nil,
+	"ambiguous live DataStore switch was removed"
+)
+expectEqual(
+	string.find(
+		templateConfigSource,
+		'dataStoreMode = if DesignerConfig.experienceMode == "template"',
+		1,
+		true
+	) ~= nil,
+	true,
+	"persistence mode follows the generated experience kind"
+)
+local presetBuilderSource = fs.readFile("scripts/build-game-preset.ps1")
+expectEqual(
+	string.find(presetBuilderSource, 'experienceMode = `"playable`"', 1, true) ~= nil,
+	true,
+	"generated playable experiences select real persistence"
+)
+expectEqual(
+	string.find(presetBuilderSource, '$preset -notin @("incremental", "rpg")', 1, true),
+	nil,
+	"preset builder accepts independently authored packs"
+)
+local gameDesignerSource = fs.readFile("scripts/game-designer.ps1")
+expectEqual(
+	string.find(gameDesignerSource, "src\\ui\\presets", 1, true) ~= nil,
+	true,
+	"Game Designer discovers authored preset folders"
+)
 
 local chatSource = fs.readFile("src/client/init.client.luau") .. fs.readFile("default.project.json")
 for _, legacyToken in

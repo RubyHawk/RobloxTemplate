@@ -1,20 +1,40 @@
 # DataDelve Canary
 
-DataDelve Canary is installed in Roblox Studio. It is a visual editor for Roblox **DataStores**; it does not create HUDs, inventory screens, or other GUI objects.
+DataDelve Canary is a visual editor for Roblox **DataStores**. It can inspect real saved data; it cannot see the template showroom's in-memory mock data.
 
-Use it only after publishing a separate private test experience:
+## Playable starter: real data
 
-1. Open **File > Experience Settings > Security**.
-2. Enable **Studio Access to API Services** for the test experience only.
-3. Run the game once so the template creates `RobloxTemplate_Profile_v1`.
-4. Stop Play mode, open **Plugins > DataDelve Canary**, select that store, and inspect a `Player_<UserId>` profile.
+Generated playable starters now select real persistence automatically. There is no hidden code switch to change.
 
-Do not enable Studio API access on the live production experience. Roblox states that Studio accesses the same data as live servers and can overwrite production profiles.
+1. Build the selected UI/game preset.
+2. Open the generated playable place and publish it as a **separate test experience**.
+3. Open **File > Experience Settings > Security**.
+4. Enable **Studio Access to API Services**, then save and reopen the published place.
+5. Press Play, earn Coins, and stop Play mode so the profile releases and saves.
+6. Open **Plugins > DataDelve Canary**.
+7. Select `RobloxTemplate_Profile_v1`, then open `player:<your numeric UserId>`.
 
-The saved profile contains readable sections for Coins, inventory, boosts, settings, statistics, daily rewards, redemptions, entitlements, social verification, guild reservation, and timestamps. Schema versioning and migrations remain controlled by the template code; do not casually delete unknown fields in DataDelve.
+The value is an envelope. Player data is under `data`; the sibling `lock` is the temporary server session lock and should be `nil` after a clean stop. Do not edit `lock`, `schemaVersion`, receipt keys, or unknown fields.
 
-Sources:
+Other stores are:
+
+| Store | Key format |
+| --- | --- |
+| `RobloxTemplate_PublicProfiles_v1` | `user:<UserId>` |
+| `RobloxTemplate_Feedback_v1` | `user:<UserId>:report:<UnixTime>:<GUID>` |
+| `RobloxTemplate_CoinsLeaderboard_v1` | `<UserId>` |
+
+## Template showroom: safe mock data
+
+The large visual template/showroom intentionally stays in memory. Its Output banner starts with `[Template Data] MOCK mode`, and DataDelve will not show changes from that play test. This prevents visual UI work from touching saved player profiles.
+
+In a playable starter, the Output banner says `[Template Data] LIVE`. If setup is incomplete, it now explains whether the place is unpublished or Studio API access is unavailable. The same mode is visible as the `DataStoreMode` attribute on `ReplicatedStorage > Template`.
+
+Roblox Studio accesses the same DataStores as live servers. Use a private test experience, never the production experience, for Studio writes.
+
+Sources checked 2026-07-02:
 
 - [Roblox Data stores documentation](https://create.roblox.com/docs/cloud-services/data-stores)
+- [Roblox DataStore best practices](https://create.roblox.com/docs/cloud-services/data-stores/best-practices)
 - [DataDelve source and documentation](https://github.com/pinehappi/DataDelve)
 - [DataDelve Canary Creator Store listing](https://create.roblox.com/store/asset/17652185888/DataDelve-Canary)

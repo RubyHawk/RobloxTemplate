@@ -18,6 +18,8 @@ The numbered CMD files remain available as manual shortcuts, but your non-progra
 
 **Design a Game Preset** selects an independent Incremental or RPG UI package, one-to-five server-backed currencies, and shared systems, then generates a playable test experience. See [`docs/GAME_DESIGNER.md`](docs/GAME_DESIGNER.md).
 
+Figma can be the visual source, but a preset must be exported into native editable Roblox GUI instances before its binders can run. See [`docs/FIGMA_WORKFLOW.md`](docs/FIGMA_WORKFLOW.md).
+
 ## Which branch should I use?
 
 - **`playable-starter`** is the easiest starting point. It includes the complete template plus a blue earning pad that proves the economy works.

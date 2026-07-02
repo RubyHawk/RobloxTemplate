@@ -4,6 +4,7 @@
 -- Designer writes a separate generated copy for exported test experiences;
 -- it never rewrites this source file or another preset's authored UI.
 return {
+	experienceMode = "playable",
 	preset = "incremental",
 	currencies = {
 		{

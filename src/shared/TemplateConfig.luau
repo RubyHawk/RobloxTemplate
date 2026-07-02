@@ -35,7 +35,9 @@ local Config = {
 	},
 
 	studio = {
-		useLiveDataStore = false,
+		-- Template/showroom recipes use "mock". Published playable recipes use
+		-- "live", including Studio after API Services access is enabled.
+		dataStoreMode = if DesignerConfig.experienceMode == "template" then "mock" else "live",
 		mockStartingCoins = 2500,
 		openComponentGallery = true,
 	},

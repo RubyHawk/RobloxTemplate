@@ -19,6 +19,8 @@ description: Build, extend, review, or debug the reusable Roblox Luau template, 
 10. Add or update tests, then run the commands in `AGENTS.md`.
 11. Treat each UI preset as an independent product: separate `TemplateUI`, loading, and sign models with the same binding contract. Never share GUI instances between presets or overwrite an existing preset from a bootstrap script.
 12. Use the Game Designer recipe boundary for preset selection, feature flags, and one-to-five currencies. Keep balances server-authoritative, migrate profile data explicitly, and reject disabled feature remotes on the server.
+13. Keep the visual `template` showroom on mock memory data. Every generated `playable` recipe uses real Roblox persistence and must emit a clear startup diagnostic when the place is unpublished or Studio API access is unavailable.
+14. Treat Figma as visual source material, not a Roblox runtime. Require a reviewed exporter to produce independent native StarterGui instances, preserve binder names, and never claim automatic Figma synchronization when no importer is configured.
 
 ## Hard boundaries
 

@@ -53,6 +53,14 @@ export type PlayerProfileV1 = {
 		discordVerified: boolean,
 	},
 	guild: GuildReservation,
+	feedback: {
+		lastSubmittedAt: number,
+	},
+	offline: {
+		pendingAmount: number,
+		pendingElapsed: number,
+		preparedAt: number,
+	},
 	lastSeenAt: number,
 	offlineRateSnapshot: number,
 	createdAt: number,

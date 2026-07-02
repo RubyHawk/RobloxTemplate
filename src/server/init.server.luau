@@ -17,11 +17,13 @@ local RewardService = require(Services.RewardService)
 local SocialService = require(Services.SocialService)
 local StoreService = require(Services.StoreService)
 local EconomyRateProvider = require(script.Providers.DefaultEconomyRateProvider)
+local DataStoreRuntime = require(script.Util.DataStoreRuntime)
 
+DataStoreRuntime.announce(ReplicatedStorage:WaitForChild("Template"))
 RemoteService.initialize()
-if Config.features.store then
-	StoreService.initialize()
-end
+-- Receipt processing must remain installed even when the store UI is disabled;
+-- pending developer-product receipts must never be silently acknowledged.
+StoreService.initialize()
 ProfileService.startAutosave()
 if Config.features.leaderboards then
 	LeaderboardService.start()

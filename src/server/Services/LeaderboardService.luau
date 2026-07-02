@@ -2,15 +2,20 @@
 
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
 local Config = require(Shared.TemplateConfig)
+local DataStoreKeys = require(Shared.DataStoreKeys)
+local DataStoreRuntime = require(script.Parent.Parent.Util.DataStoreRuntime)
 local ProfileService = require(script.Parent.ProfileService)
 
 local LeaderboardService = {}
 local store: OrderedDataStore? = nil
 local nameCache: { [number]: string } = {}
+local lastFlushed: { [number]: number } = {}
+local globalCache: { any }? = nil
+local globalCacheAt = 0
+local globalCacheBusy = false
 
 local function getStore(): OrderedDataStore
 	local current = store
@@ -28,9 +33,11 @@ local function displayName(userId: number): string
 	local success, name = pcall(function()
 		return Players:GetNameFromUserIdAsync(userId)
 	end)
-	local result = if success then name else `User {userId}`
-	nameCache[userId] = result
-	return result
+	if success and type(name) == "string" then
+		nameCache[userId] = name
+		return name
+	end
+	return `User {userId}`
 end
 
 function LeaderboardService.updateLeaderstats(player: Player)
@@ -68,9 +75,17 @@ function LeaderboardService.serverBoard(): { any }
 end
 
 function LeaderboardService.globalBoard(): (boolean, { any } | string)
-	if RunService:IsStudio() and not Config.studio.useLiveDataStore then
+	if DataStoreRuntime.isMock() then
 		return true, LeaderboardService.serverBoard()
 	end
+	local now = os.clock()
+	if globalCache and now - globalCacheAt < Config.leaderboards.refreshSeconds then
+		return true, globalCache
+	end
+	if globalCacheBusy then
+		return if globalCache then true else false, globalCache or "Global leaderboard is refreshing"
+	end
+	globalCacheBusy = true
 	local success, result = pcall(function()
 		local pages = getStore():GetSortedAsync(false, Config.leaderboards.globalSize)
 		local rows = {}
@@ -83,26 +98,51 @@ function LeaderboardService.globalBoard(): (boolean, { any } | string)
 		end
 		return rows
 	end)
-	return success, if success then result else "Global leaderboard is unavailable"
+	globalCacheBusy = false
+	if success then
+		globalCache = result
+		globalCacheAt = now
+		return true, result
+	end
+	DataStoreRuntime.failure("Leaderboard", "read global board", result)
+	if globalCache then
+		return true, globalCache
+	end
+	return false, "Global leaderboard is unavailable"
 end
 
 function LeaderboardService.flushPlayer(player: Player)
 	local profile = ProfileService.get(player)
-	if profile == nil or (RunService:IsStudio() and not Config.studio.useLiveDataStore) then
+	if profile == nil or DataStoreRuntime.isMock() then
 		return
 	end
-	pcall(function()
-		getStore():SetAsync(tostring(player.UserId), math.floor(profile.coins))
+	local value = math.clamp(math.floor(profile.coins), 0, 9e15)
+	if lastFlushed[player.UserId] == value then
+		return
+	end
+	local success, failure = pcall(function()
+		getStore():SetAsync(DataStoreKeys.leaderboard(player.UserId), value)
 	end)
+	if success then
+		lastFlushed[player.UserId] = value
+	else
+		DataStoreRuntime.failure("Leaderboard", `write user {player.UserId}`, failure)
+	end
 end
 
 function LeaderboardService.start()
 	task.spawn(function()
 		while true do
-			task.wait(Config.leaderboards.refreshSeconds)
-			for _, player in Players:GetPlayers() do
-				LeaderboardService.updateLeaderstats(player)
-				LeaderboardService.flushPlayer(player)
+			local players = Players:GetPlayers()
+			if #players == 0 then
+				task.wait(Config.leaderboards.refreshSeconds)
+			else
+				local delayPerPlayer = Config.leaderboards.refreshSeconds / #players
+				for _, player in players do
+					LeaderboardService.updateLeaderstats(player)
+					LeaderboardService.flushPlayer(player)
+					task.wait(delayPerPlayer)
+				end
 			end
 		end
 	end)

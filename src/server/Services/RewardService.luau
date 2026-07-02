@@ -27,24 +27,39 @@ function RewardService.prepareOffline(player: Player)
 		capHours,
 		EconomyService.permanentOfflineMultiplier(player)
 	)
-	pendingOffline[player] = { amount = amount, elapsed = elapsed }
+	profile.offline.pendingAmount = math.min(profile.offline.pendingAmount + amount, 9e15)
+	profile.offline.pendingElapsed = math.min(profile.offline.pendingElapsed + elapsed, 365 * 86400)
+	profile.offline.preparedAt = os.time()
+	pendingOffline[player] = {
+		amount = profile.offline.pendingAmount,
+		elapsed = profile.offline.pendingElapsed,
+	}
 	profile.lastSeenAt = os.time()
 	profile.offlineRateSnapshot = EconomyRateProvider.getRate(player)
 	ProfileService.markDirty(player, "offline:prepared")
 end
 
 function RewardService.getPendingOffline(player: Player): { amount: number, elapsed: number }
+	local profile = ProfileService.get(player)
+	if profile then
+		return { amount = profile.offline.pendingAmount, elapsed = profile.offline.pendingElapsed }
+	end
 	return pendingOffline[player] or { amount = 0, elapsed = 0 }
 end
 
 function RewardService.claimOffline(player: Player): (boolean, string)
-	local pending = pendingOffline[player]
-	if pending == nil or pending.amount <= 0 then
+	local profile = ProfileService.get(player)
+	if profile == nil or profile.offline.pendingAmount <= 0 then
 		return false, "No offline earnings are ready"
 	end
+	local amount = profile.offline.pendingAmount
+	EconomyService.awardRaw(player, amount, "offline")
+	profile.offline.pendingAmount = 0
+	profile.offline.pendingElapsed = 0
+	profile.offline.preparedAt = 0
 	pendingOffline[player] = nil
-	EconomyService.awardRaw(player, pending.amount, "offline")
-	return true, `Claimed {pending.amount} Coins`
+	ProfileService.markDirty(player, "offline:claim")
+	return true, `Claimed {amount} Coins`
 end
 
 function RewardService.claimDaily(player: Player): (boolean, string)

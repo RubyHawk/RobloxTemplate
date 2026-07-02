@@ -1,14 +1,15 @@
 --!strict
 
 local DataStoreService = game:GetService("DataStoreService")
-local RunService = game:GetService("RunService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
 local Config = require(Shared.TemplateConfig)
+local DataStoreKeys = require(Shared.DataStoreKeys)
 local Migrations = require(Shared.Migrations)
 local ProfileTemplate = require(Shared.ProfileTemplate)
 local Types = require(Shared.Types)
 local SessionLock = require(script.Parent.Parent.Util.SessionLock)
+local DataStoreRuntime = require(script.Parent.Parent.Util.DataStoreRuntime)
 
 type PlayerProfileV1 = Types.PlayerProfileV1
 type Envelope = {
@@ -41,11 +42,11 @@ local function copy(value: any): any
 end
 
 local function keyFor(player: Player): string
-	return `player:{player.UserId}`
+	return DataStoreKeys.profile(player.UserId)
 end
 
 local function shouldMock(): boolean
-	return RunService:IsStudio() and not Config.studio.useLiveDataStore
+	return DataStoreRuntime.isMock()
 end
 
 local function getStore(): GlobalDataStore
@@ -81,7 +82,16 @@ local function updateEnvelope(player: Player, release: boolean): boolean
 			}
 		end)
 	end)
-	if not success or result == nil then
+	if not success then
+		DataStoreRuntime.failure("Profiles", `save {keyFor(player)}`, result)
+		return false
+	end
+	if result == nil then
+		DataStoreRuntime.failure(
+			"Profiles",
+			`save {keyFor(player)}`,
+			"the session lock is no longer owned by this server"
+		)
 		return false
 	end
 	return release or (result.lock ~= nil and result.lock.jobId == game.JobId)
@@ -95,7 +105,14 @@ function ProfileService.load(player: Player): PlayerProfileV1?
 	local now = os.time()
 	local loaded: PlayerProfileV1? = nil
 	if shouldMock() then
-		loaded = Migrations.migrate(mockProfiles[player.UserId] or ProfileTemplate.create(now), now)
+		local success, result = pcall(function()
+			return Migrations.migrate(mockProfiles[player.UserId] or ProfileTemplate.create(now), now)
+		end)
+		if success then
+			loaded = result
+		else
+			DataStoreRuntime.failure("Profiles", `load mock {keyFor(player)}`, result)
+		end
 		if loaded then
 			for index, definition in Config.economy.currencies do
 				local minimum = definition.startingAmount
@@ -107,21 +124,43 @@ function ProfileService.load(player: Player): PlayerProfileV1?
 			loaded.coins = loaded.currencies[Config.economy.primaryCurrencyId]
 		end
 	else
+		local finalIssue: any = "request did not return a profile"
 		for attempt = 1, 5 do
 			local attemptNow = os.time()
+			local callbackIssue: string? = nil
 			local success, result = pcall(function()
 				return getStore():UpdateAsync(keyFor(player), function(old: Envelope?): Envelope?
-					local envelope = old
-					if envelope == nil then
+					local envelope: Envelope
+					if old == nil then
 						envelope = {
 							data = ProfileTemplate.create(now),
 							lock = nil,
 							updatedAt = now,
 						}
+					elseif type(old) ~= "table" then
+						callbackIssue = "stored profile is not a table; refusing to overwrite it"
+						return nil
+					elseif type((old :: any).data) == "table" then
+						envelope = old
+					elseif
+						type((old :: any).schemaVersion) == "number"
+						or type((old :: any).coins) == "number"
+						or type((old :: any).currencies) == "table"
+					then
+						-- Compatibility with early builds that stored the profile directly.
+						envelope = {
+							data = old :: any,
+							lock = nil,
+							updatedAt = attemptNow,
+						}
+					else
+						callbackIssue = "stored profile has an unknown shape; refusing to overwrite it"
+						return nil
 					end
 					if
 						not SessionLock.canClaim(envelope.lock, game.JobId, attemptNow, lockTimeoutSeconds)
 					then
+						callbackIssue = "profile is still locked by another server"
 						return nil
 					end
 					envelope.data = Migrations.migrate(envelope.data, now)
@@ -134,7 +173,11 @@ function ProfileService.load(player: Player): PlayerProfileV1?
 				loaded = result.data
 				break
 			end
+			finalIssue = if success then callbackIssue or "session lock was not acquired" else result
 			task.wait(math.min(2 ^ attempt, 8))
+		end
+		if loaded == nil then
+			DataStoreRuntime.failure("Profiles", `load {keyFor(player)}`, finalIssue)
 		end
 	end
 
@@ -190,7 +233,23 @@ function ProfileService.release(player: Player)
 	end
 	profile.lastSeenAt = os.time()
 	profile.updatedAt = os.time()
-	updateEnvelope(player, true)
+	local released = false
+	for attempt = 1, 3 do
+		if updateEnvelope(player, true) then
+			released = true
+			break
+		end
+		if attempt < 3 then
+			task.wait(attempt)
+		end
+	end
+	if not released then
+		DataStoreRuntime.failure(
+			"Profiles",
+			`release {keyFor(player)}`,
+			"profile could not be saved after three attempts"
+		)
+	end
 	profiles[player] = nil
 	dirty[player] = nil
 end

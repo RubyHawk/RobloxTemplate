@@ -68,6 +68,7 @@ $root = Split-Path -Parent $PSScriptRoot
       </Border>
 
       <Button Name="Build" Content="BUILD AND OPEN PLAYABLE TEST" Height="58" Margin="0,20,0,0" Background="#2563EB" Foreground="White" FontSize="17" FontWeight="Bold"/>
+      <TextBlock Text="Playable builds use real Roblox saves. Publish to a private test experience and enable Studio API Services before Play." Foreground="#FBBF24" Margin="0,8,0,0" TextWrapping="Wrap"/>
       <Button Name="Package" Content="BUILD DRAG-AND-DROP UI PACKAGE" Height="46" Margin="0,9,0,0" Background="#18233B" Foreground="White" FontWeight="Bold"/>
       <TextBlock Name="Status" Text="Nothing has been generated yet." Foreground="#93A4C0" Margin="0,12,0,20" TextWrapping="Wrap"/>
     </StackPanel>
@@ -80,6 +81,18 @@ $window = [System.Windows.Markup.XamlReader]::Load($reader)
 function Control([string]$Name) { return $window.FindName($Name) }
 $designerScroll = $window.FindName("DesignerScroll")
 $window.Add_ContentRendered({ $designerScroll.ScrollToTop() })
+
+$presetControl = Control "Preset"
+$presetControl.Items.Clear()
+$presetFolders = @(Get-ChildItem -LiteralPath (Join-Path $root "src\ui\presets") -Directory | Sort-Object Name)
+foreach ($folder in $presetFolders) {
+    $item = [System.Windows.Controls.ComboBoxItem]::new()
+    $item.Tag = $folder.Name
+    $item.Content = if ($folder.Name -eq "rpg") { "RPG" } else { (Get-Culture).TextInfo.ToTitleCase(($folder.Name -replace '[-_]+', ' ')) }
+    [void]$presetControl.Items.Add($item)
+}
+if ($presetControl.Items.Count -eq 0) { throw "No complete UI presets were found under src\ui\presets." }
+$presetControl.SelectedIndex = 0
 
 function Slug([string]$Value) {
     $slug = $Value.ToLowerInvariant() -replace '[^a-z0-9]+', '_'

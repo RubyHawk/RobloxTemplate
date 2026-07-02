@@ -2,13 +2,15 @@
 
 Open `START_HERE.cmd` and choose **Design a Game Preset**, or double-click `5_GAME_DESIGNER.cmd` directly.
 
-The Designer lets a non-programmer choose:
+The Designer automatically lists every complete folder under `src/ui/presets/`, then lets a non-programmer choose:
 
-- the independent **Incremental / Simulator** or **Fantasy RPG** UI pack;
+- an independent UI pack, including the bundled **Incremental / Simulator** and **Fantasy RPG** packs;
 - one to five currencies, including names, symbols, starting balances, and colors;
 - store, inventory, daily rewards, offline earnings, profiles, leaderboards, codes, feedback, and community verification.
 
 Click **Build and open playable test** to create and open a complete `.rbxlx` test experience. Click **Build drag-and-drop UI package** to create only the `.rbxm` file. Generated files appear under `exports/`.
+
+Every generated playable experience selects real server persistence. Publish it as a separate test experience, enable **Studio Access to API Services**, save, and reopen it. Profiles, currencies, inventory, rewards, feedback, public profiles, and leaderboards then use Roblox services automatically; no Luau setting needs to be changed.
 
 ## Editing safely with UI Plus
 
@@ -26,3 +28,7 @@ When editing a generated experience, save or publish that generated place. To ma
 Each enabled currency has a server-owned saved balance. The profile schema migrates older `coins` data into the selected primary currency. The HUD contains five permanent editable slots and only displays the configured number. Disabled systems are hidden on the client and rejected by server remotes.
 
 Advanced Roblox IDs, reward amounts, product definitions, audio, and platform integrations remain in `src/shared/TemplateConfig.luau`; they are intentionally not guessed by the Designer.
+
+## Figma and Studio
+
+Figma is the visual design source; Roblox still needs native `StarterGui` instances to run. Roblox does not provide a first-party Figma-to-Studio GUI sync. Follow [the Figma handoff](FIGMA_WORKFLOW.md): export a finished Figma pack into its own preset folder, verify its required layer names, and then select it in the Game Designer. Runtime binders only connect behavior to those authored instances.

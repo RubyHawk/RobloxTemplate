@@ -44,7 +44,7 @@ On the `template` branch, use the **UI Library** bar in Play mode to switch betw
 - Open **SETTINGS** and change UI scale or reduced motion.
 - On `playable-starter`, walk to the blue pad and use its prompt to earn Coins.
 
-Studio deliberately uses mock data, so these tests cannot damage a future live game’s saves.
+The `template` showroom deliberately uses mock data. A `playable-starter` uses real saved data after it is published and **Studio Access to API Services** is enabled for that separate test experience.
 
 DataDelve Canary is already installed, but it is only for inspecting saved profiles in a separate published test experience. Follow [`DATA_DELVE.md`](DATA_DELVE.md) before enabling Studio API access.
 

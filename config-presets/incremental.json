@@ -1,4 +1,5 @@
 {
+  "experienceMode": "playable",
   "preset": "incremental",
   "currencies": [
     { "id": "coins", "name": "Coins", "symbol": "$", "startingAmount": 2500, "color": [255, 202, 10] },

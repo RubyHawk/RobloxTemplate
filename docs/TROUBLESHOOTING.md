@@ -52,6 +52,16 @@ If it says the port is already in use, close any older `2_START.cmd` windows and
 
 That is intentional. These features require assets, IDs, secrets, consent, or hosting owned by you. Follow `docs/PLATFORM_SETUP.md` only after creating a private test experience.
 
+## DataDelve is empty or my profile will not load
+
+Look in **View > Output** for the line beginning `[Template Data]`.
+
+- `MOCK mode` means you opened the visual template/showroom. It never writes to DataDelve.
+- `LIVE mode selected, but this file is unpublished` means publish the generated playable place first.
+- `StudioAccessToApisNotAllowed` or `403` means enable **File > Experience Settings > Security > Studio Access to API Services**, save, and reopen the exact published test experience.
+
+In DataDelve, select `RobloxTemplate_Profile_v1` and key `player:<numeric UserId>`. It is not `Player_<UserId>`. See `docs/DATA_DELVE.md` for the complete store list.
+
 ## My friend cannot see the branches
 
 Open the repository’s branch list on GitHub, or run:

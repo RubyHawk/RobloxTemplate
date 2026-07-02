@@ -5,7 +5,7 @@ local MigrationCore = require(script.Parent.MigrationCore)
 local Config = require(script.Parent.TemplateConfig)
 
 local Migrations = {}
-Migrations.CURRENT_VERSION = 2
+Migrations.CURRENT_VERSION = 4
 
 function Migrations.migrate(raw: any, now: number): any
 	local previousVersion = if type(raw) == "table" and type(raw.schemaVersion) == "number"
@@ -25,6 +25,12 @@ function Migrations.migrate(raw: any, now: number): any
 		end
 	end
 	profile.coins = profile.currencies[primaryId]
+	if previousVersion < 3 and type(profile.feedback) ~= "table" then
+		profile.feedback = { lastSubmittedAt = 0 }
+	end
+	if previousVersion < 4 and type(profile.offline) ~= "table" then
+		profile.offline = { pendingAmount = 0, pendingElapsed = 0, preparedAt = 0 }
+	end
 	return profile
 end
 

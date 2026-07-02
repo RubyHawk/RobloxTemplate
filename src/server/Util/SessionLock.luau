@@ -9,7 +9,18 @@ export type Lock = {
 }
 
 function SessionLock.canClaim(lock: Lock?, jobId: string, now: number, timeoutSeconds: number): boolean
-	return lock == nil or lock.jobId == jobId or now - lock.touchedAt >= timeoutSeconds
+	if lock == nil then
+		return true
+	end
+	if
+		type(lock) ~= "table"
+		or type((lock :: any).jobId) ~= "string"
+		or type((lock :: any).placeId) ~= "number"
+		or type((lock :: any).touchedAt) ~= "number"
+	then
+		return false
+	end
+	return lock.jobId == jobId or now - lock.touchedAt >= timeoutSeconds
 end
 
 function SessionLock.claim(jobId: string, placeId: number, now: number): Lock

@@ -41,7 +41,8 @@ The GitHub default branch is `playable-starter` because it is the easiest demons
 
 ## Safe defaults
 
-- Studio uses in-memory mock profiles unless explicitly configured otherwise.
+- The `template` showroom uses in-memory profiles so visual work cannot touch saved data.
+- Generated and branch `playable-starter` experiences use real Roblox DataStores. Publish to a separate test experience and enable **Studio Access to API Services** before pressing Play in Studio.
 - HTTP, real purchases, community verification, Discord, guilds, audio assets, and live notifications are disabled initially.
 - Secrets never belong in this repository.
 - Third-party teleports remain off.
