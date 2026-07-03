@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [template, playable-starter]
+    branches: [main]
   pull_request:
 
 jobs:
@@ -24,6 +24,7 @@ jobs:
       - run: selene src tests
       - run: wally install
       - run: rojo build bootstrap.project.json --output RobloxTemplate.rbxlx
+      - run: pwsh -NoProfile -File scripts/sync-icon-manifest.ps1 -Check
       - run: lune run tests/run
       - run: npm ci --prefix worker
       - run: npm --prefix worker run typecheck
