@@ -66,11 +66,15 @@ Invoke-Checked "RPG preset package build" {
 Invoke-Checked "Game Designer UI smoke test" {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\game-designer.ps1 -SmokeTest
 }
-Invoke-Checked "Incremental configured experience build" {
-    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-game-preset.ps1 -RecipePath config-presets\incremental.json -NoStudio
+$recipeFiles = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot "..\config-presets") -Filter "*.json" -File | Sort-Object Name)
+if ($recipeFiles.Count -eq 0) {
+    throw "No recipes exist under config-presets."
 }
-Invoke-Checked "RPG configured experience build" {
-    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-game-preset.ps1 -RecipePath config-presets\rpg.json -NoStudio
+foreach ($recipeFile in $recipeFiles) {
+    $recipeName = $recipeFile.BaseName
+    Invoke-Checked "Configured experience build ($recipeName)" {
+        powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-game-preset.ps1 -RecipePath "config-presets\$recipeName.json" -NoStudio
+    }
 }
 Invoke-Checked "Shared icon manifest" {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\sync-icon-manifest.ps1 -Check
@@ -81,12 +85,16 @@ Invoke-Checked "Shared icon manager" {
 Invoke-Checked "Permanent sandbox configuration" {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\sandbox.ps1 -RecipePath config-presets\incremental.json -SmokeTest
 }
-Invoke-Checked "Figma bridge syntax" { node --check figma\roblox-ui-bridge\code.js }
-Invoke-Checked "Figma incremental mapping" {
-    node scripts\figma-ui-bridge.mjs verify --model src\ui\presets\incremental\TemplateUI.model.json
+Invoke-Checked "Template experience configuration" {
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\start.ps1 -SmokeTest
 }
-Invoke-Checked "Figma RPG mapping" {
-    node scripts\figma-ui-bridge.mjs verify --model src\ui\presets\rpg\TemplateUI.model.json
+Invoke-Checked "Figma bridge syntax" { node --check figma\roblox-ui-bridge\code.js }
+$presetDirectories = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot "..\src\ui\presets") -Directory | Sort-Object Name)
+foreach ($presetDirectory in $presetDirectories) {
+    $presetName = $presetDirectory.Name
+    Invoke-Checked "Figma mapping ($presetName)" {
+        node scripts\figma-ui-bridge.mjs verify --model "src\ui\presets\$presetName\TemplateUI.model.json"
+    }
 }
 Invoke-Checked "Figma patch application" {
     node scripts\figma-ui-bridge.mjs self-test --model src\ui\presets\incremental\TemplateUI.model.json

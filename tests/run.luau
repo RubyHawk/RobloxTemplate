@@ -8,6 +8,7 @@ local MigrationCore = require("../src/shared/MigrationCore")
 local ReceiptLedger = require("../src/shared/ReceiptLedger")
 local SessionLock = require("../src/server/Util/SessionLock")
 local fs = require("@lune/fs")
+local serde = require("@lune/serde")
 
 local passed = 0
 
@@ -205,6 +206,103 @@ expectEqual(
 	string.find(sandboxSource, "build-game-preset.ps1", 1, true) ~= nil,
 	true,
 	"sandbox launcher rebuilds the selected preset before opening"
+)
+expectEqual(
+	string.find(sandboxSource, "experiences.config.json", 1, true) ~= nil,
+	true,
+	"sandbox launcher reads the two-experience config"
+)
+
+local experiences = serde.decode("json", fs.readFile("experiences.config.json"))
+expectEqual(type(experiences.template) == "table", true, "template experience entry exists")
+expectEqual(type(experiences.playerTest) == "table", true, "player-test experience entry exists")
+expectEqual(
+	experiences.playerTest.universeId > 0 and experiences.playerTest.placeId > 0,
+	true,
+	"player-test experience keeps its permanent cloud IDs"
+)
+expectEqual(
+	type(experiences.playerTest.defaultPreset) == "string",
+	true,
+	"player-test default preset is configured"
+)
+
+local startSource = fs.readFile("scripts/start.ps1")
+expectEqual(
+	string.find(startSource, "experiences.config.json", 1, true) ~= nil,
+	true,
+	"template launcher reads the two-experience config"
+)
+expectEqual(
+	string.find(startSource, '"-task", "EditPlace"', 1, true) ~= nil,
+	true,
+	"template launcher opens the existing template experience when configured"
+)
+expectEqual(
+	string.find(startSource, "servePlaceIds", 1, true) ~= nil,
+	true,
+	"template serve project is restricted to the template place"
+)
+
+local figmaUiSource = fs.readFile("scripts/figma-ui.ps1")
+expectEqual(
+	string.find(figmaUiSource, "ValidateSet", 1, true),
+	nil,
+	"Figma apply path accepts independently authored packs"
+)
+expectEqual(
+	string.find(figmaUiSource, "src/ui/presets", 1, true) ~= nil,
+	true,
+	"Figma apply path discovers authored preset folders"
+)
+
+local dataStoreRuntimeSource = fs.readFile("src/server/Util/DataStoreRuntime.luau")
+expectEqual(
+	string.find(dataStoreRuntimeSource, 'if Config.studio.dataStoreMode == "mock"', 1, true) ~= nil,
+	true,
+	"template mock persistence applies outside Studio too"
+)
+expectEqual(
+	string.find(dataStoreRuntimeSource, "RunService:IsStudio() and Config.studio.dataStoreMode", 1, true),
+	nil,
+	"mock mode no longer depends on running inside Studio"
+)
+
+local leaderboardSource = fs.readFile("src/server/Services/LeaderboardService.luau")
+expectEqual(
+	string.find(leaderboardSource, 'Name = "Coins"', 1, true),
+	nil,
+	"leaderstat name is not hardcoded to Coins"
+)
+expectEqual(
+	string.find(leaderboardSource, "Config.leaderboards.metric", 1, true) ~= nil,
+	true,
+	"leaderstat column follows the configured metric"
+)
+expectEqual(
+	string.find(templateConfigSource, 'metric = "Coins"', 1, true),
+	nil,
+	"leaderboard metric is not hardcoded to Coins"
+)
+expectEqual(
+	string.find(templateConfigSource, "metric = configuredCurrencies[1].name", 1, true) ~= nil,
+	true,
+	"leaderboard metric follows the recipe primary currency"
+)
+expectEqual(
+	string.find(templateConfigSource, 'if DesignerConfig.preset == "rpg"', 1, true),
+	nil,
+	"ui preset is not collapsed to two hardcoded packs"
+)
+expectEqual(
+	string.find(templateConfigSource, '"^[a-z][a-z0-9_-]*$"', 1, true) ~= nil,
+	true,
+	"ui preset validates any authored pack name"
+)
+expectEqual(
+	string.find(templateConfigSource, "preset = configuredPreset", 1, true) ~= nil,
+	true,
+	"ui preset passes through the validated pack name"
 )
 
 local chatSource = fs.readFile("src/client/init.client.luau") .. fs.readFile("default.project.json")

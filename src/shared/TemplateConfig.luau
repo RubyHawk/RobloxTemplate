@@ -8,6 +8,13 @@ local IconAssets = require(script.Parent.IconAssets)
 local configuredCurrencies = CurrencyConfig.normalize(DesignerConfig.currencies)
 local dataNamespace = DataStoreNames.validateNamespace(DesignerConfig.dataNamespace)
 local configuredIdentity = if type(DesignerConfig.identity) == "table" then DesignerConfig.identity else {}
+-- Any independently authored pack passes through; the same rule the preset
+-- builder enforces (lowercase start, then lowercase/digits/underscore/hyphen).
+local configuredPreset = if type(DesignerConfig.preset) == "string"
+		and #DesignerConfig.preset <= 40
+		and string.match(DesignerConfig.preset, "^[a-z][a-z0-9_-]*$") ~= nil
+	then DesignerConfig.preset
+	else "incremental"
 
 local Config = {
 	version = "0.1.0",
@@ -17,7 +24,7 @@ local Config = {
 	feedbackStoreName = DataStoreNames.scoped("RobloxTemplate_Feedback_v1", dataNamespace),
 	leaderboardStoreName = DataStoreNames.scoped("RobloxTemplate_CoinsLeaderboard_v1", dataNamespace),
 	ui = {
-		preset = if DesignerConfig.preset == "rpg" then "rpg" else "incremental",
+		preset = configuredPreset,
 	},
 
 	features = {
@@ -40,8 +47,10 @@ local Config = {
 	},
 
 	studio = {
-		-- Template/showroom recipes use "mock". Published playable recipes use
-		-- "live", including Studio after API Services access is enabled.
+		-- Template/showroom recipes use "mock" everywhere, even on published
+		-- servers of the permanent template experience. Generated playable
+		-- recipes use "live", including Studio after API Services access is
+		-- enabled.
 		dataStoreMode = if DesignerConfig.experienceMode == "template" then "mock" else "live",
 		mockStartingCoins = 2500,
 		openComponentGallery = true,
@@ -102,7 +111,10 @@ local Config = {
 	},
 
 	leaderboards = {
-		metric = "Coins",
+		-- The leaderstat column shows the recipe's primary currency name. The
+		-- ordered store keeps the "RobloxTemplate_CoinsLeaderboard_v1" name so
+		-- existing saved rankings stay compatible.
+		metric = configuredCurrencies[1].name,
 		globalSize = 50,
 		refreshSeconds = 60,
 	},
@@ -121,7 +133,7 @@ local Config = {
 	audio = {
 		music = "",
 		-- Public Roblox-owned sounds selected from Sound Kit v1.6.0 (asset 7209483381).
-		-- Keeping the IDs here makes every map branch free to replace the sound theme.
+		-- Keeping the IDs here makes every game built from this template free to replace the sound theme.
 		click = "rbxassetid://12221967", -- button.wav
 		cash = "rbxassetid://12222054", -- Kerplunk.wav
 		reward = "rbxassetid://12222253", -- victory.wav

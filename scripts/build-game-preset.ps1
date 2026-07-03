@@ -19,7 +19,7 @@ $preset = [string]$recipe.preset
 if ($preset -notmatch '^[a-z][a-z0-9_-]{0,39}$') {
     throw "Preset names must use lowercase letters, numbers, underscores, or hyphens."
 }
-$presetSource = Join-Path $root "src\ui\presets\$preset"
+$presetSource = Join-Path $root "src/ui/presets/$preset"
 foreach ($requiredModel in @("TemplateUI.model.json", "TemplateLoading.model.json", "StarterSignUI.model.json")) {
     if (-not (Test-Path -LiteralPath (Join-Path $presetSource $requiredModel) -PathType Leaf)) {
         throw "Preset '$preset' is missing $requiredModel."
@@ -43,7 +43,7 @@ foreach ($currency in $currencies) {
     $usedIds[$id] = $true
 }
 
-$generated = Join-Path $root "build\designer\$preset"
+$generated = Join-Path $root "build/designer/$preset"
 $exports = Join-Path $root "exports"
 New-Item -ItemType Directory -Path $generated, $exports -Force | Out-Null
 
@@ -130,11 +130,11 @@ $lines.Add("}")
 
 $sharedCopy = Join-Path $generated "shared"
 New-Item -ItemType Directory -Path $sharedCopy -Force | Out-Null
-Copy-Item -Path (Join-Path $root "src\shared\*") -Destination $sharedCopy -Recurse -Force
+Copy-Item -Path (Join-Path $root "src/shared/*") -Destination $sharedCopy -Recurse -Force
 $configPath = Join-Path $sharedCopy "DesignerConfig.luau"
 [System.IO.File]::WriteAllLines($configPath, $lines, [System.Text.UTF8Encoding]::new($false))
 
-& lune run (Join-Path $root "scripts\validate-designer-config.luau") $configPath
+& lune run (Join-Path $root "scripts/validate-designer-config.luau") $configPath
 if ($LASTEXITCODE -ne 0) { throw "Generated DesignerConfig.luau failed validation." }
 
 function Update-ProjectPaths($Node) {
