@@ -71,7 +71,7 @@ local function normalize(assetId: string): string
 	if assetId == "" then
 		return ""
 	end
-	if string.find(assetId, "^rbxasset") then
+	if string.find(assetId, "^rbxasset") or string.find(assetId, "^rbxgameasset") then
 		return assetId
 	end
 	return `rbxassetid://{assetId}`

@@ -72,6 +72,12 @@ Invoke-Checked "Incremental configured experience build" {
 Invoke-Checked "RPG configured experience build" {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-game-preset.ps1 -RecipePath config-presets\rpg.json -NoStudio
 }
+Invoke-Checked "Shared icon manifest" {
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\sync-icon-manifest.ps1 -Check
+}
+Invoke-Checked "Shared icon manager" {
+    powershell -NoProfile -ExecutionPolicy Bypass -STA -File scripts\icon-library.ps1 -SmokeTest
+}
 Invoke-Checked "Permanent sandbox configuration" {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\sandbox.ps1 -RecipePath config-presets\incremental.json -SmokeTest
 }

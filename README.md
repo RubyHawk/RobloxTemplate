@@ -16,6 +16,8 @@ The launcher installs anything missing and replaces any old Rojo session. The sh
 
 The numbered CMD files remain available as manual shortcuts. `SANDBOX.cmd` opens the permanent test experience directly, but your non-programmer coworker normally only needs `START_HERE.cmd`.
 
+Use `ICON_LIBRARY.cmd` to swap or disable shared UI icons and record their Roblox image mapping. The selected PNGs and manifest are committed so both developers see the same artwork; the large duplicate extraction under `build/` remains local.
+
 **Design a Game Preset** selects an independent Incremental or RPG UI package, one-to-five server-backed currencies, and shared systems, then loads it into the permanent sandbox. See [`docs/GAME_DESIGNER.md`](docs/GAME_DESIGNER.md).
 
 Figma can now be the visual editor through the checked-in **Roblox UI Bridge**. After its one-time Figma plugin setup, edit the imported layers, export a patch, and double-click **`FIGMA_UI.cmd`** to update and rebuild only the chosen preset. See [`docs/FIGMA_UI.md`](docs/FIGMA_UI.md).

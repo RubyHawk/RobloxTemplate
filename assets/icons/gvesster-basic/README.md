@@ -1,6 +1,6 @@
 # Gvesster Basic icon sources
 
-These are the high-resolution source icons selected from the licensed **Free Icon Pack v3.1 (Basic)** archive. The original archive contains 2,044 size and color variants; this folder keeps one consistent outlined version for each template purpose.
+These are the high-resolution source icons selected from the licensed **Free Icon Pack v3.1 (Basic)** archive. The original archive contains 2,044 size and color variants; this tracked folder keeps one consistent project selection. Use `ICON_LIBRARY.cmd` to replace a role so its source hash and Roblox mapping remain synchronized.
 
 The icons are source art, not a new asset pack. Do not redistribute this folder separately. See `LICENSE.txt` and credit `@gvesster` when practical.
 
@@ -32,4 +32,4 @@ The icons are source art, not a new asset pack. Do not redistribute this folder 
 | x2 potion | `potion_x2.png` | `potionX2` |
 | x3 potion | `potion_x3.png` | `potionX3` |
 
-`chat.png`, `gift.png`, and `stats.png` are older small selections retained for provenance; connected UI uses the sharper semantic files above.
+`chat.png`, `gift.png`, and `stats.png` are older small selections retained for provenance; connected UI uses the sharper semantic files above. The ignored full archive is only a local picker library and is never a runtime dependency.

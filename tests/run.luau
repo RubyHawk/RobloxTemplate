@@ -173,6 +173,11 @@ expectEqual(
 	true,
 	"all persistent stores are isolated by preset namespace"
 )
+expectEqual(
+	string.find(templateConfigSource, "IconAssets.ids", 1, true) ~= nil,
+	true,
+	"connected icons come from the shared tracked manifest"
+)
 local presetBuilderSource = fs.readFile("scripts/build-game-preset.ps1")
 expectEqual(
 	string.find(presetBuilderSource, 'experienceMode = `"playable`"', 1, true) ~= nil,
@@ -216,6 +221,13 @@ do
 	expectEqual(string.find(chatSource, legacyToken, 1, true), nil, `legacy chat token: {legacyToken}`)
 end
 expectEqual(string.find(chatSource, "RBXSystem", 1, true) ~= nil, true, "announcements use RBXSystem")
+
+local iconCatalogSource = fs.readFile("src/shared/IconCatalog.luau")
+expectEqual(
+	string.find(iconCatalogSource, 'string.find(assetId, "^rbxgameasset")', 1, true) ~= nil,
+	true,
+	"icon catalog preserves experience-local Asset Manager image names"
+)
 
 for _, showroomPath in
 	{

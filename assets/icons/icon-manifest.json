@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "cloudOwner": {
+    "type": "pending",
+    "id": 0
+  },
+  "notes": "demo-public content values are temporary public Roblox assets; source files are the licensed replacements to upload for this project.",
+  "roles": {
+    "bag": { "source": "assets/icons/gvesster-basic/bag.png", "sourceSha256": "b3634a279e971e3037d47b202e34c9cf13f990b7d76ad13a22cd1d75a7db0335", "content": "94001317361506", "state": "demo-public" },
+    "cart": { "source": "assets/icons/gvesster-basic/cart.png", "sourceSha256": "7165b6e958a40040b17e26826ab1ac985b48eb691ea44883b5a602619e83806d", "content": "118554800883386", "state": "demo-public" },
+    "close": { "source": "assets/icons/gvesster-basic/close.png", "sourceSha256": "95f79d628cb4eb501193e0fd296b88506ef229c1d0b89d042c9dd870ab04fb88", "content": "", "state": "demo-public" },
+    "codes": { "source": "assets/icons/gvesster-basic/codes.png", "sourceSha256": "04c2645a90cf20df05fa36587abc039c94e2747d91e66ed87354b7b26191924f", "content": "128511762212540", "state": "demo-public" },
+    "coin": { "source": "assets/icons/gvesster-basic/coin.png", "sourceSha256": "d9f806d7fb74d73c8d763b23479368ad5491979532926454e81b9d6197f5e67f", "content": "105300168575798", "state": "demo-public" },
+    "community": { "source": "assets/icons/gvesster-basic/community.png", "sourceSha256": "8a5bc77438d03f7f23b1e128d353caa367237f50e6fea6f3444640d522a416f1", "content": "121433088081713", "state": "demo-public" },
+    "daily": { "source": "assets/icons/gvesster-basic/daily.png", "sourceSha256": "0e699b426003a147288f62afe4735d200fc43f00f37c830f2c330f89c3c21feb", "content": "71479056537473", "state": "demo-public" },
+    "feedback": { "source": "assets/icons/gvesster-basic/feedback.png", "sourceSha256": "04e9c969a978b5b1f0be2b4d1efe7c935be32298b15f2271474a63217fdd6a94", "content": "89113974252559", "state": "demo-public" },
+    "friends": { "source": "assets/icons/gvesster-basic/friends.png", "sourceSha256": "28dc0458790624cb3ad4d09429bfb998042958ddfada8df39952a89ac523361e", "content": "71515579128420", "state": "demo-public" },
+    "item": { "source": "assets/icons/gvesster-basic/item.png", "sourceSha256": "9a39c2587b1bca076519aa56bd86c0da8f278e9f4c566d42bbdd7d9ef3e11b17", "content": "125907024425133", "state": "demo-public" },
+    "leaderboard": { "source": "assets/icons/gvesster-basic/leaderboard.png", "sourceSha256": "0f880daae3116bb39f96698487f7e404f1c632fed0af99571bc8fd40ac3fb3e6", "content": "72712419474456", "state": "demo-public" },
+    "likes": { "source": "assets/icons/gvesster-basic/likes.png", "sourceSha256": "7ab833ae84025f725b8c552516553f4c4b6f0b0ec5bd5a61e5b103680c10d271", "content": "128953798572692", "state": "demo-public" },
+    "more": { "source": "assets/icons/gvesster-basic/more.png", "sourceSha256": "d426df9d946163fe41e530bc1028838cab21bd762dc891336dbd8894193b4a7c", "content": "78666886648909", "state": "demo-public" },
+    "notifications": { "source": "assets/icons/gvesster-basic/notifications.png", "sourceSha256": "9f2e4b704e6b7ec3080371c75abe0d3898107367c7c6175670a7ea74a47ff36d", "content": "107794977982643", "state": "demo-public" },
+    "offline": { "source": "assets/icons/gvesster-basic/offline.png", "sourceSha256": "905677710c9aa51dd9ab56c46e608af5a785a21db724530bc039512c39ee6057", "content": "107794977982643", "state": "demo-public" },
+    "potionX2": { "source": "assets/icons/gvesster-basic/potion_x2.png", "sourceSha256": "6642afbf4686423d8c2bd420333e806167e071e0fb244ea18579a0f31e3ab7ab", "content": "72854331493787", "state": "demo-public" },
+    "potionX3": { "source": "assets/icons/gvesster-basic/potion_x3.png", "sourceSha256": "978bd7a4ce8854d69821f2c7c88ae2b87b2e88cfb3daf73ee1635108e78b7132", "content": "102321175672770", "state": "demo-public" },
+    "premium": { "source": "assets/icons/gvesster-basic/premium.png", "sourceSha256": "0c3aebb83983d97d019db9d5f7e8e6cb167e768e2ae18767159e5e45f55ec831", "content": "111977708425543", "state": "demo-public" },
+    "profile": { "source": "assets/icons/gvesster-basic/profile.png", "sourceSha256": "37d6c8ec5ea0245625da01d5be54caf39d805adb5da79b70b875062af4da49e1", "content": "132073513775656", "state": "demo-public" },
+    "rewards": { "source": "assets/icons/gvesster-basic/rewards.png", "sourceSha256": "a6a60a37e70fdd89b9ada361d944a3b42aabe2ddb3a4b8a23140a0cfc4ce1d32", "content": "125907024425133", "state": "demo-public" },
+    "search": { "source": "assets/icons/gvesster-basic/search.png", "sourceSha256": "6a1a60a4f8fb2371a026f1218dae53311f0083607fc7ae6c3b996357c947a19d", "content": "", "state": "demo-public" },
+    "settings": { "source": "assets/icons/gvesster-basic/settings.png", "sourceSha256": "e502f336335f1cc6e6aa3eeee949916bad9b01cb96edcc809b4a5cb7c01387a7", "content": "94272687133453", "state": "demo-public" },
+    "shop": { "source": "assets/icons/gvesster-basic/shop.png", "sourceSha256": "a14711a2260235619229cf6c1a929064406a157b0bce88acd862e30a317b0a15", "content": "118554800883386", "state": "demo-public" },
+    "starterTool": { "source": "assets/icons/gvesster-basic/starter_tool.png", "sourceSha256": "b80cd6dd16438639f9ab98e2853cbc32c9e12f959701e78801886a19f4809d4b", "content": "134119181427014", "state": "demo-public" },
+    "verification": { "source": "assets/icons/gvesster-basic/verification.png", "sourceSha256": "e3babad441dc9f410dfd989a744afeb4a61b8d6f4d82b53be745df95c38b7f11", "content": "121433088081713", "state": "demo-public" }
+  }
+}

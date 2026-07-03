@@ -24,6 +24,7 @@ description: Build, extend, review, or debug the reusable Roblox Luau template, 
 15. Figma edits must update only the selected preset model. Existing Roblox asset IDs stay authoritative, and the bridge must reject missing paths or class mismatches before writing.
 16. Reuse the permanent cloud sandbox in `sandbox.config.json` for playable testing. Generate a preset-specific DataStore namespace, restrict Rojo with `servePlaceIds`, and never tell a user to create another test experience for each build.
 17. Keep permanent repository work on `main`. Template workbench and playable sandbox are build/launcher modes; use short-lived feature branches only for active changes and archive obsolete long-lived branch tips before removal.
+18. Manage connected icon sources through `assets/icons/icon-manifest.json` and `ICON_LIBRARY.cmd`. Keep `build/` ignored, require source hashes, preserve safe fallbacks, and never assume a local PNG is a Roblox cloud asset.
 
 ## Hard boundaries
 
