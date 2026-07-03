@@ -18,10 +18,10 @@ https://create.roblox.com/docs/studio/setup
 
 ## The wrong branch or map opened
 
-Close the old Studio window and open `START_HERE.cmd` again. The launcher switches to your selection and prints the branch and saved place it is opening:
+Close the old Studio window and open `START_HERE.cmd` again:
 
 - `template` opens `RobloxTemplateGallery.rbxlx`.
-- `playable-starter` opens `RobloxPlayableStarter.rbxlx`.
+- **Shared Test Experience** always opens cloud place `106940880949257`, then serves the selected Incremental/RPG configuration into it.
 
 If you have uncommitted edits on a different branch, the launcher refuses to switch so nothing is lost. Ask the programmer to commit them, then choose the version again.
 
@@ -37,7 +37,7 @@ Close Studio, run `1_SETUP.cmd`, and reopen it. Setup installs `RojoManagedPlugi
 
 ## Rojo says it cannot connect
 
-Keep the `2_START.cmd` window open. It should say `Rojo server listening` and show port `34872`. Then reopen **Plugins → Rojo** in Studio and click **Connect**.
+Keep the `SANDBOX.cmd` or `2_START.cmd` window open. It should say `Rojo server listening` and show port `34872`. Then reopen **Plugins → Rojo** in Studio and click **Connect**.
 
 If it says the port is already in use, close any older `2_START.cmd` windows and run it once more.
 
@@ -50,17 +50,17 @@ If it says the port is already in use, close any older `2_START.cmd` windows and
 
 ## Purchases, audio, Discord, or notifications say disabled
 
-That is intentional. These features require assets, IDs, secrets, consent, or hosting owned by you. Follow `docs/PLATFORM_SETUP.md` only after creating a private test experience.
+That is intentional. These features require assets, IDs, secrets, consent, or hosting owned by you. Follow `docs/PLATFORM_SETUP.md` when configuring the permanent sandbox or a released game.
 
 ## DataDelve is empty or my profile will not load
 
 Look in **View > Output** for the line beginning `[Template Data]`.
 
 - `MOCK mode` means you opened the visual template/showroom. It never writes to DataDelve.
-- `LIVE mode selected, but this file is unpublished` means publish the generated playable place first.
+- `LIVE mode selected, but this file is unpublished` means you opened a local export instead of **Shared Test Experience**.
 - `StudioAccessToApisNotAllowed` or `403` means enable **File > Experience Settings > Security > Studio Access to API Services**, save, and reopen the exact published test experience.
 
-In DataDelve, select `RobloxTemplate_Profile_v1` and key `player:<numeric UserId>`. It is not `Player_<UserId>`. See `docs/DATA_DELVE.md` for the complete store list.
+In DataDelve, select `RobloxTemplate_Profile_v1_incremental` or `RobloxTemplate_Profile_v1_rpg` and key `player:<numeric UserId>`. It is not `Player_<UserId>`. See `docs/DATA_DELVE.md` for the complete store list.
 
 ## My friend cannot see the branches
 

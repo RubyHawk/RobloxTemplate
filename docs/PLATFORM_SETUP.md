@@ -1,11 +1,11 @@
 # Published platform setup
 
-Complete these only after creating a private test experience.
+The repository's permanent private sandbox is configured in `sandbox.config.json`. Create another experience only when starting a genuinely separate released game.
 
 ## Roblox
 
-- Create an experience and Roblox community owned by the intended creator account.
-- Add the published place ID and community ID to `TemplateConfig`.
+- Keep the sandbox universe/place IDs in `sandbox.config.json`; the launcher injects them into generated configuration.
+- Create a Roblox community owned by the intended creator account and add its ID to `TemplateConfig`.
 - Enable Chat & Voice Groups APIs for native cross-server chat and accept Roblox's communication terms.
 - Create the Extended Offline Earnings game pass and any direct developer products; enter their IDs in configuration.
 - Create notification strings for daily reward and offline earnings. Create a least-privilege Open Cloud key only when deploying the worker.

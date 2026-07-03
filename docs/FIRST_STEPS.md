@@ -4,7 +4,7 @@
 
 Double-click `START_HERE.cmd` in the project folder.
 
-Choose **Open Playable Starter** or **Open Template**. The launcher switches versions, installs anything required on the first run, opens that branch's saved place, starts Rojo, and opens Roblox Studio.
+Choose **Open Shared Test Experience** or **Open Template**. The shared option asks for Incremental or RPG, rebuilds it, opens the existing cloud sandbox, and starts Rojo. It does not create a new Roblox experience.
 
 Choose **Design a Game Preset** when you want a clean Incremental/RPG package with configurable currencies and systems instead of the general workbench.
 
@@ -44,7 +44,7 @@ On the `template` branch, use the **UI Library** bar in Play mode to switch betw
 - Open **SETTINGS** and change UI scale or reduced motion.
 - On `playable-starter`, the blue pad earns the primary currency. A generated game with two or more currencies also shows a teal pad for the second currency.
 
-The `template` showroom deliberately uses mock data. A `playable-starter` uses real saved data after it is published and **Studio Access to API Services** is enabled for that separate test experience.
+The `template` showroom deliberately uses mock data. The shared sandbox uses real saved data. Incremental and RPG use different DataStore namespaces so switching presets cannot mix their profiles.
 
 DataDelve Canary is already installed, but it is only for inspecting saved profiles in a separate published test experience. Follow [`DATA_DELVE.md`](DATA_DELVE.md) before enabling Studio API access.
 

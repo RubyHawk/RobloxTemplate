@@ -176,8 +176,8 @@ function Switch-ToVersion([string]$Branch) {
 
         <Button x:Name="PlayableButton" Grid.Row="3" Style="{StaticResource PrimaryButton}">
             <StackPanel>
-                <TextBlock Text="OPEN PLAYABLE STARTER" FontSize="18" FontWeight="Bold"/>
-                <TextBlock Text="Recommended - complete systems plus the blue demo earning pad." Foreground="#DCEAFF" FontSize="13" FontWeight="Normal" Margin="0,7,0,0"/>
+                <TextBlock Text="OPEN SHARED TEST EXPERIENCE" FontSize="18" FontWeight="Bold"/>
+                <TextBlock Text="Recommended - choose a preset and reuse the same permanent Roblox sandbox." Foreground="#DCEAFF" FontSize="13" FontWeight="Normal" Margin="0,7,0,0"/>
             </StackPanel>
         </Button>
 
@@ -205,7 +205,7 @@ function Switch-ToVersion([string]$Branch) {
             <Button x:Name="CheckButton" Grid.Column="2" Style="{StaticResource SmallButton}" Content="Run project checks"/>
         </Grid>
 
-        <TextBlock Grid.Row="10" Text="Tip: generated presets are separate files, so UI Plus edits never leak into another pack."
+        <TextBlock Grid.Row="10" Text="One cloud sandbox is reused; each preset keeps separate saved data and visual files."
                    Foreground="#7384A3" FontSize="12" VerticalAlignment="Bottom" TextAlignment="Center" Margin="0,0,0,4"/>
     </Grid>
 </Window>
@@ -227,7 +227,7 @@ $playableButton.Add_Click({
     $window.IsEnabled = $false
     try {
         if (Switch-ToVersion "playable-starter") {
-            Start-CommandWindow "2_START.cmd"
+            Start-CommandWindow "SANDBOX.cmd"
             $window.Close()
         }
         else {
@@ -235,8 +235,8 @@ $playableButton.Add_Click({
         }
     }
     catch {
-        Write-LauncherLog "Playable starter failed: $($_.Exception.ToString())"
-        Show-LauncherMessage "The launcher hit an unexpected error. Nothing was deleted.`n`nDetails were saved to build\launcher.log." "Could not open playable starter" ([System.Windows.MessageBoxImage]::Error)
+        Write-LauncherLog "Shared sandbox failed: $($_.Exception.ToString())"
+        Show-LauncherMessage "The launcher hit an unexpected error. Nothing was deleted.`n`nDetails were saved to build\launcher.log." "Could not open shared sandbox" ([System.Windows.MessageBoxImage]::Error)
         $window.IsEnabled = $true
     }
 })

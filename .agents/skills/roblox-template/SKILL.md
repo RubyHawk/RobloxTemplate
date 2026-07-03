@@ -22,6 +22,7 @@ description: Build, extend, review, or debug the reusable Roblox Luau template, 
 13. Keep the visual `template` showroom on mock memory data. Every generated `playable` recipe uses real Roblox persistence and must emit a clear startup diagnostic when the place is unpublished or Studio API access is unavailable.
 14. Treat Figma as a visual authoring surface, not a Roblox runtime. For this repository use `figma/roblox-ui-bridge`: import one preset's authored model, export a `roblox-ui-bridge-v1` patch, apply it through `FIGMA_UI.cmd`, and rerun checks. Preserve binder paths and never describe this explicit round trip as live automatic synchronization.
 15. Figma edits must update only the selected preset model. Existing Roblox asset IDs stay authoritative, and the bridge must reject missing paths or class mismatches before writing.
+16. Reuse the permanent cloud sandbox in `sandbox.config.json` for playable testing. Generate a preset-specific DataStore namespace, restrict Rojo with `servePlaceIds`, and never tell a user to create another test experience for each build.
 
 ## Hard boundaries
 

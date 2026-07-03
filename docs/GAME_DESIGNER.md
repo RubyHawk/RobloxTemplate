@@ -8,9 +8,9 @@ The Designer automatically lists every complete folder under `src/ui/presets/`, 
 - one to five currencies, including names, symbols, starting balances, and colors;
 - store, inventory, daily rewards, offline earnings, profiles, leaderboards, codes, feedback, and community verification.
 
-Click **Build and open playable test** to create and open a complete `.rbxlx` test experience. Click **Build drag-and-drop UI package** to create only the `.rbxm` file. Generated files appear under `exports/`.
+Click **Build and open shared sandbox** to rebuild the selected configuration and open the existing permanent Roblox test experience. Click **Build drag-and-drop UI package** to create only the `.rbxm` file. Generated backup files still appear under `exports/`.
 
-Every generated playable experience selects real server persistence. Publish it as a separate test experience, enable **Studio Access to API Services**, save, and reopen it. Profiles, currencies, inventory, rewards, feedback, public profiles, and leaderboards then use Roblox services automatically; no Luau setting needs to be changed.
+The sandbox already has one fixed universe and place. Use **File > Publish to Roblox** to update that same place; do not use **Publish As**. Profiles, currencies, inventory, rewards, feedback, public profiles, and leaderboards use Roblox services automatically. Each preset receives a separate DataStore namespace inside the shared universe.
 
 ## Editing safely with UI Plus
 

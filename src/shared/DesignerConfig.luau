@@ -6,6 +6,11 @@
 return {
 	experienceMode = "playable",
 	preset = "incremental",
+	dataNamespace = "incremental",
+	identity = {
+		universeId = 0,
+		placeId = 0,
+	},
 	currencies = {
 		{
 			id = "coins",

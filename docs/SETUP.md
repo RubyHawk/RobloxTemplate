@@ -4,6 +4,8 @@ Beginners should double-click `START_HERE.cmd` and choose a version. This page e
 
 Each branch has a saved editable place under `places/`. Setup creates it once from `bootstrap.project.json`; normal starts reopen it and do not overwrite Studio UI changes. `default.project.json` is used only for live code sync.
 
+Playable testing is different: `SANDBOX.cmd` always opens the one permanent cloud place configured in `sandbox.config.json`, then serves the selected preset into it. New presets do not create new experiences.
+
 ## Installed stack
 
 The project pins these current stable releases in `rokit.toml`:
@@ -42,7 +44,7 @@ The GitHub default branch is `playable-starter` because it is the easiest demons
 ## Safe defaults
 
 - The `template` showroom uses in-memory profiles so visual work cannot touch saved data.
-- Generated and branch `playable-starter` experiences use real Roblox DataStores. Publish to a separate test experience and enable **Studio Access to API Services** before pressing Play in Studio.
+- Generated and branch `playable-starter` configurations use the permanent sandbox and real Roblox DataStores. Preset namespaces keep their saves separate inside that universe.
 - HTTP, real purchases, community verification, Discord, guilds, audio assets, and live notifications are disabled initially.
 - Secrets never belong in this repository.
 - Third-party teleports remain off.

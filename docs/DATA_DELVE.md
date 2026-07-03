@@ -6,29 +6,30 @@ DataDelve Canary is a visual editor for Roblox **DataStores**. It can inspect re
 
 Generated playable starters now select real persistence automatically. There is no hidden code switch to change.
 
-1. Build the selected UI/game preset.
-2. Open the generated playable place and publish it as a **separate test experience**.
-3. Open **File > Experience Settings > Security**.
-4. Enable **Studio Access to API Services**, then save and reopen the published place.
-5. Press Play, earn Coins, and stop Play mode so the profile releases and saves.
-6. Open **Plugins > DataDelve Canary**.
-7. Select `RobloxTemplate_Profile_v1`, then open `player:<your numeric UserId>`.
+1. Open **Shared Test Experience** and choose the preset.
+2. The launcher opens the permanent cloud sandbox; it does not create a new experience.
+3. Confirm **File > Experience Settings > Security > Studio Access to API Services** is enabled.
+4. Press Play, earn Coins, and stop Play mode so the profile releases and saves.
+5. Open **Plugins > DataDelve Canary**.
+6. Select `RobloxTemplate_Profile_v1_incremental` or `RobloxTemplate_Profile_v1_rpg`, then open `player:<your numeric UserId>`.
 
 The value is an envelope. Player data is under `data`; the sibling `lock` is the temporary server session lock and should be `nil` after a clean stop. Do not edit `lock`, `schemaVersion`, receipt keys, or unknown fields.
+
+Older sandbox tests may remain in the legacy `RobloxTemplate_Profile_v1` store. They are not deleted, but new preset-isolated tests intentionally start in the suffixed stores so Incremental and RPG cannot overwrite each other.
 
 Other stores are:
 
 | Store | Key format |
 | --- | --- |
-| `RobloxTemplate_PublicProfiles_v1` | `user:<UserId>` |
-| `RobloxTemplate_Feedback_v1` | `user:<UserId>:report:<UnixTime>:<GUID>` |
-| `RobloxTemplate_CoinsLeaderboard_v1` | `<UserId>` |
+| `RobloxTemplate_PublicProfiles_v1_<preset>` | `user:<UserId>` |
+| `RobloxTemplate_Feedback_v1_<preset>` | `user:<UserId>:report:<UnixTime>:<GUID>` |
+| `RobloxTemplate_CoinsLeaderboard_v1_<preset>` | `<UserId>` |
 
 ## Template showroom: safe mock data
 
 The large visual template/showroom intentionally stays in memory. Its Output banner starts with `[Template Data] MOCK mode`, and DataDelve will not show changes from that play test. This prevents visual UI work from touching saved player profiles.
 
-In a playable starter, the Output banner says `[Template Data] LIVE`. If setup is incomplete, it now explains whether the place is unpublished or Studio API access is unavailable. The same mode is visible as the `DataStoreMode` attribute on `ReplicatedStorage > Template`.
+In the sandbox, the Output banner says `[Template Data] LIVE`. The exact namespace and profile store are visible as `DataStoreNamespace` and `ProfileStoreName` attributes on `ReplicatedStorage > Template`.
 
 Roblox Studio accesses the same DataStores as live servers. Use a private test experience, never the production experience, for Studio writes.
 

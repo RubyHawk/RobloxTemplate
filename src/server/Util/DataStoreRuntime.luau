@@ -47,6 +47,7 @@ function DataStoreRuntime.announce(container: Instance?)
 	if container then
 		container:SetAttribute("DataStoreMode", mode)
 		container:SetAttribute("DataStoreUniverseId", game.GameId)
+		container:SetAttribute("DataStoreNamespace", Config.dataNamespace)
 		container:SetAttribute("ProfileStoreName", Config.profileStoreName)
 		container:SetAttribute("ProfileKeyFormat", "player:<UserId>")
 	end

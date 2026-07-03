@@ -22,6 +22,22 @@ assert(
 	"generated preset name is invalid"
 )
 assert(
+	type(recipe.dataNamespace) == "string"
+		and #recipe.dataNamespace >= 1
+		and #recipe.dataNamespace <= 15
+		and string.match(recipe.dataNamespace, "^[a-z][a-z0-9_]*$") ~= nil,
+	"generated DataStore namespace is invalid"
+)
+assert(type(recipe.identity) == "table", "generated identity must be a table")
+assert(
+	type(recipe.identity.universeId) == "number" and recipe.identity.universeId >= 0,
+	"generated universe ID is invalid"
+)
+assert(
+	type(recipe.identity.placeId) == "number" and recipe.identity.placeId >= 0,
+	"generated place ID is invalid"
+)
+assert(
 	type(recipe.currencies) == "table" and #recipe.currencies >= 1 and #recipe.currencies <= 5,
 	"generated recipe must keep one to five currencies"
 )

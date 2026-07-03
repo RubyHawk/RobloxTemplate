@@ -1,6 +1,7 @@
 {
   "experienceMode": "playable",
   "preset": "rpg",
+  "dataNamespace": "rpg",
   "currencies": [
     { "id": "gold", "name": "Gold", "symbol": "G", "startingAmount": 500, "color": [227, 156, 31] },
     { "id": "crystals", "name": "Crystals", "symbol": "◆", "startingAmount": 10, "color": [62, 126, 214] },

@@ -1,16 +1,20 @@
 --!strict
 
 local CurrencyConfig = require(script.Parent.CurrencyConfig)
+local DataStoreNames = require(script.Parent.DataStoreNames)
 local DesignerConfig = require(script.Parent.DesignerConfig)
 
 local configuredCurrencies = CurrencyConfig.normalize(DesignerConfig.currencies)
+local dataNamespace = DataStoreNames.validateNamespace(DesignerConfig.dataNamespace)
+local configuredIdentity = if type(DesignerConfig.identity) == "table" then DesignerConfig.identity else {}
 
 local Config = {
 	version = "0.1.0",
-	profileStoreName = "RobloxTemplate_Profile_v1",
-	publicProfileStoreName = "RobloxTemplate_PublicProfiles_v1",
-	feedbackStoreName = "RobloxTemplate_Feedback_v1",
-	leaderboardStoreName = "RobloxTemplate_CoinsLeaderboard_v1",
+	dataNamespace = dataNamespace,
+	profileStoreName = DataStoreNames.scoped("RobloxTemplate_Profile_v1", dataNamespace),
+	publicProfileStoreName = DataStoreNames.scoped("RobloxTemplate_PublicProfiles_v1", dataNamespace),
+	feedbackStoreName = DataStoreNames.scoped("RobloxTemplate_Feedback_v1", dataNamespace),
+	leaderboardStoreName = DataStoreNames.scoped("RobloxTemplate_CoinsLeaderboard_v1", dataNamespace),
 	ui = {
 		preset = if DesignerConfig.preset == "rpg" then "rpg" else "incremental",
 	},
@@ -43,8 +47,10 @@ local Config = {
 	},
 
 	identity = {
-		universeId = 0,
-		placeId = 0,
+		universeId = if type(configuredIdentity.universeId) == "number"
+			then configuredIdentity.universeId
+			else 0,
+		placeId = if type(configuredIdentity.placeId) == "number" then configuredIdentity.placeId else 0,
 		communityId = 0,
 	},
 

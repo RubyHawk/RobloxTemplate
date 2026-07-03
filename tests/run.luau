@@ -2,6 +2,7 @@
 
 local Calculations = require("../src/shared/Calculations")
 local CurrencyConfig = require("../src/shared/CurrencyConfig")
+local DataStoreNames = require("../src/shared/DataStoreNames")
 local DataStoreKeys = require("../src/shared/DataStoreKeys")
 local MigrationCore = require("../src/shared/MigrationCore")
 local ReceiptLedger = require("../src/shared/ReceiptLedger")
@@ -46,6 +47,18 @@ local savedCurrencyProfile = { coins = 42, currencies = { gold = 42, crystals = 
 CurrencyConfig.reconcileProfileCurrencies(savedCurrencyProfile, configuredCurrencies, "gold", 4)
 expectEqual(savedCurrencyProfile.currencies.gold, 42, "saved balances are not re-granted")
 expectEqual(savedCurrencyProfile.currencies.crystals, 10, "corrupt balances recover safely")
+expectEqual(
+	DataStoreNames.scoped("RobloxTemplate_Profile_v1", "incremental"),
+	"RobloxTemplate_Profile_v1_incremental",
+	"preset namespace isolates profile stores inside the shared sandbox"
+)
+expectEqual(
+	pcall(function()
+		DataStoreNames.validateNamespace("bad-preset")
+	end),
+	false,
+	"DataStore namespaces reject unsafe characters"
+)
 
 local canClaim, streak = Calculations.dailyClaim(9, 2, 10 * 86400, 7)
 expectEqual(canClaim, true, "daily can claim")
@@ -155,6 +168,11 @@ expectEqual(
 	true,
 	"persistence mode follows the generated experience kind"
 )
+expectEqual(
+	string.find(templateConfigSource, "DataStoreNames.scoped", 1, true) ~= nil,
+	true,
+	"all persistent stores are isolated by preset namespace"
+)
 local presetBuilderSource = fs.readFile("scripts/build-game-preset.ps1")
 expectEqual(
 	string.find(presetBuilderSource, 'experienceMode = `"playable`"', 1, true) ~= nil,
@@ -171,6 +189,17 @@ expectEqual(
 	string.find(gameDesignerSource, "src\\ui\\presets", 1, true) ~= nil,
 	true,
 	"Game Designer discovers authored preset folders"
+)
+local sandboxSource = fs.readFile("scripts/sandbox.ps1")
+expectEqual(
+	string.find(sandboxSource, '"-task", "EditPlace"', 1, true) ~= nil,
+	true,
+	"sandbox launcher opens the existing cloud place"
+)
+expectEqual(
+	string.find(sandboxSource, "build-game-preset.ps1", 1, true) ~= nil,
+	true,
+	"sandbox launcher rebuilds the selected preset before opening"
 )
 
 local chatSource = fs.readFile("src/client/init.client.luau") .. fs.readFile("default.project.json")

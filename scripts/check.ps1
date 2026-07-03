@@ -72,6 +72,9 @@ Invoke-Checked "Incremental configured experience build" {
 Invoke-Checked "RPG configured experience build" {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-game-preset.ps1 -RecipePath config-presets\rpg.json -NoStudio
 }
+Invoke-Checked "Permanent sandbox configuration" {
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\sandbox.ps1 -RecipePath config-presets\incremental.json -SmokeTest
+}
 Invoke-Checked "Figma bridge syntax" { node --check figma\roblox-ui-bridge\code.js }
 Invoke-Checked "Figma incremental mapping" {
     node scripts\figma-ui-bridge.mjs verify --model src\ui\presets\incremental\TemplateUI.model.json
