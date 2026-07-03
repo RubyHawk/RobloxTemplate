@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>
+    :root { font: 13px/1.45 Inter, sans-serif; color: #17152b; }
+    body { margin: 0; padding: 18px; background: #f7f5ff; }
+    h1 { margin: 0 0 6px; font-size: 20px; }
+    p { margin: 0 0 14px; color: #5e5875; }
+    .card { padding: 14px; margin: 12px 0; border: 1px solid #d9d3ef; border-radius: 12px; background: white; }
+    button, label.file { display: block; box-sizing: border-box; width: 100%; padding: 11px 12px; border: 0; border-radius: 9px; font-weight: 700; text-align: center; cursor: pointer; }
+    label.file { color: white; background: #7c3aed; }
+    button { color: white; background: #0ea5e9; }
+    button.secondary { color: #17152b; background: #facc15; }
+    input[type=file] { display: none; }
+    #status { min-height: 38px; margin-top: 12px; padding: 10px; border-radius: 9px; background: #ede9fe; white-space: pre-wrap; }
+    code { font-size: 11px; }
+  </style>
+</head>
+<body>
+  <h1>Roblox UI Bridge</h1>
+  <p>Edit real Figma layers, then export a safe patch for the authored StarterGui model.</p>
+
+  <div class="card">
+    <strong>1. Bring a preset into Figma</strong>
+    <p>Choose one or more <code>TemplateUI.model.json</code>, <code>TemplateLoading.model.json</code>, or <code>StarterSignUI.model.json</code> files.</p>
+    <label class="file" for="models">Import Rojo UI model</label>
+    <input id="models" type="file" accept=".json" multiple>
+  </div>
+
+  <div class="card">
+    <strong>2. Send visual edits back</strong>
+    <p>Select imported artboards. If nothing is selected, all imported artboards on the current page are exported.</p>
+    <button id="export">Export selected Roblox patch</button>
+  </div>
+
+  <button class="secondary" id="close">Close</button>
+  <div id="status">Ready.</div>
+
+  <script>
+    const status = document.getElementById('status');
+    const setStatus = (value) => { status.textContent = value; };
+
+    document.getElementById('models').addEventListener('change', async (event) => {
+      const files = Array.from(event.target.files || []);
+      if (!files.length) return;
+      setStatus('Reading files...');
+      const payload = await Promise.all(files.map(async (file) => ({ name: file.name, text: await file.text() })));
+      parent.postMessage({ pluginMessage: { type: 'import-models', files: payload } }, '*');
+    });
+
+    document.getElementById('export').onclick = () => {
+      setStatus('Preparing patch...');
+      parent.postMessage({ pluginMessage: { type: 'export-patch' } }, '*');
+    };
+    document.getElementById('close').onclick = () => parent.postMessage({ pluginMessage: { type: 'close' } }, '*');
+
+    onmessage = (event) => {
+      const message = event.data.pluginMessage;
+      if (!message) return;
+      if (message.type === 'status') setStatus(message.text);
+      if (message.type === 'download') {
+        const blob = new Blob([message.text], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = message.name;
+        anchor.click();
+        URL.revokeObjectURL(url);
+        setStatus('Patch downloaded. Run FIGMA_UI.cmd to apply it.');
+      }
+    };
+  </script>
+</body>
+</html>

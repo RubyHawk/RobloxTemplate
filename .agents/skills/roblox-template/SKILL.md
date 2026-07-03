@@ -20,7 +20,8 @@ description: Build, extend, review, or debug the reusable Roblox Luau template, 
 11. Treat each UI preset as an independent product: separate `TemplateUI`, loading, and sign models with the same binding contract. Never share GUI instances between presets or overwrite an existing preset from a bootstrap script.
 12. Use the Game Designer recipe boundary for preset selection, feature flags, and one-to-five currencies. Keep balances server-authoritative, migrate profile data explicitly, and reject disabled feature remotes on the server.
 13. Keep the visual `template` showroom on mock memory data. Every generated `playable` recipe uses real Roblox persistence and must emit a clear startup diagnostic when the place is unpublished or Studio API access is unavailable.
-14. Treat Figma as visual source material, not a Roblox runtime. Require a reviewed exporter to produce independent native StarterGui instances, preserve binder names, and never claim automatic Figma synchronization when no importer is configured.
+14. Treat Figma as a visual authoring surface, not a Roblox runtime. For this repository use `figma/roblox-ui-bridge`: import one preset's authored model, export a `roblox-ui-bridge-v1` patch, apply it through `FIGMA_UI.cmd`, and rerun checks. Preserve binder paths and never describe this explicit round trip as live automatic synchronization.
+15. Figma edits must update only the selected preset model. Existing Roblox asset IDs stay authoritative, and the bridge must reject missing paths or class mismatches before writing.
 
 ## Hard boundaries
 

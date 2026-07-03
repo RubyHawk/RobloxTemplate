@@ -18,7 +18,7 @@ The numbered CMD files remain available as manual shortcuts, but your non-progra
 
 **Design a Game Preset** selects an independent Incremental or RPG UI package, one-to-five server-backed currencies, and shared systems, then generates a playable test experience. See [`docs/GAME_DESIGNER.md`](docs/GAME_DESIGNER.md).
 
-Figma can be the visual source, but a preset must be exported into native editable Roblox GUI instances before its binders can run. See [`docs/FIGMA_WORKFLOW.md`](docs/FIGMA_WORKFLOW.md).
+Figma can now be the visual editor through the checked-in **Roblox UI Bridge**. After its one-time Figma plugin setup, edit the imported layers, export a patch, and double-click **`FIGMA_UI.cmd`** to update and rebuild only the chosen preset. See [`docs/FIGMA_UI.md`](docs/FIGMA_UI.md).
 
 ## Which branch should I use?
 
@@ -49,4 +49,5 @@ Yes. The tool versions and current official Roblox chat/UI documentation were re
 - [Common problems and exact fixes](docs/TROUBLESHOOTING.md)
 - [Change colors, rewards, IDs, and game values](docs/CUSTOMIZE.md)
 - [Edit the UI showroom without code](docs/UI_SHOWROOM.md)
+- [Edit a preset in Figma](docs/FIGMA_UI.md)
 - [Technical setup and branch workflow](docs/SETUP.md)

@@ -72,6 +72,16 @@ Invoke-Checked "Incremental configured experience build" {
 Invoke-Checked "RPG configured experience build" {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-game-preset.ps1 -RecipePath config-presets\rpg.json -NoStudio
 }
+Invoke-Checked "Figma bridge syntax" { node --check figma\roblox-ui-bridge\code.js }
+Invoke-Checked "Figma incremental mapping" {
+    node scripts\figma-ui-bridge.mjs verify --model src\ui\presets\incremental\TemplateUI.model.json
+}
+Invoke-Checked "Figma RPG mapping" {
+    node scripts\figma-ui-bridge.mjs verify --model src\ui\presets\rpg\TemplateUI.model.json
+}
+Invoke-Checked "Figma patch application" {
+    node scripts\figma-ui-bridge.mjs self-test --model src\ui\presets\incremental\TemplateUI.model.json
+}
 Invoke-Checked "Luau tests" { lune run tests/run }
 Invoke-Checked "Worker type check" { npm --prefix worker run typecheck }
 Invoke-Checked "Worker tests" { npm --prefix worker test }
