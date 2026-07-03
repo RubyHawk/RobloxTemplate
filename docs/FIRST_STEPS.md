@@ -4,14 +4,14 @@
 
 Double-click `START_HERE.cmd` in the project folder.
 
-Choose **Open Shared Test Experience** or **Open Template**. The shared option asks for Incremental or RPG, rebuilds it, opens the existing cloud sandbox, and starts Rojo. It does not create a new Roblox experience.
+Choose **Open Shared Test Experience** or **Open Template**. The shared option lists every recipe under `config-presets/`, rebuilds the chosen preset, opens the existing player-test experience, and starts Rojo. It does not create a new Roblox experience.
 
 Choose **Design a Game Preset** when you want a clean Incremental/RPG package with configurable currencies and systems instead of the general workbench.
 
 Success looks like this:
 
 ```text
-Branch:  template
+Mode:    Template workbench (mock data only)
 Project: RobloxTemplateGallery
 ```
 
@@ -19,7 +19,7 @@ Project: RobloxTemplateGallery
 
 The black window runs the live code connection. Closing it stops live syncing but does not delete anything.
 
-It shows the Git branch and project name. Normal work should show `main` and `RobloxTemplateGallery`.
+It shows the mode and project name, then the live Rojo log. The launcher window separately shows the project and Git branch; normal work should show `main`.
 
 ## 3. Connect Studio
 

@@ -12,7 +12,7 @@ You do not need to understand Git, Rojo, Wally, or the notification worker to op
 
 You should see a Coins HUD and buttons for the inventory, store, rewards, profile, codes, leaderboards, feedback, community, and settings.
 
-The launcher installs anything missing and replaces any old Rojo session. The shared test option rebuilds your selected preset and opens the same permanent cloud sandbox every time; it never creates another Roblox experience. Its **Repair setup** and **Run project checks** buttons explain problems in plain language.
+The launcher installs anything missing and replaces any old Rojo session. Two permanent Roblox experiences are reused, both configured in `experiences.config.json`: the shared test option rebuilds your selected preset and opens the same player-test experience every time, and the template option opens the permanent template workbench experience (or a local file until you link its IDs). Nothing ever creates another Roblox experience. The **Repair setup** and **Run project checks** buttons explain problems in plain language.
 
 The numbered CMD files remain available as manual shortcuts. `SANDBOX.cmd` opens the permanent test experience directly, but your non-programmer coworker normally only needs `START_HERE.cmd`.
 
