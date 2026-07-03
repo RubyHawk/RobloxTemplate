@@ -1,5 +1,5 @@
 {
-  "name": "RobloxPlayableStarter",
+  "name": "RobloxTemplateGallery",
   "emitLegacyScripts": true,
   "tree": {
     "$className": "DataModel",

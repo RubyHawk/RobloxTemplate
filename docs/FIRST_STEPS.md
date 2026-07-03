@@ -19,7 +19,7 @@ Project: RobloxTemplateGallery
 
 The black window runs the live code connection. Closing it stops live syncing but does not delete anything.
 
-It shows both the Git branch and project name. `template` should show `RobloxTemplateGallery`; `playable-starter` should show `RobloxPlayableStarter`.
+It shows the Git branch and project name. Normal work should show `main` and `RobloxTemplateGallery`.
 
 ## 3. Connect Studio
 
@@ -34,7 +34,7 @@ Inside Roblox Studio:
 
 Expected result: the loading screen disappears, the Coins HUD appears in the upper-left, and the menu bar appears along the bottom.
 
-On the `template` branch, use the **UI Library** bar in Play mode to switch between the connected UI, the script-free Zxgly pack, and the notification preview. Only one appears at a time.
+In **Open Template**, use the **UI Library** bar in Play mode to switch between the connected UI, the script-free Zxgly pack, and the notification preview. Only one appears at a time.
 
 ## 4. Try the template
 
@@ -42,7 +42,7 @@ On the `template` branch, use the **UI Library** bar in Play mode to switch betw
 - Open **BAG** and use it; the HUD multiplier changes.
 - Open **REWARDS** and claim the daily reward.
 - Open **SETTINGS** and change UI scale or reduced motion.
-- On `playable-starter`, the blue pad earns the primary currency. A generated game with two or more currencies also shows a teal pad for the second currency.
+- In **Shared Test Experience**, the blue pad earns the primary currency. A generated game with two or more currencies also shows a teal pad for the second currency.
 
 The `template` showroom deliberately uses mock data. The shared sandbox uses real saved data. Incremental and RPG use different DataStore namespaces so switching presets cannot mix their profiles.
 

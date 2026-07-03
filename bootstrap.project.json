@@ -14,6 +14,18 @@
       "StarterSignUI": {
         "$path": "src/ui/StarterSignUI.model.json"
       },
+      "GalleryBackdrop": {
+        "$path": "src/ui/GalleryBackdrop.model.json"
+      },
+      "GalleryMenu": {
+        "$path": "src/ui/GalleryMenu.model.json"
+      },
+      "ZxglyV5Showroom": {
+        "$path": "assets/ui/ZxglyV5Showroom.rbxmx"
+      },
+      "NotificationV2Showroom": {
+        "$path": "assets/ui/NotificationV2Showroom.rbxmx"
+      },
       "IncrementalPresetUI": {
         "$path": "src/ui/presets/incremental/TemplateUI.model.json"
       },

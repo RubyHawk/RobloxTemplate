@@ -44,7 +44,7 @@ function Stop-StaleRojoServer {
             throw "Port 34872 is being used by $($process.ProcessName). Close that program, then run 2_START.cmd again."
         }
 
-        Write-Host "Closing an older Rojo session so it cannot load the previous branch..." -ForegroundColor Yellow
+        Write-Host "Closing an older Rojo session so it cannot load the previous mode..." -ForegroundColor Yellow
         Stop-Process -Id $processId -Force
         $process.WaitForExit(3000) | Out-Null
     }
@@ -69,12 +69,12 @@ try {
         }
     }
 
-    Write-Host "Opening the saved place for your current branch..." -ForegroundColor Cyan
+    Write-Host "Opening the saved template workbench..." -ForegroundColor Cyan
     Write-Host "  Branch:  $branch"
     Write-Host "  Project: $projectName"
     New-Item -ItemType Directory -Path $placeDirectory -Force | Out-Null
     if (-not (Test-Path $placeFile -PathType Leaf)) {
-        Write-Host "Creating this branch's editable place for the first time..." -ForegroundColor Yellow
+        Write-Host "Creating the editable workbench for the first time..." -ForegroundColor Yellow
         & rojo build $bootstrapProject --output $placeFile
         if ($LASTEXITCODE -ne 0) {
             throw "Rojo could not create $projectName. Run 3_CHECK.cmd for details."

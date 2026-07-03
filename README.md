@@ -22,11 +22,7 @@ Figma can now be the visual editor through the checked-in **Roblox UI Bridge**. 
 
 ## Which branch should I use?
 
-- **`playable-starter`** is the easiest starting point. It includes the complete template plus a blue earning pad that proves the economy works.
-- **`template`** is the large UI/system workbench. It contains the connected UI plus rows of sanitized visual reference packs.
-- Ignore **`main`**; it is the untouched original branch.
-
-The GitHub repository opens on `playable-starter` by default, so beginners do not need to switch branches.
+Use **`main`**. The template workbench, independent UI presets, shared sandbox, and reusable systems all live together. **Template** and **Shared Test Experience** are launcher modes now, not permanent Git branches. Temporary feature branches may still be used while a programmer is actively changing something.
 
 ## What already works?
 

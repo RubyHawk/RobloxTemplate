@@ -48,49 +48,6 @@ function Start-CommandWindow([string]$FileName) {
     Write-LauncherLog "Started $FileName as process $($process.Id)."
 }
 
-function Switch-ToVersion([string]$Branch) {
-    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        Show-LauncherMessage "Git is missing. Ask the project owner to install Git, then run START_HERE.cmd again." "Git is needed" ([System.Windows.MessageBoxImage]::Error)
-        return $false
-    }
-
-    $currentBranch = Get-CurrentBranch
-    if ($currentBranch -eq $Branch) {
-        Write-LauncherLog "Already on $Branch; keeping saved Studio UI changes."
-        return $true
-    }
-
-    $trackedChanges = @(& git -C $root status --porcelain --untracked-files=no 2>$null)
-    if ($LASTEXITCODE -ne 0) {
-        Show-LauncherMessage "This folder is not a working Git project. Ask the project owner to check the folder." "Project not found" ([System.Windows.MessageBoxImage]::Error)
-        return $false
-    }
-    if ($trackedChanges.Count -gt 0) {
-        Show-LauncherMessage "There are uncommitted project changes. Nothing was deleted. Ask the programmer to commit or save those changes before switching versions." "Changes need attention" ([System.Windows.MessageBoxImage]::Warning)
-        return $false
-    }
-
-    # Windows PowerShell 5 reports normal Git status text from stderr as a
-    # terminating error when ErrorActionPreference is Stop. Capture it without
-    # treating messages such as "Switched to branch" as failures.
-    $previousErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    try {
-        $switchOutput = @(& git -C $root switch $Branch 2>&1)
-        $switchExitCode = $LASTEXITCODE
-    }
-    finally {
-        $ErrorActionPreference = $previousErrorActionPreference
-    }
-
-    Write-LauncherLog "Git switch $Branch returned $switchExitCode. $($switchOutput -join ' ')"
-    if ($switchExitCode -ne 0) {
-        Show-LauncherMessage (($switchOutput -join "`n") + "`n`nAsk the project owner for help switching branches.") "Could not switch version" ([System.Windows.MessageBoxImage]::Error)
-        return $false
-    }
-    return $true
-}
-
 [xml]$xaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -167,7 +124,7 @@ function Switch-ToVersion([string]$Branch) {
         <StackPanel Grid.Row="0">
             <TextBlock Text="ROBLOX MAP LAUNCHER" Foreground="#60A5FA" FontSize="13" FontWeight="Bold"/>
             <TextBlock Text="What do you want to open?" Foreground="White" FontSize="30" FontWeight="Bold" Margin="0,8,0,5"/>
-            <TextBlock Text="Choose one. The launcher handles the branch, build, Rojo, and Studio." Foreground="#AAB8D4" FontSize="15"/>
+            <TextBlock Text="Choose one. The launcher handles the mode, build, Rojo, and Studio." Foreground="#AAB8D4" FontSize="15"/>
         </StackPanel>
 
         <Border Grid.Row="1" Background="#111A2E" BorderBrush="#263654" BorderThickness="1" CornerRadius="9" Padding="13,9" Margin="0,18,0,0">
@@ -226,13 +183,8 @@ Write-LauncherLog "Launcher opened on $(Get-CurrentBranch) | $(Get-CurrentProjec
 $playableButton.Add_Click({
     $window.IsEnabled = $false
     try {
-        if (Switch-ToVersion "playable-starter") {
-            Start-CommandWindow "SANDBOX.cmd"
-            $window.Close()
-        }
-        else {
-            $window.IsEnabled = $true
-        }
+        Start-CommandWindow "SANDBOX.cmd"
+        $window.Close()
     }
     catch {
         Write-LauncherLog "Shared sandbox failed: $($_.Exception.ToString())"
@@ -244,13 +196,8 @@ $playableButton.Add_Click({
 $templateButton.Add_Click({
     $window.IsEnabled = $false
     try {
-        if (Switch-ToVersion "template") {
-            Start-CommandWindow "2_START.cmd"
-            $window.Close()
-        }
-        else {
-            $window.IsEnabled = $true
-        }
+        Start-CommandWindow "2_START.cmd"
+        $window.Close()
     }
     catch {
         Write-LauncherLog "Template failed: $($_.Exception.ToString())"

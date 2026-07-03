@@ -1,6 +1,6 @@
 # UI showroom: edit without code
 
-Open the `template` version from `START_HERE.cmd`, connect Rojo, and expand **StarterGui** in Explorer.
+Open **Template** from `START_HERE.cmd`, connect Rojo, and expand **StarterGui** in Explorer.
 
 The gallery shows one preview mode at a time. In Play mode, use the **UI Library** bar:
 
@@ -42,12 +42,12 @@ The loading screen and starter sign follow the same rule: their complete visual 
 
 ## Save safely
 
-Press **Ctrl+S** in Studio. The branch place is stored in `places/` and is not rebuilt every time the launcher opens it. Commit the changed place with the rest of the branch when the design is ready.
+Press **Ctrl+S** in Studio. The workbench place is stored in `places/` and is not rebuilt every time the launcher opens it. Commit the changed place with the rest of the UI source when the design is ready.
 
 Rojo ignores unknown objects under StarterGui, so visual edits survive code sync. Keep the Rojo window open for code updates.
 
 ## Making starter themes
 
-Keep the huge workbench on `template`. A finished starter branch should contain one coherent connected theme, not every raw imported showroom. Future theme branches can use names such as `playable-starter-bright`, `playable-starter-dark`, or `playable-starter-pastel`.
+Keep the huge workbench in the **Template** launcher mode. Each finished theme lives as an independent folder under `src/ui/presets/`; selecting or editing one preset does not alter another.
 
 The starter uses public image IDs from the user-supplied Zxgly pack for its initial cash, reward, pet, calendar, potion, multiplier, and equipment art. The 25 selected Gvesster PNG files remain available as replacement source art. Roblox cannot display local disk paths in a live experience, so follow [`ICON_PACK.md`](ICON_PACK.md) when uploading a branded replacement set. Follow both packs' licenses.
