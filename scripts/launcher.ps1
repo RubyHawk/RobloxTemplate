@@ -51,7 +51,7 @@ function Start-CommandWindow([string]$FileName) {
 [xml]$xaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Roblox Map Launcher" Width="720" Height="780"
+        Title="Roblox Template Launcher" Width="720" Height="780"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="#0B1020" FontFamily="Segoe UI">
     <Window.Resources>
@@ -122,7 +122,7 @@ function Start-CommandWindow([string]$FileName) {
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0">
-            <TextBlock Text="ROBLOX MAP LAUNCHER" Foreground="#60A5FA" FontSize="13" FontWeight="Bold"/>
+            <TextBlock Text="ROBLOX TEMPLATE LAUNCHER" Foreground="#60A5FA" FontSize="13" FontWeight="Bold"/>
             <TextBlock Text="What do you want to open?" Foreground="White" FontSize="30" FontWeight="Bold" Margin="0,8,0,5"/>
             <TextBlock Text="Choose one. The launcher handles the mode, build, Rojo, and Studio." Foreground="#AAB8D4" FontSize="15"/>
         </StackPanel>
@@ -134,14 +134,14 @@ function Start-CommandWindow([string]$FileName) {
         <Button x:Name="PlayableButton" Grid.Row="3" Style="{StaticResource PrimaryButton}">
             <StackPanel>
                 <TextBlock Text="OPEN SHARED TEST EXPERIENCE" FontSize="18" FontWeight="Bold"/>
-                <TextBlock Text="Recommended - choose a preset and reuse the same permanent Roblox sandbox." Foreground="#DCEAFF" FontSize="13" FontWeight="Normal" Margin="0,7,0,0"/>
+                <TextBlock Text="Recommended - choose a preset and reuse the permanent player-test experience with live saved data." Foreground="#DCEAFF" FontSize="13" FontWeight="Normal" Margin="0,7,0,0"/>
             </StackPanel>
         </Button>
 
         <Button x:Name="TemplateButton" Grid.Row="5" Style="{StaticResource SecondaryButton}">
             <StackPanel>
                 <TextBlock Text="OPEN TEMPLATE" FontSize="18" FontWeight="Bold"/>
-                <TextBlock Text="Reusable systems gallery only, without starter gameplay." Foreground="#B9C7DE" FontSize="13" FontWeight="Normal" Margin="0,7,0,0"/>
+                <TextBlock Text="UI authoring workbench on the permanent template experience. Mock data only." Foreground="#B9C7DE" FontSize="13" FontWeight="Normal" Margin="0,7,0,0"/>
             </StackPanel>
         </Button>
 
@@ -162,7 +162,7 @@ function Start-CommandWindow([string]$FileName) {
             <Button x:Name="CheckButton" Grid.Column="2" Style="{StaticResource SmallButton}" Content="Run project checks"/>
         </Grid>
 
-        <TextBlock Grid.Row="10" Text="One cloud sandbox is reused; each preset keeps separate saved data and visual files."
+        <TextBlock Grid.Row="10" Text="Two permanent cloud experiences are reused; each preset keeps separate saved data and visual files."
                    Foreground="#7384A3" FontSize="12" VerticalAlignment="Bottom" TextAlignment="Center" Margin="0,0,0,4"/>
     </Grid>
 </Window>
@@ -177,7 +177,7 @@ $designerButton = $window.FindName("DesignerButton")
 $setupButton = $window.FindName("SetupButton")
 $checkButton = $window.FindName("CheckButton")
 
-$currentStatus.Text = "Current selection: $(Get-CurrentBranch)  |  $(Get-CurrentProject)"
+$currentStatus.Text = "Project: $(Get-CurrentProject)  |  Git branch: $(Get-CurrentBranch)"
 Write-LauncherLog "Launcher opened on $(Get-CurrentBranch) | $(Get-CurrentProject)."
 
 $playableButton.Add_Click({
@@ -216,7 +216,7 @@ $checkButton.Add_Click({ Start-CommandWindow "3_CHECK.cmd" })
 
 if ($SmokeTest) {
     Write-Host "Launcher UI loaded successfully"
-    Write-Host "Current selection: $(Get-CurrentBranch) | $(Get-CurrentProject)"
+    Write-Host "Project: $(Get-CurrentProject) | Git branch: $(Get-CurrentBranch)"
     exit 0
 }
 

@@ -17,7 +17,7 @@ There is currently no first-party Roblox Figma GUI importer. This repository the
    - `StarterSignUI.model.json`
 5. The command rebuilds the selected playable starter without opening Studio.
 
-The Game Designer discovers complete preset folders automatically; adding a pack does not require editing its PowerShell UI.
+The Game Designer and `FIGMA_UI.cmd` both discover complete preset folders automatically; adding a pack does not require editing any PowerShell UI.
 
 Never replace another pack's files. The builder copies only the selected pack into the playable experience.
 

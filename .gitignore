@@ -6,7 +6,6 @@
 *.rbxmx
 sourcemap.json
 !assets/ui/*.rbxmx
-!places/*.rbxlx
 
 # Packages and caches
 Packages/

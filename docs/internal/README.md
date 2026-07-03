@@ -2,12 +2,21 @@
 
 Add a short dated note here whenever the team researches or changes a reusable system. Include official sources, security decisions, imported-asset provenance, tests performed, and anything the next person must not assume.
 
+- [2026-07-03: two permanent experiences](2026-07-03-two-permanent-experiences.md)
+- [2026-07-03: single permanent branch](2026-07-03-single-main-branch.md)
+- [2026-07-03: shared icon assets](2026-07-03-shared-icon-assets.md)
+- [2026-07-03: permanent Roblox sandbox](2026-07-03-permanent-sandbox.md)
+- [2026-07-03: Figma ↔ Rojo visual workflow](2026-07-03-figma-rojo-ui-bridge.md)
+- [2026-07-02: UI Plus preset workflow check](2026-07-02-ui-plus-preset-workflow.md)
 - [2026-07-02: persistence and preset boundary audit](2026-07-02-persistence-and-preset-boundary.md)
-
-- [2026-06-27: native chat and editable UI showroom](2026-06-27-chat-ui-showroom.md)
-- [2026-06-28: coherent gallery preview modes](2026-06-28-gallery-modes.md)
-- [2026-06-29: permanent Studio UI and DataDelve boundary](2026-06-29-authored-ui-and-datadelve.md)
+- [2026-07-01: responsive UI / screen orientation review](2026-07-01-responsive-orientation.md)
+- [2026-06-30: connected UI restyle (Fredoka/Nunito + chunky buttons)](2026-06-30-ui-restyle-fredoka.md)
+- [2026-06-30: UI audio kit review](2026-06-30-ui-audio-kit.md)
+- [2026-06-30: simulator UI visual study](2026-06-30-simulator-ui-visual-study.md)
+- [2026-06-29: 2025–2026 Roblox UI asset survey](2026-06-29-ui-asset-survey.md)
 - [2026-06-29: reusable bright simulator UI package](2026-06-29-reusable-ui-package.md)
 - [2026-06-29: licensed icon pack integration](2026-06-29-icon-pack-integration.md)
+- [2026-06-29: permanent Studio UI and DataDelve boundary](2026-06-29-authored-ui-and-datadelve.md)
 - [2026-06-28: kid-friendly connected UI](2026-06-28-kid-friendly-ui.md)
-- [2026-06-29: 2025–2026 Roblox UI asset survey](2026-06-29-ui-asset-survey.md)
+- [2026-06-28: coherent gallery preview modes](2026-06-28-gallery-modes.md)
+- [2026-06-27: native chat and editable UI showroom](2026-06-27-chat-ui-showroom.md)

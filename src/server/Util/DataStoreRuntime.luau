@@ -12,7 +12,10 @@ export type Mode = "mock" | "live"
 local announced = false
 
 function DataStoreRuntime.mode(): Mode
-	if RunService:IsStudio() and Config.studio.dataStoreMode == "mock" then
+	-- Template/workbench builds stay mock everywhere, including published
+	-- servers of the permanent template experience. Playable recipes stay
+	-- live everywhere, including Studio once API access is enabled.
+	if Config.studio.dataStoreMode == "mock" then
 		return "mock"
 	end
 	return "live"
@@ -53,8 +56,8 @@ function DataStoreRuntime.announce(container: Instance?)
 	end
 	if mode == "mock" then
 		warn(
-			"[Template Data] MOCK mode: this Studio showroom keeps data in memory only. "
-				.. "DataDelve will not show play-test changes."
+			"[Template Data] MOCK mode: the template workbench keeps data in memory only, "
+				.. "in Studio and on published template servers. DataDelve will not show play-test changes."
 		)
 	elseif RunService:IsStudio() then
 		if game.GameId == 0 then

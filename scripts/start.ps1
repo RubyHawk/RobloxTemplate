@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [switch]$NoStudio
+    [switch]$NoStudio,
+    [switch]$SmokeTest
 )
 
 $ErrorActionPreference = "Stop"
@@ -50,28 +51,119 @@ function Stop-StaleRojoServer {
     }
 }
 
+function Update-ProjectPaths($Node) {
+    if ($null -eq $Node -or $Node -is [string] -or $Node -is [System.ValueType]) {
+        return
+    }
+    if ($Node -is [System.Collections.IEnumerable]) {
+        foreach ($item in $Node) {
+            Update-ProjectPaths $item
+        }
+        return
+    }
+    foreach ($property in @($Node.PSObject.Properties)) {
+        if ($property.Name -eq '$path' -and $property.Value -is [string]) {
+            $property.Value = "../../" + ($property.Value -replace '\\', '/')
+        }
+        else {
+            Update-ProjectPaths $property.Value
+        }
+    }
+}
+
 Push-Location $root
 try {
-    $rojoPlugin = Join-Path $env:LOCALAPPDATA "Roblox\Plugins\RojoManagedPlugin.rbxm"
-    if (-not (Get-Command rojo -ErrorAction SilentlyContinue) -or -not (Test-Path $rojoPlugin -PathType Leaf)) {
-        Write-Host "The template needs its first-time setup. Running it now..." -ForegroundColor Yellow
-        & (Join-Path $PSScriptRoot "setup.ps1") -SkipWorker
-        if ($LASTEXITCODE -ne 0) {
-            exit $LASTEXITCODE
+    $configPath = Join-Path $root "experiences.config.json"
+    $experiences = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    foreach ($requiredEntry in @("template", "playerTest")) {
+        if (-not ($experiences.PSObject.Properties.Name -contains $requiredEntry)) {
+            throw "experiences.config.json must define `"$requiredEntry`" with name, universeId, and placeId."
+        }
+    }
+    $template = $experiences.template
+    $templateUniverseId = [long]$template.universeId
+    $templatePlaceId = [long]$template.placeId
+    $cloudConfigured = ($templateUniverseId -gt 0 -and $templatePlaceId -gt 0)
+
+    if (-not $SmokeTest) {
+        $rojoPlugin = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Roblox/Plugins/RojoManagedPlugin.rbxm" } else { $null }
+        if (-not (Get-Command rojo -ErrorAction SilentlyContinue) -or ($rojoPlugin -and -not (Test-Path $rojoPlugin -PathType Leaf))) {
+            Write-Host "The template needs its first-time setup. Running it now..." -ForegroundColor Yellow
+            & (Join-Path $PSScriptRoot "setup.ps1") -SkipWorker
+            if ($LASTEXITCODE -ne 0) {
+                exit $LASTEXITCODE
+            }
         }
     }
 
-    $branch = "not using Git"
-    if (Get-Command git -ErrorAction SilentlyContinue) {
-        $detectedBranch = (& git branch --show-current 2>$null).Trim()
-        if ($detectedBranch) {
-            $branch = $detectedBranch
-        }
-    }
-
-    Write-Host "Opening the saved template workbench..." -ForegroundColor Cyan
-    Write-Host "  Branch:  $branch"
+    Write-Host "Opening the template workbench..." -ForegroundColor Cyan
+    Write-Host "  Mode:    Template workbench (mock data only)"
     Write-Host "  Project: $projectName"
+
+    if ($cloudConfigured) {
+        $generatedDirectory = Join-Path $root "build/template"
+        New-Item -ItemType Directory -Path $generatedDirectory -Force | Out-Null
+        $serveProject = Get-Content -LiteralPath (Join-Path $root "default.project.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+        $serveProject.name = "TemplateWorkbench"
+        Update-ProjectPaths $serveProject.tree
+        $serveProject | Add-Member -MemberType NoteProperty -Name servePlaceIds -Value @($templatePlaceId) -Force
+        $serveProjectPath = Join-Path $generatedDirectory "TemplateWorkbench.project.json"
+        [System.IO.File]::WriteAllText(
+            $serveProjectPath,
+            ($serveProject | ConvertTo-Json -Depth 12),
+            [System.Text.UTF8Encoding]::new($false)
+        )
+
+        $written = Get-Content -LiteralPath $serveProjectPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if (@($written.servePlaceIds) -notcontains $templatePlaceId) {
+            throw "The generated template project is not restricted to template place $templatePlaceId."
+        }
+
+        if ($SmokeTest) {
+            Write-Host "Template experience verified: $($template.name) | universe $templateUniverseId | place $templatePlaceId"
+            exit 0
+        }
+
+        Stop-StaleRojoServer
+        if (-not $NoStudio) {
+            $studio = Find-RobloxStudio
+            if ($null -eq $studio) {
+                Write-Host "Roblox Studio is not installed. Install it, then run 2_START.cmd again:" -ForegroundColor Red
+                Write-Host "https://create.roblox.com/docs/studio/setup"
+                exit 1
+            }
+            Write-Host "Opening the existing template experience. No new experience is created." -ForegroundColor Green
+            Start-Process -FilePath $studio.FullName -ArgumentList @(
+                "-task", "EditPlace",
+                "-placeId", [string]$templatePlaceId,
+                "-universeId", [string]$templateUniverseId
+            )
+        }
+
+        Write-Host ""
+        Write-Host "ROJO IS READY" -ForegroundColor Green
+        Write-Host "In Studio:"
+        Write-Host "  1. Open the Plugins tab."
+        Write-Host "  2. Click Rojo, then Connect."
+        Write-Host "  3. Edit UI objects under StarterGui."
+        Write-Host "  4. Press Play to test connected systems."
+        Write-Host "Use File > Publish to Roblox to save workbench changes to this same experience; never use Publish As." -ForegroundColor Yellow
+        Write-Host "If Studio opens an empty place, publish the local workbench into it once: docs/SETUP.md > 'Seed the template experience'." -ForegroundColor DarkGray
+        Write-Host ""
+        Write-Host "Keep this window open while editing. Press Ctrl+C here when finished." -ForegroundColor Yellow
+        rojo serve $serveProjectPath
+        exit $LASTEXITCODE
+    }
+
+    Write-Host "No permanent template experience is linked yet." -ForegroundColor Yellow
+    Write-Host "  experiences.config.json > template.universeId/placeId are 0."
+    Write-Host "  Using the local workbench file instead: $placeFile"
+    Write-Host "  To link your permanent template experience, follow docs/SETUP.md > 'Link your two permanent experiences'."
+    if ($SmokeTest) {
+        Write-Host "Template experience not configured; local-file workbench mode."
+        exit 0
+    }
+
     New-Item -ItemType Directory -Path $placeDirectory -Force | Out-Null
     if (-not (Test-Path $placeFile -PathType Leaf)) {
         Write-Host "Creating the editable workbench for the first time..." -ForegroundColor Yellow

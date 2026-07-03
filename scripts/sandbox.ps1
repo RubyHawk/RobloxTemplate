@@ -8,21 +8,41 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $PSScriptRoot
-$sandboxPath = Join-Path $root "sandbox.config.json"
-$sandbox = Get-Content -LiteralPath $sandboxPath -Raw -Encoding UTF8 | ConvertFrom-Json
-$universeId = [long]$sandbox.universeId
-$placeId = [long]$sandbox.placeId
+$configPath = Join-Path $root "experiences.config.json"
+$experiences = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
+foreach ($requiredEntry in @("template", "playerTest")) {
+    if (-not ($experiences.PSObject.Properties.Name -contains $requiredEntry)) {
+        throw "experiences.config.json must define `"$requiredEntry`" with name, universeId, and placeId."
+    }
+}
+$playerTest = $experiences.playerTest
+$universeId = [long]$playerTest.universeId
+$placeId = [long]$playerTest.placeId
 if ($universeId -le 0 -or $placeId -le 0) {
-    throw "sandbox.config.json needs the permanent sandbox universeId and placeId."
+    throw "experiences.config.json needs the permanent player-test universeId and placeId under `"playerTest`"."
 }
 
 if (-not $RecipePath) {
-    Write-Host "Choose what the shared sandbox should load:" -ForegroundColor Cyan
-    Write-Host "  1. Incremental / Simulator"
-    Write-Host "  2. RPG"
-    $choice = Read-Host "Choice"
-    $preset = if ($choice -eq "2") { "rpg" } else { [string]$sandbox.defaultPreset }
-    $RecipePath = Join-Path $root "config-presets\$preset.json"
+    $recipes = @(Get-ChildItem -LiteralPath (Join-Path $root "config-presets") -Filter "*.json" -File | Sort-Object Name)
+    if ($recipes.Count -eq 0) {
+        throw "No recipes exist under config-presets."
+    }
+    $defaultIndex = 1
+    Write-Host "Choose what the shared player-test experience should load:" -ForegroundColor Cyan
+    for ($index = 0; $index -lt $recipes.Count; $index++) {
+        if ($recipes[$index].BaseName -eq [string]$playerTest.defaultPreset) {
+            $defaultIndex = $index + 1
+        }
+        Write-Host ("  {0}. {1}" -f ($index + 1), $recipes[$index].BaseName)
+    }
+    $choice = Read-Host "Choice (Enter = $defaultIndex)"
+    $selectedIndex = if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $recipes.Count) {
+        [int]$choice
+    }
+    else {
+        $defaultIndex
+    }
+    $RecipePath = $recipes[$selectedIndex - 1].FullName
 }
 if (-not [System.IO.Path]::IsPathRooted($RecipePath)) {
     $RecipePath = Join-Path $root $RecipePath
@@ -62,10 +82,10 @@ function Stop-StaleRojoServer {
 
 Push-Location $root
 try {
-    $rojoPlugin = Join-Path $env:LOCALAPPDATA "Roblox\Plugins\RojoManagedPlugin.rbxm"
+    $rojoPlugin = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Roblox/Plugins/RojoManagedPlugin.rbxm" } else { $null }
     $setupNeeded = -not (Get-Command rojo -ErrorAction SilentlyContinue) `
         -or -not (Get-Command lune -ErrorAction SilentlyContinue) `
-        -or -not (Test-Path -LiteralPath $rojoPlugin -PathType Leaf)
+        -or ($rojoPlugin -and -not (Test-Path -LiteralPath $rojoPlugin -PathType Leaf))
     if ($setupNeeded) {
         Write-Host "Installing the pinned project tools first..." -ForegroundColor Yellow
         & (Join-Path $PSScriptRoot "setup.ps1") -SkipWorker
@@ -80,7 +100,7 @@ try {
         -PlaceId $placeId
     if ($LASTEXITCODE -ne 0) { throw "The sandbox build failed." }
 
-    $projectPath = Join-Path $root "build\designer\$preset\SelectedExperience.project.json"
+    $projectPath = Join-Path $root "build/designer/$preset/SelectedExperience.project.json"
     $project = Get-Content -LiteralPath $projectPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $allowedPlaces = @($project.servePlaceIds)
     if ($allowedPlaces -notcontains $placeId) {
@@ -88,7 +108,7 @@ try {
     }
 
     if ($SmokeTest) {
-        Write-Host "Sandbox verified: $($sandbox.name) | universe $universeId | place $placeId | preset $preset"
+        Write-Host "Sandbox verified: $($playerTest.name) | universe $universeId | place $placeId | preset $preset"
         exit 0
     }
 
@@ -105,7 +125,7 @@ try {
 
     Write-Host ""
     Write-Host "SHARED SANDBOX READY" -ForegroundColor Green
-    Write-Host "  Experience: $($sandbox.name)"
+    Write-Host "  Experience: $($playerTest.name)"
     Write-Host "  Preset:     $preset"
     Write-Host "  Save space: $preset (isolated from other presets)"
     Write-Host ""

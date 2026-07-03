@@ -9,7 +9,7 @@ Generated playable starters now select real persistence automatically. There is 
 1. Open **Shared Test Experience** and choose the preset.
 2. The launcher opens the permanent cloud sandbox; it does not create a new experience.
 3. Confirm **File > Experience Settings > Security > Studio Access to API Services** is enabled.
-4. Press Play, earn Coins, and stop Play mode so the profile releases and saves.
+4. Press Play, earn the recipe's primary currency, and stop Play mode so the profile releases and saves.
 5. Open **Plugins > DataDelve Canary**.
 6. Select `RobloxTemplate_Profile_v1_incremental` or `RobloxTemplate_Profile_v1_rpg`, then open `player:<your numeric UserId>`.
 
@@ -24,6 +24,8 @@ Other stores are:
 | `RobloxTemplate_PublicProfiles_v1_<preset>` | `user:<UserId>` |
 | `RobloxTemplate_Feedback_v1_<preset>` | `user:<UserId>:report:<UnixTime>:<GUID>` |
 | `RobloxTemplate_CoinsLeaderboard_v1_<preset>` | `<UserId>` |
+
+The in-game leaderstat column is named after the recipe's primary currency (for example `Gold` under the RPG recipe). The ordered store name keeps `CoinsLeaderboard` so existing saved rankings stay compatible.
 
 ## Template showroom: safe mock data
 

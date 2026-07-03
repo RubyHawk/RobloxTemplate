@@ -20,10 +20,26 @@ jobs:
       - name: Trust pinned tool publishers
         run: rokit trust rojo-rbx/rojo UpliftGames/wally Kampfkarren/selene JohnnyMorganz/StyLua lune-org/lune
       - run: rokit install
-      - run: stylua --check src tests
-      - run: selene src tests
+      - run: stylua --check src tests ui-packages
+      - run: selene src tests ui-packages
       - run: wally install
       - run: rojo build bootstrap.project.json --output RobloxTemplate.rbxlx
+      - name: Figma bridge checks
+        run: |
+          node --check figma/roblox-ui-bridge/code.js
+          for model in src/ui/presets/*/TemplateUI.model.json; do
+            node scripts/figma-ui-bridge.mjs verify --model "$model"
+          done
+          node scripts/figma-ui-bridge.mjs self-test --model src/ui/presets/incremental/TemplateUI.model.json
+      - name: Preset smoke builds (no Studio)
+        run: |
+          for recipe in config-presets/*.json; do
+            pwsh -NoProfile -File scripts/build-game-preset.ps1 -RecipePath "$recipe" -NoStudio
+          done
+      - name: Launcher config guards (no Studio, no network)
+        run: |
+          pwsh -NoProfile -File scripts/sandbox.ps1 -RecipePath config-presets/incremental.json -SmokeTest
+          pwsh -NoProfile -File scripts/start.ps1 -SmokeTest
       - run: pwsh -NoProfile -File scripts/sync-icon-manifest.ps1 -Check
       - run: lune run tests/run
       - run: npm ci --prefix worker

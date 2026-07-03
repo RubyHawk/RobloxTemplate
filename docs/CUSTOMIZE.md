@@ -10,7 +10,7 @@ The loading screen and playable earning-pad sign are also ordinary editable obje
 
 Inventory cards, store cards, reward tiles, profile controls, and leaderboard rows are permanent objects under `TemplateUI → Root → Screens`. Expand the screen you want and edit its real objects directly in Studio. Runtime Luau never creates or clones GUI objects.
 
-`src/shared/Theme.luau` contains behavior colors such as hover states. A programmer can change those when creating a full theme branch.
+`src/shared/Theme.luau` contains behavior colors such as hover states. A programmer can change those when restyling a preset or building a released game.
 
 ## Change daily rewards
 

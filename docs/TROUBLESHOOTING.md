@@ -16,18 +16,18 @@ Install Roblox Studio from the official Creator Hub, then rerun `2_START.cmd`:
 
 https://create.roblox.com/docs/studio/setup
 
-## The wrong mode or map opened
+## The wrong mode opened
 
 Close the old Studio window and open `START_HERE.cmd` again:
 
-- **Template** opens `RobloxTemplateGallery.rbxlx`.
-- **Shared Test Experience** always opens cloud place `106940880949257`, then serves the selected Incremental/RPG configuration into it.
+- **Template** opens the permanent template experience configured in `experiences.config.json`. While its IDs are still `0`, it opens a locally built `RobloxTemplateGallery.rbxlx` instead.
+- **Shared Test Experience** always opens the permanent player-test place from `experiences.config.json`, then serves the selected preset configuration into it.
 
 The launcher closes an older Rojo server on port `34872`; otherwise Studio could reconnect to the previous mode.
 
 ## My Studio UI edits disappeared
 
-Use the workbench place under `places/`, not an old file under `build/`. Save with Ctrl+S before closing Studio. The launcher reopens the saved place and does not rebuild over it.
+In the cloud template experience, keep changes with File > Publish to Roblox before closing Studio. In the local fallback workbench, use the place under `places/` (not an old file under `build/`) and save with Ctrl+S; the launcher reopens the saved place and does not rebuild over it. Durable preset UI lives in the `src/ui/presets/` model files edited through Figma patches — the local place file is disposable.
 
 ## There is no Rojo button in Studio
 

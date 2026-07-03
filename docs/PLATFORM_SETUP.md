@@ -1,10 +1,10 @@
 # Published platform setup
 
-The repository's permanent private sandbox is configured in `sandbox.config.json`. Create another experience only when starting a genuinely separate released game.
+The repository's two permanent experiences are configured in `experiences.config.json`: `template` is the mock-data UI workbench, `playerTest` is the live-data player-test sandbox. Create another experience only when starting a genuinely separate released game.
 
 ## Roblox
 
-- Keep the sandbox universe/place IDs in `sandbox.config.json`; the launcher injects them into generated configuration.
+- Keep both experiences' universe/place IDs in `experiences.config.json`; the launchers inject them into generated configuration and restrict Rojo to the matching place.
 - Create a Roblox community owned by the intended creator account and add its ID to `TemplateConfig`.
 - Enable Chat & Voice Groups APIs for native cross-server chat and accept Roblox's communication terms.
 - Create the Extended Offline Earnings game pass and any direct developer products; enter their IDs in configuration.
