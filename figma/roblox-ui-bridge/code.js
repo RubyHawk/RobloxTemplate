@@ -182,13 +182,14 @@ async function createVisual(object, parent, path, parentSize, forceVisible, mana
     layout: { size, pos, anchor: anch, parentWidth: parentSize.width, parentHeight: parentSize.height, managedByLayout }
   });
 
-  if (!isText) {
-    const childManagedByLayout = Boolean(childOfClass(object, "UIListLayout") || childOfClass(object, "UIGridLayout"));
-    for (const child of namedChildren(object)) {
-      await createVisual(child, node, `${path}/${child.Name}`, { width, height }, false, childManagedByLayout);
-    }
-    applyLayout(node, object);
+  // Roblox text controls can contain authored visual children. TextButton is
+  // commonly the root of an icon button (IconBubble, Icon, label, badge, ...),
+  // so treating it as a leaf silently discards most of the editable control.
+  const childManagedByLayout = Boolean(childOfClass(object, "UIListLayout") || childOfClass(object, "UIGridLayout"));
+  for (const child of namedChildren(object)) {
+    await createVisual(child, node, `${path}/${child.Name}`, { width, height }, false, childManagedByLayout);
   }
+  applyLayout(node, object);
   return node;
 }
 
@@ -279,12 +280,11 @@ function collectPatch(nodes) {
         entry.fontSize = textNode && typeof textNode.fontSize === "number" ? textNode.fontSize : null;
         const textPaint = textNode ? solidPaint(textNode) : null;
         entry.textColor = textPaint ? textPaint.color : null;
-      } else {
-        entry.cornerRadius = typeof node.cornerRadius === "number" ? node.cornerRadius : null;
-        if (Array.isArray(node.strokes)) {
-          const stroke = node.strokes.find((paint) => paint.type === "SOLID");
-          if (stroke) entry.stroke = { color: [stroke.color.r, stroke.color.g, stroke.color.b], thickness: node.strokeWeight };
-        }
+      }
+      entry.cornerRadius = typeof node.cornerRadius === "number" ? node.cornerRadius : null;
+      if (Array.isArray(node.strokes)) {
+        const stroke = node.strokes.find((paint) => paint.type === "SOLID");
+        if (stroke) entry.stroke = { color: [stroke.color.r, stroke.color.g, stroke.color.b], thickness: node.strokeWeight };
       }
       entries.push(entry);
     }

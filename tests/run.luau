@@ -587,6 +587,23 @@ do
 	)
 end
 
+local figmaBridge = fs.readFile("figma/roblox-ui-bridge/code.js")
+expectEqual(
+	string.find(figmaBridge, "if (!isText)", 1, true),
+	nil,
+	"Figma bridge does not treat TextButton as a leaf and discard authored icon children"
+)
+expectEqual(
+	string.find(figmaBridge, "for (const child of namedChildren(object))", 1, true) ~= nil,
+	true,
+	"Figma bridge recursively imports named children for every supported GUI class"
+)
+expectEqual(
+	string.find(figmaBridge, 'entry.cornerRadius = typeof node.cornerRadius === "number"', 1, true) ~= nil,
+	true,
+	"Figma bridge exports corner styling for TextButtons as well as non-text controls"
+)
+
 -- StoreScreen's header was 60 tall while its own Body label already
 -- reserved 92px (Title + wrapped 2-line Body); found via mechanical
 -- rendering at phone width, where the description wraps and visibly

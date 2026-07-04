@@ -26,6 +26,12 @@ This is intentionally not described as live or automatic sync. The checked-in Ro
 - The in-memory patch application self-test passes.
 - The full repository check passes without opening Roblox Studio.
 
+## Nested control correction — 2026-07-04
+
+The first local-plugin import treated every class whose name began with `Text` as a leaf. That was wrong for authored `TextButton` controls: simulator-style buttons keep `IconBubble`, icon, label, badge, and other editable layers beneath the button. The importer now recurses through named visual children for every supported GUI class while still adding the generated `$Text` preview layer. Export now also includes a text control's corner radius and outline instead of limiting those properties to non-text controls. Luau regression assertions cover both mistakes.
+
+Existing Figma pages are snapshots and do not repair themselves. Close and rerun the development plugin, delete the incomplete imported page, and import the model again.
+
 ## Hosted Figma file
 
 - [Roblox UI Preset Library](https://www.figma.com/design/TCKb7NWBeH1wSf6eLDARhn)
