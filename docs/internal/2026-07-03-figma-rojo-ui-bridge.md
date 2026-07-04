@@ -32,6 +32,8 @@ The first local-plugin import treated every class whose name began with `Text` a
 
 Existing Figma pages are snapshots and do not repair themselves. Close and rerun the development plugin, delete the incomplete imported page, and import the model again.
 
+Figma renders Roblox `ImageLabel` and `ImageButton` assets as synthetic purple placeholders because it cannot fetch or republish those Roblox assets. Those placeholder fills are now excluded both when exporting new patches and when applying older patches, so they cannot become opaque backgrounds around the real in-experience icons.
+
 ## Hosted Figma file
 
 - [Roblox UI Preset Library](https://www.figma.com/design/TCKb7NWBeH1wSf6eLDARhn)

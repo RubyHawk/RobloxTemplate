@@ -262,16 +262,19 @@ function collectPatch(nodes) {
     if (path) {
       const rawLayout = node.getSharedPluginData(NAMESPACE, "layout");
       const layout = rawLayout ? JSON.parse(rawLayout) : null;
+      const className = node.getSharedPluginData(NAMESPACE, "className");
       const entry = {
         path,
-        className: node.getSharedPluginData(NAMESPACE, "className"),
+        className,
         visible: node.visible,
         opacity: node.opacity,
         x: node.x,
         y: node.y,
         width: node.width,
         height: node.height,
-        fill: solidPaint(node),
+        // Image frames use a synthetic fill to make otherwise unavailable
+        // Roblox assets visible in Figma. It is not a Roblox background edit.
+        fill: String(className).startsWith("Image") ? null : solidPaint(node),
         layout
       };
       if (String(entry.className).startsWith("Text") && "children" in node) {

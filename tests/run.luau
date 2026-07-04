@@ -603,6 +603,19 @@ expectEqual(
 	true,
 	"Figma bridge exports corner styling for TextButtons as well as non-text controls"
 )
+expectEqual(
+	string.find(figmaBridge, 'String(className).startsWith("Image") ? null : solidPaint(node)', 1, true)
+		~= nil,
+	true,
+	"Figma bridge does not export synthetic image-placeholder fills"
+)
+
+local figmaPatchApplier = fs.readFile("scripts/figma-ui-bridge.mjs")
+expectEqual(
+	string.find(figmaPatchApplier, '!String(node.ClassName).startsWith("Image")', 1, true) ~= nil,
+	true,
+	"Figma patch applier rejects image-placeholder fills from older patches"
+)
 
 -- StoreScreen's header was 60 tall while its own Body label already
 -- reserved 92px (Title + wrapped 2-line Body); found via mechanical

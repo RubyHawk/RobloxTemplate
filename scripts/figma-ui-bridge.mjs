@@ -80,7 +80,11 @@ function applyEntry(node, entry) {
   }
 
   if (typeof entry.visible === "boolean") props.Visible = entry.visible;
-  if (entry.fill?.color && !String(node.ClassName).startsWith("Text")) {
+  if (
+    entry.fill?.color
+    && !String(node.ClassName).startsWith("Text")
+    && !String(node.ClassName).startsWith("Image")
+  ) {
     props.BackgroundColor3 = entry.fill.color.map(Number);
     props.BackgroundTransparency = 1 - Number(entry.fill.opacity ?? 1);
   }
