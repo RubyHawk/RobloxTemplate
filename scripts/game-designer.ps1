@@ -67,9 +67,9 @@ $root = Split-Path -Parent $PSScriptRoot
         </StackPanel>
       </Border>
 
-      <Button Name="Build" Content="BUILD AND OPEN SHARED SANDBOX" Height="58" Margin="0,20,0,0" Background="#2563EB" Foreground="White" FontSize="17" FontWeight="Bold"/>
+      <Button Name="Build" Content="BUILD AND OPEN SHARED SANDBOX" Height="58" Margin="0,20,0,0" Style="{DynamicResource PrimaryButton}" FontSize="17" HorizontalContentAlignment="Center"/>
       <TextBlock Text="The same private Roblox sandbox is reused. Each preset has isolated real saved data." Foreground="#FBBF24" Margin="0,8,0,0" TextWrapping="Wrap"/>
-      <Button Name="Package" Content="BUILD DRAG-AND-DROP UI PACKAGE" Height="46" Margin="0,9,0,0" Background="#18233B" Foreground="White" FontWeight="Bold"/>
+      <Button Name="Package" Content="BUILD DRAG-AND-DROP UI PACKAGE" Height="46" Margin="0,9,0,0" Style="{DynamicResource SecondaryButton}" FontSize="14" HorizontalContentAlignment="Center"/>
       <TextBlock Name="Status" Text="Nothing has been generated yet." Foreground="#93A4C0" Margin="0,12,0,20" TextWrapping="Wrap"/>
     </StackPanel>
   </ScrollViewer>
@@ -78,6 +78,32 @@ $root = Split-Path -Parent $PSScriptRoot
 
 $reader = New-Object System.Xml.XmlNodeReader $xaml
 $window = [System.Windows.Markup.XamlReader]::Load($reader)
+
+$themePath = Join-Path $PSScriptRoot "app-theme.xaml"
+if (Test-Path -LiteralPath $themePath -PathType Leaf) {
+    $themeStream = [System.IO.File]::OpenRead($themePath)
+    try {
+        $window.Resources.MergedDictionaries.Add([System.Windows.Markup.XamlReader]::Load($themeStream))
+    }
+    finally {
+        $themeStream.Dispose()
+    }
+}
+
+try {
+    Add-Type -Namespace RobloxTemplateApp -Name NativeMethods -MemberDefinition '[DllImport("dwmapi.dll")] public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);' -ErrorAction Stop
+    $window.Add_SourceInitialized({
+        try {
+            $helper = New-Object System.Windows.Interop.WindowInteropHelper($window)
+            $enabled = 1
+            [void][RobloxTemplateApp.NativeMethods]::DwmSetWindowAttribute($helper.Handle, 20, [ref]$enabled, 4)
+            [void][RobloxTemplateApp.NativeMethods]::DwmSetWindowAttribute($helper.Handle, 19, [ref]$enabled, 4)
+        }
+        catch { }
+    })
+}
+catch { }
+
 function Control([string]$Name) { return $window.FindName($Name) }
 $designerScroll = $window.FindName("DesignerScroll")
 $window.Add_ContentRendered({ $designerScroll.ScrollToTop() })

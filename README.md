@@ -5,7 +5,7 @@ You do not need to understand Git, Rojo, Wally, or the notification worker to op
 ## Open the project
 
 1. Double-click **`START_HERE.cmd`**.
-2. Everything runs from that one window: pick a game recipe and open the shared test experience, apply a Figma design, open the template workbench, or design a game preset.
+2. Everything runs from that one app window. The sidebar has three pages: **Play and test** (open the shared test experience or template workbench), **Figma design** (apply an exported design), and **Build and tools** (checks, setup, UI packages, icons). Housekeeping tasks show their progress in the activity panel inside the app; only live Studio/Rojo sessions open their own window.
 3. Keep the black window open when Roblox Studio starts.
 4. In Studio, select **Plugins → Rojo → Connect**.
 5. Edit UI objects under **StarterGui**, press **Ctrl+S**, then press **Play**.

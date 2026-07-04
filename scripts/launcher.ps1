@@ -11,8 +11,9 @@ Add-Type -AssemblyName PresentationCore
 
 $root = Split-Path -Parent $PSScriptRoot
 $logDirectory = Join-Path $root "build"
+$taskLogDirectory = Join-Path $logDirectory "app-tasks"
 $logFile = Join-Path $logDirectory "launcher.log"
-New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
+New-Item -ItemType Directory -Path $logDirectory, $taskLogDirectory -Force | Out-Null
 
 function Write-LauncherLog([string]$Message) {
     $line = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  $Message"
@@ -105,174 +106,203 @@ function Get-PresetDisplayName([string]$FolderName) {
     return (Get-Culture).TextInfo.ToTitleCase(($FolderName -replace '[-_]+', ' '))
 }
 
+$script:darkTitleBarReady = $false
+try {
+    Add-Type -Namespace RobloxTemplateApp -Name NativeMethods -MemberDefinition '[DllImport("dwmapi.dll")] public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);' -ErrorAction Stop
+    $script:darkTitleBarReady = $true
+}
+catch {
+    Write-LauncherLog "Dark title bar helper unavailable: $($_.Exception.Message)"
+}
+
 [xml]$xaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Roblox Template App" Width="760" Height="880"
-        WindowStartupLocation="CenterScreen" MinWidth="700" MinHeight="620"
+        Title="Roblox Template" Width="1010" Height="720"
+        WindowStartupLocation="CenterScreen" MinWidth="940" MinHeight="620"
         Background="#0B1020" FontFamily="Segoe UI">
-    <Window.Resources>
-        <Style x:Key="BaseButton" TargetType="Button">
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="20,14"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="ButtonBorder" CornerRadius="12"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.86"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.70"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.45"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
-            <Setter Property="Background" Value="#2563EB"/>
-            <Setter Property="BorderBrush" Value="#60A5FA"/>
-        </Style>
-        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
-            <Setter Property="Background" Value="#18233B"/>
-            <Setter Property="BorderBrush" Value="#334A70"/>
-        </Style>
-        <Style x:Key="SmallButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
-            <Setter Property="Background" Value="#111A2E"/>
-            <Setter Property="BorderBrush" Value="#2A3A5A"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Padding" Value="16,11"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-        </Style>
-    </Window.Resources>
-
     <DockPanel>
-        <Border DockPanel.Dock="Bottom" Background="#111A2E" BorderBrush="#263654" BorderThickness="0,1,0,0" Padding="22,10">
-            <TextBlock x:Name="ActionStatus" Foreground="#C9D7EE" FontSize="13" TextWrapping="Wrap"
-                       Text="Ready. Every task starts pre-filled from this window."/>
+        <Border DockPanel.Dock="Left" Width="230" Background="#070C19" BorderBrush="#1C2A47" BorderThickness="0,0,1,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="22,26,22,8">
+                    <TextBlock Text="ROBLOX TEMPLATE" Foreground="#60A5FA" FontSize="12" FontWeight="Bold"/>
+                    <TextBlock Text="Control Center" Foreground="White" FontSize="21" FontWeight="Bold" Margin="0,4,0,0"/>
+                </StackPanel>
+                <TextBlock x:Name="SidebarInfo" DockPanel.Dock="Bottom" Margin="22,0,22,18"
+                           Foreground="#5E6F92" FontSize="11" TextWrapping="Wrap"/>
+                <StackPanel Margin="12,16,12,0">
+                    <Button x:Name="PlayNavButton" Style="{DynamicResource NavButton}" Content="Play and test" Margin="0,0,0,4"/>
+                    <Button x:Name="FigmaNavButton" Style="{DynamicResource NavButton}" Content="Figma design" Margin="0,0,0,4"/>
+                    <Button x:Name="ToolsNavButton" Style="{DynamicResource NavButton}" Content="Build and tools"/>
+                </StackPanel>
+            </DockPanel>
         </Border>
+
+        <Border DockPanel.Dock="Bottom" Background="#0A1122" BorderBrush="#1C2A47" BorderThickness="0,1,0,0" Padding="18,10">
+            <DockPanel>
+                <Button x:Name="OutputToggle" DockPanel.Dock="Right" Style="{DynamicResource SmallButton}" Content="Show activity" Margin="8,0,0,0"/>
+                <Button x:Name="StopTaskButton" DockPanel.Dock="Right" Style="{DynamicResource SmallButton}" Content="Stop" Visibility="Collapsed" Margin="8,0,0,0"/>
+                <TextBlock x:Name="ActivityStatus" Foreground="#C9D7EE" FontSize="13" VerticalAlignment="Center"
+                           TextWrapping="Wrap" Text="Ready."/>
+            </DockPanel>
+        </Border>
+
+        <Border x:Name="OutputPanel" DockPanel.Dock="Bottom" Height="216" Background="#080D1A"
+                BorderBrush="#1C2A47" BorderThickness="0,1,0,0" Padding="14,10" Visibility="Collapsed">
+            <TextBox x:Name="OutputBox" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                     VerticalContentAlignment="Stretch" FontFamily="Consolas" FontSize="12"
+                     Background="#080D1A" BorderBrush="#080D1A" Foreground="#C7D4EC" Padding="4,2"/>
+        </Border>
+
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="30,26,30,20">
-                <TextBlock Text="ROBLOX TEMPLATE" Foreground="#60A5FA" FontSize="13" FontWeight="Bold"/>
-                <TextBlock Text="One window for everything" Foreground="White" FontSize="30" FontWeight="Bold" Margin="0,8,0,5"/>
-                <TextBlock Text="Pick your options here and click once. No typed choices, no dragging files into console windows."
-                           Foreground="#AAB8D4" FontSize="15" TextWrapping="Wrap"/>
+            <Grid Margin="34,26,34,24">
+                <StackPanel x:Name="PlayPage">
+                    <TextBlock Text="Play and test" Foreground="White" FontSize="26" FontWeight="Bold"/>
+                    <TextBlock Text="Everything here reuses the two permanent Roblox experiences. Nothing creates a new one."
+                               Foreground="#AAB8D4" FontSize="14" Margin="0,6,0,0" TextWrapping="Wrap"/>
 
-                <Border Background="#111A2E" BorderBrush="#263654" BorderThickness="1" CornerRadius="9" Padding="13,9" Margin="0,16,0,0">
-                    <TextBlock x:Name="CurrentStatus" Foreground="#C9D7EE" FontSize="13" TextWrapping="Wrap"/>
-                </Border>
+                    <Border Background="#111A2E" BorderBrush="#334A70" BorderThickness="1" CornerRadius="12" Padding="18" Margin="0,18,0,0">
+                        <StackPanel>
+                            <TextBlock Text="SHARED TEST EXPERIENCE" FontWeight="Bold" Foreground="#93C5FD" FontSize="12"/>
+                            <TextBlock Text="Builds the selected recipe and opens the player-test experience with live saved data."
+                                       Foreground="#AAB8D4" Margin="0,5,0,10" TextWrapping="Wrap"/>
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Left" Text="Game recipe" Foreground="#8FA1BF" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <ComboBox x:Name="RecipeBox"/>
+                            </DockPanel>
+                            <Button x:Name="PlayableButton" Style="{DynamicResource PrimaryButton}" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="OPEN SHARED TEST EXPERIENCE" FontSize="16" FontWeight="Bold"/>
+                                    <TextBlock Text="Runs in its own session window with Studio and Rojo. Keep that window open while playing."
+                                               Foreground="#DCEAFF" FontSize="12" FontWeight="Normal" Margin="0,5,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Border>
 
-                <Border Background="#111A2E" BorderBrush="#334A70" BorderThickness="1" CornerRadius="12" Padding="18" Margin="0,16,0,0">
-                    <StackPanel>
-                        <TextBlock Text="PLAY AND TEST" FontWeight="Bold" Foreground="#93C5FD"/>
-                        <TextBlock Text="Builds the selected recipe and opens the permanent player-test experience with live saved data."
-                                   Foreground="#AAB8D4" Margin="0,5,0,10" TextWrapping="Wrap"/>
-                        <DockPanel>
-                            <TextBlock DockPanel.Dock="Left" Text="Game recipe" Foreground="#8FA1BF" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <ComboBox x:Name="RecipeBox" Height="32" VerticalContentAlignment="Center"/>
-                        </DockPanel>
-                        <Button x:Name="PlayableButton" Style="{StaticResource PrimaryButton}" Margin="0,12,0,0">
+                    <Grid Margin="0,14,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="TemplateButton" Grid.Column="0" Style="{DynamicResource SecondaryButton}">
                             <StackPanel>
-                                <TextBlock Text="OPEN SHARED TEST EXPERIENCE" FontSize="17" FontWeight="Bold"/>
-                                <TextBlock Text="One console window handles setup, build, Studio, and Rojo. Keep it open while playing."
-                                           Foreground="#DCEAFF" FontSize="13" FontWeight="Normal" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                                <TextBlock Text="TEMPLATE WORKBENCH" FontSize="15" FontWeight="Bold"/>
+                                <TextBlock Text="Author UI on mock data in its own session window."
+                                           Foreground="#B9C7DE" FontSize="12" FontWeight="Normal" Margin="0,5,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Button>
-                    </StackPanel>
-                </Border>
-
-                <Border Background="#111A2E" BorderBrush="#334A70" BorderThickness="1" CornerRadius="12" Padding="18" Margin="0,14,0,0">
-                    <StackPanel>
-                        <TextBlock Text="APPLY A FIGMA DESIGN" FontWeight="Bold" Foreground="#93C5FD"/>
-                        <TextBlock Text="Uses the patch exported by the Roblox UI Bridge plugin, updates one UI pack, and rebuilds its playable files."
-                                   Foreground="#AAB8D4" Margin="0,5,0,10" TextWrapping="Wrap"/>
-                        <DockPanel>
-                            <TextBlock DockPanel.Dock="Left" Text="UI pack" Foreground="#8FA1BF" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <ComboBox x:Name="FigmaPresetBox" Height="32" VerticalContentAlignment="Center"/>
-                        </DockPanel>
-                        <Grid Margin="0,10,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="8"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="8"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBox x:Name="PatchBox" Height="36" VerticalContentAlignment="Center"
-                                     Background="#0B1224" Foreground="White" BorderBrush="#334A70" Padding="8,0"/>
-                            <Button x:Name="RescanButton" Grid.Column="2" Style="{StaticResource SmallButton}" Content="Newest export"/>
-                            <Button x:Name="BrowseButton" Grid.Column="4" Style="{StaticResource SmallButton}" Content="Browse..."/>
-                        </Grid>
-                        <TextBlock x:Name="PatchHint" Foreground="#8FA1BF" FontSize="12" Margin="0,7,0,0" TextWrapping="Wrap"/>
-                        <Button x:Name="ApplyFigmaButton" Style="{StaticResource PrimaryButton}" Margin="0,12,0,0">
+                        <Button x:Name="DesignerButton" Grid.Column="2" Style="{DynamicResource SecondaryButton}">
                             <StackPanel>
-                                <TextBlock Text="APPLY FIGMA DESIGN" FontSize="17" FontWeight="Bold"/>
-                                <TextBlock Text="Validates every layer path, updates only the selected pack, then rebuilds it."
-                                           Foreground="#DCEAFF" FontSize="13" FontWeight="Normal" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                                <TextBlock Text="GAME DESIGNER" FontSize="15" FontWeight="Bold"/>
+                                <TextBlock Text="Pick a UI pack, currencies, and systems in a form."
+                                           Foreground="#B9C7DE" FontSize="12" FontWeight="Normal" Margin="0,5,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Button>
-                    </StackPanel>
-                </Border>
+                    </Grid>
+                </StackPanel>
 
-                <Grid Margin="0,14,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="12"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Button x:Name="TemplateButton" Grid.Column="0" Style="{StaticResource SecondaryButton}">
+                <StackPanel x:Name="FigmaPage" Visibility="Collapsed">
+                    <TextBlock Text="Figma design" Foreground="White" FontSize="26" FontWeight="Bold"/>
+                    <TextBlock Text="Edit a UI pack visually in Figma, export a patch with the Roblox UI Bridge plugin, then apply it here."
+                               Foreground="#AAB8D4" FontSize="14" Margin="0,6,0,0" TextWrapping="Wrap"/>
+
+                    <Border Background="#111A2E" BorderBrush="#334A70" BorderThickness="1" CornerRadius="12" Padding="18" Margin="0,18,0,0">
                         <StackPanel>
-                            <TextBlock Text="OPEN TEMPLATE" FontSize="16" FontWeight="Bold"/>
-                            <TextBlock Text="UI authoring workbench. Mock data only."
-                                       Foreground="#B9C7DE" FontSize="12" FontWeight="Normal" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                            <TextBlock Text="APPLY AN EXPORTED DESIGN" FontWeight="Bold" Foreground="#93C5FD" FontSize="12"/>
+                            <TextBlock Text="Only the selected pack changes; every layer path and class is validated first."
+                                       Foreground="#AAB8D4" Margin="0,5,0,10" TextWrapping="Wrap"/>
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Left" Text="UI pack" Foreground="#8FA1BF" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <ComboBox x:Name="FigmaPresetBox"/>
+                            </DockPanel>
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="PatchBox" Height="36"/>
+                                <Button x:Name="RescanButton" Grid.Column="2" Style="{DynamicResource SmallButton}" Content="Newest export"/>
+                                <Button x:Name="BrowseButton" Grid.Column="4" Style="{DynamicResource SmallButton}" Content="Browse..."/>
+                            </Grid>
+                            <TextBlock x:Name="PatchHint" Foreground="#8FA1BF" FontSize="12" Margin="0,7,0,0" TextWrapping="Wrap"/>
+                            <Button x:Name="ApplyFigmaButton" Style="{DynamicResource PrimaryButton}" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="APPLY FIGMA DESIGN" FontSize="16" FontWeight="Bold"/>
+                                    <TextBlock Text="Updates the pack and rebuilds its playable files right here, with progress in the activity panel."
+                                               Foreground="#DCEAFF" FontSize="12" FontWeight="Normal" Margin="0,5,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
-                    </Button>
-                    <Button x:Name="DesignerButton" Grid.Column="2" Style="{StaticResource SecondaryButton}">
+                    </Border>
+
+                    <Border Background="#0E1626" BorderBrush="#263654" BorderThickness="1" CornerRadius="12" Padding="18" Margin="0,14,0,0">
                         <StackPanel>
-                            <TextBlock Text="GAME DESIGNER" FontSize="16" FontWeight="Bold"/>
-                            <TextBlock Text="Pick a UI pack, currencies, and systems in a form."
-                                       Foreground="#B9C7DE" FontSize="12" FontWeight="Normal" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                            <TextBlock Text="HOW THE ROUND TRIP WORKS" FontWeight="Bold" Foreground="#7E93BC" FontSize="12"/>
+                            <TextBlock Foreground="#8FA1BF" FontSize="13" Margin="0,8,0,0" TextWrapping="Wrap"
+                                       Text="1.  In Figma, run the Roblox UI Bridge plugin and import a pack's model files."/>
+                            <TextBlock Foreground="#8FA1BF" FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
+                                       Text="2.  Edit layers freely, then click 'Export selected Roblox patch'."/>
+                            <TextBlock Foreground="#8FA1BF" FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
+                                       Text="3.  Come back here - the newest export is already selected. One-time plugin setup is described in docs/FIGMA_UI.md."/>
                         </StackPanel>
-                    </Button>
-                </Grid>
+                    </Border>
+                </StackPanel>
 
-                <Grid Margin="0,14,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="12"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition/>
-                        <RowDefinition Height="10"/>
-                        <RowDefinition/>
-                    </Grid.RowDefinitions>
-                    <Button x:Name="SetupButton" Grid.Row="0" Grid.Column="0" Style="{StaticResource SmallButton}" Content="Repair / install setup"/>
-                    <Button x:Name="CheckButton" Grid.Row="0" Grid.Column="2" Style="{StaticResource SmallButton}" Content="Run project checks"/>
-                    <Button x:Name="UiPackButton" Grid.Row="2" Grid.Column="0" Style="{StaticResource SmallButton}" Content="Build drag-and-drop UI package"/>
-                    <Button x:Name="IconsButton" Grid.Row="2" Grid.Column="2" Style="{StaticResource SmallButton}" Content="Icon library manager"/>
-                </Grid>
+                <StackPanel x:Name="ToolsPage" Visibility="Collapsed">
+                    <TextBlock Text="Build and tools" Foreground="White" FontSize="26" FontWeight="Bold"/>
+                    <TextBlock Text="Housekeeping tasks run inside this window; watch them in the activity panel below."
+                               Foreground="#AAB8D4" FontSize="14" Margin="0,6,0,0" TextWrapping="Wrap"/>
 
-                <TextBlock Text="Two permanent cloud experiences are reused; each preset keeps separate saved data and visual files."
-                           Foreground="#7384A3" FontSize="12" TextAlignment="Center" Margin="0,16,0,0" TextWrapping="Wrap"/>
-            </StackPanel>
+                    <Border Background="#111A2E" BorderBrush="#334A70" BorderThickness="1" CornerRadius="12" Padding="18" Margin="0,18,0,0">
+                        <StackPanel>
+                            <TextBlock Text="PROJECT HEALTH" FontWeight="Bold" Foreground="#93C5FD" FontSize="12"/>
+                            <TextBlock Text="Verifies tools, formatting, linting, builds, and tests, then explains any problem in plain language."
+                                       Foreground="#AAB8D4" Margin="0,5,0,10" TextWrapping="Wrap"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="RunChecksButton" Grid.Column="0" Style="{DynamicResource SmallButton}" Content="Run full project checks"/>
+                                <Button x:Name="RepairSetupButton" Grid.Column="2" Style="{DynamicResource SmallButton}" Content="Repair / install setup"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#111A2E" BorderBrush="#334A70" BorderThickness="1" CornerRadius="12" Padding="18" Margin="0,14,0,0">
+                        <StackPanel>
+                            <TextBlock Text="UI PACKAGES" FontWeight="Bold" Foreground="#93C5FD" FontSize="12"/>
+                            <TextBlock Text="Builds the independent drag-and-drop .rbxm packages for every UI pack."
+                                       Foreground="#AAB8D4" Margin="0,5,0,10" TextWrapping="Wrap"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="BuildPackButton" Grid.Column="0" Style="{DynamicResource SmallButton}" Content="Build UI packages"/>
+                                <Button x:Name="OpenExportsButton" Grid.Column="2" Style="{DynamicResource SmallButton}" Content="Open exports folder"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#111A2E" BorderBrush="#334A70" BorderThickness="1" CornerRadius="12" Padding="18" Margin="0,14,0,0">
+                        <StackPanel>
+                            <TextBlock Text="SHARED ICON LIBRARY" FontWeight="Bold" Foreground="#93C5FD" FontSize="12"/>
+                            <TextBlock Text="Swap or disable shared UI icons and record their Roblox image mapping. Opens in its own window."
+                                       Foreground="#AAB8D4" Margin="0,5,0,10" TextWrapping="Wrap"/>
+                            <Button x:Name="IconsButton" Style="{DynamicResource SmallButton}" Content="Open icon library manager" HorizontalAlignment="Left" MinWidth="260"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
         </ScrollViewer>
     </DockPanel>
 </Window>
@@ -280,6 +310,30 @@ function Get-PresetDisplayName([string]$FolderName) {
 
 $reader = New-Object System.Xml.XmlNodeReader $xaml
 $window = [System.Windows.Markup.XamlReader]::Load($reader)
+
+$themePath = Join-Path $PSScriptRoot "app-theme.xaml"
+if (-not (Test-Path -LiteralPath $themePath -PathType Leaf)) {
+    throw "The shared app theme is missing: $themePath"
+}
+$themeStream = [System.IO.File]::OpenRead($themePath)
+try {
+    $window.Resources.MergedDictionaries.Add([System.Windows.Markup.XamlReader]::Load($themeStream))
+}
+finally {
+    $themeStream.Dispose()
+}
+
+if ($script:darkTitleBarReady) {
+    $window.Add_SourceInitialized({
+        try {
+            $helper = New-Object System.Windows.Interop.WindowInteropHelper($window)
+            $enabled = 1
+            [void][RobloxTemplateApp.NativeMethods]::DwmSetWindowAttribute($helper.Handle, 20, [ref]$enabled, 4)
+            [void][RobloxTemplateApp.NativeMethods]::DwmSetWindowAttribute($helper.Handle, 19, [ref]$enabled, 4)
+        }
+        catch { }
+    })
+}
 
 function Find-Control([string]$Name) {
     $control = $window.FindName($Name)
@@ -289,31 +343,201 @@ function Find-Control([string]$Name) {
     return $control
 }
 
-$currentStatus = Find-Control "CurrentStatus"
-$actionStatus = Find-Control "ActionStatus"
+$sidebarInfo = Find-Control "SidebarInfo"
+$playNavButton = Find-Control "PlayNavButton"
+$figmaNavButton = Find-Control "FigmaNavButton"
+$toolsNavButton = Find-Control "ToolsNavButton"
+$playPage = Find-Control "PlayPage"
+$figmaPage = Find-Control "FigmaPage"
+$toolsPage = Find-Control "ToolsPage"
 $recipeBox = Find-Control "RecipeBox"
 $playableButton = Find-Control "PlayableButton"
+$templateButton = Find-Control "TemplateButton"
+$designerButton = Find-Control "DesignerButton"
 $figmaPresetBox = Find-Control "FigmaPresetBox"
 $patchBox = Find-Control "PatchBox"
 $patchHint = Find-Control "PatchHint"
 $rescanButton = Find-Control "RescanButton"
 $browseButton = Find-Control "BrowseButton"
 $applyFigmaButton = Find-Control "ApplyFigmaButton"
-$templateButton = Find-Control "TemplateButton"
-$designerButton = Find-Control "DesignerButton"
-$setupButton = Find-Control "SetupButton"
-$checkButton = Find-Control "CheckButton"
-$uiPackButton = Find-Control "UiPackButton"
+$runChecksButton = Find-Control "RunChecksButton"
+$repairSetupButton = Find-Control "RepairSetupButton"
+$buildPackButton = Find-Control "BuildPackButton"
+$openExportsButton = Find-Control "OpenExportsButton"
 $iconsButton = Find-Control "IconsButton"
+$activityStatus = Find-Control "ActivityStatus"
+$stopTaskButton = Find-Control "StopTaskButton"
+$outputToggle = Find-Control "OutputToggle"
+$outputPanel = Find-Control "OutputPanel"
+$outputBox = Find-Control "OutputBox"
 
-function Set-ActionStatus([string]$Message) {
-    $actionStatus.Text = $Message
-}
+$brushConverter = New-Object System.Windows.Media.BrushConverter
+$navSelectedBrush = $brushConverter.ConvertFromString("#1B2942")
+$navIdleForeground = $brushConverter.ConvertFromString("#C9D7EE")
+$statusNeutralBrush = $brushConverter.ConvertFromString("#C9D7EE")
+$statusSuccessBrush = $brushConverter.ConvertFromString("#34D399")
+$statusErrorBrush = $brushConverter.ConvertFromString("#F87171")
 
-$currentStatus.Text = "Project: $(Get-CurrentProject)  |  Git branch: $(Get-CurrentBranch)"
+$sidebarInfo.Text = "$(Get-CurrentProject)`nBranch: $(Get-CurrentBranch)"
 Write-LauncherLog "Launcher opened on $(Get-CurrentBranch) | $(Get-CurrentProject)."
 
-# Game recipes for the shared player-test sandbox.
+function Set-ActionStatus([string]$Message) {
+    $activityStatus.Foreground = $statusNeutralBrush
+    $activityStatus.Text = $Message
+}
+
+function Show-OutputPanel([bool]$Show) {
+    if ($Show) {
+        $outputPanel.Visibility = "Visible"
+        $outputToggle.Content = "Hide activity"
+    }
+    else {
+        $outputPanel.Visibility = "Collapsed"
+        $outputToggle.Content = "Show activity"
+    }
+}
+
+function Select-Page([string]$PageName) {
+    $pages = @{ Play = $playPage; Figma = $figmaPage; Tools = $toolsPage }
+    $buttons = @{ Play = $playNavButton; Figma = $figmaNavButton; Tools = $toolsNavButton }
+    foreach ($key in @("Play", "Figma", "Tools")) {
+        if ($key -eq $PageName) {
+            $pages[$key].Visibility = "Visible"
+            $buttons[$key].Background = $navSelectedBrush
+            $buttons[$key].Foreground = [System.Windows.Media.Brushes]::White
+        }
+        else {
+            $pages[$key].Visibility = "Collapsed"
+            $buttons[$key].Background = [System.Windows.Media.Brushes]::Transparent
+            $buttons[$key].Foreground = $navIdleForeground
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------
+# In-app task runner: short scripts run hidden with their output streamed
+# into the activity panel. Long-running Studio/Rojo sessions stay in their
+# own console windows because they must survive independently of this app.
+# ---------------------------------------------------------------------------
+
+$script:activeTask = $null
+$taskButtons = @($applyFigmaButton, $runChecksButton, $repairSetupButton, $buildPackButton)
+
+function Read-TaskFileTail([string]$Path, [long]$Position) {
+    $result = @{ Text = ""; Position = $Position }
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return $result
+    }
+    $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+    try {
+        if ($stream.Length -gt $Position) {
+            [void]$stream.Seek($Position, [System.IO.SeekOrigin]::Begin)
+            $buffer = New-Object byte[] ([int]($stream.Length - $Position))
+            $bytesRead = $stream.Read($buffer, 0, $buffer.Length)
+            $result.Text = [System.Text.Encoding]::Default.GetString($buffer, 0, $bytesRead)
+            $result.Position = $Position + $bytesRead
+        }
+    }
+    finally {
+        $stream.Dispose()
+    }
+    return $result
+}
+
+function Complete-ActiveTask {
+    $task = $script:activeTask
+    $taskTimer.Stop()
+    $exitCode = -1
+    try { $exitCode = $task.Process.ExitCode } catch { }
+    if ($exitCode -eq 0) {
+        $activityStatus.Foreground = $statusSuccessBrush
+        $activityStatus.Text = "$($task.Name) finished successfully."
+        $outputBox.AppendText("`r`n[done] $($task.Name) finished successfully.`r`n")
+    }
+    else {
+        $activityStatus.Foreground = $statusErrorBrush
+        $activityStatus.Text = "$($task.Name) failed (exit code $exitCode). Read the activity output for the reason."
+        $outputBox.AppendText("`r`n[failed] Exit code $exitCode.`r`n")
+        Show-OutputPanel $true
+    }
+    $outputBox.ScrollToEnd()
+    $stopTaskButton.Visibility = "Collapsed"
+    foreach ($button in $taskButtons) { $button.IsEnabled = $true }
+    Write-LauncherLog "Task finished: $($task.Name) exit $exitCode"
+    $script:activeTask = $null
+}
+
+function Update-ActiveTask {
+    if (-not $script:activeTask) { return }
+    $task = $script:activeTask
+    foreach ($channel in @("Out", "Err")) {
+        $read = Read-TaskFileTail $task."$($channel)File" $task."$($channel)Position"
+        $task."$($channel)Position" = $read.Position
+        if ($read.Text) {
+            $outputBox.AppendText($read.Text)
+            $outputBox.ScrollToEnd()
+        }
+    }
+    if ($task.Process.HasExited) {
+        $task.ExitTicks = $task.ExitTicks + 1
+        if ($task.ExitTicks -ge 2) {
+            Complete-ActiveTask
+        }
+    }
+}
+
+$taskTimer = New-Object System.Windows.Threading.DispatcherTimer
+$taskTimer.Interval = [TimeSpan]::FromMilliseconds(200)
+$taskTimer.Add_Tick({ Update-ActiveTask })
+
+function Start-LauncherTask([string]$Name, [string]$ScriptPath, [string[]]$ScriptArguments = @()) {
+    if ($script:activeTask) {
+        Show-LauncherMessage "Wait for '$($script:activeTask.Name)' to finish, or press Stop, before starting another task." "A task is already running" ([System.Windows.MessageBoxImage]::Warning)
+        return
+    }
+    $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+    $safeName = ($Name -replace '[^A-Za-z0-9]+', '-').Trim('-').ToLowerInvariant()
+    $outFile = Join-Path $taskLogDirectory "$stamp-$safeName.out.log"
+    $errFile = Join-Path $taskLogDirectory "$stamp-$safeName.err.log"
+    $arguments = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $ScriptPath) + $ScriptArguments
+    $process = Start-Process -FilePath "powershell.exe" -ArgumentList $arguments -WorkingDirectory $root -WindowStyle Hidden `
+        -RedirectStandardOutput $outFile -RedirectStandardError $errFile -PassThru
+    $script:activeTask = @{
+        Name = $Name
+        Process = $process
+        OutFile = $outFile
+        ErrFile = $errFile
+        OutPosition = [long]0
+        ErrPosition = [long]0
+        ExitTicks = 0
+    }
+    $outputBox.Clear()
+    $outputBox.AppendText("> $Name`r`n`r`n")
+    Show-OutputPanel $true
+    $activityStatus.Foreground = $statusNeutralBrush
+    $activityStatus.Text = "Running: $Name ..."
+    $stopTaskButton.Visibility = "Visible"
+    foreach ($button in $taskButtons) { $button.IsEnabled = $false }
+    $taskTimer.Start()
+    Write-LauncherLog "Task started: $Name -> $ScriptPath $($ScriptArguments -join ' ')"
+}
+
+$stopTaskButton.Add_Click({
+    if (-not $script:activeTask) { return }
+    try {
+        Start-Process -FilePath "taskkill.exe" -ArgumentList @("/PID", "$($script:activeTask.Process.Id)", "/T", "/F") -WindowStyle Hidden
+        Set-ActionStatus "Stopping $($script:activeTask.Name) ..."
+        Write-LauncherLog "Task stop requested: $($script:activeTask.Name)"
+    }
+    catch {
+        Write-LauncherLog "Task stop failed: $($_.Exception.Message)"
+    }
+})
+
+$outputToggle.Add_Click({ Show-OutputPanel ($outputPanel.Visibility -ne "Visible") })
+
+# --- Play page -------------------------------------------------------------
+
 $recipePresets = @{}
 $recipeFiles = @(Get-ChildItem -LiteralPath (Join-Path $root "config-presets") -Filter "*.json" -File -ErrorAction SilentlyContinue | Sort-Object Name)
 foreach ($recipeFile in $recipeFiles) {
@@ -359,7 +583,40 @@ else {
     Set-ActionStatus "No recipes exist under config-presets, so the shared test experience is unavailable."
 }
 
-# Complete UI packs that the Figma bridge can update.
+$playableButton.Add_Click({
+    try {
+        $selectedRecipe = $recipeBox.SelectedItem
+        if (-not $selectedRecipe) {
+            Show-LauncherMessage "Add a recipe file under config-presets first." "No recipe selected" ([System.Windows.MessageBoxImage]::Warning)
+            return
+        }
+        Start-CommandWindow "SANDBOX.cmd" @("-RecipePath", [string]$selectedRecipe.Tag)
+        Set-ActionStatus "Opening the shared test experience with the '$([string]$selectedRecipe.Content)' recipe. Keep its session window open while playing."
+    }
+    catch {
+        Write-LauncherLog "Shared sandbox failed: $($_.Exception.ToString())"
+        Show-LauncherMessage "The launcher hit an unexpected error. Nothing was deleted.`n`nDetails were saved to build\launcher.log." "Could not open shared sandbox" ([System.Windows.MessageBoxImage]::Error)
+    }
+})
+
+$templateButton.Add_Click({
+    try {
+        Start-CommandWindow "2_START.cmd"
+        Set-ActionStatus "Opening the template workbench. Keep its session window open while editing."
+    }
+    catch {
+        Write-LauncherLog "Template failed: $($_.Exception.ToString())"
+        Show-LauncherMessage "The launcher hit an unexpected error. Nothing was deleted.`n`nDetails were saved to build\launcher.log." "Could not open template" ([System.Windows.MessageBoxImage]::Error)
+    }
+})
+
+$designerButton.Add_Click({
+    Start-CommandWindow "5_GAME_DESIGNER.cmd"
+    Set-ActionStatus "Opening the Game Designer window."
+})
+
+# --- Figma page ------------------------------------------------------------
+
 $requiredModels = @("TemplateUI.model.json", "TemplateLoading.model.json", "StarterSignUI.model.json")
 $presetRoot = Join-Path $root "src\ui\presets"
 $presetFolders = @()
@@ -413,22 +670,6 @@ Update-FigmaPackFromRecipe
 Update-PatchSelection
 
 $recipeBox.Add_SelectionChanged({ Update-FigmaPackFromRecipe })
-
-$playableButton.Add_Click({
-    try {
-        $selectedRecipe = $recipeBox.SelectedItem
-        if (-not $selectedRecipe) {
-            Show-LauncherMessage "Add a recipe file under config-presets first." "No recipe selected" ([System.Windows.MessageBoxImage]::Warning)
-            return
-        }
-        Start-CommandWindow "SANDBOX.cmd" @("-RecipePath", [string]$selectedRecipe.Tag)
-        Set-ActionStatus "Opening the shared test experience with the '$([string]$selectedRecipe.Content)' recipe. Keep its console window open while playing."
-    }
-    catch {
-        Write-LauncherLog "Shared sandbox failed: $($_.Exception.ToString())"
-        Show-LauncherMessage "The launcher hit an unexpected error. Nothing was deleted.`n`nDetails were saved to build\launcher.log." "Could not open shared sandbox" ([System.Windows.MessageBoxImage]::Error)
-    }
-})
 
 $rescanButton.Add_Click({
     Update-PatchSelection
@@ -485,8 +726,7 @@ $applyFigmaButton.Add_Click({
             Show-LauncherMessage "This file is not a Roblox UI Bridge export. Use the patch downloaded by the Figma plugin." "Unsupported patch" ([System.Windows.MessageBoxImage]::Warning)
             return
         }
-        Start-CommandWindow "FIGMA_UI.cmd" @("-Preset", [string]$selectedPack.Tag, "-PatchPath", $patchPath)
-        Set-ActionStatus "Applying the Figma design to the '$([string]$selectedPack.Content)' pack. Its console window rebuilds the playable files and then says Done."
+        Start-LauncherTask "Apply Figma design to $([string]$selectedPack.Content)" (Join-Path $root "scripts\figma-ui.ps1") @("-Preset", [string]$selectedPack.Tag, "-PatchPath", $patchPath)
     }
     catch {
         Write-LauncherLog "Figma apply failed: $($_.Exception.ToString())"
@@ -494,41 +734,37 @@ $applyFigmaButton.Add_Click({
     }
 })
 
-$templateButton.Add_Click({
-    try {
-        Start-CommandWindow "2_START.cmd"
-        Set-ActionStatus "Opening the template workbench. Keep its console window open while editing."
-    }
-    catch {
-        Write-LauncherLog "Template failed: $($_.Exception.ToString())"
-        Show-LauncherMessage "The launcher hit an unexpected error. Nothing was deleted.`n`nDetails were saved to build\launcher.log." "Could not open template" ([System.Windows.MessageBoxImage]::Error)
-    }
+# --- Tools page ------------------------------------------------------------
+
+$runChecksButton.Add_Click({
+    Start-LauncherTask "Project checks" (Join-Path $root "scripts\doctor.ps1") @("-Full")
 })
 
-$designerButton.Add_Click({
-    Start-CommandWindow "5_GAME_DESIGNER.cmd"
-    Set-ActionStatus "Opening the Game Designer window."
+$repairSetupButton.Add_Click({
+    Start-LauncherTask "Repair / install setup" (Join-Path $root "scripts\setup.ps1")
 })
 
-$setupButton.Add_Click({
-    Start-CommandWindow "1_SETUP.cmd"
-    Set-ActionStatus "Running setup in its own console window."
+$buildPackButton.Add_Click({
+    Start-LauncherTask "Build UI packages" (Join-Path $root "scripts\build-ui-pack.ps1")
 })
 
-$checkButton.Add_Click({
-    Start-CommandWindow "3_CHECK.cmd"
-    Set-ActionStatus "Running the project checks in their own console window."
-})
-
-$uiPackButton.Add_Click({
-    Start-CommandWindow "4_BUILD_UI_PACK.cmd"
-    Set-ActionStatus "Building the drag-and-drop UI package in its own console window."
+$openExportsButton.Add_Click({
+    $exportsFolder = Join-Path $root "exports"
+    New-Item -ItemType Directory -Path $exportsFolder -Force | Out-Null
+    Start-Process -FilePath "explorer.exe" -ArgumentList $exportsFolder
 })
 
 $iconsButton.Add_Click({
     Start-CommandWindow "ICON_LIBRARY.cmd"
-    Set-ActionStatus "Opening the shared icon library manager."
+    Set-ActionStatus "Opening the shared icon library manager in its own window."
 })
+
+# --- Navigation ------------------------------------------------------------
+
+$playNavButton.Add_Click({ Select-Page "Play" })
+$figmaNavButton.Add_Click({ Select-Page "Figma" })
+$toolsNavButton.Add_Click({ Select-Page "Tools" })
+Select-Page "Play"
 
 if ($SmokeTest) {
     $newestPatchName = "none"

@@ -40,6 +40,8 @@ Applying a patch previously required a console round trip: run `FIGMA_UI.cmd`, t
 
 The `.cmd` files forward parameters with `%*` and stay fully usable standalone; `figma-ui.ps1` also offers the newest Downloads export and re-prompts on an invalid preset choice instead of silently applying to the first pack. Validation still happens in `figma-ui.ps1`/`figma-ui-bridge.mjs`, which reject unknown paths and class mismatches before writing; the launcher check is a convenience, not the safety boundary.
 
+Later the same day the launcher became an app shell: sidebar navigation (Play and test, Figma design, Build and tools), a shared WPF resource dictionary (`scripts/app-theme.xaml`) that restyles ComboBox, TextBox, CheckBox, and ScrollBar so no stock light controls sit on the dark background, and an in-app task runner. Non-interactive scripts (`figma-ui.ps1` with parameters, `doctor.ps1 -Full`, `setup.ps1`, `build-ui-pack.ps1`) run hidden with stdout/stderr redirected to `build/app-tasks/*.log` and streamed into the activity panel by a 200 ms `DispatcherTimer`; a Stop button kills the task tree via `taskkill /T`. Long-running Rojo/Studio sessions (`SANDBOX.cmd`, `2_START.cmd`) and the interactive icon console stay in their own windows on purpose, because they must outlive the app and accept input. The Game Designer window merges the same theme, so both GUIs read as one product. The title bars use the DWM immersive dark attribute where available and degrade silently elsewhere.
+
 ## Hosted Figma file
 
 - [Roblox UI Preset Library](https://www.figma.com/design/TCKb7NWBeH1wSf6eLDARhn)

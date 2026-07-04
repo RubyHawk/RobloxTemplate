@@ -1,6 +1,6 @@
 @echo off
 cd /d "%~dp0"
-title Roblox Template Launcher
+title Roblox Template App
 powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -File "%~dp0scripts\launcher.ps1"
 if not "%ERRORLEVEL%"=="0" (
   echo.
