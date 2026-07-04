@@ -268,6 +268,18 @@ expectEqual(
 	"mock mode no longer depends on running inside Studio"
 )
 
+local profileServiceSource = fs.readFile("src/server/Services/ProfileService.luau")
+expectEqual(
+	string.find(profileServiceSource, "local releasing: { [Player]: boolean }", 1, true) ~= nil,
+	true,
+	"profile releases track an in-flight owner"
+)
+expectEqual(
+	string.find(profileServiceSource, "while releasing[player] do", 1, true) ~= nil,
+	true,
+	"overlapping shutdown releases wait instead of clearing the same lock twice"
+)
+
 local leaderboardSource = fs.readFile("src/server/Services/LeaderboardService.luau")
 expectEqual(
 	string.find(leaderboardSource, 'Name = "Coins"', 1, true),

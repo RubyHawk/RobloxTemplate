@@ -49,7 +49,7 @@ try {
     $requiredToolsReady = $true
     $requiredTools = @(
         @("rokit", "1.2.0"),
-        @("rojo", "7.6.1"),
+        @("rojo", "7.7.0"),
         @("wally", "0.3.2"),
         @("selene", "0.31.0"),
         @("stylua", "2.5.2"),

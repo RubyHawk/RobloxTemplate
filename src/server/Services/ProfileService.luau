@@ -21,6 +21,7 @@ type Envelope = {
 local ProfileService = {}
 local profiles: { [Player]: PlayerProfileV1 } = {}
 local dirty: { [Player]: boolean } = {}
+local releasing: { [Player]: boolean } = {}
 local mockProfiles: { [number]: PlayerProfileV1 } = {}
 local changedEvent = Instance.new("BindableEvent")
 local store: GlobalDataStore? = nil
@@ -216,6 +217,9 @@ function ProfileService.markDirty(player: Player, reason: string?)
 end
 
 function ProfileService.save(player: Player): boolean
+	if releasing[player] then
+		return false
+	end
 	if not dirty[player] then
 		return true
 	end
@@ -227,10 +231,20 @@ function ProfileService.save(player: Player): boolean
 end
 
 function ProfileService.release(player: Player)
+	if releasing[player] then
+		-- PlayerRemoving and BindToClose can overlap during Studio shutdown.
+		-- Wait for the owner of the release instead of issuing a second
+		-- UpdateAsync after the first call has already cleared the lock.
+		while releasing[player] do
+			task.wait()
+		end
+		return
+	end
 	local profile = profiles[player]
 	if profile == nil then
 		return
 	end
+	releasing[player] = true
 	profile.lastSeenAt = os.time()
 	profile.updatedAt = os.time()
 	local released = false
@@ -252,6 +266,7 @@ function ProfileService.release(player: Player)
 	end
 	profiles[player] = nil
 	dirty[player] = nil
+	releasing[player] = nil
 end
 
 function ProfileService.startAutosave()

@@ -1,4 +1,8 @@
 $ErrorActionPreference = "Stop"
+$root = Split-Path -Parent $PSScriptRoot
+Push-Location $root
+
+try {
 
 function Invoke-Checked([string]$Name, [scriptblock]$Command) {
     & $Command
@@ -54,6 +58,7 @@ Invoke-Checked "StyLua" { stylua --check src tests ui-packages }
 Invoke-Checked "Selene" { selene src tests ui-packages }
 Invoke-Checked "Wally" { wally install }
 Invoke-Checked "Rojo build" { rojo build bootstrap.project.json --output RobloxTemplate.rbxlx }
+New-Item -ItemType Directory -Path build -Force | Out-Null
 Invoke-Checked "Reusable UI package build" {
     rojo build ui-packages\UI_BrightSimulator.project.json --output build\UI_BrightSimulator.rbxm
 }
@@ -100,8 +105,15 @@ Invoke-Checked "Figma patch application" {
     node scripts\figma-ui-bridge.mjs self-test --model src\ui\presets\incremental\TemplateUI.model.json
 }
 Invoke-Checked "Luau tests" { lune run tests/run }
+if (-not (Test-Path -LiteralPath "worker\node_modules" -PathType Container)) {
+    Invoke-Checked "Worker install" { npm ci --prefix worker }
+}
 Invoke-Checked "Worker type check" { npm --prefix worker run typecheck }
 Invoke-Checked "Worker tests" { npm --prefix worker test }
 Invoke-Checked "Skill validation" { python scripts\validate_skill.py ".agents\skills\roblox-template" }
 
 Write-Host "All template checks passed."
+}
+finally {
+    Pop-Location
+}

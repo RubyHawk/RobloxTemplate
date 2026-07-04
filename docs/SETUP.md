@@ -29,7 +29,7 @@ The project pins these current stable releases in `rokit.toml`:
 | Tool | Version | Purpose |
 | --- | --- | --- |
 | Rokit | 1.2.0 | Installs the other exact versions |
-| Rojo | 7.6.1 | Syncs files between VS Code and Studio |
+| Rojo | 7.7.0 | Syncs files between VS Code and Studio |
 | Wally | 0.3.2 | Roblox package manager |
 | Selene | 0.31.0 | Finds Luau mistakes |
 | StyLua | 2.5.2 | Formats Luau consistently |

@@ -1,13 +1,13 @@
 {
   "template": {
     "name": "Roblox Template Workbench",
-    "universeId": 0,
-    "placeId": 0
+    "universeId": 10446179596,
+    "placeId": 140239777311760
   },
   "playerTest": {
-    "name": "Roblox Template Sandbox",
-    "universeId": 10434789270,
-    "placeId": 106940880949257,
+    "name": "Roblox Template Player Test",
+    "universeId": 10446239643,
+    "placeId": 110706600177579,
     "defaultPreset": "incremental"
   }
 }
