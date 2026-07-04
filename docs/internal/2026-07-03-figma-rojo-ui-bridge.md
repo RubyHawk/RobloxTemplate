@@ -34,6 +34,12 @@ Existing Figma pages are snapshots and do not repair themselves. Close and rerun
 
 Figma renders Roblox `ImageLabel` and `ImageButton` assets as synthetic purple placeholders because it cannot fetch or republish those Roblox assets. Those placeholder fills are now excluded both when exporting new patches and when applying older patches, so they cannot become opaque backgrounds around the real in-experience icons.
 
+## One-window app flow — 2026-07-04
+
+Applying a patch previously required a console round trip: run `FIGMA_UI.cmd`, type a preset number, and drag the downloaded patch into the window. `START_HERE.cmd` is now the app hub for that flow. The launcher discovers game recipes and complete UI packs, pre-selects the newest `*.figma-patch.json` from the Windows Downloads folder (Shell `shell:Downloads` with a `%USERPROFILE%\Downloads` fallback), sanity-checks the `roblox-ui-bridge-v1` format marker before launching, and starts `FIGMA_UI.cmd -Preset <pack> -PatchPath <file>` so the console step runs with no typed input. The shared sandbox button passes `-RecipePath` the same way.
+
+The `.cmd` files forward parameters with `%*` and stay fully usable standalone; `figma-ui.ps1` also offers the newest Downloads export and re-prompts on an invalid preset choice instead of silently applying to the first pack. Validation still happens in `figma-ui.ps1`/`figma-ui-bridge.mjs`, which reject unknown paths and class mismatches before writing; the launcher check is a convenience, not the safety boundary.
+
 ## Hosted Figma file
 
 - [Roblox UI Preset Library](https://www.figma.com/design/TCKb7NWBeH1wSf6eLDARhn)

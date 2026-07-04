@@ -19,9 +19,11 @@ The shared design file is [Roblox UI Preset Library](https://www.figma.com/desig
    - `StarterSignUI.model.json`
 3. Edit the imported frames, text, colors, outlines, corners, visibility, position, and size in Figma.
 4. Select the imported artboards and click **Export selected Roblox patch**.
-5. Double-click `FIGMA_UI.cmd`, choose the preset, and drag the downloaded patch file into the window.
+5. Double-click `START_HERE.cmd`. The **Apply a Figma design** card already shows the newest `*.figma-patch.json` from your Downloads folder; confirm the UI pack and click **Apply Figma Design**.
 
-The command reads which of those three models are present in the patch, validates every layer path and class, updates only the selected preset, and rebuilds its `.rbxlx` and `.rbxm` exports without opening Roblox Studio.
+The apply step reads which of those three models are present in the patch, validates every layer path and class, updates only the selected preset, and rebuilds its `.rbxlx` and `.rbxm` exports without opening Roblox Studio.
+
+`FIGMA_UI.cmd` remains the console alternative. It now also offers the newest export from Downloads automatically, so pressing Enter twice applies the latest patch to the first preset; it accepts `-Preset` and `-PatchPath` parameters as well.
 
 ## Boundaries
 

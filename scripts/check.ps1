@@ -71,6 +71,9 @@ Invoke-Checked "RPG preset package build" {
 Invoke-Checked "Game Designer UI smoke test" {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\game-designer.ps1 -SmokeTest
 }
+Invoke-Checked "Launcher app smoke test" {
+    powershell -NoProfile -ExecutionPolicy Bypass -STA -File scripts\launcher.ps1 -SmokeTest
+}
 $recipeFiles = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot "..\config-presets") -Filter "*.json" -File | Sort-Object Name)
 if ($recipeFiles.Count -eq 0) {
     throw "No recipes exist under config-presets."
