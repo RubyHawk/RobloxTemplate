@@ -11,7 +11,7 @@ There is currently no first-party Roblox Figma GUI importer. This repository the
 1. Use the local plugin to import one preset's model files into separate Figma pages.
 2. Edit the generated artboards. Original binder paths remain attached even if a Figma layer is renamed.
 3. Export the selected artboards as a `roblox-ui-bridge-v1` patch.
-4. Run `FIGMA_UI.cmd`, choose the pack, and drag in the patch. It updates the matching files under `src/ui/presets/<pack>/`:
+4. Open `START_HERE.cmd` and use the **Apply a Figma design** card (the newest Downloads export is pre-selected), or run `FIGMA_UI.cmd` from a console. Both update the matching files under `src/ui/presets/<pack>/`:
    - `TemplateUI.model.json`
    - `TemplateLoading.model.json`
    - `StarterSignUI.model.json`

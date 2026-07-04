@@ -6,6 +6,27 @@ param(
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
 
+function Get-DownloadsFolder {
+    try {
+        $shell = New-Object -ComObject Shell.Application
+        $downloads = $shell.NameSpace("shell:Downloads")
+        if ($downloads -and $downloads.Self) {
+            $downloadsPath = [string]$downloads.Self.Path
+            if ($downloadsPath -and (Test-Path -LiteralPath $downloadsPath -PathType Container)) {
+                return $downloadsPath
+            }
+        }
+    }
+    catch { }
+    if ($env:USERPROFILE) {
+        $fallback = Join-Path $env:USERPROFILE "Downloads"
+        if (Test-Path -LiteralPath $fallback -PathType Container) {
+            return $fallback
+        }
+    }
+    return $null
+}
+
 $requiredModels = @("TemplateUI.model.json", "TemplateLoading.model.json", "StarterSignUI.model.json")
 $presetRoot = Join-Path $repo "src/ui/presets"
 $available = @(Get-ChildItem -LiteralPath $presetRoot -Directory | Where-Object {
@@ -21,12 +42,17 @@ if (-not $Preset) {
     for ($index = 0; $index -lt $available.Count; $index++) {
         Write-Host ("  {0}. {1}" -f ($index + 1), $available[$index].Name)
     }
-    $choice = Read-Host "Choice"
-    $Preset = if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $available.Count) {
-        $available[[int]$choice - 1].Name
-    }
-    else {
-        $available[0].Name
+    while (-not $Preset) {
+        $choice = Read-Host "Choice (Enter = 1)"
+        if ([string]::IsNullOrWhiteSpace($choice)) {
+            $Preset = $available[0].Name
+        }
+        elseif ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $available.Count) {
+            $Preset = $available[[int]$choice - 1].Name
+        }
+        else {
+            Write-Host "Type a number between 1 and $($available.Count)." -ForegroundColor Yellow
+        }
     }
 }
 if (@($available.Name) -notcontains $Preset) {
@@ -34,7 +60,21 @@ if (@($available.Name) -notcontains $Preset) {
 }
 
 if (-not $PatchPath) {
-    $PatchPath = Read-Host "Drag the downloaded *.figma-patch.json here, then press Enter"
+    $downloadsFolder = Get-DownloadsFolder
+    $newestPatch = $null
+    if ($downloadsFolder) {
+        $newestPatch = Get-ChildItem -LiteralPath $downloadsFolder -Filter "*.figma-patch.json" -File -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+    }
+    if ($newestPatch) {
+        Write-Host "Newest Figma export in Downloads: $($newestPatch.Name)"
+        $answer = Read-Host "Press Enter to use it, or drag a different *.figma-patch.json here"
+        $PatchPath = if ([string]::IsNullOrWhiteSpace($answer)) { $newestPatch.FullName } else { $answer }
+    }
+    else {
+        $PatchPath = Read-Host "Drag the downloaded *.figma-patch.json here, then press Enter"
+    }
 }
 $PatchPath = $PatchPath.Trim().Trim('"')
 if (-not (Test-Path -LiteralPath $PatchPath -PathType Leaf)) {

@@ -5,7 +5,7 @@ You do not need to understand Git, Rojo, Wally, or the notification worker to op
 ## Open the project
 
 1. Double-click **`START_HERE.cmd`**.
-2. Choose **Open Shared Test Experience**, **Open Template**, or **Design a Game Preset**.
+2. Everything runs from that one window: pick a game recipe and open the shared test experience, apply a Figma design, open the template workbench, or design a game preset.
 3. Keep the black window open when Roblox Studio starts.
 4. In Studio, select **Plugins → Rojo → Connect**.
 5. Edit UI objects under **StarterGui**, press **Ctrl+S**, then press **Play**.
@@ -20,7 +20,7 @@ Use `ICON_LIBRARY.cmd` to swap or disable shared UI icons and record their Roblo
 
 **Design a Game Preset** selects an independent Incremental or RPG UI package, one-to-five server-backed currencies, and shared systems, then loads it into the permanent sandbox. See [`docs/GAME_DESIGNER.md`](docs/GAME_DESIGNER.md).
 
-Figma can now be the visual editor through the checked-in **Roblox UI Bridge**. After its one-time Figma plugin setup, edit the imported layers, export a patch, and double-click **`FIGMA_UI.cmd`** to update and rebuild only the chosen preset. See [`docs/FIGMA_UI.md`](docs/FIGMA_UI.md).
+Figma can now be the visual editor through the checked-in **Roblox UI Bridge**. After its one-time Figma plugin setup, edit the imported layers, export a patch, and click **Apply Figma Design** in `START_HERE.cmd` — the newest export from your Downloads folder is already selected. `FIGMA_UI.cmd` stays available as the console fallback. See [`docs/FIGMA_UI.md`](docs/FIGMA_UI.md).
 
 ## Which branch should I use?
 
