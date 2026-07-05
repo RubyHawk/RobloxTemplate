@@ -87,6 +87,20 @@ local screensLayer = root:WaitForChild("Screens") :: Frame
 local toast = root:WaitForChild("Toast") :: Frame
 local toastLabel = toast:WaitForChild("Message") :: TextLabel
 local toastToken = 0
+local boostPanelInstance = root:FindFirstChild("BoostPanel")
+local boostPanel: Frame? = if boostPanelInstance and boostPanelInstance:IsA("Frame")
+	then boostPanelInstance
+	else nil
+local boostSummaryButton: TextButton? = nil
+local boostDetails: Frame? = nil
+if boostPanel then
+	local summary = boostPanel:FindFirstChild("SummaryButton")
+	local details = boostPanel:FindFirstChild("Details")
+	if summary and summary:IsA("TextButton") and details and details:IsA("Frame") then
+		boostSummaryButton = summary
+		boostDetails = details
+	end
+end
 
 local function applyIcon(container: Instance, name: IconName, imageName: string, fallbackName: string?)
 	local image = container:FindFirstChild(imageName)
@@ -110,8 +124,20 @@ end
 applyIcon(hud:WaitForChild("CoinBadge"), "coin", "Icon", "Symbol")
 applyIcon(toast:WaitForChild("IconBadge"), "notifications", "Icon", "Symbol")
 applyIcon(moreCloseButton, "close", "Icon", nil)
+if boostSummaryButton then
+	applyIcon(boostSummaryButton, "potionX2", "Icon", nil)
+end
 if IconCatalog.get("close") ~= "" then
 	moreCloseButton.Text = ""
+end
+
+if boostSummaryButton and boostDetails then
+	local summaryButton = boostSummaryButton
+	local details = boostDetails
+	summaryButton.Activated:Connect(function()
+		AudioController.play("click")
+		details.Visible = not details.Visible
+	end)
 end
 
 local function tweenInfo(duration: number, easingStyle: Enum.EasingStyle?): TweenInfo
@@ -433,10 +459,27 @@ local function applyState(nextState: any)
 	if legacyCoinLabel and legacyCoinLabel:IsA("TextLabel") then
 		legacyCoinLabel.Text = UIFactory.formatNumber(balances[primaryId] or state.profile.coins or 0)
 	end
-	boostLabel.Text = `x{string.format(
-		"%.2f",
-		(1 + state.friendBonus + state.premiumBonus) * state.potionMultiplier
-	)} BOOST  •  {state.profile.social.friendCountInServer} FRIENDS`
+	local totalBoost = (1 + state.friendBonus + state.premiumBonus) * state.potionMultiplier
+	boostLabel.Text =
+		`x{string.format("%.2f", totalBoost)} BOOST  •  {state.profile.social.friendCountInServer} FRIENDS`
+	if boostSummaryButton and boostDetails then
+		local value = boostSummaryButton:FindFirstChild("Value")
+		if value and value:IsA("TextLabel") then
+			value.Text = `x{string.format("%.2f", totalBoost)}`
+		end
+		local detailValues = {
+			FriendsValue = `+{math.round(state.friendBonus * 100)}%`,
+			PremiumValue = `+{math.round(state.premiumBonus * 100)}%`,
+			PotionValue = `x{string.format("%.2f", state.potionMultiplier)}`,
+			TotalValue = `x{string.format("%.2f", totalBoost)}`,
+		}
+		for name, text in detailValues do
+			local label = boostDetails:FindFirstChild(name)
+			if label and label:IsA("TextLabel") then
+				label.Text = text
+			end
+		end
+	end
 	ResponsiveController.setPlayerScale(state.profile.settings.uiScale)
 	AudioController.applySettings(state.profile.settings)
 	if (balances[primaryId] or state.profile.coins) > previousPrimary then

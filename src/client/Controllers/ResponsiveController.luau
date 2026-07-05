@@ -26,6 +26,10 @@ local settingsScale = 1
 
 local navigation: Frame? = nil
 local hud: Frame? = nil
+local modernBottomDock = false
+local currencySlots: ScrollingFrame? = nil
+local currencyLayout: UIListLayout? = nil
+local boostPanel: Frame? = nil
 local modalRoots: { GuiObject } = {}
 local originalMaxSize: { [GuiObject]: Vector2 } = {}
 local modalNeedsHudHidden: { [GuiObject]: boolean } = {}
@@ -141,6 +145,9 @@ end
 -- hides the HUD only while one of those is actually the open screen,
 -- rather than accepting a permanent partial overlap.
 local function clampModalsAgainstHud()
+	if modernBottomDock then
+		return
+	end
 	local hudFrame = hud
 	if not hudFrame then
 		return
@@ -175,6 +182,10 @@ local function updateHudVisibility()
 	if not hudFrame then
 		return
 	end
+	if modernBottomDock then
+		hudFrame.Visible = true
+		return
+	end
 	local shouldHide = false
 	for _, modal in modalRoots do
 		if (modal :: GuiObject).Visible and modalNeedsHudHidden[modal] then
@@ -183,6 +194,48 @@ local function updateHudVisibility()
 		end
 	end
 	hudFrame.Visible = not shouldHide
+end
+
+local function applyModernHudLayout(viewportSize: Vector2)
+	if not modernBottomDock then
+		return
+	end
+	local nav = navigation
+	local tray = hud
+	local slots = currencySlots
+	local layout = currencyLayout
+	if not nav or not tray or not slots or not layout then
+		return
+	end
+
+	nav.AnchorPoint = Vector2.new(0.5, 1)
+	nav.Position = UDim2.new(0.5, 0, 1, -14)
+	local wide = viewportSize.X >= 780 and viewportSize.Y >= 500
+	if wide then
+		tray.AnchorPoint = Vector2.new(1, 0.5)
+		tray.Position = UDim2.new(1, -16, 0.5, 0)
+		tray.Size = UDim2.fromOffset(178, 348)
+		slots.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		slots.ScrollingDirection = Enum.ScrollingDirection.Y
+		layout.FillDirection = Enum.FillDirection.Vertical
+		layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+		layout.VerticalAlignment = Enum.VerticalAlignment.Center
+		if boostPanel then
+			boostPanel.Position = UDim2.new(0, 16, 0.58, 0)
+		end
+	else
+		tray.AnchorPoint = Vector2.new(0.5, 0)
+		tray.Position = UDim2.new(0.5, 0, 0, 16)
+		tray.Size = UDim2.new(0.92, 0, 0, 72)
+		slots.AutomaticCanvasSize = Enum.AutomaticSize.X
+		slots.ScrollingDirection = Enum.ScrollingDirection.X
+		layout.FillDirection = Enum.FillDirection.Horizontal
+		layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		layout.VerticalAlignment = Enum.VerticalAlignment.Top
+		if boostPanel then
+			boostPanel.Position = UDim2.fromOffset(12, 98)
+		end
+	end
 end
 
 local function apply()
@@ -205,6 +258,7 @@ local function apply()
 
 	currentUiScale.Scale = math.clamp(settingsScale * deviceScale, 0.6, 1.5)
 
+	applyModernHudLayout(size)
 	clampNavigation(size)
 	clampModalsAgainstHud()
 	updateHudVisibility()
@@ -215,6 +269,16 @@ function ResponsiveController.initialize(rootFrame: Frame, scale: UIScale)
 	uiScale = scale
 	navigation = rootFrame:FindFirstChild("Navigation") :: Frame?
 	hud = (rootFrame:FindFirstChild("CurrencyTray") or rootFrame:FindFirstChild("CurrencyHUD")) :: Frame?
+	modernBottomDock = navigation ~= nil and navigation.AnchorPoint.Y > 0.9
+	local slotsInstance = if hud then hud:FindFirstChild("Slots") else nil
+	if slotsInstance and slotsInstance:IsA("ScrollingFrame") then
+		currencySlots = slotsInstance
+		currencyLayout = slotsInstance:FindFirstChildOfClass("UIListLayout")
+	end
+	local boostInstance = rootFrame:FindFirstChild("BoostPanel")
+	if boostInstance and boostInstance:IsA("Frame") then
+		boostPanel = boostInstance
+	end
 	collectModalRoots(rootFrame)
 
 	-- A modal can open/close without any resize (e.g. tapping Shop while

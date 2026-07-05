@@ -8,7 +8,7 @@ The repository includes a local Figma development plugin that converts the autho
 2. Open **Plugins → Development → Import plugin from manifest**.
 3. Select `figma/roblox-ui-bridge/manifest.json` from this repository.
 
-The shared design file is [Roblox UI Preset Library](https://www.figma.com/design/TCKb7NWBeH1wSf6eLDARhn). Figma's Starter-plan MCP quota currently prevents Codex from populating its canvas remotely, so use the local bridge below; it does not require a token or secret.
+The current editable design target is [Roblox UI Preset Library v2](https://www.figma.com/design/f5CVGUAVDYZ4rZEjgFdkar). Figma's Starter-plan MCP quota currently prevents Codex from populating its canvas remotely, so use the local bridge below; it does not require a token or secret.
 
 ## Edit and apply
 

@@ -182,6 +182,18 @@ function Screens.bind(parent: Instance, context: any): any
 	local inventoryCategory = textButton(inventoryToolbar, "CategoryButton")
 	local categories = { "All", "Consumable", "Equipment", "Misc" }
 	local categoryIndex = 1
+	local categoryTabs = screenMap.Inventory:FindFirstChild("CategoryTabs")
+	local modernCategoryButtons: { TextButton } = {}
+	local modernCategoryRestingColors: { [TextButton]: Color3 } = {}
+	local categoryIconNames: { IconName } = { "item", "potionX2", "starterTool", "more" }
+	if categoryTabs and categoryTabs:IsA("Frame") then
+		for index, buttonName in { "AllButton", "ConsumableButton", "EquipmentButton", "MiscButton" } do
+			local button = textButton(categoryTabs, buttonName)
+			modernCategoryButtons[index] = button
+			modernCategoryRestingColors[button] = button.BackgroundColor3
+			applyIcon(button, categoryIconNames[index])
+		end
+	end
 
 	local storeContent = content(screenMap.Store)
 	local storeGrid = frame(storeContent, "ProductsGrid")
@@ -246,6 +258,61 @@ function Screens.bind(parent: Instance, context: any): any
 		end
 	end
 
+	local function refreshCategoryTabs()
+		for index, button in modernCategoryButtons do
+			local selected = index == categoryIndex
+			button.BackgroundColor3 = if selected
+				then Theme.colors.primary
+				else modernCategoryRestingColors[button]
+			local selectedStroke = button:FindFirstChild("SelectedStroke")
+			if selectedStroke and selectedStroke:IsA("UIStroke") then
+				selectedStroke.Enabled = selected
+			end
+		end
+	end
+
+	local function setInventoryCategory(index: number)
+		categoryIndex = math.clamp(index, 1, #categories)
+		inventoryCategory.Text = string.upper(categories[categoryIndex])
+		refreshCategoryTabs()
+		refreshInventory()
+	end
+
+	local function updateModernInventoryLayout()
+		if not categoryTabs or not categoryTabs:IsA("Frame") then
+			return
+		end
+		local tabsLayout = categoryTabs:FindFirstChildOfClass("UIListLayout")
+		local gridLayout = inventoryGrid:FindFirstChildOfClass("UIGridLayout")
+		if not tabsLayout or not gridLayout then
+			return
+		end
+
+		local compact = screenMap.Inventory.AbsoluteSize.X < 470
+		if compact then
+			categoryTabs.Position = UDim2.fromOffset(10, 66)
+			categoryTabs.Size = UDim2.new(1, -20, 0, 76)
+			tabsLayout.FillDirection = Enum.FillDirection.Horizontal
+			tabsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+			tabsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+			inventoryContent.Position = UDim2.fromOffset(10, 148)
+			inventoryContent.Size = UDim2.new(1, -20, 1, -158)
+		else
+			categoryTabs.Position = UDim2.fromOffset(-18, 74)
+			categoryTabs.Size = UDim2.new(0, 92, 1, -88)
+			tabsLayout.FillDirection = Enum.FillDirection.Vertical
+			tabsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+			tabsLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+			inventoryContent.Position = UDim2.fromOffset(92, 66)
+			inventoryContent.Size = UDim2.new(1, -104, 1, -78)
+		end
+
+		local width = inventoryGrid.AbsoluteSize.X
+		local columns = if width < 320 then 2 else if width < 560 then 3 else 4
+		gridLayout.FillDirectionMaxCells = columns
+		gridLayout.CellSize = UDim2.new(1 / columns, -8, 0, 174)
+	end
+
 	for _, slot in inventorySlots do
 		textButton(slot, "ActionButton").Activated:Connect(function()
 			local action = slot:GetAttribute("Action")
@@ -258,10 +325,20 @@ function Screens.bind(parent: Instance, context: any): any
 	inventorySearch:GetPropertyChangedSignal("Text"):Connect(refreshInventory)
 	inventoryCategory.Activated:Connect(function()
 		context.playAudio("click")
-		categoryIndex = (categoryIndex % #categories) + 1
-		inventoryCategory.Text = string.upper(categories[categoryIndex])
-		refreshInventory()
+		setInventoryCategory((categoryIndex % #categories) + 1)
 	end)
+	for index, button in modernCategoryButtons do
+		button.Activated:Connect(function()
+			context.playAudio("click")
+			setInventoryCategory(index)
+		end)
+	end
+	if #modernCategoryButtons > 0 then
+		screenMap.Inventory:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateModernInventoryLayout)
+		inventoryGrid:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateModernInventoryLayout)
+		task.defer(updateModernInventoryLayout)
+		refreshCategoryTabs()
+	end
 
 	local function refreshStore()
 		hideFrames(storeSlots)

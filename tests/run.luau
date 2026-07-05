@@ -436,6 +436,25 @@ end
 local incrementalPreset = fs.readFile("src/ui/presets/incremental/TemplateUI.model.json")
 local rpgPreset = fs.readFile("src/ui/presets/rpg/TemplateUI.model.json")
 expectEqual(incrementalPreset == rpgPreset, false, "RPG and Incremental are independent visual files")
+local compactIncrementalPreset = string.gsub(incrementalPreset, "%s+", "")
+for _, modernObject in
+	{
+		'"Name":"CategoryTabs"',
+		'"Name":"AllButton"',
+		'"Name":"ConsumableButton"',
+		'"Name":"EquipmentButton"',
+		'"Name":"MiscButton"',
+		'"Name":"BoostPanel"',
+		'"Name":"SummaryButton"',
+		'"Name":"TotalValue"',
+	}
+do
+	expectEqual(
+		string.find(compactIncrementalPreset, modernObject, 1, true) ~= nil,
+		true,
+		`Incremental preset physically authors {modernObject}`
+	)
+end
 expectEqual(
 	string.find(rpgPreset, '"Text": "MERCHANT"', 1, true) ~= nil
 		or string.find(rpgPreset, '"Text":"MERCHANT"', 1, true) ~= nil,
