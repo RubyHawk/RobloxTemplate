@@ -3,8 +3,8 @@
   "preset": "incremental",
   "dataNamespace": "incremental",
   "currencies": [
-    { "id": "coins", "name": "Coins", "symbol": "$", "startingAmount": 2500, "color": [255, 202, 10] },
-    { "id": "gems", "name": "Gems", "symbol": "◆", "startingAmount": 25, "color": [55, 135, 255] }
+    { "id": "coins", "name": "Coins", "symbol": "$", "iconAssetId": "105300168575798", "startingAmount": 2500, "color": [255, 202, 10] },
+    { "id": "gems", "name": "Gems", "symbol": "G", "iconAssetId": "111977708425543", "startingAmount": 25, "color": [55, 135, 255] }
   ],
   "features": {
     "store": true,

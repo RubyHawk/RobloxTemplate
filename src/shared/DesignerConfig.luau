@@ -16,6 +16,7 @@ return {
 			id = "coins",
 			name = "Coins",
 			symbol = "$",
+			iconAssetId = "105300168575798",
 			color = { 255, 202, 10 },
 			startingAmount = 2500,
 		},

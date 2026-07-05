@@ -20,7 +20,14 @@ local function expectEqual(actual: any, expected: any, label: string)
 end
 
 local normalizedCurrencies = CurrencyConfig.normalize({
-	{ id = "coins", name = "Coins", symbol = "$", color = { 999, -2, 20 }, startingAmount = 5 },
+	{
+		id = "coins",
+		name = "Coins",
+		symbol = "$",
+		iconAssetId = "105300168575798",
+		color = { 999, -2, 20 },
+		startingAmount = 5,
+	},
 	{ id = "coins", name = "Duplicate", symbol = "D" },
 	{ id = "gems", name = "Gems", symbol = "◆", startingAmount = 10 },
 	{ id = "stars", name = "Stars", symbol = "★" },
@@ -32,11 +39,14 @@ expectEqual(#normalizedCurrencies, 5, "currency configuration caps authored slot
 expectEqual(normalizedCurrencies[1].color[1], 255, "currency color clamps high channels")
 expectEqual(normalizedCurrencies[1].color[2], 0, "currency color clamps low channels")
 expectEqual(normalizedCurrencies[2].id, "gems", "duplicate currency IDs are rejected")
+expectEqual(normalizedCurrencies[1].iconAssetId, "105300168575798", "currency icon keeps numeric asset ID")
 
 local configuredCurrencies = CurrencyConfig.normalize({
-	{ id = "gold", name = "Gold", symbol = "G", startingAmount = 500 },
-	{ id = "crystals", name = "Crystals", symbol = "C", startingAmount = 10 },
+	{ id = "gold", name = "Gold", symbol = "G", iconAssetId = "rbxassetid://123", startingAmount = 500 },
+	{ id = "crystals", name = "Crystals", symbol = "C", iconAssetId = "not-an-id", startingAmount = 10 },
 })
+expectEqual(configuredCurrencies[1].iconAssetId, "123", "currency icon normalizes rbxassetid prefix")
+expectEqual(configuredCurrencies[2].iconAssetId, "", "invalid currency icon uses symbol fallback")
 local seededBalances = CurrencyConfig.startingBalances(configuredCurrencies)
 expectEqual(seededBalances.gold, 500, "fresh profiles seed the configured starting balance")
 expectEqual(seededBalances.crystals, 10, "fresh profiles seed every configured currency")
@@ -416,6 +426,12 @@ for _, preset in { "incremental", "rpg" } do
 		true,
 		`{preset} preset stays isolated until selected`
 	)
+	local compactPresetUi = string.gsub(presetUi, "%s+", "")
+	local iconCount = 0
+	for _ in string.gmatch(compactPresetUi, '"Name":"Icon","ClassName":"ImageLabel"') do
+		iconCount += 1
+	end
+	expectEqual(iconCount >= 5, true, `{preset} preset pre-authors currency ImageLabels`)
 end
 local incrementalPreset = fs.readFile("src/ui/presets/incremental/TemplateUI.model.json")
 local rpgPreset = fs.readFile("src/ui/presets/rpg/TemplateUI.model.json")

@@ -8,6 +8,7 @@ export type Definition = {
 	id: string,
 	name: string,
 	symbol: string,
+	iconAssetId: string,
 	color: { number },
 	startingAmount: number,
 }
@@ -16,6 +17,7 @@ local DEFAULT: Definition = {
 	id = "coins",
 	name = "Coins",
 	symbol = "$",
+	iconAssetId = "",
 	color = { 255, 202, 10 },
 	startingAmount = 0,
 }
@@ -31,6 +33,17 @@ local function channel(value: any, fallback: number): number
 	return if type(value) == "number" and value == value
 		then math.clamp(math.floor(value), 0, 255)
 		else fallback
+end
+
+local function normalizeAssetId(value: any): string
+	if type(value) ~= "string" then
+		return ""
+	end
+	local numericId = string.match(value, "^%s*(%d+)%s*$")
+	if numericId == nil then
+		numericId = string.match(value, "^%s*rbxassetid://(%d+)%s*$")
+	end
+	return numericId or ""
 end
 
 function CurrencyConfig.normalize(raw: any): { Definition }
@@ -55,6 +68,7 @@ function CurrencyConfig.normalize(raw: any): { Definition }
 					and #candidate.symbol <= 4
 				then candidate.symbol
 				else string.upper(string.sub(name, 1, 1))
+			local iconAssetId = normalizeAssetId(candidate.iconAssetId)
 			local rawColor = if type(candidate.color) == "table" then candidate.color else {}
 			local startingAmount = if type(candidate.startingAmount) == "number"
 					and candidate.startingAmount == candidate.startingAmount
@@ -65,6 +79,7 @@ function CurrencyConfig.normalize(raw: any): { Definition }
 				id = id,
 				name = name,
 				symbol = symbol,
+				iconAssetId = iconAssetId,
 				color = {
 					channel(rawColor[1], DEFAULT.color[1]),
 					channel(rawColor[2], DEFAULT.color[2]),
@@ -79,6 +94,7 @@ function CurrencyConfig.normalize(raw: any): { Definition }
 			id = DEFAULT.id,
 			name = DEFAULT.name,
 			symbol = DEFAULT.symbol,
+			iconAssetId = DEFAULT.iconAssetId,
 			color = table.clone(DEFAULT.color),
 			startingAmount = DEFAULT.startingAmount,
 		})

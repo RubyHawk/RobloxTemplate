@@ -40,6 +40,14 @@ foreach ($currency in $currencies) {
     if ($usedIds.ContainsKey($id)) {
         throw "Currency ID '$id' is duplicated."
     }
+    $iconAssetId = if ($currency.PSObject.Properties.Name -contains "iconAssetId") {
+        ([string]$currency.iconAssetId).Trim()
+    } else {
+        ""
+    }
+    if ($iconAssetId -ne "" -and $iconAssetId -notmatch '^\d+$') {
+        throw "Currency '$id' iconAssetId must contain only the numeric Roblox asset ID."
+    }
     $usedIds[$id] = $true
 }
 
@@ -111,13 +119,18 @@ $lines.Add("`tcurrencies = {")
 foreach ($currency in $currencies) {
     $name = [string]$currency.name
     $symbol = [string]$currency.symbol
+    $iconAssetId = if ($currency.PSObject.Properties.Name -contains "iconAssetId") {
+        ([string]$currency.iconAssetId).Trim()
+    } else {
+        ""
+    }
     $starting = Limit-Number ([int64]$currency.startingAmount) 0 1000000000000
     $color = @($currency.color)
     if ($color.Count -ne 3) { $color = @(255, 202, 10) }
     $red = Limit-Number ([int]$color[0]) 0 255
     $green = Limit-Number ([int]$color[1]) 0 255
     $blue = Limit-Number ([int]$color[2]) 0 255
-    $lines.Add("`t`t{ id = $(ConvertTo-LuauString ([string]$currency.id)), name = $(ConvertTo-LuauString $name), symbol = $(ConvertTo-LuauString $symbol), color = { $red, $green, $blue }, startingAmount = $starting },")
+    $lines.Add("`t`t{ id = $(ConvertTo-LuauString ([string]$currency.id)), name = $(ConvertTo-LuauString $name), symbol = $(ConvertTo-LuauString $symbol), iconAssetId = $(ConvertTo-LuauString $iconAssetId), color = { $red, $green, $blue }, startingAmount = $starting },")
 }
 $lines.Add("`t},")
 $lines.Add("`tfeatures = {")

@@ -5,7 +5,7 @@ Open `START_HERE.cmd` and choose **Design a Game Preset**, or double-click `5_GA
 The Designer automatically lists every complete folder under `src/ui/presets/`, then lets a non-programmer choose:
 
 - an independent UI pack, including the bundled **Incremental / Simulator** and **Fantasy RPG** packs;
-- one to five currencies, including names, symbols, starting balances, and colors;
+- one to five currencies, including live Roblox asset-image previews, fallback symbols, starting balances, and colors;
 - store, inventory, daily rewards, offline earnings, profiles, leaderboards, codes, feedback, and community verification.
 
 Click **Build and open shared sandbox** to rebuild the selected configuration and open the existing permanent Roblox test experience. Click **Build drag-and-drop UI package** to create only the `.rbxm` file. Generated backup files still appear under `exports/`.
@@ -25,13 +25,13 @@ When editing a generated experience, save or publish that generated place. To ma
 
 ## What is genuinely configurable
 
-Each enabled currency has a server-owned saved balance. The profile schema migrates older `coins` data into the selected primary currency. The HUD contains five permanent editable slots and only displays the configured number. Disabled systems are hidden on the client and rejected by server remotes.
+Each enabled currency has a server-owned saved balance. Paste the numeric value from Roblox's **Copy Asset ID** action into its asset field; the preview beside it confirms what Roblox resolves. The generated game renders that ID in the pre-authored HUD ImageLabel and automatically uses the symbol when the field is blank. The profile schema migrates older `coins` data into the selected primary currency. The HUD contains five permanent editable slots and only displays the configured number. Disabled systems are hidden on the client and rejected by server remotes.
 
 Starting balances apply when a profile first sees a currency. Existing balances are never re-granted. In the generated starter, the blue pad proves the primary currency and a teal pad proves the second configured currency; the teal pad hides for one-currency games.
 
 The generated `DesignerConfig.luau` is parsed and shape-checked before Rojo builds, so broken symbols or malformed recipes fail immediately instead of opening a dead place.
 
-Advanced Roblox IDs, reward amounts, product definitions, audio, and platform integrations remain in `src/shared/TemplateConfig.luau`; they are intentionally not guessed by the Designer.
+Product, audio, notification, experience, and other platform IDs remain in `src/shared/TemplateConfig.luau`; only the safe visual currency asset IDs are configured in the Designer.
 
 ## Figma and Studio
 

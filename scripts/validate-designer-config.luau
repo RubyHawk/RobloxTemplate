@@ -52,6 +52,11 @@ for index, currency in recipe.currencies do
 	usedIds[currency.id] = true
 	assert(type(currency.name) == "string" and #currency.name >= 1, `currency {index} needs a name`)
 	assert(type(currency.symbol) == "string" and #currency.symbol >= 1, `currency {index} needs a symbol`)
+	assert(type(currency.iconAssetId) == "string", `currency {index} icon asset ID must be a string`)
+	assert(
+		currency.iconAssetId == "" or string.match(currency.iconAssetId, "^%d+$") ~= nil,
+		`currency {index} icon asset ID must contain only digits`
+	)
 	assert(
 		type(currency.startingAmount) == "number" and currency.startingAmount >= 0,
 		`currency {index} starting amount must be zero or more`

@@ -5,10 +5,12 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
+Add-Type -AssemblyName System.Net.Http
+Add-Type -AssemblyName System.Windows.Forms
 
 $root = Split-Path -Parent $PSScriptRoot
 
-[xml]$xaml = @'
+$fallbackXaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Roblox Game Designer" Width="900" Height="760"
@@ -76,6 +78,13 @@ $root = Split-Path -Parent $PSScriptRoot
 </Window>
 '@
 
+$layoutPath = Join-Path $PSScriptRoot "game-designer-layout.xaml"
+[xml]$xaml = if (Test-Path -LiteralPath $layoutPath -PathType Leaf) {
+    Get-Content -LiteralPath $layoutPath -Raw -Encoding UTF8
+} else {
+    $fallbackXaml
+}
+
 $reader = New-Object System.Xml.XmlNodeReader $xaml
 $window = [System.Windows.Markup.XamlReader]::Load($reader)
 
@@ -106,7 +115,113 @@ catch { }
 
 function Control([string]$Name) { return $window.FindName($Name) }
 $designerScroll = $window.FindName("DesignerScroll")
-$window.Add_ContentRendered({ $designerScroll.ScrollToTop() })
+
+function Get-DesignerImage([string]$RelativePath) {
+    $path = Join-Path $root $RelativePath
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        throw "A Game Designer image is missing: $path"
+    }
+    $bitmap = New-Object System.Windows.Media.Imaging.BitmapImage
+    $bitmap.BeginInit()
+    $bitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+    $bitmap.UriSource = New-Object System.Uri($path, [System.UriKind]::Absolute)
+    $bitmap.EndInit()
+    $bitmap.Freeze()
+    return $bitmap
+}
+
+(Control "DesignerTexture").Source = Get-DesignerImage "assets\launcher\steampunk\detailed\iron-surface-detailed.png"
+(Control "DesignerEmblem").Source = Get-DesignerImage "assets\launcher\steampunk\runtime\workshop-emblem.png"
+(Control "DesignerGauge").Source = Get-DesignerImage "assets\launcher\steampunk\runtime\pressure-gauge.png"
+(Control "DesignerCorner").Source = Get-DesignerImage "assets\launcher\steampunk\runtime\panel-corner-right.png"
+
+$thumbnailClient = [System.Net.Http.HttpClient]::new()
+$thumbnailClient.Timeout = [TimeSpan]::FromSeconds(8)
+$thumbnailClient.DefaultRequestHeaders.UserAgent.ParseAdd("RobloxTemplateGameDesigner/1.0")
+$initialScrollTimer = New-Object System.Windows.Threading.DispatcherTimer
+$initialScrollTimer.Interval = [TimeSpan]::FromMilliseconds(400)
+$initialScrollTimer.Add_Tick({
+    $initialScrollTimer.Stop()
+    $designerScroll.ScrollToVerticalOffset(0)
+})
+
+function Set-PreviewMessage([int]$Index, [string]$Message) {
+    $preview = Control "Preview$Index"
+    $previewStatus = Control "PreviewStatus$Index"
+    $preview.Source = $null
+    $previewStatus.Text = $Message
+    $previewStatus.Visibility = "Visible"
+}
+
+function Update-CurrencyPreviews([int[]]$Indices) {
+    $valid = [ordered]@{}
+    foreach ($index in $Indices) {
+        $raw = ([string](Control "IconId$index").Text).Trim()
+        if ($raw -eq "") {
+            Set-PreviewMessage $index "ABC"
+        } elseif ($raw -notmatch '^\d+$') {
+            Set-PreviewMessage $index "BAD"
+        } else {
+            $valid[[string]$index] = $raw
+            Set-PreviewMessage $index "..."
+        }
+    }
+    if ($valid.Count -eq 0) { return }
+
+    try {
+        $ids = (($valid.Values | Select-Object -Unique) -join ',')
+        $url = "https://thumbnails.roblox.com/v1/assets?assetIds=$ids&returnPolicy=PlaceHolder&size=150x150&format=Png&isCircular=false"
+        $json = $thumbnailClient.GetStringAsync($url).GetAwaiter().GetResult() | ConvertFrom-Json
+        foreach ($entry in @($json.data)) {
+            if ([string]::IsNullOrWhiteSpace([string]$entry.imageUrl)) { continue }
+            foreach ($pair in $valid.GetEnumerator()) {
+                if ([string]$entry.targetId -ne [string]$pair.Value) { continue }
+                $imageBytes = $thumbnailClient.GetByteArrayAsync([string]$entry.imageUrl).GetAwaiter().GetResult()
+                $stream = [System.IO.MemoryStream]::new([byte[]]$imageBytes)
+                $bitmap = New-Object System.Windows.Media.Imaging.BitmapImage
+                try {
+                    $bitmap.BeginInit()
+                    $bitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+                    $bitmap.StreamSource = $stream
+                    $bitmap.EndInit()
+                } finally {
+                    $stream.Dispose()
+                }
+                $bitmap.Freeze()
+                (Control "Preview$($pair.Key)").Source = $bitmap
+                (Control "PreviewStatus$($pair.Key)").Visibility = "Collapsed"
+            }
+        }
+        foreach ($pair in $valid.GetEnumerator()) {
+            if ((Control "PreviewStatus$($pair.Key)").Visibility -ne "Collapsed") {
+                Set-PreviewMessage ([int]$pair.Key) "?"
+            }
+        }
+    } catch {
+        Write-Warning "Currency preview request failed: $($_.Exception.ToString())"
+        foreach ($pair in $valid.GetEnumerator()) {
+            Set-PreviewMessage ([int]$pair.Key) "?"
+        }
+    }
+}
+
+foreach ($index in 1..5) {
+    $capturedIndex = $index
+    (Control "IconId$index").Add_LostKeyboardFocus({ Update-CurrencyPreviews @($capturedIndex) }.GetNewClosure())
+}
+
+$window.Add_ContentRendered({
+    try {
+        $screen = [System.Windows.Forms.Screen]::FromPoint([System.Windows.Forms.Cursor]::Position)
+        $dpi = [System.Windows.Media.VisualTreeHelper]::GetDpi($window)
+        $window.Left = ($screen.WorkingArea.Left / $dpi.DpiScaleX) + [math]::Max(0, (($screen.WorkingArea.Width / $dpi.DpiScaleX) - $window.ActualWidth) / 2)
+        $window.Top = ($screen.WorkingArea.Top / $dpi.DpiScaleY) + [math]::Max(0, (($screen.WorkingArea.Height / $dpi.DpiScaleY) - $window.ActualHeight) / 2)
+        Update-CurrencyPreviews @(1, 2, 3, 4, 5)
+        $initialScrollTimer.Start()
+    } catch {
+        (Control "Status").Text = "Currency previews could not load: $($_.Exception.Message)"
+    }
+})
 
 $presetControl = Control "Preset"
 $presetControl.Items.Clear()
@@ -135,13 +250,16 @@ function Read-Recipe {
     for ($index = 1; $index -le $count; $index++) {
         $name = [string](Control "Name$index").Text
         $symbol = [string](Control "Symbol$index").Text
+        $iconAssetId = ([string](Control "IconId$index").Text).Trim()
         if ([string]::IsNullOrWhiteSpace($name) -or [string]::IsNullOrWhiteSpace($symbol)) { throw "Currency $index needs a name and symbol." }
+        if ($iconAssetId -ne "" -and $iconAssetId -notmatch '^\d+$') { throw "Currency $index needs a numeric Roblox asset ID." }
         $colorParts = @([string](Control "Color$index").Text -split ',' | ForEach-Object { [int]$_.Trim() })
         if ($colorParts.Count -ne 3) { throw "Currency $index color must look like 255,202,10." }
         $currencies += [ordered]@{
             id = Slug $name
             name = $name.Trim()
             symbol = $symbol.Trim()
+            iconAssetId = $iconAssetId
             startingAmount = [int64](Control "Start$index").Text
             color = $colorParts
         }

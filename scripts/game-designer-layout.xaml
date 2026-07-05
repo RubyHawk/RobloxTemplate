@@ -1,0 +1,127 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Roblox Game Designer" Width="1020" Height="820"
+        WindowStartupLocation="CenterScreen" MinWidth="900" MinHeight="680"
+        Background="#11110F" Foreground="#F2E7CE" FontFamily="Bahnschrift, Segoe UI">
+  <Grid Background="#11110F">
+    <Image x:Name="DesignerTexture" Stretch="UniformToFill" Opacity="0.18" IsHitTestVisible="False"/>
+    <Grid>
+      <Grid.RowDefinitions><RowDefinition Height="92"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+
+      <Border Grid.Row="0" BorderBrush="#B77A2A" BorderThickness="0,0,0,3">
+        <Border.Background>
+          <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#302D26" Offset="0"/>
+            <GradientStop Color="#171613" Offset="0.56"/>
+            <GradientStop Color="#0D0C0A" Offset="1"/>
+          </LinearGradientBrush>
+        </Border.Background>
+        <Grid Margin="24,9">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="68"/><ColumnDefinition Width="*"/><ColumnDefinition Width="82"/></Grid.ColumnDefinitions>
+          <Image x:Name="DesignerEmblem" Width="58" Height="58" Stretch="Uniform"/>
+          <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
+            <TextBlock Text="GAME PRESET DESIGNER" Foreground="#F2E7CE" FontSize="24" FontWeight="Bold"/>
+            <TextBlock Text="Configure one complete game without editing code" Foreground="#A89573" FontSize="12" Margin="0,3,0,0"/>
+          </StackPanel>
+          <Image x:Name="DesignerGauge" Grid.Column="1" Width="72" Height="72" Stretch="Uniform"
+                 HorizontalAlignment="Right" Panel.ZIndex="3"/>
+        </Grid>
+      </Border>
+
+      <ScrollViewer x:Name="DesignerScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+        <Grid Margin="34,26,34,30">
+          <Image x:Name="DesignerCorner" HorizontalAlignment="Right" VerticalAlignment="Top" Width="170" Height="86" Opacity="0.68" IsHitTestVisible="False"/>
+          <StackPanel>
+            <TextBlock Text="Build one clean game configuration" FontWeight="Bold" FontSize="35" Foreground="#F2E7CE"/>
+            <Border Height="2" Background="#8A622E" Margin="0,8,0,8"/>
+            <TextBlock Text="Each UI pack is a separate physical copy. Editing one never changes another."
+                       Foreground="#CBB891" FontSize="13"/>
+
+            <Border Background="#181713" BorderBrush="#8A622E" BorderThickness="2" Padding="18" Margin="0,20,0,0">
+              <StackPanel>
+                <TextBlock Text="1. UI PACK" FontWeight="Bold" Foreground="#D2A74D" FontSize="13"/>
+                <TextBlock Text="Choose the independent visual pack this game will use." Foreground="#A89573" FontSize="12" Margin="0,4,0,8"/>
+                <ComboBox x:Name="Preset" SelectedIndex="0" Width="470" HorizontalAlignment="Left"/>
+              </StackPanel>
+            </Border>
+
+            <Border Background="#181713" BorderBrush="#8A622E" BorderThickness="2" Padding="18" Margin="0,14,0,0">
+              <StackPanel>
+                <TextBlock Text="2. CURRENCIES" FontWeight="Bold" Foreground="#D2A74D" FontSize="13"/>
+                <TextBlock Text="Choose 1 to 5. Every enabled currency is saved and controlled by the server."
+                           Foreground="#A89573" FontSize="12" Margin="0,4,0,10"/>
+                <DockPanel>
+                  <TextBlock DockPanel.Dock="Left" Text="Enabled currencies" Foreground="#CBB891" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                  <ComboBox x:Name="CurrencyCount" SelectedIndex="0" Width="92" HorizontalAlignment="Left">
+                    <ComboBoxItem Content="1"/><ComboBoxItem Content="2"/><ComboBoxItem Content="3"/><ComboBoxItem Content="4"/><ComboBoxItem Content="5"/>
+                  </ComboBox>
+                </DockPanel>
+                <Grid Margin="0,13,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="32"/><ColumnDefinition Width="58"/><ColumnDefinition Width="180"/>
+                    <ColumnDefinition Width="230"/><ColumnDefinition Width="70"/><ColumnDefinition Width="105"/><ColumnDefinition Width="130"/>
+                  </Grid.ColumnDefinitions>
+                  <Grid.RowDefinitions><RowDefinition Height="28"/><RowDefinition Height="58"/><RowDefinition Height="58"/><RowDefinition Height="58"/><RowDefinition Height="58"/><RowDefinition Height="58"/></Grid.RowDefinitions>
+                  <TextBlock Grid.Column="1" Text="IMAGE" Foreground="#B78332" FontSize="11" FontWeight="Bold"/>
+                  <TextBlock Grid.Column="2" Text="ROBLOX ASSET ID" Foreground="#B78332" FontSize="11" FontWeight="Bold"/>
+                  <TextBlock Grid.Column="3" Text="NAME" Foreground="#B78332" FontSize="11" FontWeight="Bold"/>
+                  <TextBlock Grid.Column="4" Text="SYMBOL" Foreground="#B78332" FontSize="11" FontWeight="Bold"/>
+                  <TextBlock Grid.Column="5" Text="STARTING" Foreground="#B78332" FontSize="11" FontWeight="Bold"/>
+                  <TextBlock Grid.Column="6" Text="RGB COLOR" Foreground="#B78332" FontSize="11" FontWeight="Bold"/>
+
+                  <TextBlock Grid.Row="1" Text="1" VerticalAlignment="Center" Foreground="#D2A74D" FontWeight="Bold"/>
+                  <Border Grid.Row="1" Grid.Column="1" Width="48" Height="48" Background="#0C0C0B" BorderBrush="#8A622E" BorderThickness="2" CornerRadius="5"><Grid><Image x:Name="Preview1" Margin="3" Stretch="Uniform"/><TextBlock x:Name="PreviewStatus1" Text="?" Foreground="#7C6D54" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid></Border>
+                  <TextBox x:Name="IconId1" Grid.Row="1" Grid.Column="2" Text="105300168575798" Margin="3" ToolTip="Paste the numeric Roblox image asset ID"/><TextBox x:Name="Name1" Grid.Row="1" Grid.Column="3" Text="Coins" Margin="3"/><TextBox x:Name="Symbol1" Grid.Row="1" Grid.Column="4" Text="$" Margin="3"/><TextBox x:Name="Start1" Grid.Row="1" Grid.Column="5" Text="2500" Margin="3"/><TextBox x:Name="Color1" Grid.Row="1" Grid.Column="6" Text="255,202,10" Margin="3"/>
+
+                  <TextBlock Grid.Row="2" Text="2" VerticalAlignment="Center" Foreground="#D2A74D" FontWeight="Bold"/>
+                  <Border Grid.Row="2" Grid.Column="1" Width="48" Height="48" Background="#0C0C0B" BorderBrush="#8A622E" BorderThickness="2" CornerRadius="5"><Grid><Image x:Name="Preview2" Margin="3" Stretch="Uniform"/><TextBlock x:Name="PreviewStatus2" Text="?" Foreground="#7C6D54" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid></Border>
+                  <TextBox x:Name="IconId2" Grid.Row="2" Grid.Column="2" Text="111977708425543" Margin="3" ToolTip="Paste the numeric Roblox image asset ID"/><TextBox x:Name="Name2" Grid.Row="2" Grid.Column="3" Text="Gems" Margin="3"/><TextBox x:Name="Symbol2" Grid.Row="2" Grid.Column="4" Text="G" Margin="3"/><TextBox x:Name="Start2" Grid.Row="2" Grid.Column="5" Text="0" Margin="3"/><TextBox x:Name="Color2" Grid.Row="2" Grid.Column="6" Text="55,135,255" Margin="3"/>
+
+                  <TextBlock Grid.Row="3" Text="3" VerticalAlignment="Center" Foreground="#D2A74D" FontWeight="Bold"/>
+                  <Border Grid.Row="3" Grid.Column="1" Width="48" Height="48" Background="#0C0C0B" BorderBrush="#8A622E" BorderThickness="2" CornerRadius="5"><Grid><Image x:Name="Preview3" Margin="3" Stretch="Uniform"/><TextBlock x:Name="PreviewStatus3" Text="?" Foreground="#7C6D54" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid></Border>
+                  <TextBox x:Name="IconId3" Grid.Row="3" Grid.Column="2" Text="125907024425133" Margin="3" ToolTip="Paste the numeric Roblox image asset ID"/><TextBox x:Name="Name3" Grid.Row="3" Grid.Column="3" Text="Stars" Margin="3"/><TextBox x:Name="Symbol3" Grid.Row="3" Grid.Column="4" Text="*" Margin="3"/><TextBox x:Name="Start3" Grid.Row="3" Grid.Column="5" Text="0" Margin="3"/><TextBox x:Name="Color3" Grid.Row="3" Grid.Column="6" Text="158,61,245" Margin="3"/>
+
+                  <TextBlock Grid.Row="4" Text="4" VerticalAlignment="Center" Foreground="#D2A74D" FontWeight="Bold"/>
+                  <Border Grid.Row="4" Grid.Column="1" Width="48" Height="48" Background="#0C0C0B" BorderBrush="#8A622E" BorderThickness="2" CornerRadius="5"><Grid><Image x:Name="Preview4" Margin="3" Stretch="Uniform"/><TextBlock x:Name="PreviewStatus4" Text="?" Foreground="#7C6D54" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid></Border>
+                  <TextBox x:Name="IconId4" Grid.Row="4" Grid.Column="2" Text="134119181427014" Margin="3" ToolTip="Paste the numeric Roblox image asset ID"/><TextBox x:Name="Name4" Grid.Row="4" Grid.Column="3" Text="Tokens" Margin="3"/><TextBox x:Name="Symbol4" Grid.Row="4" Grid.Column="4" Text="T" Margin="3"/><TextBox x:Name="Start4" Grid.Row="4" Grid.Column="5" Text="0" Margin="3"/><TextBox x:Name="Color4" Grid.Row="4" Grid.Column="6" Text="5,209,178" Margin="3"/>
+
+                  <TextBlock Grid.Row="5" Text="5" VerticalAlignment="Center" Foreground="#D2A74D" FontWeight="Bold"/>
+                  <Border Grid.Row="5" Grid.Column="1" Width="48" Height="48" Background="#0C0C0B" BorderBrush="#8A622E" BorderThickness="2" CornerRadius="5"><Grid><Image x:Name="Preview5" Margin="3" Stretch="Uniform"/><TextBlock x:Name="PreviewStatus5" Text="?" Foreground="#7C6D54" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid></Border>
+                  <TextBox x:Name="IconId5" Grid.Row="5" Grid.Column="2" Text="125907024425133" Margin="3" ToolTip="Paste the numeric Roblox image asset ID"/><TextBox x:Name="Name5" Grid.Row="5" Grid.Column="3" Text="Event" Margin="3"/><TextBox x:Name="Symbol5" Grid.Row="5" Grid.Column="4" Text="!" Margin="3"/><TextBox x:Name="Start5" Grid.Row="5" Grid.Column="5" Text="0" Margin="3"/><TextBox x:Name="Color5" Grid.Row="5" Grid.Column="6" Text="255,46,138" Margin="3"/>
+                </Grid>
+                <TextBlock Text="Paste the number from Copy Asset ID. The preview confirms the asset Roblox will render; the text symbol remains the fallback."
+                           Foreground="#8F805F" FontSize="11" Margin="32,8,0,0" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+
+            <Border Background="#181713" BorderBrush="#8A622E" BorderThickness="2" Padding="18" Margin="0,14,0,0">
+              <StackPanel>
+                <TextBlock Text="3. SHARED SYSTEMS" FontWeight="Bold" Foreground="#D2A74D" FontSize="13"/>
+                <TextBlock Text="Enable only the systems this game needs." Foreground="#A89573" FontSize="12" Margin="0,4,0,10"/>
+                <WrapPanel>
+                  <CheckBox x:Name="Store" Content="Store" IsChecked="True" Width="175" Margin="3,5"/>
+                  <CheckBox x:Name="Inventory" Content="Inventory" IsChecked="True" Width="175" Margin="3,5"/>
+                  <CheckBox x:Name="Rewards" Content="Daily rewards" IsChecked="True" Width="175" Margin="3,5"/>
+                  <CheckBox x:Name="Offline" Content="Offline earnings" IsChecked="True" Width="175" Margin="3,5"/>
+                  <CheckBox x:Name="Profiles" Content="Profiles" IsChecked="True" Width="175" Margin="3,5"/>
+                  <CheckBox x:Name="Boards" Content="Leaderboards" IsChecked="True" Width="175" Margin="3,5"/>
+                  <CheckBox x:Name="Codes" Content="Codes" IsChecked="True" Width="175" Margin="3,5"/>
+                  <CheckBox x:Name="Feedback" Content="Feedback" IsChecked="True" Width="175" Margin="3,5"/>
+                  <CheckBox x:Name="Community" Content="Community verification" Width="220" Margin="3,5"/>
+                </WrapPanel>
+              </StackPanel>
+            </Border>
+
+            <Button x:Name="Build" Content="BUILD AND OPEN SHARED SANDBOX" Height="58" Margin="0,20,0,0"
+                    Style="{DynamicResource PrimaryButton}" FontSize="17" HorizontalContentAlignment="Center"/>
+            <TextBlock Text="The same private Roblox sandbox is reused. Each preset has isolated real saved data."
+                       Foreground="#D2A74D" Margin="0,8,0,0" TextWrapping="Wrap"/>
+            <Button x:Name="Package" Content="BUILD DRAG-AND-DROP UI PACKAGE" Height="48" Margin="0,10,0,0"
+                    Style="{DynamicResource SecondaryButton}" FontSize="14" HorizontalContentAlignment="Center"/>
+            <TextBlock x:Name="Status" Text="Nothing has been generated yet." Foreground="#A89573" Margin="0,12,0,20" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Grid>
+      </ScrollViewer>
+    </Grid>
+  </Grid>
+</Window>

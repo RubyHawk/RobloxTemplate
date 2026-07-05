@@ -3,9 +3,9 @@
   "preset": "rpg",
   "dataNamespace": "rpg",
   "currencies": [
-    { "id": "gold", "name": "Gold", "symbol": "G", "startingAmount": 500, "color": [227, 156, 31] },
-    { "id": "crystals", "name": "Crystals", "symbol": "◆", "startingAmount": 10, "color": [62, 126, 214] },
-    { "id": "honor", "name": "Honor", "symbol": "★", "startingAmount": 0, "color": [97, 74, 163] }
+    { "id": "gold", "name": "Gold", "symbol": "G", "iconAssetId": "105300168575798", "startingAmount": 500, "color": [227, 156, 31] },
+    { "id": "crystals", "name": "Crystals", "symbol": "C", "iconAssetId": "72854331493787", "startingAmount": 10, "color": [62, 126, 214] },
+    { "id": "honor", "name": "Honor", "symbol": "H", "iconAssetId": "111977708425543", "startingAmount": 0, "color": [97, 74, 163] }
   ],
   "features": {
     "store": true,

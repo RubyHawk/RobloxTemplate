@@ -198,6 +198,30 @@
         <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type CheckBox}">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border x:Name="CheckHousing" Width="18" Height="18" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                Background="#171715" BorderBrush="#8A622E" BorderThickness="2" CornerRadius="3">
+                            <Path x:Name="CheckMark" Data="M 3 8 L 7 12 L 15 3" Stroke="#F2E7CE" StrokeThickness="2.5"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" Visibility="Collapsed"/>
+                        </Border>
+                        <ContentPresenter Grid.Column="1" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="CheckHousing" Property="Background" Value="{StaticResource AppAccentBrush}"/>
+                            <Setter TargetName="CheckHousing" Property="BorderBrush" Value="#D2A74D"/>
+                            <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="CheckHousing" Property="BorderBrush" Value="#E3BA64"/></Trigger>
+                        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style TargetType="{x:Type ScrollBar}">

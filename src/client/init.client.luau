@@ -412,10 +412,17 @@ local function applyState(nextState: any)
 			local amount = slot:WaitForChild("AmountLabel") :: TextLabel
 			local caption = slot:WaitForChild("Caption") :: TextLabel
 			local symbol = slot:WaitForChild("Symbol") :: TextLabel
+			local icon = slot:WaitForChild("Icon") :: ImageLabel
 			local accent = slot:WaitForChild("Accent") :: Frame
 			amount.Text = UIFactory.formatNumber(balances[definition.id] or 0)
 			caption.Text = string.upper(definition.name)
 			symbol.Text = definition.symbol
+			local hasIcon = definition.iconAssetId ~= ""
+			symbol.Visible = not hasIcon
+			icon.Image = if hasIcon
+				then `rbxthumb://type=Asset&id={definition.iconAssetId}&w=150&h=150`
+				else ""
+			icon.Visible = hasIcon
 			local color = definition.color
 			if type(color) == "table" then
 				accent.BackgroundColor3 = Color3.fromRGB(color[1] or 255, color[2] or 202, color[3] or 10)
