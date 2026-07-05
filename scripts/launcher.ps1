@@ -8,6 +8,7 @@ Set-StrictMode -Version Latest
 
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
+Add-Type -AssemblyName System.Windows.Forms
 
 $root = Split-Path -Parent $PSScriptRoot
 $logDirectory = Join-Path $root "build"
@@ -444,7 +445,25 @@ function Update-ResponsiveLayout {
     }
 }
 $window.Add_SizeChanged({ Update-ResponsiveLayout })
-$window.Add_ContentRendered({ Update-ResponsiveLayout })
+$window.Add_ContentRendered({
+    Update-ResponsiveLayout
+
+    # A hidden PowerShell host has no reliable active monitor. Center the app on the
+    # screen containing the mouse cursor so START_HERE.cmd opens where the user is
+    # currently working, including mixed-DPI multi-monitor desktops.
+    $screen = [System.Windows.Forms.Screen]::FromPoint([System.Windows.Forms.Cursor]::Position)
+    $dpi = [System.Windows.Media.VisualTreeHelper]::GetDpi($window)
+    $workLeft = $screen.WorkingArea.Left / $dpi.DpiScaleX
+    $workTop = $screen.WorkingArea.Top / $dpi.DpiScaleY
+    $workWidth = $screen.WorkingArea.Width / $dpi.DpiScaleX
+    $workHeight = $screen.WorkingArea.Height / $dpi.DpiScaleY
+    $window.Left = $workLeft + [math]::Max(0, ($workWidth - $window.ActualWidth) / 2)
+    $window.Top = $workTop + [math]::Max(0, ($workHeight - $window.ActualHeight) / 2)
+    $window.Topmost = $true
+    [void]$window.Activate()
+    $window.Topmost = $false
+    [void]$window.Focus()
+})
 
 function Set-ActionStatus([string]$Message) {
     $activityStatus.Foreground = $statusNeutralBrush
