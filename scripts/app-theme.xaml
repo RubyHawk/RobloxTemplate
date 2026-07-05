@@ -52,11 +52,8 @@
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 Padding="{TemplateBinding Padding}">
-                            <Grid>
-                                <Border BorderBrush="#F1CD7B" BorderThickness="1,1,0,0" CornerRadius="3" Opacity="0.25"/>
-                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                                  VerticalAlignment="Center" RecognizesAccessKey="True"/>
-                            </Grid>
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center" RecognizesAccessKey="True"/>
                         </Border>
                     </Border>
                     <ControlTemplate.Triggers>

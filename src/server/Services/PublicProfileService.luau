@@ -11,6 +11,7 @@ local DataStoreRuntime = require(script.Parent.Parent.Util.DataStoreRuntime)
 local ProfileService = require(script.Parent.ProfileService)
 
 type PublicProfile = Types.PublicProfile
+type FindResult = PublicProfile | string | nil
 
 local PublicProfileService = {}
 local store: GlobalDataStore? = nil
@@ -21,8 +22,9 @@ local lastPublished: { [number]: PublicProfile } = {}
 local function getStore(): GlobalDataStore
 	local current = store
 	if current == nil then
-		current = DataStoreService:GetDataStore(Config.publicProfileStoreName)
-		store = current
+		local created = DataStoreService:GetDataStore(Config.publicProfileStoreName)
+		store = created
+		return created
 	end
 	return current
 end
@@ -101,7 +103,7 @@ function PublicProfileService.publish(player: Player)
 	end
 end
 
-function PublicProfileService.find(rawUsername: any): (boolean, PublicProfile? | string)
+function PublicProfileService.find(rawUsername: any): (boolean, FindResult)
 	if type(rawUsername) ~= "string" or #rawUsername < 3 or #rawUsername > 20 then
 		return false, "Enter an exact Roblox username"
 	end

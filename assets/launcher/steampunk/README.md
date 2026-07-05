@@ -11,6 +11,10 @@ high-detail asset board is preserved under `detailed/`, alongside the exact crop
 by the app. The mechanically-correct lever remains a deterministic SVG and is exported
 at normal and 2x resolution.
 
+`runtime/` contains non-destructive transparent exports of the approved detailed art.
+The top-right flourish is mirrored there so its structural leg faces the window edge;
+the original crop remains unchanged under `detailed/`.
+
 ## Visual rules
 
 - Iron: `#171715`, `#24231F`, outline `#090908`
