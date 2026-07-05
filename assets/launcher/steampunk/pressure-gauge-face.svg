@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
+  <defs>
+    <radialGradient id="paper" cx="38%" cy="32%"><stop stop-color="#F0DFC0"/><stop offset="1" stop-color="#CDB184"/></radialGradient>
+    <linearGradient id="brass" x2="0" y2="1"><stop stop-color="#D7AA58"/><stop offset=".55" stop-color="#B78332"/><stop offset="1" stop-color="#6D471B"/></linearGradient>
+  </defs>
+  <circle cx="120" cy="120" r="116" fill="#090908"/>
+  <circle cx="120" cy="120" r="110" fill="url(#brass)" stroke="#090908" stroke-width="4"/>
+  <circle cx="120" cy="120" r="91" fill="url(#paper)" stroke="#6D471B" stroke-width="5"/>
+  <g stroke="#30291F" stroke-linecap="square">
+    <path d="M56 174l-10 8M47 152l-13 5M42 126l-14 1M45 100l-13-4M56 76l-11-8M74 57l-8-11M96 46l-4-13M120 42V28M144 46l4-13M166 57l8-11M184 76l11-8M195 100l13-4M198 126l14 1M193 152l13 5M184 174l10 8" stroke-width="4"/>
+    <path d="M67 159l-7 5M59 137l-8 2M59 113l-8-2M67 91l-7-5M82 73l-5-7M102 63l-2-8M120 60V52M138 63l2-8M158 73l5-7M173 91l7-5M181 113l8-2M181 137l8 2M173 159l7 5" stroke-width="2"/>
+  </g>
+  <g fill="#30291F" font-family="Bahnschrift, Arial" font-size="16" font-weight="700" text-anchor="middle">
+    <text x="65" y="151">0</text><text x="65" y="96">40</text><text x="120" y="73">80</text><text x="175" y="96">120</text><text x="175" y="151">160</text>
+  </g>
+  <circle cx="120" cy="120" r="10" fill="#6D471B" stroke="#090908" stroke-width="3"/>
+</svg>

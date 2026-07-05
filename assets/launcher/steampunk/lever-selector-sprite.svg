@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="640" height="320" viewBox="0 0 640 320">
+  <defs>
+    <linearGradient id="iron" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#46433B"/>
+      <stop offset="0.18" stop-color="#25241F"/>
+      <stop offset="0.58" stop-color="#111110"/>
+      <stop offset="1" stop-color="#2B2923"/>
+    </linearGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#F0CF7B"/>
+      <stop offset="0.16" stop-color="#C79640"/>
+      <stop offset="0.45" stop-color="#8A571F"/>
+      <stop offset="0.72" stop-color="#6A3E15"/>
+      <stop offset="1" stop-color="#D4A64D"/>
+    </linearGradient>
+    <linearGradient id="shaft" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4A2B0E"/>
+      <stop offset="0.18" stop-color="#8F5B21"/>
+      <stop offset="0.42" stop-color="#E0B45F"/>
+      <stop offset="0.64" stop-color="#B47C32"/>
+      <stop offset="0.86" stop-color="#724516"/>
+      <stop offset="1" stop-color="#321C08"/>
+    </linearGradient>
+    <linearGradient id="grip" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0A2423"/>
+      <stop offset="0.18" stop-color="#245B56"/>
+      <stop offset="0.43" stop-color="#4B978E"/>
+      <stop offset="0.63" stop-color="#2E6E67"/>
+      <stop offset="0.83" stop-color="#173F3B"/>
+      <stop offset="1" stop-color="#071B1A"/>
+    </linearGradient>
+    <radialGradient id="screw" cx="35%" cy="28%">
+      <stop offset="0" stop-color="#F2D184"/>
+      <stop offset="0.38" stop-color="#B78332"/>
+      <stop offset="0.78" stop-color="#704317"/>
+      <stop offset="1" stop-color="#352008"/>
+    </radialGradient>
+    <radialGradient id="pivot" cx="34%" cy="30%">
+      <stop offset="0" stop-color="#F1D07C"/>
+      <stop offset="0.26" stop-color="#B77D2B"/>
+      <stop offset="0.67" stop-color="#6C4013"/>
+      <stop offset="1" stop-color="#2B1806"/>
+    </radialGradient>
+    <pattern id="ironGrain" width="38" height="38" patternUnits="userSpaceOnUse">
+      <path d="M2 7l9-2M24 4l7 2M7 22l12 1M27 27l8-3M3 35l6-2" stroke="#686258" stroke-width="1" opacity=".22" stroke-linecap="round"/>
+      <circle cx="19" cy="12" r="1" fill="#090908" opacity=".5"/><circle cx="34" cy="17" r="1" fill="#908778" opacity=".18"/>
+      <circle cx="12" cy="31" r="1" fill="#090908" opacity=".48"/>
+    </pattern>
+    <pattern id="brassWear" width="46" height="46" patternUnits="userSpaceOnUse">
+      <path d="M4 9l11-3M28 13l13 2M8 34l17-2M32 39l8-3" stroke="#F5D58A" stroke-width="1" opacity=".22" stroke-linecap="round"/>
+      <path d="M18 20l8 1M2 43l10-2" stroke="#3B2209" stroke-width="1" opacity=".35"/>
+    </pattern>
+    <radialGradient id="lampOff"><stop offset="0" stop-color="#8C5620"/><stop offset="0.55" stop-color="#4D2E12"/><stop offset="1" stop-color="#1B120A"/></radialGradient>
+    <radialGradient id="lampOn"><stop offset="0" stop-color="#C9FFF5"/><stop offset="0.3" stop-color="#54C7B9"/><stop offset="0.72" stop-color="#21746C"/><stop offset="1" stop-color="#123934"/></radialGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#000000" flood-opacity="0.55"/>
+    </filter>
+    <filter id="lampGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <g id="plate">
+      <rect x="19" y="19" width="282" height="282" rx="21" fill="#050504" filter="url(#shadow)"/>
+      <rect x="24" y="24" width="272" height="272" rx="19" fill="#3A2109" stroke="#090908" stroke-width="4"/>
+      <rect x="28" y="28" width="264" height="264" rx="15" fill="url(#brass)" stroke="#E0B55F" stroke-width="2"/>
+      <rect x="28" y="28" width="264" height="264" rx="15" fill="url(#brassWear)" opacity=".65"/>
+      <rect x="35" y="35" width="250" height="250" rx="12" fill="none" stroke="#4A2B0D" stroke-width="5"/>
+      <rect x="40" y="40" width="240" height="240" rx="9" fill="url(#iron)" stroke="#E7BD68" stroke-width="3"/>
+      <rect x="40" y="40" width="240" height="240" rx="9" fill="url(#ironGrain)" opacity=".8"/>
+      <path d="M50 48h200M48 54v178M54 272h194" fill="none" stroke="#777065" stroke-width="1.5" opacity=".26"/>
+      <rect x="47" y="47" width="226" height="226" rx="6" fill="none" stroke="#5F3811" stroke-width="2"/>
+
+      <g fill="url(#screw)" stroke="#2B1807" stroke-width="3">
+        <circle cx="52" cy="52" r="10"/><circle cx="268" cy="52" r="10"/>
+        <circle cx="52" cy="268" r="10"/><circle cx="268" cy="268" r="10"/>
+      </g>
+      <g stroke="#3B2109" stroke-width="3" stroke-linecap="round">
+        <path d="M46 52h12M262 52h12M46 268h12M262 268h12"/>
+      </g>
+      <g fill="none" stroke="#F2D184" stroke-width="1" opacity=".7">
+        <path d="M47 47a8 8 0 0 1 10 0M263 47a8 8 0 0 1 10 0M47 263a8 8 0 0 1 10 0M263 263a8 8 0 0 1 10 0"/>
+      </g>
+
+      <path d="M94 125a87 87 0 0 1 132 0" fill="none" stroke="#090908" stroke-width="15" stroke-linecap="round"/>
+      <path d="M96 123a84 84 0 0 1 128 0" fill="none" stroke="url(#brass)" stroke-width="10" stroke-linecap="round"/>
+      <path d="M100 119a79 79 0 0 1 120 0" fill="none" stroke="#F2CE7B" stroke-width="2" stroke-linecap="round" opacity=".75"/>
+      <path d="M103 128a75 75 0 0 1 114 0" fill="none" stroke="#4A2B0D" stroke-width="2" stroke-linecap="round" opacity=".9"/>
+      <g fill="url(#screw)" stroke="#271605" stroke-width="3">
+        <circle cx="99" cy="123" r="12"/><circle cx="221" cy="123" r="12"/>
+      </g>
+      <circle cx="99" cy="123" r="4" fill="#18120A"/><circle cx="221" cy="123" r="4" fill="#18120A"/>
+      <path d="M94 119l8 8M216 127l8-8" stroke="#E4B85F" stroke-width="1.5" opacity=".8"/>
+
+      <circle cx="160" cy="160" r="49" fill="#050504"/>
+      <circle cx="160" cy="160" r="42" fill="url(#pivot)" stroke="#E5BA64" stroke-width="2"/>
+      <circle cx="160" cy="160" r="35" fill="none" stroke="#4A2A0C" stroke-width="5"/>
+      <circle cx="160" cy="160" r="28" fill="url(#iron)" stroke="#DDAE56" stroke-width="3"/>
+      <circle cx="160" cy="160" r="20" fill="url(#ironGrain)" opacity=".65"/>
+      <path d="M132 143a35 35 0 0 1 50-8" fill="none" stroke="#F0C86E" stroke-width="2" opacity=".72"/>
+      <circle cx="160" cy="160" r="12" fill="url(#screw)" stroke="#2A1705" stroke-width="3"/>
+      <circle cx="156" cy="156" r="3" fill="#F4D88F" opacity=".7"/>
+    </g>
+
+    <g id="handle">
+      <path d="M160 156V84" stroke="#050504" stroke-width="25" stroke-linecap="round"/>
+      <path d="M160 156V84" stroke="url(#shaft)" stroke-width="17" stroke-linecap="round"/>
+      <path d="M155 147V89" stroke="#F2CE7B" stroke-width="3" stroke-linecap="round" opacity=".72"/>
+      <path d="M168 145V91" stroke="#3D2209" stroke-width="2" stroke-linecap="round" opacity=".75"/>
+      <rect x="133" y="31" width="54" height="80" rx="17" fill="#050504"/>
+      <rect x="137" y="35" width="46" height="72" rx="15" fill="url(#brass)" stroke="#3B2209" stroke-width="2"/>
+      <rect x="141" y="38" width="38" height="66" rx="12" fill="url(#grip)" stroke="#122E2B" stroke-width="2"/>
+      <path d="M143 49h34M142 62h36M142 76h36M143 90h34" stroke="#102D2A" stroke-width="5" opacity=".9"/>
+      <path d="M144 47h31M143 60h33M143 74h33M144 88h31" stroke="#63A9A0" stroke-width="1.5" opacity=".56"/>
+      <path d="M149 41h18M147 98h20" stroke="#A6D3CC" stroke-width="2" stroke-linecap="round" opacity=".32"/>
+      <path d="M134 106h52" stroke="#050504" stroke-width="11" stroke-linecap="round"/>
+      <path d="M138 106h44" stroke="url(#brass)" stroke-width="7" stroke-linecap="round"/>
+      <path d="M142 104h30" stroke="#F0C76D" stroke-width="1.5" stroke-linecap="round" opacity=".7"/>
+    </g>
+  </defs>
+
+  <g transform="translate(0 0)">
+    <use xlink:href="#plate"/>
+    <g transform="rotate(-48 160 160)"><use xlink:href="#handle"/></g>
+    <circle cx="160" cy="244" r="21" fill="#050504"/>
+    <circle cx="160" cy="244" r="17" fill="url(#brass)" stroke="#E3B762" stroke-width="2"/>
+    <circle cx="160" cy="244" r="12" fill="url(#lampOff)" stroke="#2B1908" stroke-width="3"/>
+    <path d="M153 238a9 9 0 0 1 10-2" fill="none" stroke="#D89B43" stroke-width="2" opacity=".38"/>
+  </g>
+
+  <g transform="translate(320 0)">
+    <use xlink:href="#plate"/>
+    <g transform="rotate(48 160 160)"><use xlink:href="#handle"/></g>
+    <circle cx="160" cy="244" r="21" fill="#050504"/>
+    <circle cx="160" cy="244" r="17" fill="url(#brass)" stroke="#E3B762" stroke-width="2"/>
+    <circle cx="160" cy="244" r="12" fill="url(#lampOn)" stroke="#245C56" stroke-width="3" filter="url(#lampGlow)"/>
+    <path d="M153 238a9 9 0 0 1 10-2" fill="none" stroke="#E5FFFB" stroke-width="2" opacity=".8"/>
+  </g>
+</svg>

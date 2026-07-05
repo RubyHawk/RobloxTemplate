@@ -24,8 +24,9 @@ function Get-CurrentBranch {
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
         return "Git not found"
     }
-    $branch = (& git -C $root branch --show-current 2>$null).Trim()
-    if (-not $branch) {
+    $branchOutput = & git -C $root branch --show-current 2>$null
+    $branch = if ($null -eq $branchOutput) { "" } else { ([string]$branchOutput).Trim() }
+    if ([string]::IsNullOrWhiteSpace($branch)) {
         return "Unknown branch"
     }
     return $branch
@@ -50,13 +51,22 @@ function Format-CommandArgument([string]$Value) {
     return '"' + $Value + '"'
 }
 
-function Start-CommandWindow([string]$FileName, [string[]]$ArgumentValues = @()) {
+function Format-CommandArguments([string[]]$Values) {
+    return (($Values | ForEach-Object { Format-CommandArgument $_ }) -join " ")
+}
+
+$script:sessionProcesses = New-Object System.Collections.ArrayList
+
+function Start-CommandWindow([string]$FileName, [string[]]$ArgumentValues = @(), [switch]$TrackSession) {
     $commandFile = Join-Path $root $FileName
     $argumentText = ""
     foreach ($value in $ArgumentValues) {
         $argumentText = $argumentText + " " + (Format-CommandArgument $value)
     }
-    $process = Start-Process -FilePath $env:ComSpec -ArgumentList "/d /c `"`"$commandFile`"$argumentText`"" -WorkingDirectory $root -PassThru
+    $process = Start-Process -FilePath $env:ComSpec -ArgumentList "/d /c `"`"$commandFile`"$argumentText`"" -WorkingDirectory $root -WindowStyle Hidden -PassThru
+    if ($TrackSession) {
+        [void]$script:sessionProcesses.Add($process)
+    }
     Write-LauncherLog "Started $FileName$argumentText as process $($process.Id)."
 }
 
@@ -308,6 +318,12 @@ catch {
 </Window>
 '@
 
+$layoutPath = Join-Path $PSScriptRoot "launcher-layout.xaml"
+if (-not (Test-Path -LiteralPath $layoutPath -PathType Leaf)) {
+    throw "The launcher layout is missing: $layoutPath"
+}
+[xml]$xaml = Get-Content -LiteralPath $layoutPath -Raw -Encoding UTF8
+
 $reader = New-Object System.Xml.XmlNodeReader $xaml
 $window = [System.Windows.Markup.XamlReader]::Load($reader)
 
@@ -370,16 +386,65 @@ $stopTaskButton = Find-Control "StopTaskButton"
 $outputToggle = Find-Control "OutputToggle"
 $outputPanel = Find-Control "OutputPanel"
 $outputBox = Find-Control "OutputBox"
+$shellTexture = Find-Control "ShellTexture"
+$workshopEmblem = Find-Control "WorkshopEmblem"
+$headerGauge = Find-Control "HeaderGauge"
+$blueprintImage = Find-Control "BlueprintImage"
+$ventImage = Find-Control "VentImage"
+$projectLabelImage = Find-Control "ProjectLabelImage"
+$panelCornerImage = Find-Control "PanelCornerImage"
+$playLever = Find-Control "PlayLever"
+$figmaLever = Find-Control "FigmaLever"
+$toolsLever = Find-Control "ToolsLever"
+$sidebarDecoration = Find-Control "SidebarDecoration"
+
+function Get-LauncherImage([string]$RelativePath) {
+    $path = Join-Path $root $RelativePath
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        throw "A launcher image is missing: $path"
+    }
+    $bitmap = New-Object System.Windows.Media.Imaging.BitmapImage
+    $bitmap.BeginInit()
+    $bitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+    $bitmap.UriSource = New-Object System.Uri($path, [System.UriKind]::Absolute)
+    $bitmap.EndInit()
+    $bitmap.Freeze()
+    return $bitmap
+}
+
+$detailedAssetRoot = "assets\launcher\steampunk\detailed"
+$pngAssetRoot = "assets\launcher\steampunk\png"
+$shellTexture.Source = Get-LauncherImage "$detailedAssetRoot\iron-surface-detailed.png"
+$workshopEmblem.Source = Get-LauncherImage "$detailedAssetRoot\workshop-emblem-detailed.png"
+$headerGauge.Source = Get-LauncherImage "$detailedAssetRoot\pressure-gauge-detailed.png"
+$blueprintImage.Source = Get-LauncherImage "$detailedAssetRoot\boiler-blueprint-detailed.png"
+$ventImage.Source = Get-LauncherImage "$detailedAssetRoot\vent-grille-detailed.png"
+$projectLabelImage.Source = Get-LauncherImage "$detailedAssetRoot\parchment-label-detailed.png"
+$panelCornerImage.Source = Get-LauncherImage "$detailedAssetRoot\panel-corner-detailed.png"
+$leverOffSource = Get-LauncherImage "$pngAssetRoot\lever-off@2x.png"
+$leverOnSource = Get-LauncherImage "$pngAssetRoot\lever-on@2x.png"
 
 $brushConverter = New-Object System.Windows.Media.BrushConverter
-$navSelectedBrush = $brushConverter.ConvertFromString("#1B2942")
-$navIdleForeground = $brushConverter.ConvertFromString("#C9D7EE")
-$statusNeutralBrush = $brushConverter.ConvertFromString("#C9D7EE")
-$statusSuccessBrush = $brushConverter.ConvertFromString("#34D399")
-$statusErrorBrush = $brushConverter.ConvertFromString("#F87171")
+$navSelectedBrush = $window.FindResource("PatinaButtonBrush")
+$navIdleBrush = $window.FindResource("IronButtonBrush")
+$navIdleForeground = $brushConverter.ConvertFromString("#D9C49C")
+$statusNeutralBrush = $brushConverter.ConvertFromString("#D9C49C")
+$statusSuccessBrush = $brushConverter.ConvertFromString("#65AAA0")
+$statusErrorBrush = $brushConverter.ConvertFromString("#D46B58")
 
 $sidebarInfo.Text = "$(Get-CurrentProject)`nBranch: $(Get-CurrentBranch)"
 Write-LauncherLog "Launcher opened on $(Get-CurrentBranch) | $(Get-CurrentProject)."
+
+function Update-ResponsiveLayout {
+    if ($window.ActualHeight -lt 740) {
+        $sidebarDecoration.Visibility = "Collapsed"
+    }
+    else {
+        $sidebarDecoration.Visibility = "Visible"
+    }
+}
+$window.Add_SizeChanged({ Update-ResponsiveLayout })
+$window.Add_ContentRendered({ Update-ResponsiveLayout })
 
 function Set-ActionStatus([string]$Message) {
     $activityStatus.Foreground = $statusNeutralBrush
@@ -389,27 +454,32 @@ function Set-ActionStatus([string]$Message) {
 function Show-OutputPanel([bool]$Show) {
     if ($Show) {
         $outputPanel.Visibility = "Visible"
-        $outputToggle.Content = "Hide activity"
+        $outputToggle.Content = "Hide workshop log"
     }
     else {
         $outputPanel.Visibility = "Collapsed"
-        $outputToggle.Content = "Show activity"
+        $outputToggle.Content = "Show workshop log"
     }
 }
 
 function Select-Page([string]$PageName) {
     $pages = @{ Play = $playPage; Figma = $figmaPage; Tools = $toolsPage }
     $buttons = @{ Play = $playNavButton; Figma = $figmaNavButton; Tools = $toolsNavButton }
+    $levers = @{ Play = $playLever; Figma = $figmaLever; Tools = $toolsLever }
     foreach ($key in @("Play", "Figma", "Tools")) {
         if ($key -eq $PageName) {
             $pages[$key].Visibility = "Visible"
             $buttons[$key].Background = $navSelectedBrush
-            $buttons[$key].Foreground = [System.Windows.Media.Brushes]::White
+            $buttons[$key].Foreground = $brushConverter.ConvertFromString("#F2E7CE")
+            $buttons[$key].BorderBrush = $brushConverter.ConvertFromString("#D2A74D")
+            $levers[$key].Source = $leverOnSource
         }
         else {
             $pages[$key].Visibility = "Collapsed"
-            $buttons[$key].Background = [System.Windows.Media.Brushes]::Transparent
+            $buttons[$key].Background = $navIdleBrush
             $buttons[$key].Foreground = $navIdleForeground
+            $buttons[$key].BorderBrush = $brushConverter.ConvertFromString("#725025")
+            $levers[$key].Source = $leverOffSource
         }
     }
 }
@@ -500,7 +570,8 @@ function Start-LauncherTask([string]$Name, [string]$ScriptPath, [string[]]$Scrip
     $outFile = Join-Path $taskLogDirectory "$stamp-$safeName.out.log"
     $errFile = Join-Path $taskLogDirectory "$stamp-$safeName.err.log"
     $arguments = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $ScriptPath) + $ScriptArguments
-    $process = Start-Process -FilePath "powershell.exe" -ArgumentList $arguments -WorkingDirectory $root -WindowStyle Hidden `
+    $argumentText = Format-CommandArguments $arguments
+    $process = Start-Process -FilePath "powershell.exe" -ArgumentList $argumentText -WorkingDirectory $root -WindowStyle Hidden `
         -RedirectStandardOutput $outFile -RedirectStandardError $errFile -PassThru
     $script:activeTask = @{
         Name = $Name
@@ -590,7 +661,7 @@ $playableButton.Add_Click({
             Show-LauncherMessage "Add a recipe file under config-presets first." "No recipe selected" ([System.Windows.MessageBoxImage]::Warning)
             return
         }
-        Start-CommandWindow "SANDBOX.cmd" @("-RecipePath", [string]$selectedRecipe.Tag)
+        Start-CommandWindow "SANDBOX.cmd" @("-RecipePath", [string]$selectedRecipe.Tag) -TrackSession
         Set-ActionStatus "Opening the shared test experience with the '$([string]$selectedRecipe.Content)' recipe. Keep its session window open while playing."
     }
     catch {
@@ -601,7 +672,7 @@ $playableButton.Add_Click({
 
 $templateButton.Add_Click({
     try {
-        Start-CommandWindow "2_START.cmd"
+        Start-CommandWindow "2_START.cmd" -TrackSession
         Set-ActionStatus "Opening the template workbench. Keep its session window open while editing."
     }
     catch {
@@ -766,7 +837,35 @@ $figmaNavButton.Add_Click({ Select-Page "Figma" })
 $toolsNavButton.Add_Click({ Select-Page "Tools" })
 Select-Page "Play"
 
+$window.Add_Closing({
+    if ($script:activeTask -or @($script:sessionProcesses | Where-Object { -not $_.HasExited }).Count -gt 0) {
+        $answer = [System.Windows.MessageBox]::Show(
+            $window,
+            "Closing the app will stop its running project task and Roblox/Rojo sessions. Studio itself can remain open, but live file syncing will stop.`n`nClose anyway?",
+            "Stop running sessions?",
+            [System.Windows.MessageBoxButton]::YesNo,
+            [System.Windows.MessageBoxImage]::Warning
+        )
+        if ($answer -ne [System.Windows.MessageBoxResult]::Yes) {
+            $_.Cancel = $true
+            return
+        }
+    }
+    if ($script:activeTask -and -not $script:activeTask.Process.HasExited) {
+        Start-Process -FilePath "taskkill.exe" -ArgumentList @("/PID", "$($script:activeTask.Process.Id)", "/T", "/F") -WindowStyle Hidden -Wait
+    }
+    foreach ($session in @($script:sessionProcesses)) {
+        if (-not $session.HasExited) {
+            Start-Process -FilePath "taskkill.exe" -ArgumentList @("/PID", "$($session.Id)", "/T", "/F") -WindowStyle Hidden -Wait
+        }
+    }
+})
+
 if ($SmokeTest) {
+    $spacePathTest = Format-CommandArguments @("-PatchPath", "C:\Users\Example Person\Downloads\TemplateUI.figma-patch.json")
+    if ($spacePathTest -notmatch '"C:\\Users\\Example Person\\Downloads\\TemplateUI\.figma-patch\.json"') {
+        throw "Launcher argument quoting does not preserve paths containing spaces."
+    }
     $newestPatchName = "none"
     if ($patchBox.Text) {
         $newestPatchName = [System.IO.Path]::GetFileName($patchBox.Text)

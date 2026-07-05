@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "palette": {
+    "iron": "#171715",
+    "ironRaised": "#24231F",
+    "outline": "#090908",
+    "brass": "#B78332",
+    "brassHighlight": "#D7AA58",
+    "brassShadow": "#6D471B",
+    "patina": "#397F77",
+    "parchment": "#D9C49C"
+  },
+  "assets": [
+    { "source": "lever-selector-sprite.svg", "export": "png/lever-selector-sprite.png", "size": [640, 320], "role": "shared two-state navigation lever sprite" },
+    { "source": "lever-selector-sprite.svg", "export": "png/lever-off@2x.png", "size": [640, 640], "role": "unselected navigation lever" },
+    { "source": "lever-selector-sprite.svg", "export": "png/lever-on@2x.png", "size": [640, 640], "role": "selected navigation lever" },
+    { "source": "detailed/asset-board-reference.png", "export": "detailed/iron-surface-detailed.png", "size": [316, 334], "role": "high-detail shell texture" },
+    { "source": "detailed/asset-board-reference.png", "export": "detailed/boiler-blueprint-detailed.png", "size": [330, 350], "role": "high-detail content watermark" },
+    { "source": "detailed/asset-board-reference.png", "export": "detailed/pressure-gauge-detailed.png", "size": [345, 350], "role": "high-detail header gauge" },
+    { "source": "detailed/asset-board-reference.png", "export": "detailed/workshop-emblem-detailed.png", "size": [355, 340], "role": "high-detail launcher emblem" },
+    { "source": "detailed/asset-board-reference.png", "export": "detailed/vent-grille-detailed.png", "size": [288, 120], "role": "sidebar vent detail" },
+    { "source": "detailed/asset-board-reference.png", "export": "detailed/parchment-label-detailed.png", "size": [450, 130], "role": "project identity plate" },
+    { "source": "detailed/asset-board-reference.png", "export": "detailed/panel-corner-detailed.png", "size": [265, 135], "role": "content-frame corner" },
+    { "source": "iron-surface-tile.svg", "export": "png/iron-surface-tile.png", "size": [256, 256], "role": "seamless app-shell texture" },
+    { "source": "boiler-blueprint.svg", "export": "png/boiler-blueprint.png", "size": [420, 560], "role": "content-panel watermark" },
+    { "source": "pressure-gauge-face.svg", "export": "png/pressure-gauge-face.png", "size": [240, 240], "role": "header status instrument" },
+    { "source": "workshop-emblem.svg", "export": "png/workshop-emblem.png", "size": [128, 128], "role": "launcher mark" },
+    { "source": "nav-play-test.svg", "export": "png/nav-play-test.png", "size": [96, 96], "role": "Play & Test navigation" },
+    { "source": "nav-figma-design.svg", "export": "png/nav-figma-design.png", "size": [96, 96], "role": "Figma Design navigation" },
+    { "source": "nav-build-tools.svg", "export": "png/nav-build-tools.png", "size": [96, 96], "role": "Build & Tools navigation" },
+    { "source": "status-lamps.svg", "export": "png/status-lamps.png", "size": [320, 72], "role": "status lamp state strip" },
+    { "source": "brass-rivet.svg", "export": "png/brass-rivet.png", "size": [32, 32], "role": "repeatable chassis fastener" },
+    { "source": "vent-grille.svg", "export": "png/vent-grille.png", "size": [192, 64], "role": "sidebar vent" },
+    { "source": "copper-pipe-corner.svg", "export": "png/copper-pipe-corner.png", "size": [160, 160], "role": "bottom-right shell detail" },
+    { "source": "panel-corner.svg", "export": "png/panel-corner.png", "size": [96, 96], "role": "content-frame corner detail" }
+  ]
+}
