@@ -1,0 +1,289 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1600" height="900" viewBox="0 0 1600 900" font-family="'Montserrat','Segoe UI','Helvetica Neue',Arial,sans-serif">
+  <title>Roblox 2026 inventory UI concept - dark competitive style</title>
+  <style>
+    text { font-family: 'Montserrat','Segoe UI','Helvetica Neue',Arial,sans-serif; }
+  </style>
+  <defs>
+    <linearGradient id="bgG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141B2A"/><stop offset="1" stop-color="#0A0E17"/>
+    </linearGradient>
+    <radialGradient id="vig" cx="0.5" cy="0.45" r="0.75">
+      <stop offset="0.55" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.5"/>
+    </radialGradient>
+    <linearGradient id="panelG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#182133"/><stop offset="1" stop-color="#121927"/>
+    </linearGradient>
+    <linearGradient id="slotG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#202B41"/><stop offset="1" stop-color="#161F30"/>
+    </linearGradient>
+    <radialGradient id="prevG" cx="0.5" cy="0.5" r="0.7">
+      <stop offset="0" stop-color="#1E3A55"/><stop offset="1" stop-color="#101827"/>
+    </radialGradient>
+    <linearGradient id="cyanG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#52E4FF"/><stop offset="1" stop-color="#1FA8E8"/>
+    </linearGradient>
+    <linearGradient id="bladeGold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE29A"/><stop offset="1" stop-color="#FFB13D"/>
+    </linearGradient>
+    <filter id="blurF" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="55"/>
+    </filter>
+    <filter id="glowCyan" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="0" stdDeviation="7" flood-color="#35D0FF" flood-opacity="0.75"/>
+    </filter>
+    <g id="gunRail">
+      <polygon points="-46,-2 -34,-8 -34,6 -44,8" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5" stroke-linejoin="round"/>
+      <rect x="-34" y="-7" width="58" height="14" rx="3" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+      <rect x="-24" y="-12" width="34" height="5" rx="2" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+      <rect x="-16" y="-17" width="20" height="6" rx="3" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+      <rect x="24" y="-4" width="22" height="8" rx="2" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+      <rect x="44" y="-6" width="4" height="12" rx="1" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+      <rect x="-10" y="7" width="9" height="15" rx="3" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5" transform="rotate(14 -10 7)"/>
+      <polygon points="4,7 16,7 13,22 1,22" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5" stroke-linejoin="round"/>
+      <circle cx="30" cy="0" r="2.2" fill="#35D0FF"/><circle cx="37" cy="0" r="2.2" fill="#35D0FF"/>
+    </g>
+  </defs>
+
+  <!-- ===================== backdrop ===================== -->
+  <rect width="1600" height="900" fill="url(#bgG)"/>
+  <circle cx="280" cy="180" r="170" fill="#7C5CFF" opacity="0.18" filter="url(#blurF)"/>
+  <circle cx="1350" cy="720" r="200" fill="#35D0FF" opacity="0.14" filter="url(#blurF)"/>
+  <circle cx="950" cy="80" r="130" fill="#FF4D6D" opacity="0.08" filter="url(#blurF)"/>
+  <rect width="1600" height="900" fill="url(#vig)"/>
+
+  <!-- ===================== panel ===================== -->
+  <rect x="200" y="110" width="1200" height="680" rx="26" fill="url(#panelG)" stroke="#2C3B58" stroke-width="2"/>
+  <rect x="226" y="111.5" width="1148" height="1.5" fill="#FFFFFF" opacity="0.07"/>
+
+  <!-- header -->
+  <text x="250" y="148" font-size="13" font-weight="700" letter-spacing="6" fill="#35D0FF" opacity="0.85">COLLECTION</text>
+  <text x="246" y="188" font-size="40" font-weight="800" font-style="italic" letter-spacing="3" fill="#FFFFFF">INVENTORY</text>
+  <rect x="250" y="200" width="70" height="5" rx="2.5" fill="#35D0FF"/>
+
+  <g transform="translate(1022,138)">
+    <rect width="158" height="42" rx="12" fill="#1C2740" stroke="#2C3B58" stroke-width="2"/>
+    <circle cx="24" cy="21" r="12" fill="url(#bladeGold)" stroke="#B8790B" stroke-width="2.5"/>
+    <circle cx="24" cy="21" r="6.5" fill="none" stroke="#B8790B" stroke-width="1.5" opacity="0.6"/>
+    <text x="44" y="27" font-size="16" font-weight="700" fill="#FFE0A3">18,320</text>
+  </g>
+  <g transform="translate(1192,138)">
+    <rect width="128" height="42" rx="12" fill="#1C2740" stroke="#2C3B58" stroke-width="2"/>
+    <polygon points="22,10 31,17 27,31 17,31 13,17" fill="#7FE8FF" stroke="#1FA8E8" stroke-width="2.5" stroke-linejoin="round"/>
+    <text x="42" y="27" font-size="16" font-weight="700" fill="#A8ECFF">2,450</text>
+  </g>
+  <g transform="translate(1334,136)">
+    <rect width="46" height="46" rx="12" fill="#1C2740" stroke="#2C3B58" stroke-width="2"/>
+    <path d="M15 15 L31 31 M31 15 L15 31" stroke="#93A1B8" stroke-width="3.5" stroke-linecap="round"/>
+  </g>
+
+  <!-- tabs -->
+  <rect x="248" y="278" width="1104" height="2" fill="#232F49"/>
+  <rect x="248" y="232" width="138" height="42" rx="12" fill="#35D0FF" fill-opacity="0.12" stroke="#35D0FF" stroke-width="2"/>
+  <text x="317" y="259" font-size="17" font-weight="800" letter-spacing="1" fill="#52E4FF" text-anchor="middle">WEAPONS</text>
+  <rect x="250" y="276" width="134" height="5" rx="2.5" fill="#35D0FF" filter="url(#glowCyan)"/>
+  <text x="448" y="259" font-size="17" font-weight="700" letter-spacing="1" fill="#7E8CA8" text-anchor="middle">MELEE</text>
+  <text x="564" y="259" font-size="17" font-weight="700" letter-spacing="1" fill="#7E8CA8" text-anchor="middle">SKINS</text>
+  <text x="692" y="259" font-size="17" font-weight="700" letter-spacing="1" fill="#7E8CA8" text-anchor="middle">CHARMS</text>
+  <text x="826" y="259" font-size="17" font-weight="700" letter-spacing="1" fill="#7E8CA8" text-anchor="middle">EMOTES</text>
+
+  <!-- ===================== weapon grid 4x3 ===================== -->
+  <g transform="translate(248,300)">
+    <!-- r0c0 railgun / legendary / selected -->
+    <g>
+      <rect width="140" height="140" rx="16" fill="url(#slotG)" stroke="#35D0FF" stroke-width="2.5" filter="url(#glowCyan)"/>
+      <ellipse cx="70" cy="60" rx="52" ry="42" fill="#FFB13D" opacity="0.10"/>
+      <use xlink:href="#gunRail" transform="translate(70,56)"/>
+      <text x="70" y="114" font-size="11.5" font-weight="700" letter-spacing="1" fill="#C9D4E8" text-anchor="middle">RAILGUN</text>
+      <rect x="16" y="124" width="108" height="5" rx="2.5" fill="#FFB13D"/>
+      <path d="M10 24 V14 Q10 10 14 10 H24 M116 10 H126 Q130 10 130 14 V24 M130 116 V126 Q130 130 126 130 H116 M24 130 H14 Q10 130 10 126 V116" fill="none" stroke="#52E4FF" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <!-- r0c1 rifle / epic -->
+    <g transform="translate(156,0)">
+      <rect width="140" height="140" rx="16" fill="url(#slotG)" stroke="#2C3B58" stroke-width="2"/>
+      <ellipse cx="70" cy="60" rx="52" ry="42" fill="#B166FF" opacity="0.10"/>
+      <g transform="translate(70,56)">
+        <polygon points="-44,-3 -32,-7 -32,6 -42,7" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5" stroke-linejoin="round"/>
+        <rect x="-32" y="-6" width="52" height="12" rx="3" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+        <rect x="-14" y="-11" width="22" height="5" rx="2" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+        <rect x="20" y="-3" width="20" height="6" rx="2" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+        <rect x="32" y="-8" width="3" height="5" fill="#C9D4E8" stroke="#66748F" stroke-width="1"/>
+        <rect x="-12" y="6" width="8" height="14" rx="3" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5" transform="rotate(14 -12 6)"/>
+        <polygon points="0,6 13,6 9,22 -3,22" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5" stroke-linejoin="round"/>
+      </g>
+      <text x="70" y="114" font-size="11.5" font-weight="700" letter-spacing="1" fill="#93A1B8" text-anchor="middle">AR-52</text>
+      <rect x="16" y="124" width="108" height="5" rx="2.5" fill="#B166FF"/>
+    </g>
+    <!-- r0c2 smg / rare -->
+    <g transform="translate(312,0)">
+      <rect width="140" height="140" rx="16" fill="url(#slotG)" stroke="#2C3B58" stroke-width="2"/>
+      <ellipse cx="70" cy="60" rx="52" ry="42" fill="#3D9BFF" opacity="0.10"/>
+      <g transform="translate(70,56)">
+        <path d="M-22 -3 H-34 V5 H-26" fill="none" stroke="#C9D4E8" stroke-width="3.5"/>
+        <rect x="-22" y="-7" width="40" height="14" rx="3" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+        <rect x="18" y="-4" width="13" height="8" rx="2" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+        <rect x="-12" y="-11" width="14" height="4" rx="2" fill="#C9D4E8" stroke="#66748F" stroke-width="1"/>
+        <polygon points="-2,7 10,7 8,28 -4,28" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5" stroke-linejoin="round"/>
+        <rect x="-16" y="7" width="8" height="13" rx="3" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5" transform="rotate(14 -16 7)"/>
+      </g>
+      <text x="70" y="114" font-size="11.5" font-weight="700" letter-spacing="1" fill="#93A1B8" text-anchor="middle">VIPER</text>
+      <rect x="16" y="124" width="108" height="5" rx="2.5" fill="#3D9BFF"/>
+    </g>
+    <!-- r0c3 shotgun / rare -->
+    <g transform="translate(468,0)">
+      <rect width="140" height="140" rx="16" fill="url(#slotG)" stroke="#2C3B58" stroke-width="2"/>
+      <ellipse cx="70" cy="60" rx="52" ry="42" fill="#3D9BFF" opacity="0.10"/>
+      <g transform="translate(70,58)">
+        <polygon points="-40,-4 -52,2 -52,10 -40,6" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5" stroke-linejoin="round"/>
+        <rect x="-40" y="-5" width="72" height="10" rx="3" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+        <rect x="-10" y="-9" width="42" height="5" rx="2" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+        <rect x="0" y="5" width="20" height="7" rx="3" fill="#98A6BF" stroke="#66748F" stroke-width="1.5"/>
+        <rect x="-30" y="5" width="8" height="12" rx="3" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5" transform="rotate(14 -30 5)"/>
+      </g>
+      <text x="70" y="114" font-size="11.5" font-weight="700" letter-spacing="1" fill="#93A1B8" text-anchor="middle">JUDGE</text>
+      <rect x="16" y="124" width="108" height="5" rx="2.5" fill="#3D9BFF"/>
+    </g>
+    <!-- r1c0 sniper / epic -->
+    <g transform="translate(0,156)">
+      <rect width="140" height="140" rx="16" fill="url(#slotG)" stroke="#2C3B58" stroke-width="2"/>
+      <ellipse cx="70" cy="60" rx="52" ry="42" fill="#B166FF" opacity="0.10"/>
+      <g transform="translate(70,58)">
+        <polygon points="-40,-3 -52,-8 -52,8 -40,5" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5" stroke-linejoin="round"/>
+        <rect x="-40" y="-5" width="66" height="10" rx="3" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+        <rect x="26" y="-3" width="22" height="5" rx="2" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+        <rect x="46" y="-5" width="5" height="9" rx="1" fill="#C9D4E8" stroke="#66748F" stroke-width="1"/>
+        <rect x="-20" y="-15" width="30" height="7" rx="3.5" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+        <circle cx="10" cy="-11.5" r="3" fill="#35D0FF"/>
+        <path d="M12 5 L6 18 M16 5 L22 18" stroke="#C9D4E8" stroke-width="2.5" stroke-linecap="round"/>
+        <rect x="-16" y="5" width="8" height="12" rx="3" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5" transform="rotate(14 -16 5)"/>
+      </g>
+      <text x="70" y="114" font-size="11.5" font-weight="700" letter-spacing="1" fill="#93A1B8" text-anchor="middle">LONGSHOT</text>
+      <rect x="16" y="124" width="108" height="5" rx="2.5" fill="#B166FF"/>
+    </g>
+    <!-- r1c1 pistol / common -->
+    <g transform="translate(156,156)">
+      <rect width="140" height="140" rx="16" fill="url(#slotG)" stroke="#2C3B58" stroke-width="2"/>
+      <ellipse cx="70" cy="60" rx="52" ry="42" fill="#93A1B8" opacity="0.08"/>
+      <g transform="translate(70,56)">
+        <rect x="-16" y="-11" width="4" height="5" fill="#C9D4E8" stroke="#66748F" stroke-width="1"/>
+        <rect x="-14" y="-9" width="32" height="11" rx="3" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+        <rect x="-12" y="2" width="10" height="17" rx="3" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5" transform="rotate(12 -7 2)"/>
+        <path d="M-1 2 L-1 8 Q-1 11 3 11 L7 11" fill="none" stroke="#C9D4E8" stroke-width="2"/>
+      </g>
+      <text x="70" y="114" font-size="11.5" font-weight="700" letter-spacing="1" fill="#93A1B8" text-anchor="middle">P-9</text>
+      <rect x="16" y="124" width="108" height="5" rx="2.5" fill="#93A1B8"/>
+    </g>
+    <!-- r1c2 energy blade / legendary -->
+    <g transform="translate(312,156)">
+      <rect width="140" height="140" rx="16" fill="url(#slotG)" stroke="#2C3B58" stroke-width="2"/>
+      <ellipse cx="70" cy="60" rx="52" ry="42" fill="#FFB13D" opacity="0.12"/>
+      <g transform="translate(70,58) rotate(-45)">
+        <path d="M0 -34 Q5 -10 2.5 20 L-2.5 20 Q-2 -10 0 -34 Z" fill="url(#bladeGold)" stroke="#C77E14" stroke-width="1.5"/>
+        <rect x="-7" y="19" width="14" height="4" rx="2" fill="#66748F"/>
+        <rect x="-3" y="23" width="6" height="15" rx="3" fill="#38445C"/>
+      </g>
+      <text x="70" y="114" font-size="11.5" font-weight="700" letter-spacing="1" fill="#93A1B8" text-anchor="middle">EDGE</text>
+      <rect x="16" y="124" width="108" height="5" rx="2.5" fill="#FFB13D"/>
+    </g>
+    <!-- r1c3 grenade / uncommon -->
+    <g transform="translate(468,156)">
+      <rect width="140" height="140" rx="16" fill="url(#slotG)" stroke="#2C3B58" stroke-width="2"/>
+      <ellipse cx="70" cy="60" rx="52" ry="42" fill="#58D658" opacity="0.10"/>
+      <g transform="translate(70,58)">
+        <circle cy="4" r="13" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+        <path d="M-13 4 H13 M0 -9 V17" stroke="#66748F" stroke-width="1.5" opacity="0.5"/>
+        <rect x="-4" y="-13" width="8" height="6" fill="#98A6BF" stroke="#66748F" stroke-width="1.5"/>
+        <circle cx="9" cy="-12" r="4" fill="none" stroke="#C9D4E8" stroke-width="2"/>
+        <path d="M-4 -12 Q-14 -10 -12 0" fill="none" stroke="#C9D4E8" stroke-width="2.5"/>
+      </g>
+      <text x="70" y="114" font-size="11.5" font-weight="700" letter-spacing="1" fill="#93A1B8" text-anchor="middle">FRAG</text>
+      <rect x="16" y="124" width="108" height="5" rx="2.5" fill="#58D658"/>
+    </g>
+    <!-- r2c0 launcher / mythic -->
+    <g transform="translate(0,312)">
+      <rect width="140" height="140" rx="16" fill="url(#slotG)" stroke="#2C3B58" stroke-width="2"/>
+      <ellipse cx="70" cy="60" rx="52" ry="42" fill="#FF4D6D" opacity="0.12"/>
+      <g transform="translate(70,56)">
+        <rect x="-36" y="-9" width="66" height="18" rx="8" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+        <ellipse cx="30" cy="0" rx="5" ry="9" fill="#0E1420" stroke="#66748F" stroke-width="1.5"/>
+        <rect x="14" y="-9" width="6" height="18" fill="#FF4D6D"/>
+        <rect x="-14" y="-15" width="12" height="6" rx="2" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+        <rect x="-20" y="9" width="8" height="12" rx="3" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+        <rect x="0" y="9" width="8" height="10" rx="3" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+      </g>
+      <text x="70" y="114" font-size="11.5" font-weight="700" letter-spacing="1" fill="#93A1B8" text-anchor="middle">HOWITZER</text>
+      <rect x="16" y="124" width="108" height="5" rx="2.5" fill="#FF4D6D"/>
+    </g>
+    <!-- r2c1 crossbow / rare -->
+    <g transform="translate(156,312)">
+      <rect width="140" height="140" rx="16" fill="url(#slotG)" stroke="#2C3B58" stroke-width="2"/>
+      <ellipse cx="70" cy="60" rx="52" ry="42" fill="#3D9BFF" opacity="0.10"/>
+      <g transform="translate(70,58)">
+        <polygon points="0,-28 5,-18 -5,-18" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5" stroke-linejoin="round"/>
+        <rect x="-3" y="-20" width="6" height="42" rx="3" fill="#C9D4E8" stroke="#66748F" stroke-width="1.5"/>
+        <path d="M0 -14 Q-24 -10 -26 8 M0 -14 Q24 -10 26 8" fill="none" stroke="#C9D4E8" stroke-width="4" stroke-linecap="round"/>
+        <path d="M-25 7 L0 -4 L25 7" fill="none" stroke="#93A1B8" stroke-width="1.5"/>
+        <circle cy="26" r="5" fill="none" stroke="#C9D4E8" stroke-width="3"/>
+      </g>
+      <text x="70" y="114" font-size="11.5" font-weight="700" letter-spacing="1" fill="#93A1B8" text-anchor="middle">BOLTCASTER</text>
+      <rect x="16" y="124" width="108" height="5" rx="2.5" fill="#3D9BFF"/>
+    </g>
+    <!-- r2c2 locked -->
+    <g transform="translate(312,312)">
+      <rect width="140" height="140" rx="16" fill="#131A29" stroke="#232F49" stroke-width="2"/>
+      <g transform="translate(70,56)">
+        <path d="M-8 -3 V-9 A8 8 0 0 1 8 -9 V-3" fill="none" stroke="#4A5771" stroke-width="5" stroke-linecap="round"/>
+        <rect x="-12" y="-3" width="24" height="19" rx="4" fill="#33405A"/>
+        <circle cy="4" r="2.5" fill="#131A29"/><rect x="-1.2" y="4" width="2.4" height="6" fill="#131A29"/>
+      </g>
+      <text x="70" y="114" font-size="11.5" font-weight="700" letter-spacing="1" fill="#55627E" text-anchor="middle">UNLOCK LV 45</text>
+    </g>
+    <!-- r2c3 locked -->
+    <g transform="translate(468,312)">
+      <rect width="140" height="140" rx="16" fill="#131A29" stroke="#232F49" stroke-width="2"/>
+      <g transform="translate(70,56)">
+        <path d="M-8 -3 V-9 A8 8 0 0 1 8 -9 V-3" fill="none" stroke="#4A5771" stroke-width="5" stroke-linecap="round"/>
+        <rect x="-12" y="-3" width="24" height="19" rx="4" fill="#33405A"/>
+        <circle cy="4" r="2.5" fill="#131A29"/><rect x="-1.2" y="4" width="2.4" height="6" fill="#131A29"/>
+      </g>
+      <text x="70" y="114" font-size="11.5" font-weight="700" letter-spacing="1" fill="#55627E" text-anchor="middle">UNLOCK LV 60</text>
+    </g>
+  </g>
+
+  <!-- ===================== detail panel ===================== -->
+  <rect x="880" y="300" width="472" height="452" rx="20" fill="#10182A" stroke="#2C3B58" stroke-width="2"/>
+  <rect x="900" y="320" width="432" height="212" rx="16" fill="url(#prevG)" stroke="#232F49" stroke-width="2"/>
+  <ellipse cx="1116" cy="426" rx="150" ry="58" fill="#35D0FF" opacity="0.10"/>
+  <ellipse cx="1116" cy="426" rx="90" ry="36" fill="#35D0FF" opacity="0.10"/>
+  <polygon points="1010,320 1070,320 950,532 900,532 900,510" fill="#FFFFFF" opacity="0.03"/>
+  <use xlink:href="#gunRail" transform="translate(1116,420) scale(2.5)"/>
+  <rect x="916" y="336" width="112" height="26" rx="13" fill="#FFB13D" fill-opacity="0.15" stroke="#FFB13D" stroke-width="1.5"/>
+  <text x="972" y="354" font-size="13" font-weight="800" letter-spacing="2" fill="#FFCF7A" text-anchor="middle">LEGENDARY</text>
+  <text x="900" y="574" font-size="27" font-weight="800" font-style="italic" letter-spacing="1" fill="#FFFFFF">PHANTOM RAILGUN</text>
+  <text x="900" y="598" font-size="13.5" font-weight="600" fill="#7E8CA8">Hitscan &#8226; Energy &#8226; Mastery 7</text>
+
+  <text x="900" y="624" font-size="13" font-weight="700" letter-spacing="1" fill="#A9B6CE">DAMAGE</text>
+  <rect x="1010" y="616" width="270" height="8" rx="4" fill="#232F49"/>
+  <rect x="1010" y="616" width="221" height="8" rx="4" fill="url(#cyanG)"/>
+  <text x="1332" y="624" font-size="14" font-weight="800" fill="#FFFFFF" text-anchor="end">82</text>
+
+  <text x="900" y="656" font-size="13" font-weight="700" letter-spacing="1" fill="#A9B6CE">FIRE RATE</text>
+  <rect x="1010" y="648" width="270" height="8" rx="4" fill="#232F49"/>
+  <rect x="1010" y="648" width="121" height="8" rx="4" fill="url(#cyanG)"/>
+  <text x="1332" y="656" font-size="14" font-weight="800" fill="#FFFFFF" text-anchor="end">45</text>
+
+  <text x="900" y="688" font-size="13" font-weight="700" letter-spacing="1" fill="#A9B6CE">MOBILITY</text>
+  <rect x="1010" y="680" width="270" height="8" rx="4" fill="#232F49"/>
+  <rect x="1010" y="680" width="165" height="8" rx="4" fill="url(#cyanG)"/>
+  <text x="1332" y="688" font-size="14" font-weight="800" fill="#FFFFFF" text-anchor="end">61</text>
+
+  <rect x="900" y="704" width="196" height="44" rx="12" fill="url(#cyanG)"/>
+  <text x="998" y="732" font-size="17" font-weight="800" letter-spacing="2" fill="#062836" text-anchor="middle">EQUIP</text>
+  <rect x="1112" y="704" width="140" height="44" rx="12" fill="none" stroke="#33415F" stroke-width="2"/>
+  <text x="1182" y="732" font-size="15" font-weight="700" letter-spacing="1" fill="#A9B6CE" text-anchor="middle">INSPECT</text>
+  <rect x="1268" y="704" width="64" height="44" rx="12" fill="none" stroke="#33415F" stroke-width="2"/>
+  <polygon points="1300,716 1303.2,723.1 1310.4,723.8 1304.8,728.6 1306.4,735.8 1300,731.8 1293.6,735.8 1295.2,728.6 1289.6,723.8 1296.8,723.1" fill="none" stroke="#FFB13D" stroke-width="2" stroke-linejoin="round"/>
+
+  <!-- footer -->
+  <text x="248" y="780" font-size="13" font-weight="600" letter-spacing="1" fill="#66748F">24 / 40 WEAPONS OWNED&#160;&#160;&#160;&#8226;&#160;&#160;&#160;SORT: RARITY &#9662;</text>
+</svg>

@@ -1,0 +1,448 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1600" height="900" viewBox="0 0 1600 900" font-family="'Fredoka One','Baloo 2','Arial Rounded MT Bold','Nunito','Segoe UI',sans-serif">
+  <title>Roblox 2026 inventory UI concept - bubble simulator style</title>
+  <style>
+    text { font-family: 'Fredoka One','Baloo 2','Arial Rounded MT Bold','Nunito','Segoe UI',sans-serif; }
+    .ob { paint-order: stroke; stroke-linejoin: round; fill: #ffffff; font-weight: 800; }
+  </style>
+  <defs>
+    <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#59C8FF"/><stop offset="1" stop-color="#BDEFFF"/>
+    </linearGradient>
+    <linearGradient id="hillG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#86E25B"/><stop offset="1" stop-color="#4CB438"/>
+    </linearGradient>
+    <linearGradient id="panelG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E1EDFC"/>
+    </linearGradient>
+    <linearGradient id="headerG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#58B4FF"/><stop offset="1" stop-color="#2E79F0"/>
+    </linearGradient>
+    <linearGradient id="greenG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8BF161"/><stop offset="1" stop-color="#3CBE2A"/>
+    </linearGradient>
+    <linearGradient id="redG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FF7E6E"/><stop offset="1" stop-color="#E0392C"/>
+    </linearGradient>
+    <linearGradient id="purpleG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#C892FF"/><stop offset="1" stop-color="#8A46E8"/>
+    </linearGradient>
+    <linearGradient id="goldBtnG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFD86B"/><stop offset="1" stop-color="#F5A623"/>
+    </linearGradient>
+    <linearGradient id="grayBtnG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#A9BFD8"/><stop offset="1" stop-color="#6E87A3"/>
+    </linearGradient>
+    <linearGradient id="coinG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFEC9D"/><stop offset="1" stop-color="#F7B733"/>
+    </linearGradient>
+    <linearGradient id="gemG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#A8F4FF"/><stop offset="1" stop-color="#2EC1F2"/>
+    </linearGradient>
+    <linearGradient id="commonG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EEF3FA"/><stop offset="1" stop-color="#CBD7E7"/>
+    </linearGradient>
+    <linearGradient id="uncommonG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#DDF8C8"/><stop offset="1" stop-color="#8FDF63"/>
+    </linearGradient>
+    <linearGradient id="rareG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#CEE7FF"/><stop offset="1" stop-color="#6FB4FF"/>
+    </linearGradient>
+    <linearGradient id="epicG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EBD8FF"/><stop offset="1" stop-color="#AD74FF"/>
+    </linearGradient>
+    <linearGradient id="legendG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFF0B8"/><stop offset="1" stop-color="#FFB93D"/>
+    </linearGradient>
+    <linearGradient id="mythicG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFCDEA"/><stop offset="1" stop-color="#FF5FB8"/>
+    </linearGradient>
+    <linearGradient id="voidG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6E4BB8"/><stop offset="1" stop-color="#2E1B54"/>
+    </linearGradient>
+    <linearGradient id="xpG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE066"/><stop offset="1" stop-color="#FFB931"/>
+    </linearGradient>
+    <linearGradient id="storG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9BE85F"/><stop offset="1" stop-color="#3CBE2A"/>
+    </linearGradient>
+    <filter id="dropPanel" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#05122E" flood-opacity="0.55"/>
+    </filter>
+    <filter id="glowSel" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="0" stdDeviation="7" flood-color="#FFE066" flood-opacity="0.95"/>
+    </filter>
+    <path id="sp" d="M0 -11 Q2.5 -2.5 11 0 Q2.5 2.5 0 11 Q-2.5 2.5 -11 0 Q-2.5 -2.5 0 -11 Z"/>
+    <g id="coin">
+      <circle r="19" fill="url(#coinG)" stroke="#B8790B" stroke-width="3.5"/>
+      <circle r="12" fill="none" stroke="#FFF6CE" stroke-width="2.5" opacity="0.9"/>
+      <text y="7" font-size="19" font-weight="800" fill="#A96F08" text-anchor="middle">$</text>
+    </g>
+    <g id="gem">
+      <polygon points="-12,-9 12,-9 17,-1 0,15 -17,-1" fill="url(#gemG)" stroke="#0E86B4" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M-6 -9 L0 15 L6 -9" fill="none" stroke="#0E86B4" stroke-width="1.8" opacity="0.35"/>
+    </g>
+    <g id="icoScythe">
+      <line x1="-26" y1="32" x2="20" y2="-28" stroke="#4A2E14" stroke-width="12" stroke-linecap="round"/>
+      <line x1="-26" y1="32" x2="20" y2="-28" stroke="#8A5A33" stroke-width="7" stroke-linecap="round"/>
+      <path d="M20 -28 C40 -26 50 -8 42 12 C44 -10 30 -20 8 -22 Z" fill="url(#voidG)" stroke="#241242" stroke-width="3.5" stroke-linejoin="round"/>
+      <circle cx="20" cy="-28" r="4.5" fill="#FF8AD8"/>
+    </g>
+  </defs>
+
+  <!-- ======================== background world ======================== -->
+  <rect width="1600" height="900" fill="url(#skyG)"/>
+  <circle cx="140" cy="110" r="95" fill="#FFF3A6" opacity="0.35"/>
+  <circle cx="140" cy="110" r="68" fill="#FFF3A6"/>
+  <g fill="#FFFFFF" opacity="0.85">
+    <ellipse cx="260" cy="140" rx="46" ry="20"/><ellipse cx="298" cy="146" rx="34" ry="16"/><ellipse cx="222" cy="148" rx="30" ry="14"/>
+  </g>
+  <g fill="#FFFFFF" opacity="0.7">
+    <ellipse cx="1250" cy="92" rx="56" ry="24"/><ellipse cx="1296" cy="100" rx="40" ry="18"/><ellipse cx="1204" cy="102" rx="36" ry="16"/>
+  </g>
+  <ellipse cx="350" cy="1000" rx="750" ry="280" fill="url(#hillG)"/>
+  <ellipse cx="1250" cy="1040" rx="900" ry="320" fill="#4CB438"/>
+  <use xlink:href="#coin" transform="translate(500,300) scale(0.8)" opacity="0.85"/>
+  <use xlink:href="#coin" transform="translate(1080,210) scale(0.65)" opacity="0.85"/>
+  <use xlink:href="#coin" transform="translate(1430,420) scale(0.9)" opacity="0.85"/>
+
+  <!-- dim overlay while modal is open -->
+  <rect width="1600" height="900" fill="#0A1730" opacity="0.45"/>
+
+  <!-- ======================== HUD: player chip ======================== -->
+  <g transform="translate(36,28)">
+    <rect width="300" height="72" rx="36" fill="#0F1E38" opacity="0.82"/>
+    <rect width="300" height="72" rx="36" fill="none" stroke="#6C86A8" stroke-opacity="0.55" stroke-width="2.5"/>
+    <circle cx="36" cy="36" r="26" fill="#FFD84D" stroke="#C8860B" stroke-width="3.5"/>
+    <circle cx="28" cy="32" r="3.2" fill="#26210E"/><circle cx="44" cy="32" r="3.2" fill="#26210E"/>
+    <path d="M27 42 Q36 49 45 42" fill="none" stroke="#26210E" stroke-width="3" stroke-linecap="round"/>
+    <text x="76" y="32" font-size="18" font-weight="800" fill="#FFFFFF">BladeMaster_X</text>
+    <rect x="76" y="42" width="58" height="20" rx="10" fill="#3CBE2A"/>
+    <text x="105" y="57" font-size="13" font-weight="800" fill="#FFFFFF" text-anchor="middle">LV 42</text>
+    <rect x="142" y="46" width="130" height="12" rx="6" fill="#223655"/>
+    <rect x="144" y="48" width="86" height="8" rx="4" fill="url(#xpG)"/>
+  </g>
+
+  <!-- ======================== HUD: currencies ======================== -->
+  <g transform="translate(1120,30)">
+    <rect width="220" height="56" rx="28" fill="#0F1E38" opacity="0.82"/>
+    <rect width="220" height="56" rx="28" fill="none" stroke="#6C86A8" stroke-opacity="0.55" stroke-width="2.5"/>
+    <use xlink:href="#coin" transform="translate(32,28)"/>
+    <text x="66" y="37" font-size="22" font-weight="800" fill="#FFFFFF">12,485</text>
+    <circle cx="186" cy="28" r="17" fill="url(#greenG)" stroke="#1E7A12" stroke-width="3"/>
+    <path d="M179 28 H193 M186 21 V35" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(1356,30)">
+    <rect width="200" height="56" rx="28" fill="#0F1E38" opacity="0.82"/>
+    <rect width="200" height="56" rx="28" fill="none" stroke="#6C86A8" stroke-opacity="0.55" stroke-width="2.5"/>
+    <use xlink:href="#gem" transform="translate(32,28)"/>
+    <text x="60" y="37" font-size="22" font-weight="800" fill="#FFFFFF">1,204</text>
+    <circle cx="166" cy="28" r="17" fill="url(#greenG)" stroke="#1E7A12" stroke-width="3"/>
+    <path d="M159 28 H173 M166 21 V35" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round"/>
+  </g>
+
+  <!-- ======================== HUD: side buttons ======================== -->
+  <g transform="translate(40,200)">
+    <g>
+      <rect y="6" width="78" height="78" rx="22" fill="#B8790B"/>
+      <rect width="78" height="78" rx="22" fill="url(#goldBtnG)" stroke="#B8790B" stroke-width="4"/>
+      <rect x="7" y="6" width="64" height="26" rx="12" fill="#FFFFFF" opacity="0.3"/>
+      <path d="M31 33 A8 8 0 0 1 47 33" fill="none" stroke="#FFFFFF" stroke-width="4.5"/>
+      <rect x="22" y="31" width="34" height="28" rx="9" fill="#FFFFFF"/>
+      <circle cx="31" cy="40" r="2.5" fill="#F5A623"/><circle cx="47" cy="40" r="2.5" fill="#F5A623"/>
+      <text x="39" y="104" font-size="14" class="ob" stroke="#8A5A00" stroke-width="3.5" text-anchor="middle">Shop</text>
+    </g>
+    <g transform="translate(0,112)">
+      <rect y="6" width="78" height="78" rx="22" fill="#5E2BA8"/>
+      <rect width="78" height="78" rx="22" fill="url(#purpleG)" stroke="#5E2BA8" stroke-width="4"/>
+      <rect x="7" y="6" width="64" height="26" rx="12" fill="#FFFFFF" opacity="0.3"/>
+      <ellipse cx="39" cy="46" rx="12" ry="10" fill="#FFFFFF"/>
+      <circle cx="26" cy="33" r="5" fill="#FFFFFF"/><circle cx="39" cy="29" r="5" fill="#FFFFFF"/><circle cx="52" cy="33" r="5" fill="#FFFFFF"/>
+      <text x="39" y="104" font-size="14" class="ob" stroke="#4A1F8C" stroke-width="3.5" text-anchor="middle">Pets</text>
+    </g>
+    <g transform="translate(0,224)">
+      <rect y="6" width="78" height="78" rx="22" fill="#9E1F16"/>
+      <rect width="78" height="78" rx="22" fill="url(#redG)" stroke="#9E1F16" stroke-width="4"/>
+      <rect x="7" y="6" width="64" height="26" rx="12" fill="#FFFFFF" opacity="0.3"/>
+      <rect x="25" y="38" width="28" height="20" rx="4" fill="#FFFFFF"/>
+      <rect x="22" y="30" width="34" height="10" rx="4" fill="#FFFFFF"/>
+      <rect x="36" y="30" width="6" height="28" fill="#FF9A8F"/>
+      <circle cx="33" cy="27" r="4.5" fill="#FFFFFF"/><circle cx="45" cy="27" r="4.5" fill="#FFFFFF"/>
+      <circle cx="66" cy="10" r="13" fill="#FF4438" stroke="#FFFFFF" stroke-width="3.5"/>
+      <text x="66" y="15" font-size="15" font-weight="800" fill="#FFFFFF" text-anchor="middle">1</text>
+      <text x="39" y="104" font-size="14" class="ob" stroke="#7E150D" stroke-width="3.5" text-anchor="middle">Daily</text>
+    </g>
+    <g transform="translate(0,336)">
+      <rect y="6" width="78" height="78" rx="22" fill="#4E6480"/>
+      <rect width="78" height="78" rx="22" fill="url(#grayBtnG)" stroke="#4E6480" stroke-width="4"/>
+      <rect x="7" y="6" width="64" height="26" rx="12" fill="#FFFFFF" opacity="0.3"/>
+      <g fill="#FFFFFF">
+        <rect x="36.5" y="20" width="5" height="9" rx="2" transform="rotate(0 39 39)"/>
+        <rect x="36.5" y="20" width="5" height="9" rx="2" transform="rotate(45 39 39)"/>
+        <rect x="36.5" y="20" width="5" height="9" rx="2" transform="rotate(90 39 39)"/>
+        <rect x="36.5" y="20" width="5" height="9" rx="2" transform="rotate(135 39 39)"/>
+        <rect x="36.5" y="20" width="5" height="9" rx="2" transform="rotate(180 39 39)"/>
+        <rect x="36.5" y="20" width="5" height="9" rx="2" transform="rotate(225 39 39)"/>
+        <rect x="36.5" y="20" width="5" height="9" rx="2" transform="rotate(270 39 39)"/>
+        <rect x="36.5" y="20" width="5" height="9" rx="2" transform="rotate(315 39 39)"/>
+      </g>
+      <circle cx="39" cy="39" r="13" fill="#FFFFFF"/>
+      <circle cx="39" cy="39" r="5.5" fill="#8FA6C0"/>
+      <text x="39" y="104" font-size="14" class="ob" stroke="#3A4E64" stroke-width="3.5" text-anchor="middle">More</text>
+    </g>
+  </g>
+
+  <!-- ======================== inventory panel ======================== -->
+  <g transform="translate(225,130)">
+    <rect y="12" width="1150" height="680" rx="30" fill="#1B335F" filter="url(#dropPanel)"/>
+    <rect width="1150" height="680" rx="30" fill="url(#panelG)"/>
+    <path d="M0 30 Q0 0 30 0 H1120 Q1150 0 1150 30 V96 H0 Z" fill="url(#headerG)"/>
+    <rect x="10" y="8" width="1130" height="40" rx="20" fill="#FFFFFF" opacity="0.18"/>
+    <line x1="0" y1="96" x2="1150" y2="96" stroke="#1D4E9E" stroke-width="2" opacity="0.25"/>
+    <rect width="1150" height="680" rx="30" fill="none" stroke="#23407A" stroke-width="5"/>
+    <text x="575" y="63" font-size="40" letter-spacing="3" class="ob" stroke="#1D4E9E" stroke-width="8" text-anchor="middle">INVENTORY</text>
+    <use xlink:href="#sp" transform="translate(408,38) scale(0.8)" fill="#FFFFFF" opacity="0.9"/>
+    <use xlink:href="#sp" transform="translate(742,60) scale(0.55)" fill="#FFFFFF" opacity="0.9"/>
+
+    <!-- close -->
+    <g transform="translate(1138,4)">
+      <circle r="32" fill="url(#redG)" stroke="#8E1D14" stroke-width="5"/>
+      <ellipse cx="0" cy="-13" rx="17" ry="7" fill="#FFFFFF" opacity="0.35"/>
+      <path d="M-11 -11 L11 11 M-11 11 L11 -11" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"/>
+    </g>
+
+    <!-- toolbar: tabs / search / sort -->
+    <rect x="36" y="124" width="96" height="48" rx="24" fill="#1E7A12"/>
+    <rect x="36" y="120" width="96" height="48" rx="24" fill="url(#greenG)" stroke="#1E7A12" stroke-width="4"/>
+    <text x="84" y="151" font-size="20" class="ob" stroke="#14550C" stroke-width="4" text-anchor="middle">All</text>
+    <rect x="144" y="120" width="100" height="48" rx="24" fill="#DCE7F5" stroke="#B7C8DE" stroke-width="3"/>
+    <text x="194" y="151" font-size="20" font-weight="700" fill="#6C86A8" text-anchor="middle">Pets</text>
+    <rect x="256" y="120" width="104" height="48" rx="24" fill="#DCE7F5" stroke="#B7C8DE" stroke-width="3"/>
+    <text x="308" y="151" font-size="20" font-weight="700" fill="#6C86A8" text-anchor="middle">Tools</text>
+    <rect x="372" y="120" width="126" height="48" rx="24" fill="#DCE7F5" stroke="#B7C8DE" stroke-width="3"/>
+    <text x="435" y="151" font-size="20" font-weight="700" fill="#6C86A8" text-anchor="middle">Potions</text>
+    <rect x="610" y="120" width="260" height="48" rx="24" fill="#FFFFFF" stroke="#B7C8DE" stroke-width="3"/>
+    <circle cx="640" cy="142" r="9" fill="none" stroke="#8AA2C2" stroke-width="4"/>
+    <line x1="647" y1="149" x2="655" y2="157" stroke="#8AA2C2" stroke-width="4.5" stroke-linecap="round"/>
+    <text x="668" y="151" font-size="17" font-weight="600" fill="#9FB4D0">Search items...</text>
+    <rect x="886" y="120" width="228" height="48" rx="24" fill="#DCE7F5" stroke="#B7C8DE" stroke-width="3"/>
+    <text x="908" y="151" font-size="17" font-weight="700" fill="#5E7BA0">Sort: Rarity</text>
+    <polygon points="1082,139 1096,139 1089,150" fill="#5E7BA0"/>
+
+    <!-- ============ item grid 5x3 ============ -->
+    <g transform="translate(36,196)">
+      <!-- r0c0 Void Scythe / mythic / selected -->
+      <g>
+        <rect x="-6" y="-6" width="134" height="134" rx="25" fill="none" stroke="#FFE066" stroke-width="5.5" filter="url(#glowSel)"/>
+        <rect width="122" height="122" rx="20" fill="url(#mythicG)" stroke="#C41E7E" stroke-width="4"/>
+        <rect x="7" y="7" width="108" height="42" rx="14" fill="#FFFFFF" opacity="0.3"/>
+        <use xlink:href="#icoScythe" transform="translate(61,58)"/>
+        <use xlink:href="#sp" transform="translate(22,26) scale(0.7)" fill="#FFF3FE" opacity="0.95"/>
+        <use xlink:href="#sp" transform="translate(98,92) scale(0.5)" fill="#FFF3FE" opacity="0.95"/>
+      </g>
+      <!-- r0c1 sword / legendary / equipped -->
+      <g transform="translate(136,0)">
+        <rect width="122" height="122" rx="20" fill="url(#legendG)" stroke="#CE8A00" stroke-width="4"/>
+        <rect x="7" y="7" width="108" height="42" rx="14" fill="#FFFFFF" opacity="0.3"/>
+        <g transform="translate(61,58)">
+          <path d="M0 -38 L10 -26 L10 10 L-10 10 L-10 -26 Z" fill="#EAF0F8" stroke="#8FA3BE" stroke-width="3" stroke-linejoin="round"/>
+          <line x1="0" y1="-32" x2="0" y2="8" stroke="#C6D2E2" stroke-width="2.5"/>
+          <rect x="-19" y="10" width="38" height="9" rx="4" fill="#FFC53D" stroke="#B8790B" stroke-width="3"/>
+          <rect x="-5.5" y="19" width="11" height="17" rx="5" fill="#8A5A33" stroke="#5E3A1D" stroke-width="3"/>
+          <circle cy="39" r="6" fill="#FFC53D" stroke="#B8790B" stroke-width="3"/>
+        </g>
+        <use xlink:href="#sp" transform="translate(100,24) scale(0.55)" fill="#FFFFFF" opacity="0.95"/>
+        <circle cx="18" cy="18" r="14" fill="#3CBE2A" stroke="#FFFFFF" stroke-width="3.5"/>
+        <path d="M11 18 L16 23 L26 13" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+      <!-- r0c2 wand / epic -->
+      <g transform="translate(272,0)">
+        <rect width="122" height="122" rx="20" fill="url(#epicG)" stroke="#7A3FD6" stroke-width="4"/>
+        <rect x="7" y="7" width="108" height="42" rx="14" fill="#FFFFFF" opacity="0.3"/>
+        <g transform="translate(61,60) rotate(-28)">
+          <rect x="-4" y="-14" width="8" height="44" rx="4" fill="#8A5A33" stroke="#5E3A1D" stroke-width="3"/>
+          <polygon points="0,-36 4,-27 13,-26 6,-20 8,-11 0,-16 -8,-11 -6,-20 -13,-26 -4,-27" fill="#FFE066" stroke="#D0940B" stroke-width="3" stroke-linejoin="round"/>
+        </g>
+      </g>
+      <!-- r0c3 shield / rare -->
+      <g transform="translate(408,0)">
+        <rect width="122" height="122" rx="20" fill="url(#rareG)" stroke="#2F6FD0" stroke-width="4"/>
+        <rect x="7" y="7" width="108" height="42" rx="14" fill="#FFFFFF" opacity="0.3"/>
+        <g transform="translate(61,56)">
+          <path d="M0 -30 L26 -21 L26 0 C26 16 15 27 0 33 C-15 27 -26 16 -26 0 L-26 -21 Z" fill="#CFE0F2" stroke="#58749A" stroke-width="3.5" stroke-linejoin="round"/>
+          <path d="M0 -28 V31 M-24 -6 H24" stroke="#58749A" stroke-width="2" opacity="0.35"/>
+          <circle r="8" fill="#FFC53D" stroke="#B8790B" stroke-width="3"/>
+        </g>
+      </g>
+      <!-- r0c4 mana potion / rare x5 -->
+      <g transform="translate(544,0)">
+        <rect width="122" height="122" rx="20" fill="url(#rareG)" stroke="#2F6FD0" stroke-width="4"/>
+        <rect x="7" y="7" width="108" height="42" rx="14" fill="#FFFFFF" opacity="0.3"/>
+        <g transform="translate(61,58)">
+          <rect x="-6" y="-32" width="12" height="14" fill="#E6F3FF" stroke="#7E97B8" stroke-width="3"/>
+          <circle cy="6" r="19" fill="#E6F3FF" stroke="#7E97B8" stroke-width="3"/>
+          <path d="M-18.5 8 A19 19 0 0 0 18.5 8 Q10 3 0 6 Q-10 9 -18.5 8 Z" fill="#4EA8FF"/>
+          <circle cx="4" cy="12" r="2.5" fill="#BFE0FF"/><circle cx="-5" cy="16" r="2" fill="#BFE0FF"/>
+          <rect x="-8.5" y="-38" width="17" height="8" rx="3" fill="#8A5A33" stroke="#5E3A1D" stroke-width="3"/>
+        </g>
+        <rect x="64" y="88" width="50" height="26" rx="13" fill="#23324E" opacity="0.85"/>
+        <text x="89" y="106" font-size="15" font-weight="800" fill="#FFFFFF" text-anchor="middle">x5</text>
+      </g>
+      <!-- r1c0 egg / legendary / NEW -->
+      <g transform="translate(0,136)">
+        <rect width="122" height="122" rx="20" fill="url(#legendG)" stroke="#CE8A00" stroke-width="4"/>
+        <rect x="7" y="7" width="108" height="42" rx="14" fill="#FFFFFF" opacity="0.3"/>
+        <g transform="translate(61,58)">
+          <ellipse cy="2" rx="21" ry="26" fill="#FFF6DC" stroke="#D9A94F" stroke-width="3.5"/>
+          <circle cx="-6" cy="-8" r="5" fill="#FFCB4D"/><circle cx="8" cy="2" r="4" fill="#FFCB4D"/><circle cx="-4" cy="12" r="3.5" fill="#FFCB4D"/>
+        </g>
+        <use xlink:href="#sp" transform="translate(94,28) scale(0.6)" fill="#FFFFFF" opacity="0.95"/>
+        <g transform="translate(10,12) rotate(-12)">
+          <rect x="-26" y="-11" width="52" height="22" rx="11" fill="#FF4438" stroke="#A32014" stroke-width="3"/>
+          <text y="5" font-size="13" font-weight="800" letter-spacing="0.5" fill="#FFFFFF" text-anchor="middle">NEW!</text>
+        </g>
+      </g>
+      <!-- r1c1 crystal / epic x3 -->
+      <g transform="translate(136,136)">
+        <rect width="122" height="122" rx="20" fill="url(#epicG)" stroke="#7A3FD6" stroke-width="4"/>
+        <rect x="7" y="7" width="108" height="42" rx="14" fill="#FFFFFF" opacity="0.3"/>
+        <g transform="translate(59,58)">
+          <polygon points="0,-28 13,-8 8,24 -8,24 -13,-8" fill="#C9A2FF" stroke="#7A3FD6" stroke-width="3.5" stroke-linejoin="round"/>
+          <line x1="0" y1="-28" x2="-2" y2="24" stroke="#7A3FD6" stroke-width="2" opacity="0.35"/>
+          <polygon points="18,4 24,12 20,24 14,22 14,10" fill="#DFC5FF" stroke="#7A3FD6" stroke-width="3" stroke-linejoin="round"/>
+        </g>
+        <rect x="64" y="88" width="50" height="26" rx="13" fill="#23324E" opacity="0.85"/>
+        <text x="89" y="106" font-size="15" font-weight="800" fill="#FFFFFF" text-anchor="middle">x3</text>
+      </g>
+      <!-- r1c2 boots / rare -->
+      <g transform="translate(272,136)">
+        <rect width="122" height="122" rx="20" fill="url(#rareG)" stroke="#2F6FD0" stroke-width="4"/>
+        <rect x="7" y="7" width="108" height="42" rx="14" fill="#FFFFFF" opacity="0.3"/>
+        <g transform="translate(61,58)">
+          <path d="M-14 -18 L2 -18 L2 4 L12 4 Q20 4 20 12 L20 18 L-14 18 Z" fill="#6FB4FF" stroke="#2F6FD0" stroke-width="3.5" stroke-linejoin="round"/>
+          <rect x="-17" y="-24" width="22" height="9" rx="3" fill="#CEE7FF" stroke="#2F6FD0" stroke-width="3"/>
+          <path d="M-14 -6 Q-26 -10 -30 -2 Q-24 -2 -22 2 Q-18 0 -14 0 Z" fill="#FFFFFF" stroke="#9DB6D4" stroke-width="2.5" stroke-linejoin="round"/>
+        </g>
+      </g>
+      <!-- r1c3 carrot / uncommon x26 -->
+      <g transform="translate(408,136)">
+        <rect width="122" height="122" rx="20" fill="url(#uncommonG)" stroke="#56A32E" stroke-width="4"/>
+        <rect x="7" y="7" width="108" height="42" rx="14" fill="#FFFFFF" opacity="0.3"/>
+        <g transform="translate(61,58)">
+          <ellipse cx="-7" cy="-16" rx="4" ry="11" fill="#59C93F" stroke="#2F8C1F" stroke-width="2.5" transform="rotate(-25 -7 -16)"/>
+          <ellipse cx="7" cy="-16" rx="4" ry="11" fill="#59C93F" stroke="#2F8C1F" stroke-width="2.5" transform="rotate(25 7 -16)"/>
+          <ellipse cx="0" cy="-18" rx="4" ry="12" fill="#59C93F" stroke="#2F8C1F" stroke-width="2.5"/>
+          <path d="M0 32 C-5 20 -11 4 -9 -8 L9 -8 C11 4 5 20 0 32 Z" fill="#FF8A3D" stroke="#C25A12" stroke-width="3.5" stroke-linejoin="round"/>
+          <path d="M-7 2 H5 M-5 12 H4" stroke="#C25A12" stroke-width="2" opacity="0.5"/>
+        </g>
+        <rect x="64" y="88" width="50" height="26" rx="13" fill="#23324E" opacity="0.85"/>
+        <text x="89" y="106" font-size="15" font-weight="800" fill="#FFFFFF" text-anchor="middle">x26</text>
+      </g>
+      <!-- r1c4 apple / uncommon x12 -->
+      <g transform="translate(544,136)">
+        <rect width="122" height="122" rx="20" fill="url(#uncommonG)" stroke="#56A32E" stroke-width="4"/>
+        <rect x="7" y="7" width="108" height="42" rx="14" fill="#FFFFFF" opacity="0.3"/>
+        <g transform="translate(61,58)">
+          <circle cy="6" r="19" fill="#FF5D5D" stroke="#B02525" stroke-width="3.5"/>
+          <rect x="-1.5" y="-19" width="3" height="10" rx="1.5" fill="#5E3A1D"/>
+          <ellipse cx="9" cy="-14" rx="8" ry="4.5" fill="#59C93F" stroke="#2F8C1F" stroke-width="2.5" transform="rotate(-28 9 -14)"/>
+          <ellipse cx="-7" cy="-1" rx="4" ry="6" fill="#FFA8A8" opacity="0.85" transform="rotate(18 -7 -1)"/>
+        </g>
+        <rect x="64" y="88" width="50" height="26" rx="13" fill="#23324E" opacity="0.85"/>
+        <text x="89" y="106" font-size="15" font-weight="800" fill="#FFFFFF" text-anchor="middle">x12</text>
+      </g>
+      <!-- r2c0 fish / uncommon x7 -->
+      <g transform="translate(0,272)">
+        <rect width="122" height="122" rx="20" fill="url(#uncommonG)" stroke="#56A32E" stroke-width="4"/>
+        <rect x="7" y="7" width="108" height="42" rx="14" fill="#FFFFFF" opacity="0.3"/>
+        <g transform="translate(58,58)">
+          <polygon points="17,0 32,-11 32,11" fill="#6FC9FF" stroke="#2F86C2" stroke-width="3.5" stroke-linejoin="round"/>
+          <ellipse rx="19" ry="12" fill="#6FC9FF" stroke="#2F86C2" stroke-width="3.5"/>
+          <circle cx="-9" cy="-3" r="2.6" fill="#143A52"/>
+          <path d="M-1 -1 Q5 3 -1 7" fill="none" stroke="#2F86C2" stroke-width="2.5" stroke-linecap="round"/>
+        </g>
+        <rect x="64" y="88" width="50" height="26" rx="13" fill="#23324E" opacity="0.85"/>
+        <text x="89" y="106" font-size="15" font-weight="800" fill="#FFFFFF" text-anchor="middle">x7</text>
+      </g>
+      <!-- r2c1 stick / common x99 -->
+      <g transform="translate(136,272)">
+        <rect width="122" height="122" rx="20" fill="url(#commonG)" stroke="#A5B4CC" stroke-width="4"/>
+        <rect x="7" y="7" width="108" height="42" rx="14" fill="#FFFFFF" opacity="0.3"/>
+        <g transform="translate(61,58) rotate(40)">
+          <rect x="-6" y="-27" width="12" height="54" rx="6" fill="#8A5A33" stroke="#5E3A1D" stroke-width="3.5"/>
+          <path d="M-2 -18 V-6 M2 2 V16" stroke="#5E3A1D" stroke-width="2" opacity="0.5"/>
+        </g>
+        <rect x="64" y="88" width="50" height="26" rx="13" fill="#23324E" opacity="0.85"/>
+        <text x="89" y="106" font-size="15" font-weight="800" fill="#FFFFFF" text-anchor="middle">x99</text>
+      </g>
+      <!-- r2c2 stone / common x45 -->
+      <g transform="translate(272,272)">
+        <rect width="122" height="122" rx="20" fill="url(#commonG)" stroke="#A5B4CC" stroke-width="4"/>
+        <rect x="7" y="7" width="108" height="42" rx="14" fill="#FFFFFF" opacity="0.3"/>
+        <g transform="translate(61,60)">
+          <path d="M-20 8 Q-22 -8 -8 -14 Q4 -20 15 -12 Q24 -5 19 8 Q14 18 -2 17 Q-16 17 -20 8 Z" fill="#C2CEDD" stroke="#7E90A8" stroke-width="3.5" stroke-linejoin="round"/>
+          <circle cx="-6" cy="-2" r="2" fill="#8FA3BE"/><circle cx="6" cy="4" r="2" fill="#8FA3BE"/><circle cx="0" cy="10" r="2" fill="#8FA3BE"/>
+        </g>
+        <rect x="64" y="88" width="50" height="26" rx="13" fill="#23324E" opacity="0.85"/>
+        <text x="89" y="106" font-size="15" font-weight="800" fill="#FFFFFF" text-anchor="middle">x45</text>
+      </g>
+      <!-- r2c3 empty -->
+      <g transform="translate(408,272)">
+        <rect width="122" height="122" rx="20" fill="#E8EFF8" stroke="#B9C9DE" stroke-width="3" stroke-dasharray="10 8"/>
+        <path d="M49 61 H73 M61 49 V73" stroke="#B9C9DE" stroke-width="5" stroke-linecap="round"/>
+      </g>
+      <!-- r2c4 locked -->
+      <g transform="translate(544,272)">
+        <rect width="122" height="122" rx="20" fill="#DEE7F2" stroke="#A9BCD2" stroke-width="3"/>
+        <g transform="translate(61,54)">
+          <path d="M-9 -4 V-10 A9 9 0 0 1 9 -10 V-4" fill="none" stroke="#8CA0BA" stroke-width="5.5" stroke-linecap="round"/>
+          <rect x="-14" y="-4" width="28" height="22" rx="5" fill="#9FB2C9" stroke="#7E92AC" stroke-width="3"/>
+          <circle cy="5" r="3" fill="#6E8098"/><rect x="-1.5" y="5" width="3" height="7" rx="1.5" fill="#6E8098"/>
+        </g>
+        <text x="61" y="102" font-size="13" font-weight="700" fill="#8CA0BA" text-anchor="middle">Unlock Lv. 50</text>
+      </g>
+    </g>
+
+    <!-- ============ detail card ============ -->
+    <g transform="translate(726,196)">
+      <rect width="388" height="454" rx="22" fill="#FFFFFF" stroke="#B9C9DE" stroke-width="3"/>
+      <rect x="104" y="20" width="180" height="140" rx="18" fill="url(#mythicG)" stroke="#C41E7E" stroke-width="4"/>
+      <rect x="112" y="27" width="164" height="44" rx="14" fill="#FFFFFF" opacity="0.3"/>
+      <use xlink:href="#icoScythe" transform="translate(194,92) scale(1.4)"/>
+      <use xlink:href="#sp" transform="translate(128,42) scale(0.8)" fill="#FFF3FE" opacity="0.95"/>
+      <use xlink:href="#sp" transform="translate(262,124) scale(0.6)" fill="#FFF3FE" opacity="0.95"/>
+      <use xlink:href="#sp" transform="translate(252,38) scale(0.5)" fill="#FFF3FE" opacity="0.95"/>
+      <text x="194" y="190" font-size="25" font-weight="800" fill="#253A5E" text-anchor="middle" letter-spacing="0.5">Void Scythe</text>
+      <rect x="134" y="202" width="120" height="30" rx="15" fill="url(#mythicG)" stroke="#C41E7E" stroke-width="3"/>
+      <text x="194" y="223" font-size="16" letter-spacing="2" class="ob" stroke="#A3145F" stroke-width="3.5" text-anchor="middle">MYTHIC</text>
+      <rect x="28" y="246" width="332" height="32" rx="10" fill="#EFF5FC"/>
+      <g transform="translate(48,262) rotate(45)">
+        <rect x="-2.5" y="-12" width="5" height="17" rx="2" fill="#8FA3BE"/>
+        <rect x="-6.5" y="4" width="13" height="4" rx="2" fill="#D0940B"/>
+        <rect x="-1.75" y="8" width="3.5" height="7" rx="1.5" fill="#8A5A33"/>
+      </g>
+      <text x="68" y="268" font-size="16" font-weight="700" fill="#5E7BA0">Damage</text>
+      <text x="344" y="269" font-size="18" font-weight="800" fill="#2FA31B" text-anchor="end">+215</text>
+      <rect x="28" y="286" width="332" height="32" rx="10" fill="#EFF5FC"/>
+      <polygon points="51,291 42,304 47,304 45,313 54,300 49,300" fill="#FFC53D" stroke="#C8860B" stroke-width="2" stroke-linejoin="round"/>
+      <text x="68" y="308" font-size="16" font-weight="700" fill="#5E7BA0">Speed</text>
+      <text x="344" y="309" font-size="18" font-weight="800" fill="#2FA31B" text-anchor="end">+12%</text>
+      <rect x="28" y="331" width="332" height="52" rx="16" fill="#1E7A12"/>
+      <rect x="28" y="326" width="332" height="52" rx="16" fill="url(#greenG)" stroke="#1E7A12" stroke-width="4"/>
+      <rect x="36" y="332" width="316" height="20" rx="10" fill="#FFFFFF" opacity="0.3"/>
+      <text x="194" y="361" font-size="25" letter-spacing="2" class="ob" stroke="#14550C" stroke-width="5" text-anchor="middle">EQUIP</text>
+      <rect x="28" y="391" width="160" height="44" rx="14" fill="#9E1F16"/>
+      <rect x="28" y="386" width="160" height="44" rx="14" fill="url(#redG)" stroke="#9E1F16" stroke-width="4"/>
+      <use xlink:href="#coin" transform="translate(54,408) scale(0.5)"/>
+      <text x="117" y="414" font-size="16" class="ob" stroke="#7E150D" stroke-width="3.5" text-anchor="middle">SELL 1.2K</text>
+      <rect x="200" y="391" width="160" height="44" rx="14" fill="#5E2BA8"/>
+      <rect x="200" y="386" width="160" height="44" rx="14" fill="url(#purpleG)" stroke="#5E2BA8" stroke-width="4"/>
+      <text x="280" y="414" font-size="16" letter-spacing="1" class="ob" stroke="#4A1F8C" stroke-width="3.5" text-anchor="middle">ENCHANT</text>
+    </g>
+
+    <!-- storage bar -->
+    <rect x="36" y="614" width="666" height="36" rx="18" fill="#D9E4F2" stroke="#B9C9DE" stroke-width="3"/>
+    <rect x="40" y="618" width="561" height="28" rx="14" fill="url(#storG)"/>
+    <rect x="46" y="621" width="548" height="10" rx="5" fill="#FFFFFF" opacity="0.35"/>
+    <text x="369" y="639" font-size="17" class="ob" stroke="#3E7A1E" stroke-width="4" text-anchor="middle">128 / 150</text>
+  </g>
+</svg>
