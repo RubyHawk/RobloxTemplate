@@ -216,6 +216,9 @@
             "Size": [0.9, 1.5, 0.4]
           }
         }
+      },
+      "FirstPrivateIsland": {
+        "$path": "src/world/FirstPrivateIslandGridDemo.model.json"
       }
     },
     "TextChatService": {

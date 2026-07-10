@@ -504,6 +504,7 @@ for _, authoredWorldObject in
 		'"EarnPrompt"',
 		'"BonusEarningPad"',
 		'"BonusPrompt"',
+		'"FirstPrivateIsland"',
 		'"PlayableStarterClient"',
 		'"RuneCircle"',
 		'"GlowRing"',
@@ -516,6 +517,178 @@ do
 		string.find(playableProject, authoredWorldObject, 1, true) ~= nil,
 		true,
 		`playable project pre-authors {authoredWorldObject}`
+	)
+end
+local firstPrivateIsland = fs.readFile("src/world/FirstPrivateIslandGridDemo.model.json")
+for _, authoredGridObject in
+	{
+		'"Name": "GamePlatform"',
+		'"Name": "PlatformBase"',
+		'"Name": "PlatformOrigin"',
+		'"Name": "GridOverlay"',
+		'"Name": "Cells"',
+		'"Name": "Cell_01_01"',
+		'"Name": "Cell_32_27"',
+		'"Name": "CellMap"',
+		'"Name": "Row_01"',
+		'"Name": "Row_27"',
+		'"Name": "CellSize"',
+		'"Name": "Columns"',
+		'"Name": "Rows"',
+		'"Name": "PlatformEnabled"',
+		'"Name": "GridVisible"',
+		'"Name": "PathTiles"',
+		'"Name": "PathCurve_001"',
+		'"Name": "PathCurve_080"',
+		'"Name": "PathPoints"',
+		'"Name": "Control_001"',
+		'"Name": "Control_011"',
+		'"Name": "GridNpc"',
+		'"Shape": "Cylinder"',
+		'"Shape": "Ball"',
+	}
+do
+	expectEqual(
+		string.find(firstPrivateIsland, authoredGridObject, 1, true) ~= nil,
+		true,
+		`first private island pre-authors {authoredGridObject}`
+	)
+end
+expectEqual(
+	string.find(firstPrivateIsland, '"Name": "VisibilityMarker"', 1, true),
+	nil,
+	"first private island no longer includes the temporary visibility marker"
+)
+local firstPrivateIslandModel = serde.decode("json", firstPrivateIsland)
+local function namedChild(parent: { Children: { any } }, name: string): any?
+	for _, child in parent.Children do
+		if child.Name == name then
+			return child
+		end
+	end
+	return nil
+end
+local gamePlatformModel = namedChild(firstPrivateIslandModel, "GamePlatform")
+expectEqual(gamePlatformModel ~= nil, true, "first private island has a game platform model")
+expectEqual(
+	namedChild(gamePlatformModel, "PathPoints") ~= nil,
+	true,
+	"spline path controls move with GamePlatform"
+)
+expectEqual(
+	namedChild(gamePlatformModel, "PathTiles") ~= nil,
+	true,
+	"spline path visuals move with GamePlatform"
+)
+expectEqual(
+	namedChild(firstPrivateIslandModel, "PathPoints"),
+	nil,
+	"spline controls are not orphaned at island root"
+)
+expectEqual(
+	namedChild(firstPrivateIslandModel, "PathTiles"),
+	nil,
+	"spline visuals are not orphaned at island root"
+)
+local gridPatchProject = fs.readFile("patches/rng-defender-grid-demo.project.json")
+for _, patchObject in
+	{
+		'"GridNpcDemo"',
+		'"FirstPrivateIsland"',
+		'"servePlaceIds": [128136881672145]',
+	}
+do
+	expectEqual(
+		string.find(gridPatchProject, patchObject, 1, true) ~= nil,
+		true,
+		`RNG Defender grid patch includes {patchObject}`
+	)
+end
+for _, removedPatchObject in
+	{
+		'"GridPlatformEditorRemote"',
+		'"GridPlatformEditor"',
+		'"GridPlatformEditorClient"',
+		'"GridPlatformEditorService"',
+		'"StarterPack"',
+	}
+do
+	expectEqual(
+		string.find(gridPatchProject, removedPatchObject, 1, true),
+		nil,
+		`RNG Defender grid patch keeps edit-only plugin object out of Rojo patch: {removedPatchObject}`
+	)
+end
+local gridPluginProject = fs.readFile("plugins/grid-platform-editor.project.json")
+local gridPluginSource = fs.readFile("src/plugins/GridPlatformEditPlugin.server.luau")
+for _, pluginObject in
+	{
+		"GridPlatformEditPlugin.server.luau",
+		"plugin:CreateToolbar",
+		"CreateDockWidgetPluginGuiAsync",
+		"DockWidgetPluginGuiInfo",
+		"GridPlatformEditorPanel",
+		"plugin:GetMouse",
+		"TryBeginRecording",
+		"FinishRecording",
+		"GridOverlay",
+		"CellMap",
+		"PlatformBase",
+		"Select Platform",
+		"Reset Flat",
+		"Snap to Selection",
+		"Spline Path",
+		"Select Points",
+		"Rebuild Curve",
+		"Add Point",
+		"Delete Selected",
+		"Snap Points",
+		"Export Spline",
+		"createSplineControl",
+		"rebuildSplineFromControls",
+		"PATH_GRID_RADIUS",
+		"PathCurve",
+		"ControlPending",
+		"platform.PrimaryPart",
+		"island.PrimaryPart",
+		"WorldPivot",
+	}
+do
+	expectEqual(
+		string.find(gridPluginProject .. gridPluginSource, pluginObject, 1, true) ~= nil,
+		true,
+		`edit-mode grid plugin includes {pluginObject}`
+	)
+end
+local gridNpcBinder = fs.readFile("src/starter/GridNpcDemo.server.luau")
+for _, splineMarker in
+	{
+		"catmullRomPosition",
+		"catmullRomTangent",
+		"buildSplinePath",
+		"sampleSplinePath",
+		"SPLINE_SAMPLES_PER_SEGMENT",
+		"PLATFORM_NAME",
+	}
+do
+	expectEqual(
+		string.find(gridNpcBinder, splineMarker, 1, true) ~= nil,
+		true,
+		`grid NPC movement uses spline marker {splineMarker}`
+	)
+end
+for _, oldPathMarker in { "nextPathIndex", "segmentDuration", "startPoint.Position:Lerp" } do
+	expectEqual(
+		string.find(gridNpcBinder, oldPathMarker, 1, true),
+		nil,
+		`grid NPC movement no longer uses boxy path marker {oldPathMarker}`
+	)
+end
+for _, forbiddenConstructor in { "Instance.new", ":Clone(", ":Destroy(" } do
+	expectEqual(
+		string.find(gridNpcBinder, forbiddenConstructor, 1, true),
+		nil,
+		`grid NPC binder does not use {forbiddenConstructor}`
 	)
 end
 expectEqual(

@@ -1,0 +1,6 @@
+{
+  "name": "GridPlatformEditPlugin",
+  "tree": {
+    "$path": "../src/plugins/GridPlatformEditPlugin.server.luau"
+  }
+}

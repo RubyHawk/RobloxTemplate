@@ -1,0 +1,19 @@
+{
+  "name": "RNGDefenderGridDemoPatch",
+  "servePlaceIds": [128136881672145],
+  "tree": {
+    "$className": "DataModel",
+    "ServerScriptService": {
+      "$ignoreUnknownInstances": true,
+      "GridNpcDemo": {
+        "$path": "../src/starter/GridNpcDemo.server.luau"
+      }
+    },
+    "Workspace": {
+      "$ignoreUnknownInstances": true,
+      "FirstPrivateIsland": {
+        "$path": "../src/world/FirstPrivateIslandGridDemo.model.json"
+      }
+    }
+  }
+}
