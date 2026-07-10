@@ -10,6 +10,7 @@ local RemoteNames = require(Shared.RemoteNames)
 
 local RateLimiter = require(script.Parent.Parent.Util.RateLimiter)
 local AfkService = require(script.Parent.AfkService)
+local EconomyService = require(script.Parent.EconomyService)
 local FeedbackService = require(script.Parent.FeedbackService)
 local InventoryService = require(script.Parent.InventoryService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
@@ -17,6 +18,7 @@ local LikesService = require(script.Parent.LikesService)
 local ProfileService = require(script.Parent.ProfileService)
 local PublicProfileService = require(script.Parent.PublicProfileService)
 local RewardService = require(script.Parent.RewardService)
+local RuneService = require(script.Parent.RuneService)
 local SettingsService = require(script.Parent.SettingsService)
 
 local RemoteService = {}
@@ -70,6 +72,8 @@ function RemoteService.snapshot(player: Player): any
 		),
 		premiumBonus = if profile.entitlements.premium then Config.economy.premiumBonus else 0,
 		potionMultiplier = Calculations.potionMultiplier(profile.boosts, os.time()),
+		runeMultiplier = EconomyService.getRuneMultiplier(player),
+		runes = if Config.features.runes == true then RuneService.snapshotFor(player) else nil,
 		offline = RewardService.getPendingOffline(player),
 		likes = likes,
 		dailyRewards = Config.rewards.daily,
@@ -220,6 +224,14 @@ end
 
 function RemoteService.broadcastAnnouncement(message: string)
 	stateRemote:FireAllClients({ kind = "Announcement", message = message })
+end
+
+-- One-off server-pushed events (for example rune roll reveals) that ride the
+-- existing state channel without forcing a full snapshot shape.
+function RemoteService.sendEvent(player: Player, kind: string, data: any)
+	if stateRemote and player.Parent then
+		stateRemote:FireClient(player, { kind = kind, data = data })
+	end
 end
 
 function RemoteService.forget(player: Player)

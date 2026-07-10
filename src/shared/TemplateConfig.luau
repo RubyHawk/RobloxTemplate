@@ -41,6 +41,7 @@ local Config = {
 		likesBoard = true,
 		notifications = true,
 		afKRollOver = true,
+		runes = true,
 		communityVerification = false,
 		discordVerification = false,
 		guilds = false,
@@ -75,6 +76,21 @@ local Config = {
 		freeOfflineCapHours = 4,
 		paidOfflineCapHours = 12,
 		extendedOfflineGamePassId = 0,
+	},
+
+	-- Rune altar: standing in the authored circle automatically spends the
+	-- primary currency on random rune cards that permanently raise currency
+	-- generation. Odds live in RuneCatalog; tunables live here.
+	runes = {
+		baseCost = 75,
+		costGrowth = 1.12,
+		maxCost = 250000,
+		autoRollSeconds = 2,
+		firstRollChargeSeconds = 1.25,
+		circlePadding = 1.5,
+		circleHeightTolerance = 8,
+		pityThreshold = 40,
+		pityMinimumRarity = "epic",
 	},
 
 	rewards = {

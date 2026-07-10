@@ -9,5 +9,10 @@
     "universeId": 10446239643,
     "placeId": 110706600177579,
     "defaultPreset": "incremental"
+  },
+  "towerDefense": {
+    "name": "Tower Defense World (shared)",
+    "universeId": 0,
+    "placeId": 128136881672145
   }
 }

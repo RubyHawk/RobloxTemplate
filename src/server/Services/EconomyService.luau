@@ -3,9 +3,21 @@
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
 local Config = require(Shared.TemplateConfig)
 local Calculations = require(Shared.Calculations)
+local RuneCatalog = require(Shared.RuneCatalog)
+local RuneLogic = require(Shared.RuneLogic)
 local ProfileService = require(script.Parent.ProfileService)
 
 local EconomyService = {}
+
+-- Runes are permanent additive generation bonuses, so they form their own
+-- multiplicative bucket next to the social/premium/potion multiplier instead
+-- of competing with the strongest-potion rule.
+local function runeMultiplier(profile: any): number
+	if Config.features.runes ~= true then
+		return 1
+	end
+	return RuneLogic.multiplier(profile.runes, RuneCatalog)
+end
 
 local function isConfiguredCurrency(currencyId: string): boolean
 	for _, definition in Config.economy.currencies do
@@ -35,7 +47,15 @@ function EconomyService.getMultiplier(player: Player): number
 		Config.economy.friendBonusPerFriend,
 		Config.economy.friendBonusCap,
 		Config.economy.premiumBonus
-	)
+	) * runeMultiplier(profile)
+end
+
+function EconomyService.getRuneMultiplier(player: Player): number
+	local profile = ProfileService.get(player)
+	if profile == nil then
+		return 1
+	end
+	return runeMultiplier(profile)
 end
 
 function EconomyService.awardRaw(player: Player, amount: number, source: string): (boolean, number)
@@ -122,7 +142,10 @@ function EconomyService.permanentOfflineMultiplier(player: Player): number
 	if profile == nil then
 		return 1
 	end
-	return 1 + (if profile.entitlements.premium then Config.economy.premiumBonus else 0)
+	-- Rune bonuses are permanent, so unlike potions they also raise the
+	-- offline generation rate.
+	return (1 + (if profile.entitlements.premium then Config.economy.premiumBonus else 0))
+		* runeMultiplier(profile)
 end
 
 return EconomyService
