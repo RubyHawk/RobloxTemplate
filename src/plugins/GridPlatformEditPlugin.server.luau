@@ -119,140 +119,13 @@ local handleCanvasCellHover: ((number, number) -> ())? = nil
 local handleCanvasCellPaintStart: ((number, number) -> ())? = nil
 local handleCanvasCellPaintDrag: ((number, number) -> ())? = nil
 local handleCanvasPaintEnd: (() -> ())? = nil
+local widgetButtons: any = nil
 
 local function setStatus(message: string, quiet: boolean?)
 	statusLabel.Text = message
 	if quiet ~= true then
 		print(`Grid Platform Editor: {message}`)
 	end
-end
-
-local function createLabel(
-	parent: Instance,
-	name: string,
-	text: string,
-	height: number,
-	color: Color3
-): TextLabel
-	local label = Instance.new("TextLabel")
-	label.Name = name
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.Gotham
-	label.Text = text
-	label.TextColor3 = color
-	label.TextSize = 13
-	label.TextWrapped = true
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextYAlignment = Enum.TextYAlignment.Top
-	label.Size = UDim2.new(1, 0, 0, height)
-	label.Parent = parent
-	return label
-end
-
-local function createButton(parent: Instance, name: string, text: string, height: number): TextButton
-	local button = Instance.new("TextButton")
-	button.Name = name
-	button.AutoButtonColor = true
-	button.BackgroundColor3 = BUTTON_BG
-	button.BorderSizePixel = 0
-	button.Font = Enum.Font.GothamMedium
-	button.Text = text
-	button.TextColor3 = TEXT
-	button.TextSize = 13
-	button.TextWrapped = true
-	button.Size = UDim2.new(1, 0, 0, height)
-	button.Parent = parent
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 6)
-	corner.Parent = button
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Name = "ButtonStroke"
-	stroke.Color = BORDER
-	stroke.Transparency = 0.55
-	stroke.Thickness = 1
-	stroke.Parent = button
-
-	button.MouseEnter:Connect(function()
-		if button.BackgroundColor3 ~= BUTTON_ACTIVE then
-			button.BackgroundColor3 = BUTTON_HOVER
-		end
-	end)
-	button.MouseLeave:Connect(function()
-		if button.BackgroundColor3 ~= BUTTON_ACTIVE then
-			button.BackgroundColor3 = BUTTON_BG
-		end
-	end)
-
-	return button
-end
-
-local function createSection(parent: Instance, name: string, title: string, subtitle: string?): Frame
-	local section = Instance.new("Frame")
-	section.Name = name
-	section.BackgroundColor3 = PANEL_SECTION
-	section.BorderSizePixel = 0
-	section.Size = UDim2.fromScale(1, 0)
-	section.AutomaticSize = Enum.AutomaticSize.Y
-	section.Parent = parent
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = section
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = BORDER
-	stroke.Transparency = 0.68
-	stroke.Thickness = 1
-	stroke.Parent = section
-
-	local padding = Instance.new("UIPadding")
-	padding.PaddingTop = UDim.new(0, 8)
-	padding.PaddingBottom = UDim.new(0, 8)
-	padding.PaddingLeft = UDim.new(0, 8)
-	padding.PaddingRight = UDim.new(0, 8)
-	padding.Parent = section
-
-	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 6)
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Parent = section
-
-	local titleLabel = createLabel(section, `{name}Title`, title, 16, TEXT)
-	titleLabel.Font = Enum.Font.GothamBold
-	titleLabel.TextSize = 12
-	titleLabel.TextYAlignment = Enum.TextYAlignment.Center
-	if subtitle ~= nil and subtitle ~= "" then
-		local subtitleLabel = createLabel(section, `{name}Subtitle`, subtitle, 18, MUTED)
-		subtitleLabel.TextSize = 10
-		subtitleLabel.TextTruncate = Enum.TextTruncate.AtEnd
-	end
-
-	return section
-end
-
-local function createButtonRow(parent: Instance, name: string, buttons: { { string } }): { TextButton }
-	local row = Instance.new("Frame")
-	row.Name = name
-	row.BackgroundTransparency = 1
-	row.Size = UDim2.new(1, 0, 0, 32)
-	row.Parent = parent
-
-	local layout = Instance.new("UIListLayout")
-	layout.FillDirection = Enum.FillDirection.Horizontal
-	layout.Padding = UDim.new(0, 6)
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Parent = row
-
-	local created: { TextButton } = {}
-	for _, info in buttons do
-		local button = createButton(row, info[1], info[2], 32)
-		button.Size = UDim2.new(1 / #buttons, -5, 1, 0)
-		table.insert(created, button)
-	end
-
-	return created
 end
 
 local function setButtonActive(button: TextButton, active: boolean)
@@ -264,318 +137,6 @@ local function setButtonActive(button: TextButton, active: boolean)
 		stroke.Transparency = if active then 0.05 else 0.55
 		stroke.Thickness = if active then 1.5 else 1
 	end
-end
-
-local function createChip(parent: Instance, name: string, text: string, color: Color3): Frame
-	local chip = Instance.new("Frame")
-	chip.Name = name
-	chip.BackgroundColor3 = Color3.fromRGB(31, 36, 46)
-	chip.BorderSizePixel = 0
-	chip.Size = UDim2.new(1, 0, 0, 20)
-	chip.Parent = parent
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 7)
-	corner.Parent = chip
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = BORDER
-	stroke.Transparency = 0.65
-	stroke.Thickness = 1
-	stroke.Parent = chip
-
-	local swatch = Instance.new("Frame")
-	swatch.Name = "Swatch"
-	swatch.BackgroundColor3 = color
-	swatch.BorderSizePixel = 0
-	swatch.Position = UDim2.fromOffset(6, 6)
-	swatch.Size = UDim2.fromOffset(8, 8)
-	swatch.Parent = chip
-
-	local swatchCorner = Instance.new("UICorner")
-	swatchCorner.CornerRadius = UDim.new(1, 0)
-	swatchCorner.Parent = swatch
-
-	local label = Instance.new("TextLabel")
-	label.Name = "Label"
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.GothamMedium
-	label.Text = text
-	label.TextColor3 = MUTED
-	label.TextSize = 10
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.Position = UDim2.fromOffset(18, 0)
-	label.Size = UDim2.new(1, -21, 1, 0)
-	label.Parent = chip
-
-	return chip
-end
-
-local function createLegendRow(parent: Instance)
-	local legend = Instance.new("Frame")
-	legend.Name = "ModeLegend"
-	legend.BackgroundTransparency = 1
-	legend.Size = UDim2.new(1, 0, 0, 44)
-	legend.Parent = parent
-
-	local grid = Instance.new("UIGridLayout")
-	grid.CellPadding = UDim2.fromOffset(5, 4)
-	grid.CellSize = UDim2.new(0.333, -5, 0, 20)
-	grid.SortOrder = Enum.SortOrder.LayoutOrder
-	grid.Parent = legend
-
-	createChip(legend, "BuildableChip", ". Build", LEGAL_COLOR)
-	createChip(legend, "BlockedChip", "# Block", ILLEGAL_COLOR)
-	createChip(legend, "PortalChip", "P Portal", PORTAL_COLOR)
-	createChip(legend, "GoalChip", "G Goal", GOAL_COLOR)
-	createChip(legend, "AutoChip", "A Auto", AUTOPLACE_COLOR)
-end
-
-local function createInlineLabel(parent: Instance, name: string, text: string, color: Color3): TextLabel
-	local label = Instance.new("TextLabel")
-	label.Name = name
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.GothamMedium
-	label.Text = text
-	label.TextColor3 = color
-	label.TextSize = 11
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextYAlignment = Enum.TextYAlignment.Center
-	label.Parent = parent
-	return label
-end
-
-local function createPropertyField(
-	parent: Instance,
-	name: string,
-	labelText: string,
-	valueText: string
-): TextLabel
-	local field = Instance.new("Frame")
-	field.Name = name
-	field.BackgroundColor3 = Color3.fromRGB(16, 21, 28)
-	field.BorderSizePixel = 0
-	field.Size = UDim2.new(0.5, -4, 0, 46)
-	field.Parent = parent
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 7)
-	corner.Parent = field
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = BORDER
-	stroke.Transparency = 0.55
-	stroke.Thickness = 1
-	stroke.Parent = field
-
-	local label = createInlineLabel(field, "Label", labelText, MUTED)
-	label.Position = UDim2.fromOffset(9, 5)
-	label.Size = UDim2.new(1, -18, 0, 14)
-	label.TextSize = 10
-
-	local value = createInlineLabel(field, "Value", valueText, TEXT)
-	value.Font = Enum.Font.GothamBold
-	value.Position = UDim2.fromOffset(9, 20)
-	value.Size = UDim2.new(1, -18, 0, 18)
-	value.TextSize = 12
-	return value
-end
-
-local function createStageProfileButton(
-	parent: Instance,
-	name: string,
-	title: string,
-	detail: string
-): TextButton
-	local button = createButton(parent, name, "", 36)
-	button.Text = ""
-	button.AutoButtonColor = true
-
-	local titleLabel = createInlineLabel(button, "Title", title, TEXT)
-	titleLabel.Font = Enum.Font.GothamBold
-	titleLabel.Position = UDim2.fromOffset(7, 4)
-	titleLabel.Size = UDim2.new(1, -14, 0, 14)
-	titleLabel.TextSize = 10
-	titleLabel.TextTruncate = Enum.TextTruncate.AtEnd
-
-	local detailLabel = createInlineLabel(button, "Detail", detail, MUTED)
-	detailLabel.Position = UDim2.fromOffset(7, 19)
-	detailLabel.Size = UDim2.new(1, -14, 0, 13)
-	detailLabel.TextSize = 9
-	detailLabel.TextTruncate = Enum.TextTruncate.AtEnd
-
-	return button
-end
-
-local function createCanvasPreview(parent: Instance): Frame
-	local canvas = Instance.new("Frame")
-	canvas.Name = "CanvasGrid"
-	canvas.BackgroundColor3 = Color3.fromRGB(10, 16, 23)
-	canvas.BorderSizePixel = 0
-	canvas.ClipsDescendants = true
-	canvas.Size = UDim2.new(1, 0, 0, 246)
-	canvas.Parent = parent
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = canvas
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(49, 64, 80)
-	stroke.Transparency = 0.1
-	stroke.Thickness = 1
-	stroke.Parent = canvas
-
-	local gridTexture = Instance.new("Frame")
-	gridTexture.Name = "CanvasBackdrop"
-	gridTexture.BackgroundColor3 = Color3.fromRGB(12, 19, 27)
-	gridTexture.BackgroundTransparency = 0.18
-	gridTexture.BorderSizePixel = 0
-	gridTexture.Size = UDim2.fromScale(1, 1)
-	gridTexture.ZIndex = 0
-	gridTexture.Parent = canvas
-
-	local hover = Instance.new("Frame")
-	hover.Name = "CanvasHover"
-	hover.BackgroundColor3 = HOVER_COLOR
-	hover.BackgroundTransparency = 0.55
-	hover.BorderSizePixel = 0
-	hover.Visible = false
-	hover.ZIndex = 5
-	hover.Parent = canvas
-
-	local hoverStroke = Instance.new("UIStroke")
-	hoverStroke.Name = "CanvasHoverStroke"
-	hoverStroke.Color = Color3.fromRGB(255, 255, 255)
-	hoverStroke.Thickness = 2
-	hoverStroke.Transparency = 0
-	hoverStroke.Parent = hover
-
-	canvasHoverFrame = hover
-	canvasPreviewFrame = canvas
-	return canvas
-end
-
-local function createLayerRow(parent: Instance, name: string, labelText: string, countText: string): Frame
-	local row = Instance.new("Frame")
-	row.Name = name
-	row.BackgroundColor3 = Color3.fromRGB(16, 21, 28)
-	row.BorderSizePixel = 0
-	row.Size = UDim2.new(1, 0, 0, 30)
-	row.Parent = parent
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 6)
-	corner.Parent = row
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = BORDER
-	stroke.Transparency = 0.62
-	stroke.Thickness = 1
-	stroke.Parent = row
-
-	local visibleBox = Instance.new("Frame")
-	visibleBox.Name = "Visible"
-	visibleBox.BackgroundColor3 = Color3.fromRGB(28, 36, 47)
-	visibleBox.BorderSizePixel = 0
-	visibleBox.Position = UDim2.fromOffset(9, 9)
-	visibleBox.Size = UDim2.fromOffset(11, 11)
-	visibleBox.Parent = row
-
-	local boxCorner = Instance.new("UICorner")
-	boxCorner.CornerRadius = UDim.new(0, 3)
-	boxCorner.Parent = visibleBox
-
-	local label = createInlineLabel(row, "Label", labelText, TEXT)
-	label.Position = UDim2.fromOffset(28, 0)
-	label.Size = UDim2.new(1, -78, 1, 0)
-	label.TextSize = 12
-
-	local count = createInlineLabel(row, "Count", countText, MUTED)
-	count.Position = UDim2.new(1, -46, 0, 0)
-	count.Size = UDim2.fromOffset(38, 30)
-	count.TextXAlignment = Enum.TextXAlignment.Right
-	count.TextSize = 11
-
-	return row
-end
-
-local function createHeaderPanel(parent: Instance)
-	local header = Instance.new("Frame")
-	header.Name = "ToolHeader"
-	header.BackgroundColor3 = PANEL_HEADER
-	header.BorderSizePixel = 0
-	header.Size = UDim2.new(1, 0, 0, 48)
-	header.Parent = parent
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = header
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = BORDER
-	stroke.Transparency = 0.55
-	stroke.Thickness = 1
-	stroke.Parent = header
-
-	local accent = Instance.new("Frame")
-	accent.Name = "Accent"
-	accent.BackgroundColor3 = BORDER
-	accent.BorderSizePixel = 0
-	accent.Position = UDim2.fromOffset(0, 0)
-	accent.Size = UDim2.new(1, 0, 0, 1)
-	accent.Parent = header
-
-	local title = createLabel(header, "Title", "Grid Platform Editor", 18, TEXT)
-	title.Font = Enum.Font.GothamBold
-	title.Position = UDim2.fromOffset(12, 6)
-	title.Size = UDim2.new(1, -24, 0, 18)
-	title.TextSize = 14
-	title.TextYAlignment = Enum.TextYAlignment.Center
-
-	targetInfoLabel = createLabel(header, "TargetInfo", "Target: not connected", 15, MUTED)
-	targetInfoLabel.Position = UDim2.fromOffset(12, 24)
-	targetInfoLabel.Size = UDim2.new(1, -24, 0, 15)
-	targetInfoLabel.TextSize = 10
-	targetInfoLabel.TextYAlignment = Enum.TextYAlignment.Center
-
-	modeHintLabel = createLabel(header, "ModeHint", "Brush: Legal", 11, SUBTLE)
-	modeHintLabel.Position = UDim2.fromOffset(12, 37)
-	modeHintLabel.Size = UDim2.new(1, -24, 0, 11)
-	modeHintLabel.TextSize = 9
-	modeHintLabel.TextYAlignment = Enum.TextYAlignment.Center
-end
-
-local function createStatusDock(parent: Instance)
-	local dock = Instance.new("Frame")
-	dock.Name = "StatusDock"
-	dock.BackgroundColor3 = PANEL_STATUS
-	dock.BorderSizePixel = 0
-	dock.Position = UDim2.new(0, 0, 1, -38)
-	dock.Size = UDim2.new(1, 0, 0, 38)
-	dock.Parent = parent
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = dock
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = BORDER
-	stroke.Transparency = 0.62
-	stroke.Thickness = 1
-	stroke.Parent = dock
-
-	local label = createLabel(dock, "StatusTitle", "STATUS", 10, SUBTLE)
-	label.Font = Enum.Font.GothamBold
-	label.Position = UDim2.fromOffset(10, 5)
-	label.Size = UDim2.new(1, -20, 0, 10)
-	label.TextSize = 9
-
-	statusLabel =
-		createLabel(dock, "StatusText", "Ready. Paint on the canvas or switch brushes above.", 18, MUTED)
-	statusLabel.Position = UDim2.fromOffset(10, 16)
-	statusLabel.Size = UDim2.new(1, -20, 0, 18)
-	statusLabel.TextSize = 11
 end
 
 local function applyTabContent(tab: ToolTab)
@@ -595,237 +156,683 @@ local function applyTabContent(tab: ToolTab)
 	end
 end
 
-local function buildWidget()
-	local root = Instance.new("Frame")
-	root.Name = "Root"
-	root.BackgroundColor3 = PANEL_BG
-	root.BorderSizePixel = 0
-	root.Size = UDim2.fromScale(1, 1)
-	root.Parent = widget
-
-	local rootPadding = Instance.new("UIPadding")
-	rootPadding.PaddingTop = UDim.new(0, 8)
-	rootPadding.PaddingBottom = UDim.new(0, 8)
-	rootPadding.PaddingLeft = UDim.new(0, 8)
-	rootPadding.PaddingRight = UDim.new(0, 8)
-	rootPadding.Parent = root
-
-	createHeaderPanel(root)
-	createStatusDock(root)
-
-	local commandTabRow = createButtonRow(root, "CommandTabs", {
-		{ "PaintTab", "Paint" },
-		{ "PathTab", "Path" },
-		{ "StageTab", "Stage" },
-		{ "DataTab", "Data" },
-	})
-	local commandTabFrame = commandTabRow[1].Parent
-	if commandTabFrame ~= nil and commandTabFrame:IsA("Frame") then
-		commandTabFrame.Position = UDim2.fromOffset(0, 56)
-		commandTabFrame.Size = UDim2.new(1, 0, 0, 32)
+do
+	local function createLabel(
+		parent: Instance,
+		name: string,
+		text: string,
+		height: number,
+		color: Color3
+	): TextLabel
+		local label = Instance.new("TextLabel")
+		label.Name = name
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.Gotham
+		label.Text = text
+		label.TextColor3 = color
+		label.TextSize = 13
+		label.TextWrapped = true
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextYAlignment = Enum.TextYAlignment.Top
+		label.Size = UDim2.new(1, 0, 0, height)
+		label.Parent = parent
+		return label
 	end
-	toolTabButtons.Paint = commandTabRow[1]
-	toolTabButtons.Path = commandTabRow[2]
-	toolTabButtons.Stage = commandTabRow[3]
-	toolTabButtons.Data = commandTabRow[4]
-	setButtonActive(toolTabButtons.Paint, true)
 
-	local scroll = Instance.new("ScrollingFrame")
-	scroll.Name = "Scroll"
-	scroll.Active = true
-	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	scroll.BackgroundTransparency = 1
-	scroll.BorderSizePixel = 0
-	scroll.CanvasSize = UDim2.new()
-	scroll.ScrollBarThickness = 6
-	scroll.ScrollBarImageColor3 = BORDER
-	scroll.Position = UDim2.fromOffset(0, 96)
-	scroll.Size = UDim2.new(1, 0, 1, -142)
-	scroll.Parent = root
-	mainScrollFrame = scroll
+	local function createButton(parent: Instance, name: string, text: string, height: number): TextButton
+		local button = Instance.new("TextButton")
+		button.Name = name
+		button.AutoButtonColor = true
+		button.BackgroundColor3 = BUTTON_BG
+		button.BorderSizePixel = 0
+		button.Font = Enum.Font.GothamMedium
+		button.Text = text
+		button.TextColor3 = TEXT
+		button.TextSize = 13
+		button.TextWrapped = true
+		button.Size = UDim2.new(1, 0, 0, height)
+		button.Parent = parent
 
-	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 8)
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Parent = scroll
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 6)
+		corner.Parent = button
 
-	local stageSection = createSection(
-		scroll,
-		"StageProfiles",
-		"Stages",
-		"Pick the editing profile. Real map swapping can wire into these profiles next."
-	)
-	local stageRow = Instance.new("Frame")
-	stageRow.Name = "StageProfileRow"
-	stageRow.BackgroundTransparency = 1
-	stageRow.Size = UDim2.new(1, 0, 0, 36)
-	stageRow.Parent = stageSection
+		local stroke = Instance.new("UIStroke")
+		stroke.Name = "ButtonStroke"
+		stroke.Color = BORDER
+		stroke.Transparency = 0.55
+		stroke.Thickness = 1
+		stroke.Parent = button
 
-	local stageRowLayout = Instance.new("UIListLayout")
-	stageRowLayout.FillDirection = Enum.FillDirection.Horizontal
-	stageRowLayout.Padding = UDim.new(0, 6)
-	stageRowLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	stageRowLayout.Parent = stageRow
+		button.MouseEnter:Connect(function()
+			if button.BackgroundColor3 ~= BUTTON_ACTIVE then
+				button.BackgroundColor3 = BUTTON_HOVER
+			end
+		end)
+		button.MouseLeave:Connect(function()
+			if button.BackgroundColor3 ~= BUTTON_ACTIVE then
+				button.BackgroundColor3 = BUTTON_BG
+			end
+		end)
 
-	stageProfileButtons = {
-		createStageProfileButton(stageRow, "StageFirstPrivateIsland", "First Island", "active"),
-		createStageProfileButton(stageRow, "StageForestBend", "Forest Bend", "draft"),
-		createStageProfileButton(stageRow, "StageTestPad", "Test Pad", "safe"),
-	}
-	for _, stageButton in stageProfileButtons do
-		stageButton.Size = UDim2.new(1 / #stageProfileButtons, -4, 1, 0)
+		return button
 	end
-	setButtonActive(stageProfileButtons[1], true)
 
-	local canvasSection = createSection(
-		scroll,
-		"CanvasFirst",
-		"Paint Canvas",
-		"Click or drag cells here. The canvas writes to the same CellMap as viewport painting."
-	)
-	createCanvasPreview(canvasSection)
-	createLegendRow(canvasSection)
+	local function createSection(parent: Instance, name: string, title: string, subtitle: string?): Frame
+		local section = Instance.new("Frame")
+		section.Name = name
+		section.BackgroundColor3 = PANEL_SECTION
+		section.BorderSizePixel = 0
+		section.Size = UDim2.fromScale(1, 0)
+		section.AutomaticSize = Enum.AutomaticSize.Y
+		section.Parent = parent
 
-	local modeSection = createSection(
-		scroll,
-		"PaintMode",
-		"Brush Palette",
-		"Pick what the next click paints. The strong hover square is the cell that commits."
-	)
-	local modeRow = createButtonRow(modeSection, "Modes", {
-		{ "Toggle", "Toggle" },
-		{ "Legal", "Legal" },
-		{ "Illegal", "Illegal" },
-	})
-	local specialModeRow = createButtonRow(modeSection, "SpecialModes", {
-		{ "Portal", "Portal" },
-		{ "Goal", "Goal" },
-		{ "AutoPlace", "Auto Place" },
-	})
-	modeButtons.Toggle = modeRow[1]
-	modeButtons.Legal = modeRow[2]
-	modeButtons.Illegal = modeRow[3]
-	modeButtons.Portal = specialModeRow[1]
-	modeButtons.Goal = specialModeRow[2]
-	modeButtons.AutoPlace = specialModeRow[3]
-	setButtonActive(modeButtons.Legal, true)
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 8)
+		corner.Parent = section
 
-	local inspectorSection = createSection(
-		scroll,
-		"InspectorPanel",
-		"Inspector",
-		"Selected and hovered cell information stays visible while painting."
-	)
-	local propertyGrid = Instance.new("Frame")
-	propertyGrid.Name = "InspectorProperties"
-	propertyGrid.BackgroundTransparency = 1
-	propertyGrid.Size = UDim2.new(1, 0, 0, 154)
-	propertyGrid.Parent = inspectorSection
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = BORDER
+		stroke.Transparency = 0.68
+		stroke.Thickness = 1
+		stroke.Parent = section
 
-	local propertyLayout = Instance.new("UIGridLayout")
-	propertyLayout.CellPadding = UDim2.fromOffset(8, 8)
-	propertyLayout.CellSize = UDim2.new(0.5, -4, 0, 46)
-	propertyLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	propertyLayout.Parent = propertyGrid
+		local padding = Instance.new("UIPadding")
+		padding.PaddingTop = UDim.new(0, 8)
+		padding.PaddingBottom = UDim.new(0, 8)
+		padding.PaddingLeft = UDim.new(0, 8)
+		padding.PaddingRight = UDim.new(0, 8)
+		padding.Parent = section
 
-	inspectorStageLabel = createPropertyField(propertyGrid, "StageField", "Stage", activeStageProfile)
-	inspectorCellLabel = createPropertyField(propertyGrid, "CellField", "Cell", "-")
-	inspectorTypeLabel = createPropertyField(propertyGrid, "TypeField", "Type", "-")
-	inspectorBrushLabel = createPropertyField(propertyGrid, "BrushField", "Brush", "None")
-	inspectorWorldLabel = createPropertyField(propertyGrid, "WorldField", "World", "-")
-	inspectorGridLabel = createPropertyField(propertyGrid, "GridField", "Grid", "32 x 27")
+		local layout = Instance.new("UIListLayout")
+		layout.Padding = UDim.new(0, 6)
+		layout.SortOrder = Enum.SortOrder.LayoutOrder
+		layout.Parent = section
 
-	local layerSection =
-		createSection(scroll, "LayerTree", "Layer Tree", "Quick readout for the main editable systems.")
-	createLayerRow(layerSection, "GridCellsLayer", "Grid cells", "864")
-	createLayerRow(layerSection, "PathSplineLayer", "Path spline", "curve")
-	createLayerRow(layerSection, "PortalLayer", "Portal spawns", "P")
-	createLayerRow(layerSection, "GoalLayer", "Goal zones", "G")
-	createLayerRow(layerSection, "AutoPlaceLayer", "Auto-place slots", "A")
+		local titleLabel = createLabel(section, `{name}Title`, title, 16, TEXT)
+		titleLabel.Font = Enum.Font.GothamBold
+		titleLabel.TextSize = 12
+		titleLabel.TextYAlignment = Enum.TextYAlignment.Center
+		if subtitle ~= nil and subtitle ~= "" then
+			local subtitleLabel = createLabel(section, `{name}Subtitle`, subtitle, 18, MUTED)
+			subtitleLabel.TextSize = 10
+			subtitleLabel.TextTruncate = Enum.TextTruncate.AtEnd
+		end
 
-	local placementSection = createSection(
-		scroll,
-		"Placement",
-		"Platform",
-		"Fix handles, flatten rotation, or snap to the island surface."
-	)
-	local selectRow = createButtonRow(placementSection, "SelectRow", {
-		{ "Select", "Select Platform" },
-		{ "Origin", "Fix Origin" },
-	})
+		return section
+	end
 
-	local resetSnapRow = createButtonRow(placementSection, "ResetSnapRow", {
-		{ "Reset", "Reset Flat" },
-		{ "Snap", "Snap to Selection" },
-	})
-	calibrateButton = createButton(placementSection, "CalibrateGrid", "Calibrate Grid to 32 x 27", 38)
-	local visibilityRow = createButtonRow(placementSection, "VisibilityRow", {
-		{ "Grid", "Toggle Grid" },
-		{ "Platform", "Toggle Platform" },
-	})
-	gridButton = visibilityRow[1]
-	platformButton = visibilityRow[2]
+	local function createButtonRow(parent: Instance, name: string, buttons: { { string } }): { TextButton }
+		local row = Instance.new("Frame")
+		row.Name = name
+		row.BackgroundTransparency = 1
+		row.Size = UDim2.new(1, 0, 0, 32)
+		row.Parent = parent
 
-	local splineSection =
-		createSection(scroll, "SplinePath", "Spline Path", "Use red control points for smoother enemy turns.")
-	local splineSelectRow = createButtonRow(splineSection, "SplineSelectRow", {
-		{ "SelectSpline", "Select Points" },
-		{ "RebuildSpline", "Rebuild Curve" },
-	})
-	local splineEditRow = createButtonRow(splineSection, "SplineEditRow", {
-		{ "AddSplinePoint", "Add Point" },
-		{ "DeleteSplinePoint", "Delete Selected" },
-	})
-	local splineUtilityRow = createButtonRow(splineSection, "SplineUtilityRow", {
-		{ "SnapSplinePoints", "Snap Points" },
-		{ "ExportSpline", "Export Spline" },
-	})
-	splineAddButton = splineEditRow[1]
-	createLabel(
-		splineSection,
-		"SplineHelp",
-		"Move red points with Studio tools, then rebuild. Add Point inserts after the selected point.",
-		46,
-		MUTED
-	)
+		local layout = Instance.new("UIListLayout")
+		layout.FillDirection = Enum.FillDirection.Horizontal
+		layout.Padding = UDim.new(0, 6)
+		layout.SortOrder = Enum.SortOrder.LayoutOrder
+		layout.Parent = row
 
-	local exportSection = createSection(
-		scroll,
-		"Export",
-		"Export",
-		"Print the current grid map when you want to bake source data."
-	)
-	local exportLayoutButton = createButton(exportSection, "ExportLayout", "Print Layout to Output", 36)
-	createLabel(
-		exportSection,
-		"ExportHelp",
-		"Export uses . buildable, # blocked/path, P portal spawn, G goal, A auto-place slot.",
-		54,
-		MUTED
-	)
-	tabSections.Paint = { canvasSection, modeSection, inspectorSection }
-	tabSections.Path = { splineSection }
-	tabSections.Stage = { stageSection, placementSection }
-	tabSections.Data = { inspectorSection, layerSection, exportSection }
-	applyTabContent("Paint")
+		local created: { TextButton } = {}
+		for _, info in buttons do
+			local button = createButton(row, info[1], info[2], 32)
+			button.Size = UDim2.new(1 / #buttons, -5, 1, 0)
+			table.insert(created, button)
+		end
 
-	return {
-		selectButton = selectRow[1],
-		originButton = selectRow[2],
-		resetButton = resetSnapRow[1],
-		snapButton = resetSnapRow[2],
-		calibrateButton = calibrateButton,
-		selectSplineButton = splineSelectRow[1],
-		rebuildSplineButton = splineSelectRow[2],
-		addSplineButton = splineEditRow[1],
-		deleteSplineButton = splineEditRow[2],
-		snapSplineButton = splineUtilityRow[1],
-		exportSplineButton = splineUtilityRow[2],
-		exportButton = exportLayoutButton,
-	}
+		return created
+	end
+
+	local function createChip(parent: Instance, name: string, text: string, color: Color3): Frame
+		local chip = Instance.new("Frame")
+		chip.Name = name
+		chip.BackgroundColor3 = Color3.fromRGB(31, 36, 46)
+		chip.BorderSizePixel = 0
+		chip.Size = UDim2.new(1, 0, 0, 20)
+		chip.Parent = parent
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 7)
+		corner.Parent = chip
+
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = BORDER
+		stroke.Transparency = 0.65
+		stroke.Thickness = 1
+		stroke.Parent = chip
+
+		local swatch = Instance.new("Frame")
+		swatch.Name = "Swatch"
+		swatch.BackgroundColor3 = color
+		swatch.BorderSizePixel = 0
+		swatch.Position = UDim2.fromOffset(6, 6)
+		swatch.Size = UDim2.fromOffset(8, 8)
+		swatch.Parent = chip
+
+		local swatchCorner = Instance.new("UICorner")
+		swatchCorner.CornerRadius = UDim.new(1, 0)
+		swatchCorner.Parent = swatch
+
+		local label = Instance.new("TextLabel")
+		label.Name = "Label"
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamMedium
+		label.Text = text
+		label.TextColor3 = MUTED
+		label.TextSize = 10
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.Position = UDim2.fromOffset(18, 0)
+		label.Size = UDim2.new(1, -21, 1, 0)
+		label.Parent = chip
+
+		return chip
+	end
+
+	local function createLegendRow(parent: Instance)
+		local legend = Instance.new("Frame")
+		legend.Name = "ModeLegend"
+		legend.BackgroundTransparency = 1
+		legend.Size = UDim2.new(1, 0, 0, 44)
+		legend.Parent = parent
+
+		local grid = Instance.new("UIGridLayout")
+		grid.CellPadding = UDim2.fromOffset(5, 4)
+		grid.CellSize = UDim2.new(0.333, -5, 0, 20)
+		grid.SortOrder = Enum.SortOrder.LayoutOrder
+		grid.Parent = legend
+
+		createChip(legend, "BuildableChip", ". Build", LEGAL_COLOR)
+		createChip(legend, "BlockedChip", "# Block", ILLEGAL_COLOR)
+		createChip(legend, "PortalChip", "P Portal", PORTAL_COLOR)
+		createChip(legend, "GoalChip", "G Goal", GOAL_COLOR)
+		createChip(legend, "AutoChip", "A Auto", AUTOPLACE_COLOR)
+	end
+
+	local function createInlineLabel(parent: Instance, name: string, text: string, color: Color3): TextLabel
+		local label = Instance.new("TextLabel")
+		label.Name = name
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamMedium
+		label.Text = text
+		label.TextColor3 = color
+		label.TextSize = 11
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextYAlignment = Enum.TextYAlignment.Center
+		label.Parent = parent
+		return label
+	end
+
+	local function createPropertyField(
+		parent: Instance,
+		name: string,
+		labelText: string,
+		valueText: string
+	): TextLabel
+		local field = Instance.new("Frame")
+		field.Name = name
+		field.BackgroundColor3 = Color3.fromRGB(16, 21, 28)
+		field.BorderSizePixel = 0
+		field.Size = UDim2.new(0.5, -4, 0, 46)
+		field.Parent = parent
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 7)
+		corner.Parent = field
+
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = BORDER
+		stroke.Transparency = 0.55
+		stroke.Thickness = 1
+		stroke.Parent = field
+
+		local label = createInlineLabel(field, "Label", labelText, MUTED)
+		label.Position = UDim2.fromOffset(9, 5)
+		label.Size = UDim2.new(1, -18, 0, 14)
+		label.TextSize = 10
+
+		local value = createInlineLabel(field, "Value", valueText, TEXT)
+		value.Font = Enum.Font.GothamBold
+		value.Position = UDim2.fromOffset(9, 20)
+		value.Size = UDim2.new(1, -18, 0, 18)
+		value.TextSize = 12
+		return value
+	end
+
+	local function createStageProfileButton(
+		parent: Instance,
+		name: string,
+		title: string,
+		detail: string
+	): TextButton
+		local button = createButton(parent, name, "", 36)
+		button.Text = ""
+		button.AutoButtonColor = true
+
+		local titleLabel = createInlineLabel(button, "Title", title, TEXT)
+		titleLabel.Font = Enum.Font.GothamBold
+		titleLabel.Position = UDim2.fromOffset(7, 4)
+		titleLabel.Size = UDim2.new(1, -14, 0, 14)
+		titleLabel.TextSize = 10
+		titleLabel.TextTruncate = Enum.TextTruncate.AtEnd
+
+		local detailLabel = createInlineLabel(button, "Detail", detail, MUTED)
+		detailLabel.Position = UDim2.fromOffset(7, 19)
+		detailLabel.Size = UDim2.new(1, -14, 0, 13)
+		detailLabel.TextSize = 9
+		detailLabel.TextTruncate = Enum.TextTruncate.AtEnd
+
+		return button
+	end
+
+	local function createCanvasPreview(parent: Instance): Frame
+		local canvas = Instance.new("Frame")
+		canvas.Name = "CanvasGrid"
+		canvas.BackgroundColor3 = Color3.fromRGB(10, 16, 23)
+		canvas.BorderSizePixel = 0
+		canvas.ClipsDescendants = true
+		canvas.Size = UDim2.new(1, 0, 0, 246)
+		canvas.Parent = parent
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 8)
+		corner.Parent = canvas
+
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Color3.fromRGB(49, 64, 80)
+		stroke.Transparency = 0.1
+		stroke.Thickness = 1
+		stroke.Parent = canvas
+
+		local gridTexture = Instance.new("Frame")
+		gridTexture.Name = "CanvasBackdrop"
+		gridTexture.BackgroundColor3 = Color3.fromRGB(12, 19, 27)
+		gridTexture.BackgroundTransparency = 0.18
+		gridTexture.BorderSizePixel = 0
+		gridTexture.Size = UDim2.fromScale(1, 1)
+		gridTexture.ZIndex = 0
+		gridTexture.Parent = canvas
+
+		local hover = Instance.new("Frame")
+		hover.Name = "CanvasHover"
+		hover.BackgroundColor3 = HOVER_COLOR
+		hover.BackgroundTransparency = 0.55
+		hover.BorderSizePixel = 0
+		hover.Visible = false
+		hover.ZIndex = 5
+		hover.Parent = canvas
+
+		local hoverStroke = Instance.new("UIStroke")
+		hoverStroke.Name = "CanvasHoverStroke"
+		hoverStroke.Color = Color3.fromRGB(255, 255, 255)
+		hoverStroke.Thickness = 2
+		hoverStroke.Transparency = 0
+		hoverStroke.Parent = hover
+
+		canvasHoverFrame = hover
+		canvasPreviewFrame = canvas
+		return canvas
+	end
+
+	local function createLayerRow(parent: Instance, name: string, labelText: string, countText: string): Frame
+		local row = Instance.new("Frame")
+		row.Name = name
+		row.BackgroundColor3 = Color3.fromRGB(16, 21, 28)
+		row.BorderSizePixel = 0
+		row.Size = UDim2.new(1, 0, 0, 30)
+		row.Parent = parent
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 6)
+		corner.Parent = row
+
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = BORDER
+		stroke.Transparency = 0.62
+		stroke.Thickness = 1
+		stroke.Parent = row
+
+		local visibleBox = Instance.new("Frame")
+		visibleBox.Name = "Visible"
+		visibleBox.BackgroundColor3 = Color3.fromRGB(28, 36, 47)
+		visibleBox.BorderSizePixel = 0
+		visibleBox.Position = UDim2.fromOffset(9, 9)
+		visibleBox.Size = UDim2.fromOffset(11, 11)
+		visibleBox.Parent = row
+
+		local boxCorner = Instance.new("UICorner")
+		boxCorner.CornerRadius = UDim.new(0, 3)
+		boxCorner.Parent = visibleBox
+
+		local label = createInlineLabel(row, "Label", labelText, TEXT)
+		label.Position = UDim2.fromOffset(28, 0)
+		label.Size = UDim2.new(1, -78, 1, 0)
+		label.TextSize = 12
+
+		local count = createInlineLabel(row, "Count", countText, MUTED)
+		count.Position = UDim2.new(1, -46, 0, 0)
+		count.Size = UDim2.fromOffset(38, 30)
+		count.TextXAlignment = Enum.TextXAlignment.Right
+		count.TextSize = 11
+
+		return row
+	end
+
+	local function createHeaderPanel(parent: Instance)
+		local header = Instance.new("Frame")
+		header.Name = "ToolHeader"
+		header.BackgroundColor3 = PANEL_HEADER
+		header.BorderSizePixel = 0
+		header.Size = UDim2.new(1, 0, 0, 48)
+		header.Parent = parent
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 8)
+		corner.Parent = header
+
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = BORDER
+		stroke.Transparency = 0.55
+		stroke.Thickness = 1
+		stroke.Parent = header
+
+		local accent = Instance.new("Frame")
+		accent.Name = "Accent"
+		accent.BackgroundColor3 = BORDER
+		accent.BorderSizePixel = 0
+		accent.Position = UDim2.fromOffset(0, 0)
+		accent.Size = UDim2.new(1, 0, 0, 1)
+		accent.Parent = header
+
+		local title = createLabel(header, "Title", "Grid Platform Editor", 18, TEXT)
+		title.Font = Enum.Font.GothamBold
+		title.Position = UDim2.fromOffset(12, 6)
+		title.Size = UDim2.new(1, -24, 0, 18)
+		title.TextSize = 14
+		title.TextYAlignment = Enum.TextYAlignment.Center
+
+		targetInfoLabel = createLabel(header, "TargetInfo", "Target: not connected", 15, MUTED)
+		targetInfoLabel.Position = UDim2.fromOffset(12, 24)
+		targetInfoLabel.Size = UDim2.new(1, -24, 0, 15)
+		targetInfoLabel.TextSize = 10
+		targetInfoLabel.TextYAlignment = Enum.TextYAlignment.Center
+
+		modeHintLabel = createLabel(header, "ModeHint", "Brush: Legal", 11, SUBTLE)
+		modeHintLabel.Position = UDim2.fromOffset(12, 37)
+		modeHintLabel.Size = UDim2.new(1, -24, 0, 11)
+		modeHintLabel.TextSize = 9
+		modeHintLabel.TextYAlignment = Enum.TextYAlignment.Center
+	end
+
+	local function createStatusDock(parent: Instance)
+		local dock = Instance.new("Frame")
+		dock.Name = "StatusDock"
+		dock.BackgroundColor3 = PANEL_STATUS
+		dock.BorderSizePixel = 0
+		dock.Position = UDim2.new(0, 0, 1, -38)
+		dock.Size = UDim2.new(1, 0, 0, 38)
+		dock.Parent = parent
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 8)
+		corner.Parent = dock
+
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = BORDER
+		stroke.Transparency = 0.62
+		stroke.Thickness = 1
+		stroke.Parent = dock
+
+		local label = createLabel(dock, "StatusTitle", "STATUS", 10, SUBTLE)
+		label.Font = Enum.Font.GothamBold
+		label.Position = UDim2.fromOffset(10, 5)
+		label.Size = UDim2.new(1, -20, 0, 10)
+		label.TextSize = 9
+
+		statusLabel =
+			createLabel(dock, "StatusText", "Ready. Paint on the canvas or switch brushes above.", 18, MUTED)
+		statusLabel.Position = UDim2.fromOffset(10, 16)
+		statusLabel.Size = UDim2.new(1, -20, 0, 18)
+		statusLabel.TextSize = 11
+	end
+
+	local function buildWidget()
+		local root = Instance.new("Frame")
+		root.Name = "Root"
+		root.BackgroundColor3 = PANEL_BG
+		root.BorderSizePixel = 0
+		root.Size = UDim2.fromScale(1, 1)
+		root.Parent = widget
+
+		local rootPadding = Instance.new("UIPadding")
+		rootPadding.PaddingTop = UDim.new(0, 8)
+		rootPadding.PaddingBottom = UDim.new(0, 8)
+		rootPadding.PaddingLeft = UDim.new(0, 8)
+		rootPadding.PaddingRight = UDim.new(0, 8)
+		rootPadding.Parent = root
+
+		createHeaderPanel(root)
+		createStatusDock(root)
+
+		local commandTabRow = createButtonRow(root, "CommandTabs", {
+			{ "PaintTab", "Paint" },
+			{ "PathTab", "Path" },
+			{ "StageTab", "Stage" },
+			{ "DataTab", "Data" },
+		})
+		local commandTabFrame = commandTabRow[1].Parent
+		if commandTabFrame ~= nil and commandTabFrame:IsA("Frame") then
+			commandTabFrame.Position = UDim2.fromOffset(0, 56)
+			commandTabFrame.Size = UDim2.new(1, 0, 0, 32)
+		end
+		toolTabButtons.Paint = commandTabRow[1]
+		toolTabButtons.Path = commandTabRow[2]
+		toolTabButtons.Stage = commandTabRow[3]
+		toolTabButtons.Data = commandTabRow[4]
+		setButtonActive(toolTabButtons.Paint, true)
+
+		local scroll = Instance.new("ScrollingFrame")
+		scroll.Name = "Scroll"
+		scroll.Active = true
+		scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		scroll.BackgroundTransparency = 1
+		scroll.BorderSizePixel = 0
+		scroll.CanvasSize = UDim2.new()
+		scroll.ScrollBarThickness = 6
+		scroll.ScrollBarImageColor3 = BORDER
+		scroll.Position = UDim2.fromOffset(0, 96)
+		scroll.Size = UDim2.new(1, 0, 1, -142)
+		scroll.Parent = root
+		mainScrollFrame = scroll
+
+		local layout = Instance.new("UIListLayout")
+		layout.Padding = UDim.new(0, 8)
+		layout.SortOrder = Enum.SortOrder.LayoutOrder
+		layout.Parent = scroll
+
+		local stageSection = createSection(
+			scroll,
+			"StageProfiles",
+			"Stages",
+			"Pick the editing profile. Real map swapping can wire into these profiles next."
+		)
+		local stageRow = Instance.new("Frame")
+		stageRow.Name = "StageProfileRow"
+		stageRow.BackgroundTransparency = 1
+		stageRow.Size = UDim2.new(1, 0, 0, 36)
+		stageRow.Parent = stageSection
+
+		local stageRowLayout = Instance.new("UIListLayout")
+		stageRowLayout.FillDirection = Enum.FillDirection.Horizontal
+		stageRowLayout.Padding = UDim.new(0, 6)
+		stageRowLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		stageRowLayout.Parent = stageRow
+
+		stageProfileButtons = {
+			createStageProfileButton(stageRow, "StageFirstPrivateIsland", "First Island", "active"),
+			createStageProfileButton(stageRow, "StageForestBend", "Forest Bend", "draft"),
+			createStageProfileButton(stageRow, "StageTestPad", "Test Pad", "safe"),
+		}
+		for _, stageButton in stageProfileButtons do
+			stageButton.Size = UDim2.new(1 / #stageProfileButtons, -4, 1, 0)
+		end
+		setButtonActive(stageProfileButtons[1], true)
+
+		local canvasSection = createSection(
+			scroll,
+			"CanvasFirst",
+			"Paint Canvas",
+			"Click or drag cells here. The canvas writes to the same CellMap as viewport painting."
+		)
+		createCanvasPreview(canvasSection)
+		createLegendRow(canvasSection)
+
+		local modeSection = createSection(
+			scroll,
+			"PaintMode",
+			"Brush Palette",
+			"Pick what the next click paints. The strong hover square is the cell that commits."
+		)
+		local modeRow = createButtonRow(modeSection, "Modes", {
+			{ "Toggle", "Toggle" },
+			{ "Legal", "Legal" },
+			{ "Illegal", "Illegal" },
+		})
+		local specialModeRow = createButtonRow(modeSection, "SpecialModes", {
+			{ "Portal", "Portal" },
+			{ "Goal", "Goal" },
+			{ "AutoPlace", "Auto Place" },
+		})
+		modeButtons.Toggle = modeRow[1]
+		modeButtons.Legal = modeRow[2]
+		modeButtons.Illegal = modeRow[3]
+		modeButtons.Portal = specialModeRow[1]
+		modeButtons.Goal = specialModeRow[2]
+		modeButtons.AutoPlace = specialModeRow[3]
+		setButtonActive(modeButtons.Legal, true)
+
+		local inspectorSection = createSection(
+			scroll,
+			"InspectorPanel",
+			"Inspector",
+			"Selected and hovered cell information stays visible while painting."
+		)
+		local propertyGrid = Instance.new("Frame")
+		propertyGrid.Name = "InspectorProperties"
+		propertyGrid.BackgroundTransparency = 1
+		propertyGrid.Size = UDim2.new(1, 0, 0, 154)
+		propertyGrid.Parent = inspectorSection
+
+		local propertyLayout = Instance.new("UIGridLayout")
+		propertyLayout.CellPadding = UDim2.fromOffset(8, 8)
+		propertyLayout.CellSize = UDim2.new(0.5, -4, 0, 46)
+		propertyLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		propertyLayout.Parent = propertyGrid
+
+		inspectorStageLabel = createPropertyField(propertyGrid, "StageField", "Stage", activeStageProfile)
+		inspectorCellLabel = createPropertyField(propertyGrid, "CellField", "Cell", "-")
+		inspectorTypeLabel = createPropertyField(propertyGrid, "TypeField", "Type", "-")
+		inspectorBrushLabel = createPropertyField(propertyGrid, "BrushField", "Brush", "None")
+		inspectorWorldLabel = createPropertyField(propertyGrid, "WorldField", "World", "-")
+		inspectorGridLabel = createPropertyField(propertyGrid, "GridField", "Grid", "32 x 27")
+
+		local layerSection =
+			createSection(scroll, "LayerTree", "Layer Tree", "Quick readout for the main editable systems.")
+		createLayerRow(layerSection, "GridCellsLayer", "Grid cells", "864")
+		createLayerRow(layerSection, "PathSplineLayer", "Path spline", "curve")
+		createLayerRow(layerSection, "PortalLayer", "Portal spawns", "P")
+		createLayerRow(layerSection, "GoalLayer", "Goal zones", "G")
+		createLayerRow(layerSection, "AutoPlaceLayer", "Auto-place slots", "A")
+
+		local placementSection = createSection(
+			scroll,
+			"Placement",
+			"Platform",
+			"Fix handles, flatten rotation, or snap to the island surface."
+		)
+		local selectRow = createButtonRow(placementSection, "SelectRow", {
+			{ "Select", "Select Platform" },
+			{ "Origin", "Fix Origin" },
+		})
+
+		local resetSnapRow = createButtonRow(placementSection, "ResetSnapRow", {
+			{ "Reset", "Reset Flat" },
+			{ "Snap", "Snap to Selection" },
+		})
+		calibrateButton = createButton(placementSection, "CalibrateGrid", "Calibrate Grid to 32 x 27", 38)
+		local visibilityRow = createButtonRow(placementSection, "VisibilityRow", {
+			{ "Grid", "Toggle Grid" },
+			{ "Platform", "Toggle Platform" },
+		})
+		gridButton = visibilityRow[1]
+		platformButton = visibilityRow[2]
+
+		local splineSection = createSection(
+			scroll,
+			"SplinePath",
+			"Spline Path",
+			"Use red control points for smoother enemy turns."
+		)
+		local splineSelectRow = createButtonRow(splineSection, "SplineSelectRow", {
+			{ "SelectSpline", "Select Points" },
+			{ "RebuildSpline", "Rebuild Curve" },
+		})
+		local splineEditRow = createButtonRow(splineSection, "SplineEditRow", {
+			{ "AddSplinePoint", "Add Point" },
+			{ "DeleteSplinePoint", "Delete Selected" },
+		})
+		local splineUtilityRow = createButtonRow(splineSection, "SplineUtilityRow", {
+			{ "SnapSplinePoints", "Snap Points" },
+			{ "ExportSpline", "Export Spline" },
+		})
+		splineAddButton = splineEditRow[1]
+		createLabel(
+			splineSection,
+			"SplineHelp",
+			"Move red points with Studio tools, then rebuild. Add Point inserts after the selected point.",
+			46,
+			MUTED
+		)
+
+		local exportSection = createSection(
+			scroll,
+			"Export",
+			"Export",
+			"Print the current grid map when you want to bake source data."
+		)
+		local exportLayoutButton = createButton(exportSection, "ExportLayout", "Print Layout to Output", 36)
+		createLabel(
+			exportSection,
+			"ExportHelp",
+			"Export uses . buildable, # blocked/path, P portal spawn, G goal, A auto-place slot.",
+			54,
+			MUTED
+		)
+		tabSections.Paint = { canvasSection, modeSection, inspectorSection }
+		tabSections.Path = { splineSection }
+		tabSections.Stage = { stageSection, placementSection }
+		tabSections.Data = { inspectorSection, layerSection, exportSection }
+		applyTabContent("Paint")
+
+		return {
+			selectButton = selectRow[1],
+			originButton = selectRow[2],
+			resetButton = resetSnapRow[1],
+			snapButton = resetSnapRow[2],
+			calibrateButton = calibrateButton,
+			selectSplineButton = splineSelectRow[1],
+			rebuildSplineButton = splineSelectRow[2],
+			addSplineButton = splineEditRow[1],
+			deleteSplineButton = splineEditRow[2],
+			snapSplineButton = splineUtilityRow[1],
+			exportSplineButton = splineUtilityRow[2],
+			exportButton = exportLayoutButton,
+		}
+	end
+
+	widgetButtons = buildWidget()
 end
-
-local widgetButtons = buildWidget()
 
 local function findModel(parent: Instance, name: string): Model?
 	local child = parent:FindFirstChild(name)
