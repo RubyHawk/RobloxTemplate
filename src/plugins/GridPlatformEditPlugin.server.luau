@@ -47,6 +47,8 @@ local PATH_GRID_RADIUS = 4.35
 local PATH_GRID_SAMPLE_STEP = 0.8
 local SPLINE_SAMPLES_PER_SEGMENT = 24
 local HOVER_PREVIEW_NAME = "GridHoverPreview"
+local CELL_VISUAL_INSET_STUDS = 0.04
+local GRID_PIXELS_PER_STUD = 8
 
 type PaintMode = "Toggle" | "Legal" | "Illegal" | "Portal" | "Goal" | "AutoPlace"
 type CellCode = "." | "#" | "P" | "G" | "A"
@@ -62,6 +64,13 @@ type SplinePath = {
 	length: number,
 }
 
+type PlatformRayHit = {
+	platform: Model,
+	base: BasePart,
+	localPosition: Vector3,
+	worldPosition: Vector3,
+}
+
 local toolbar = plugin:CreateToolbar("Grid Platform")
 local openButton =
 	toolbar:CreateButton("GridPlatformEditor", "Open the grid platform editor", "", "Grid Editor")
@@ -75,11 +84,13 @@ local activeMode: PaintMode? = nil
 local mouse = plugin:GetMouse()
 local statusLabel: TextLabel
 local modeHintLabel: TextLabel
+local targetInfoLabel: TextLabel
 local modeButtons: { [PaintMode]: TextButton } = {} :: any
 local splineAddActive = false
 local splineAddButton: TextButton
 local gridButton: TextButton
 local platformButton: TextButton
+local calibrateButton: TextButton
 local hoverAdornment: BoxHandleAdornment? = nil
 local hoverCellKey: string? = nil
 local dragPainting = false
@@ -298,10 +309,10 @@ end
 
 local function createHeaderPanel(parent: Instance)
 	local header = Instance.new("Frame")
-	header.Name = "ProfessionalHeader"
+	header.Name = "ToolHeader"
 	header.BackgroundColor3 = PANEL_HEADER
 	header.BorderSizePixel = 0
-	header.Size = UDim2.new(1, 0, 0, 92)
+	header.Size = UDim2.new(1, 0, 0, 86)
 	header.Parent = parent
 
 	local corner = Instance.new("UICorner")
@@ -316,29 +327,35 @@ local function createHeaderPanel(parent: Instance)
 
 	local accent = Instance.new("Frame")
 	accent.Name = "Accent"
-	accent.BackgroundColor3 = BUTTON_ACTIVE
+	accent.BackgroundColor3 = BORDER
 	accent.BorderSizePixel = 0
 	accent.Position = UDim2.fromOffset(0, 0)
-	accent.Size = UDim2.new(0, 4, 1, 0)
+	accent.Size = UDim2.new(1, 0, 0, 1)
 	accent.Parent = header
 
-	local eyebrow = createLabel(header, "Eyebrow", "GRID PLATFORM", 16, SUBTLE)
+	local eyebrow = createLabel(header, "Eyebrow", "ROBLOX STUDIO TOOL", 16, SUBTLE)
 	eyebrow.Font = Enum.Font.GothamBold
 	eyebrow.Position = UDim2.fromOffset(14, 10)
 	eyebrow.Size = UDim2.new(1, -28, 0, 16)
 	eyebrow.TextSize = 10
 
-	local title = createLabel(header, "Title", "Tower Defense Layout", 28, TEXT)
+	local title = createLabel(header, "Title", "Grid Platform Editor", 24, TEXT)
 	title.Font = Enum.Font.GothamBold
-	title.Position = UDim2.fromOffset(14, 28)
-	title.Size = UDim2.new(1, -28, 0, 28)
-	title.TextSize = 18
+	title.Position = UDim2.fromOffset(14, 27)
+	title.Size = UDim2.new(1, -28, 0, 24)
+	title.TextSize = 16
 	title.TextYAlignment = Enum.TextYAlignment.Center
 
-	modeHintLabel = createLabel(header, "ModeHint", "Pick a paint mode or edit the spline path.", 22, MUTED)
-	modeHintLabel.Position = UDim2.fromOffset(14, 58)
-	modeHintLabel.Size = UDim2.new(1, -28, 0, 22)
-	modeHintLabel.TextSize = 12
+	targetInfoLabel = createLabel(header, "TargetInfo", "Target: not connected", 18, MUTED)
+	targetInfoLabel.Position = UDim2.fromOffset(14, 51)
+	targetInfoLabel.Size = UDim2.new(1, -28, 0, 18)
+	targetInfoLabel.TextSize = 11
+	targetInfoLabel.TextYAlignment = Enum.TextYAlignment.Center
+
+	modeHintLabel = createLabel(header, "ModeHint", "No active brush", 16, SUBTLE)
+	modeHintLabel.Position = UDim2.fromOffset(14, 69)
+	modeHintLabel.Size = UDim2.new(1, -28, 0, 16)
+	modeHintLabel.TextSize = 10
 	modeHintLabel.TextYAlignment = Enum.TextYAlignment.Center
 end
 
@@ -406,8 +423,8 @@ local function buildWidget()
 	scroll.CanvasSize = UDim2.new()
 	scroll.ScrollBarThickness = 6
 	scroll.ScrollBarImageColor3 = BORDER
-	scroll.Position = UDim2.fromOffset(0, 102)
-	scroll.Size = UDim2.new(1, 0, 1, -176)
+	scroll.Position = UDim2.fromOffset(0, 96)
+	scroll.Size = UDim2.new(1, 0, 1, -170)
 	scroll.Parent = root
 
 	local layout = Instance.new("UIListLayout")
@@ -454,6 +471,7 @@ local function buildWidget()
 		{ "Reset", "Reset Flat" },
 		{ "Snap", "Snap to Selection" },
 	})
+	calibrateButton = createButton(placementSection, "CalibrateGrid", "Calibrate Grid to 32 x 27", 38)
 
 	local splineSection =
 		createSection(scroll, "SplinePath", "Spline Path", "Use red control points for smoother enemy turns.")
@@ -511,6 +529,7 @@ local function buildWidget()
 		originButton = selectRow[2],
 		resetButton = resetSnapRow[1],
 		snapButton = resetSnapRow[2],
+		calibrateButton = calibrateButton,
 		selectSplineButton = splineSelectRow[1],
 		rebuildSplineButton = splineSelectRow[2],
 		addSplineButton = splineEditRow[1],
@@ -692,6 +711,16 @@ local function rows(platform: Model): number
 	return if value ~= nil then value.Value else 27
 end
 
+local function gridFootprint(platform: Model): (number, number)
+	local size = cellSize(platform)
+	return columns(platform) * size, rows(platform) * size
+end
+
+local function gridLocalBounds(platform: Model): (number, number, number, number)
+	local width, depth = gridFootprint(platform)
+	return -width / 2, width / 2, -depth / 2, depth / 2
+end
+
 local function rowName(row: number): string
 	return `Row_{string.format("%02d", row)}`
 end
@@ -790,6 +819,86 @@ local function updateAllCellVisuals(platform: Model)
 	end
 end
 
+local function syncGridTemplate(platform: Model)
+	local base = platformBasePart(platform)
+	if base == nil then
+		setStatus("PlatformBase is missing.")
+		return false
+	end
+
+	local width, depth = gridFootprint(platform)
+	if math.abs(base.Size.X - width) > 0.001 or math.abs(base.Size.Z - depth) > 0.001 then
+		base.Size = Vector3.new(width, base.Size.Y, depth)
+	end
+
+	local overlay = base:FindFirstChild("GridOverlay")
+	if overlay == nil or not overlay:IsA("SurfaceGui") then
+		if overlay ~= nil then
+			overlay:Destroy()
+		end
+		overlay = Instance.new("SurfaceGui")
+		overlay.Name = "GridOverlay"
+		overlay.Parent = base
+	end
+	overlay.Face = Enum.NormalId.Top
+	overlay.AlwaysOnTop = true
+	overlay.LightInfluence = 0
+	overlay.PixelsPerStud = GRID_PIXELS_PER_STUD
+	overlay.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+
+	local cells = overlay:FindFirstChild("Cells")
+	if cells == nil or not cells:IsA("Frame") then
+		if cells ~= nil then
+			cells:Destroy()
+		end
+		cells = Instance.new("Frame")
+		cells.Name = "Cells"
+		cells.Parent = overlay
+	end
+	cells.BackgroundTransparency = 1
+	cells.BorderSizePixel = 0
+	cells.Size = UDim2.fromScale(1, 1)
+
+	local cell = cellSize(platform)
+	local inset = math.min(CELL_VISUAL_INSET_STUDS, cell * 0.1)
+	for row = 1, rows(platform) do
+		for column = 1, columns(platform) do
+			local frame = cells:FindFirstChild(cellName(column, row))
+			if frame == nil or not frame:IsA("Frame") then
+				if frame ~= nil then
+					frame:Destroy()
+				end
+				frame = Instance.new("Frame")
+				frame.Name = cellName(column, row)
+				frame.Parent = cells
+			end
+			frame.BorderSizePixel = 0
+			frame.Position =
+				UDim2.fromScale(((column - 1) * cell + inset) / width, ((row - 1) * cell + inset) / depth)
+			frame.Size = UDim2.fromScale((cell - inset * 2) / width, (cell - inset * 2) / depth)
+		end
+	end
+
+	updateAllCellVisuals(platform)
+	return true
+end
+
+local function updateTargetInfo(platform: Model?)
+	if platform == nil then
+		targetInfoLabel.Text = "Target: not connected"
+		return
+	end
+	local base = platformBasePart(platform)
+	local width, depth = gridFootprint(platform)
+	local aligned = if base ~= nil
+		then math.abs(base.Size.X - width) < 0.01 and math.abs(base.Size.Z - depth) < 0.01
+		else false
+	targetInfoLabel.Text =
+		`{columns(platform)} x {rows(platform)} cells | {cellSize(platform)} studs | {width} x {depth} footprint | {if aligned
+			then "aligned"
+			else "needs calibration"}`
+end
+
 local function setBoolChild(parent: Instance, childName: string, value: boolean)
 	local child = boolValue(parent, childName)
 	if child ~= nil then
@@ -812,6 +921,7 @@ local function applyPlatformVisual()
 
 	local enabled = platformEnabled(platform)
 	local visible = gridVisible(platform)
+	updateTargetInfo(platform)
 	base.Transparency = if enabled then PLATFORM_TRANSPARENCY else 1
 	base.CanCollide = enabled
 	base.CanQuery = enabled
@@ -832,6 +942,7 @@ local function applyPlatformVisual()
 
 	gridButton.Text = if visible then "Hide Grid" else "Show Grid"
 	platformButton.Text = if enabled then "Disable Platform" else "Enable Platform"
+	calibrateButton.Text = `Calibrate Grid to {columns(platform)} x {rows(platform)}`
 	setButtonActive(gridButton, visible)
 	setButtonActive(platformButton, enabled)
 	updateAllCellVisuals(platform)
@@ -985,10 +1096,20 @@ local function cellAtWorldPosition(platform: Model, worldPosition: Vector3): (nu
 
 	local localPosition = base.CFrame:PointToObjectSpace(worldPosition)
 	local size = cellSize(platform)
-	local column = math.floor((localPosition.X + base.Size.X / 2) / size) + 1
-	local row = math.floor((localPosition.Z + base.Size.Z / 2) / size) + 1
+	local minX, maxX, minZ, maxZ = gridLocalBounds(platform)
+	local column = math.floor((localPosition.X - minX) / size) + 1
+	local row = math.floor((localPosition.Z - minZ) / size) + 1
 
-	if column < 1 or column > columns(platform) or row < 1 or row > rows(platform) then
+	if
+		localPosition.X < minX
+		or localPosition.X > maxX
+		or localPosition.Z < minZ
+		or localPosition.Z > maxZ
+		or column < 1
+		or column > columns(platform)
+		or row < 1
+		or row > rows(platform)
+	then
 		return nil, nil
 	end
 
@@ -1001,9 +1122,69 @@ local function cellLocalCenter(platform: Model, column: number, row: number, yOf
 		return nil
 	end
 	local size = cellSize(platform)
-	local localX = -base.Size.X / 2 + (column - 0.5) * size
-	local localZ = -base.Size.Z / 2 + (row - 0.5) * size
+	local minX, _, minZ = gridLocalBounds(platform)
+	local localX = minX + (column - 0.5) * size
+	local localZ = minZ + (row - 0.5) * size
 	return Vector3.new(localX, base.Size.Y / 2 + yOffset, localZ)
+end
+
+local function mousePlatformHit(surfaceOffset: number, quiet: boolean?): PlatformRayHit?
+	local platform = platformModel()
+	if platform == nil then
+		if quiet ~= true then
+			setStatus("GamePlatform is missing. Connect Rojo first.")
+		end
+		return nil
+	end
+
+	local base = platformBasePart(platform)
+	if base == nil then
+		if quiet ~= true then
+			setStatus("PlatformBase is missing.")
+		end
+		return nil
+	end
+
+	local ray = mouse.UnitRay
+	local localOrigin = base.CFrame:PointToObjectSpace(ray.Origin)
+	local localDirection = base.CFrame:VectorToObjectSpace(ray.Direction)
+	if math.abs(localDirection.Y) < 0.0001 then
+		if quiet ~= true then
+			setStatus("Move the camera so the mouse ray crosses the platform.")
+		end
+		return nil
+	end
+
+	local topY = base.Size.Y / 2
+	local distance = (topY - localOrigin.Y) / localDirection.Y
+	if distance < 0 then
+		if quiet ~= true then
+			setStatus("Mouse is not aimed at the platform plane.")
+		end
+		return nil
+	end
+
+	local localPosition = localOrigin + localDirection * distance
+	local minX, maxX, minZ, maxZ = gridLocalBounds(platform)
+	if
+		localPosition.X < minX
+		or localPosition.X > maxX
+		or localPosition.Z < minZ
+		or localPosition.Z > maxZ
+	then
+		if quiet ~= true then
+			setStatus("Aim inside the calibrated grid footprint.")
+		end
+		return nil
+	end
+
+	local projected = Vector3.new(localPosition.X, topY + surfaceOffset, localPosition.Z)
+	return {
+		platform = platform,
+		base = base,
+		localPosition = projected,
+		worldPosition = base.CFrame:PointToWorldSpace(projected),
+	}
 end
 
 local function setCellCode(platform: Model, column: number, row: number, code: CellCode)
@@ -1032,14 +1213,20 @@ local function nextCodeForPaintMode(platform: Model, column: number, row: number
 	return if isCellBuildable(platform, column, row) then "#" else "."
 end
 
-local function updateHoverPreview(worldPosition: Vector3)
-	local platform = platformModel()
-	if platform == nil or (activeMode == nil and not splineAddActive) then
+local function updateHoverPreview()
+	if activeMode == nil and not splineAddActive then
 		clearHoverPreview()
 		return
 	end
 
-	local column, row = cellAtWorldPosition(platform, worldPosition)
+	local hit = mousePlatformHit(0, true)
+	if hit == nil then
+		clearHoverPreview()
+		return
+	end
+
+	local platform = hit.platform
+	local column, row = cellAtWorldPosition(platform, hit.worldPosition)
 	if column == nil or row == nil then
 		clearHoverPreview()
 		return
@@ -1176,11 +1363,12 @@ local function pointOnPlatform(worldPosition: Vector3, surfaceOffset: number): V
 	end
 
 	local localPosition = base.CFrame:PointToObjectSpace(worldPosition)
+	local minX, maxX, minZ, maxZ = gridLocalBounds(platform)
 	if
-		localPosition.X < -base.Size.X / 2
-		or localPosition.X > base.Size.X / 2
-		or localPosition.Z < -base.Size.Z / 2
-		or localPosition.Z > base.Size.Z / 2
+		localPosition.X < minX
+		or localPosition.X > maxX
+		or localPosition.Z < minZ
+		or localPosition.Z > maxZ
 	then
 		setStatus("Click inside the platform rectangle to place a spline point.")
 		return nil
@@ -1369,6 +1557,7 @@ local function rebuildPathGrid(platform: Model, path: SplinePath)
 	table.insert(sampledPath, sampleSplinePath(path, path.length))
 
 	local size = cellSize(platform)
+	local minX, _, minZ = gridLocalBounds(platform)
 	for row = 1, rows(platform) do
 		local rowValue = rowString(platform, row)
 		if rowValue == nil then
@@ -1378,8 +1567,8 @@ local function rebuildPathGrid(platform: Model, path: SplinePath)
 		local nextValue = ""
 		for column = 1, columns(platform) do
 			local previousCode = cellCode(platform, column, row)
-			local localX = -base.Size.X / 2 + (column - 0.5) * size
-			local localZ = -base.Size.Z / 2 + (row - 0.5) * size
+			local localX = minX + (column - 0.5) * size
+			local localZ = minZ + (row - 0.5) * size
 			local cellPosition = base.CFrame:PointToWorldSpace(Vector3.new(localX, base.Size.Y / 2, localZ))
 			local blocked = false
 
@@ -1637,7 +1826,7 @@ local function paintCellAt(worldPosition: Vector3, mode: PaintMode)
 	setCellCode(platform, column, row, nextCode)
 
 	setStatus(`Painted cell {column}, {row} as {nextCode}.`)
-	updateHoverPreview(worldPosition)
+	updateHoverPreview()
 	return true
 end
 
@@ -1757,6 +1946,34 @@ local function snapToSelection()
 	setStatus(`Snapped to {target.Name}. Rotate Y if the island edge needs a finer angle.`)
 end
 
+local function calibrateGridTemplate()
+	local platform = platformModel()
+	if platform == nil then
+		setStatus("GamePlatform is missing. Connect Rojo first.")
+		updateTargetInfo(nil)
+		return
+	end
+
+	setMode(nil)
+	setSplineAddMode(false, true)
+	local recording = beginRecording("Calibrate grid template")
+	if recording == nil then
+		return
+	end
+
+	local ok = syncGridTemplate(platform)
+	if ok then
+		preparePlatformOrigin(platform)
+		Selection:Set({ platform })
+		applyPlatformVisual()
+		setStatus(
+			`Calibrated grid to {columns(platform)} x {rows(platform)} cells at {cellSize(platform)} studs.`
+		)
+	end
+
+	finishRecording(recording)
+end
+
 local function toggleGrid()
 	local platform = platformModel()
 	if platform == nil then
@@ -1862,6 +2079,7 @@ widgetButtons.selectButton.MouseButton1Click:Connect(selectPlatform)
 widgetButtons.originButton.MouseButton1Click:Connect(fixOrigin)
 widgetButtons.resetButton.MouseButton1Click:Connect(resetFlat)
 widgetButtons.snapButton.MouseButton1Click:Connect(snapToSelection)
+widgetButtons.calibrateButton.MouseButton1Click:Connect(calibrateGridTemplate)
 widgetButtons.selectSplineButton.MouseButton1Click:Connect(selectSplinePoints)
 widgetButtons.rebuildSplineButton.MouseButton1Click:Connect(rebuildSplineButtonClicked)
 widgetButtons.addSplineButton.MouseButton1Click:Connect(function()
@@ -1875,8 +2093,13 @@ platformButton.MouseButton1Click:Connect(togglePlatform)
 widgetButtons.exportButton.MouseButton1Click:Connect(exportLayout)
 
 mouse.Button1Down:Connect(function()
+	local hit = mousePlatformHit(0, false)
+	if hit == nil then
+		return
+	end
+
 	if splineAddActive then
-		addSplinePointAt(mouse.Hit.Position)
+		addSplinePointAt(hit.worldPosition)
 		return
 	end
 
@@ -1891,15 +2114,18 @@ mouse.Button1Down:Connect(function()
 	dragPainting = true
 	dragPaintRecording = recording
 	dragPaintedCells = {}
-	if not paintCellAt(mouse.Hit.Position, activeMode) then
+	if not paintCellAt(hit.worldPosition, activeMode) then
 		finishPaintDrag()
 	end
 end)
 
 mouse.Move:Connect(function()
-	updateHoverPreview(mouse.Hit.Position)
+	updateHoverPreview()
 	if dragPainting and activeMode ~= nil then
-		paintCellAt(mouse.Hit.Position, activeMode)
+		local hit = mousePlatformHit(0, true)
+		if hit ~= nil then
+			paintCellAt(hit.worldPosition, activeMode)
+		end
 	end
 end)
 

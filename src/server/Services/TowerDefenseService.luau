@@ -222,8 +222,10 @@ local function cellKey(cell: Cell): string
 end
 
 local function cellWorldPosition(grid: GridData, cell: Cell, verticalOffset: number): Vector3
-	local localX = -grid.base.Size.X / 2 + (cell.column - 0.5) * grid.cellSize
-	local localZ = -grid.base.Size.Z / 2 + (cell.row - 0.5) * grid.cellSize
+	local gridWidth = grid.columns * grid.cellSize
+	local gridDepth = grid.rows * grid.cellSize
+	local localX = -gridWidth / 2 + (cell.column - 0.5) * grid.cellSize
+	local localZ = -gridDepth / 2 + (cell.row - 0.5) * grid.cellSize
 	return grid.base.CFrame:PointToWorldSpace(
 		Vector3.new(localX, grid.base.Size.Y / 2 + verticalOffset, localZ)
 	)
