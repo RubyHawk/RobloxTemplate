@@ -19,12 +19,19 @@ local GOAL_COLOR = Color3.fromRGB(255, 147, 51)
 local AUTOPLACE_COLOR = Color3.fromRGB(14, 165, 233)
 local CONTROL_POINT_COLOR = Color3.fromRGB(255, 46, 31)
 local HOVER_COLOR = Color3.fromRGB(255, 255, 255)
-local PANEL_BG = Color3.fromRGB(28, 30, 36)
-local PANEL_SECTION = Color3.fromRGB(38, 41, 49)
-local BUTTON_BG = Color3.fromRGB(58, 63, 74)
-local BUTTON_ACTIVE = Color3.fromRGB(0, 162, 255)
+local PANEL_BG = Color3.fromRGB(16, 18, 23)
+local PANEL_HEADER = Color3.fromRGB(23, 27, 35)
+local PANEL_SECTION = Color3.fromRGB(27, 31, 40)
+local PANEL_STATUS = Color3.fromRGB(22, 26, 33)
+local BUTTON_BG = Color3.fromRGB(39, 45, 57)
+local BUTTON_ACTIVE = Color3.fromRGB(14, 165, 233)
+local BUTTON_HOVER = Color3.fromRGB(50, 58, 73)
+local BORDER = Color3.fromRGB(62, 73, 91)
+local BORDER_ACTIVE = Color3.fromRGB(125, 211, 252)
 local TEXT = Color3.fromRGB(242, 245, 250)
+local TEXT_ACTIVE = Color3.fromRGB(255, 255, 255)
 local MUTED = Color3.fromRGB(166, 174, 187)
+local SUBTLE = Color3.fromRGB(109, 120, 138)
 
 local LEGAL_TRANSPARENCY = 0.55
 local ILLEGAL_TRANSPARENCY = 0.22
@@ -60,13 +67,14 @@ local openButton =
 	toolbar:CreateButton("GridPlatformEditor", "Open the grid platform editor", "", "Grid Editor")
 openButton.ClickableWhenViewportHidden = true
 
-local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, false, false, 320, 520, 280, 360)
+local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, false, false, 360, 620, 320, 420)
 local widget = plugin:CreateDockWidgetPluginGuiAsync("GridPlatformEditorPanel", widgetInfo)
 widget.Title = "Grid Platform Editor"
 
 local activeMode: PaintMode? = nil
 local mouse = plugin:GetMouse()
 local statusLabel: TextLabel
+local modeHintLabel: TextLabel
 local modeButtons: { [PaintMode]: TextButton } = {} :: any
 local splineAddActive = false
 local splineAddButton: TextButton
@@ -95,12 +103,13 @@ local function createLabel(
 	local label = Instance.new("TextLabel")
 	label.Name = name
 	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.SourceSans
+	label.Font = Enum.Font.Gotham
 	label.Text = text
 	label.TextColor3 = color
-	label.TextSize = 16
+	label.TextSize = 13
 	label.TextWrapped = true
 	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextYAlignment = Enum.TextYAlignment.Top
 	label.Size = UDim2.new(1, 0, 0, height)
 	label.Parent = parent
 	return label
@@ -112,22 +121,40 @@ local function createButton(parent: Instance, name: string, text: string, height
 	button.AutoButtonColor = true
 	button.BackgroundColor3 = BUTTON_BG
 	button.BorderSizePixel = 0
-	button.Font = Enum.Font.SourceSansBold
+	button.Font = Enum.Font.GothamMedium
 	button.Text = text
 	button.TextColor3 = TEXT
-	button.TextSize = 16
+	button.TextSize = 13
 	button.TextWrapped = true
 	button.Size = UDim2.new(1, 0, 0, height)
 	button.Parent = parent
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 6)
+	corner.CornerRadius = UDim.new(0, 7)
 	corner.Parent = button
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Name = "ButtonStroke"
+	stroke.Color = BORDER
+	stroke.Transparency = 0.55
+	stroke.Thickness = 1
+	stroke.Parent = button
+
+	button.MouseEnter:Connect(function()
+		if button.BackgroundColor3 ~= BUTTON_ACTIVE then
+			button.BackgroundColor3 = BUTTON_HOVER
+		end
+	end)
+	button.MouseLeave:Connect(function()
+		if button.BackgroundColor3 ~= BUTTON_ACTIVE then
+			button.BackgroundColor3 = BUTTON_BG
+		end
+	end)
 
 	return button
 end
 
-local function createSection(parent: Instance, name: string): Frame
+local function createSection(parent: Instance, name: string, title: string, subtitle: string?): Frame
 	local section = Instance.new("Frame")
 	section.Name = name
 	section.BackgroundColor3 = PANEL_SECTION
@@ -137,20 +164,35 @@ local function createSection(parent: Instance, name: string): Frame
 	section.Parent = parent
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
+	corner.CornerRadius = UDim.new(0, 10)
 	corner.Parent = section
 
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = BORDER
+	stroke.Transparency = 0.68
+	stroke.Thickness = 1
+	stroke.Parent = section
+
 	local padding = Instance.new("UIPadding")
-	padding.PaddingTop = UDim.new(0, 10)
-	padding.PaddingBottom = UDim.new(0, 10)
-	padding.PaddingLeft = UDim.new(0, 10)
-	padding.PaddingRight = UDim.new(0, 10)
+	padding.PaddingTop = UDim.new(0, 12)
+	padding.PaddingBottom = UDim.new(0, 12)
+	padding.PaddingLeft = UDim.new(0, 12)
+	padding.PaddingRight = UDim.new(0, 12)
 	padding.Parent = section
 
 	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 8)
+	layout.Padding = UDim.new(0, 9)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = section
+
+	local titleLabel = createLabel(section, `{name}Title`, title, 19, TEXT)
+	titleLabel.Font = Enum.Font.GothamBold
+	titleLabel.TextSize = 14
+	titleLabel.TextYAlignment = Enum.TextYAlignment.Center
+	if subtitle ~= nil and subtitle ~= "" then
+		local subtitleLabel = createLabel(section, `{name}Subtitle`, subtitle, 34, MUTED)
+		subtitleLabel.TextSize = 12
+	end
 
 	return section
 end
@@ -159,23 +201,182 @@ local function createButtonRow(parent: Instance, name: string, buttons: { { stri
 	local row = Instance.new("Frame")
 	row.Name = name
 	row.BackgroundTransparency = 1
-	row.Size = UDim2.new(1, 0, 0, 34)
+	row.Size = UDim2.new(1, 0, 0, 38)
 	row.Parent = parent
 
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = Enum.FillDirection.Horizontal
-	layout.Padding = UDim.new(0, 6)
+	layout.Padding = UDim.new(0, 7)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = row
 
 	local created: { TextButton } = {}
 	for _, info in buttons do
-		local button = createButton(row, info[1], info[2], 34)
-		button.Size = UDim2.new(1 / #buttons, -4, 1, 0)
+		local button = createButton(row, info[1], info[2], 38)
+		button.Size = UDim2.new(1 / #buttons, -5, 1, 0)
 		table.insert(created, button)
 	end
 
 	return created
+end
+
+local function setButtonActive(button: TextButton, active: boolean)
+	button.BackgroundColor3 = if active then BUTTON_ACTIVE else BUTTON_BG
+	button.TextColor3 = if active then TEXT_ACTIVE else TEXT
+	local stroke = button:FindFirstChild("ButtonStroke")
+	if stroke ~= nil and stroke:IsA("UIStroke") then
+		stroke.Color = if active then BORDER_ACTIVE else BORDER
+		stroke.Transparency = if active then 0.05 else 0.55
+		stroke.Thickness = if active then 1.5 else 1
+	end
+end
+
+local function createChip(parent: Instance, name: string, text: string, color: Color3): Frame
+	local chip = Instance.new("Frame")
+	chip.Name = name
+	chip.BackgroundColor3 = Color3.fromRGB(31, 36, 46)
+	chip.BorderSizePixel = 0
+	chip.Size = UDim2.new(1, 0, 0, 24)
+	chip.Parent = parent
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 7)
+	corner.Parent = chip
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = BORDER
+	stroke.Transparency = 0.65
+	stroke.Thickness = 1
+	stroke.Parent = chip
+
+	local swatch = Instance.new("Frame")
+	swatch.Name = "Swatch"
+	swatch.BackgroundColor3 = color
+	swatch.BorderSizePixel = 0
+	swatch.Position = UDim2.fromOffset(7, 7)
+	swatch.Size = UDim2.fromOffset(10, 10)
+	swatch.Parent = chip
+
+	local swatchCorner = Instance.new("UICorner")
+	swatchCorner.CornerRadius = UDim.new(1, 0)
+	swatchCorner.Parent = swatch
+
+	local label = Instance.new("TextLabel")
+	label.Name = "Label"
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamMedium
+	label.Text = text
+	label.TextColor3 = MUTED
+	label.TextSize = 11
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Position = UDim2.fromOffset(22, 0)
+	label.Size = UDim2.new(1, -26, 1, 0)
+	label.Parent = chip
+
+	return chip
+end
+
+local function createLegendRow(parent: Instance)
+	local legend = Instance.new("Frame")
+	legend.Name = "ModeLegend"
+	legend.BackgroundTransparency = 1
+	legend.Size = UDim2.new(1, 0, 0, 55)
+	legend.Parent = parent
+
+	local grid = Instance.new("UIGridLayout")
+	grid.CellPadding = UDim2.fromOffset(6, 6)
+	grid.CellSize = UDim2.new(0.333, -5, 0, 24)
+	grid.SortOrder = Enum.SortOrder.LayoutOrder
+	grid.Parent = legend
+
+	createChip(legend, "BuildableChip", ". Build", LEGAL_COLOR)
+	createChip(legend, "BlockedChip", "# Block", ILLEGAL_COLOR)
+	createChip(legend, "PortalChip", "P Portal", PORTAL_COLOR)
+	createChip(legend, "GoalChip", "G Goal", GOAL_COLOR)
+	createChip(legend, "AutoChip", "A Auto", AUTOPLACE_COLOR)
+end
+
+local function createHeaderPanel(parent: Instance)
+	local header = Instance.new("Frame")
+	header.Name = "ProfessionalHeader"
+	header.BackgroundColor3 = PANEL_HEADER
+	header.BorderSizePixel = 0
+	header.Size = UDim2.new(1, 0, 0, 92)
+	header.Parent = parent
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = header
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = BORDER
+	stroke.Transparency = 0.55
+	stroke.Thickness = 1
+	stroke.Parent = header
+
+	local accent = Instance.new("Frame")
+	accent.Name = "Accent"
+	accent.BackgroundColor3 = BUTTON_ACTIVE
+	accent.BorderSizePixel = 0
+	accent.Position = UDim2.fromOffset(0, 0)
+	accent.Size = UDim2.new(0, 4, 1, 0)
+	accent.Parent = header
+
+	local eyebrow = createLabel(header, "Eyebrow", "GRID PLATFORM", 16, SUBTLE)
+	eyebrow.Font = Enum.Font.GothamBold
+	eyebrow.Position = UDim2.fromOffset(14, 10)
+	eyebrow.Size = UDim2.new(1, -28, 0, 16)
+	eyebrow.TextSize = 10
+
+	local title = createLabel(header, "Title", "Tower Defense Layout", 28, TEXT)
+	title.Font = Enum.Font.GothamBold
+	title.Position = UDim2.fromOffset(14, 28)
+	title.Size = UDim2.new(1, -28, 0, 28)
+	title.TextSize = 18
+	title.TextYAlignment = Enum.TextYAlignment.Center
+
+	modeHintLabel = createLabel(header, "ModeHint", "Pick a paint mode or edit the spline path.", 22, MUTED)
+	modeHintLabel.Position = UDim2.fromOffset(14, 58)
+	modeHintLabel.Size = UDim2.new(1, -28, 0, 22)
+	modeHintLabel.TextSize = 12
+	modeHintLabel.TextYAlignment = Enum.TextYAlignment.Center
+end
+
+local function createStatusDock(parent: Instance)
+	local dock = Instance.new("Frame")
+	dock.Name = "StatusDock"
+	dock.BackgroundColor3 = PANEL_STATUS
+	dock.BorderSizePixel = 0
+	dock.Position = UDim2.new(0, 0, 1, -64)
+	dock.Size = UDim2.new(1, 0, 0, 64)
+	dock.Parent = parent
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = dock
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = BORDER
+	stroke.Transparency = 0.62
+	stroke.Thickness = 1
+	stroke.Parent = dock
+
+	local label = createLabel(dock, "StatusTitle", "STATUS", 14, SUBTLE)
+	label.Font = Enum.Font.GothamBold
+	label.Position = UDim2.fromOffset(12, 8)
+	label.Size = UDim2.new(1, -24, 0, 14)
+	label.TextSize = 10
+
+	statusLabel = createLabel(
+		dock,
+		"StatusText",
+		"Ready. Pick a mode, hover the platform, then drag to paint.",
+		32,
+		MUTED
+	)
+	statusLabel.Position = UDim2.fromOffset(12, 25)
+	statusLabel.Size = UDim2.new(1, -24, 0, 32)
+	statusLabel.TextSize = 12
 end
 
 local function buildWidget()
@@ -187,11 +388,14 @@ local function buildWidget()
 	root.Parent = widget
 
 	local rootPadding = Instance.new("UIPadding")
-	rootPadding.PaddingTop = UDim.new(0, 12)
-	rootPadding.PaddingBottom = UDim.new(0, 12)
-	rootPadding.PaddingLeft = UDim.new(0, 12)
-	rootPadding.PaddingRight = UDim.new(0, 12)
+	rootPadding.PaddingTop = UDim.new(0, 10)
+	rootPadding.PaddingBottom = UDim.new(0, 10)
+	rootPadding.PaddingLeft = UDim.new(0, 10)
+	rootPadding.PaddingRight = UDim.new(0, 10)
 	rootPadding.Parent = root
+
+	createHeaderPanel(root)
+	createStatusDock(root)
 
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Name = "Scroll"
@@ -201,7 +405,9 @@ local function buildWidget()
 	scroll.BorderSizePixel = 0
 	scroll.CanvasSize = UDim2.new()
 	scroll.ScrollBarThickness = 6
-	scroll.Size = UDim2.fromScale(1, 1)
+	scroll.ScrollBarImageColor3 = BORDER
+	scroll.Position = UDim2.fromOffset(0, 102)
+	scroll.Size = UDim2.new(1, 0, 1, -176)
 	scroll.Parent = root
 
 	local layout = Instance.new("UIListLayout")
@@ -209,17 +415,12 @@ local function buildWidget()
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = scroll
 
-	createLabel(scroll, "Title", "Grid Platform Editor", 28, TEXT)
-	createLabel(
+	local modeSection = createSection(
 		scroll,
-		"Subtitle",
-		"Paint 4x4 grid cells in edit mode. Select GamePlatform when moving or rotating.",
-		44,
-		MUTED
+		"PaintMode",
+		"Paint Mode",
+		"Hover to preview. Hold click and drag to paint cells."
 	)
-
-	local modeSection = createSection(scroll, "PaintMode")
-	createLabel(modeSection, "ModeTitle", "Paint Mode", 24, TEXT)
 	local modeRow = createButtonRow(modeSection, "Modes", {
 		{ "Toggle", "Toggle" },
 		{ "Legal", "Legal" },
@@ -236,9 +437,14 @@ local function buildWidget()
 	modeButtons.Portal = specialModeRow[1]
 	modeButtons.Goal = specialModeRow[2]
 	modeButtons.AutoPlace = specialModeRow[3]
+	createLegendRow(modeSection)
 
-	local placementSection = createSection(scroll, "Placement")
-	createLabel(placementSection, "PlacementTitle", "Placement", 24, TEXT)
+	local placementSection = createSection(
+		scroll,
+		"Placement",
+		"Platform",
+		"Fix handles, flatten rotation, or snap to the island surface."
+	)
 	local selectRow = createButtonRow(placementSection, "SelectRow", {
 		{ "Select", "Select Platform" },
 		{ "Origin", "Fix Origin" },
@@ -249,8 +455,8 @@ local function buildWidget()
 		{ "Snap", "Snap to Selection" },
 	})
 
-	local splineSection = createSection(scroll, "SplinePath")
-	createLabel(splineSection, "SplineTitle", "Spline Path", 24, TEXT)
+	local splineSection =
+		createSection(scroll, "SplinePath", "Spline Path", "Use red control points for smoother enemy turns.")
 	local splineSelectRow = createButtonRow(splineSection, "SplineSelectRow", {
 		{ "SelectSpline", "Select Points" },
 		{ "RebuildSpline", "Rebuild Curve" },
@@ -267,13 +473,17 @@ local function buildWidget()
 	createLabel(
 		splineSection,
 		"SplineHelp",
-		"Move red control points with Studio tools, then rebuild. Add Point inserts after the selected point.",
-		64,
+		"Move red points with Studio tools, then rebuild. Add Point inserts after the selected point.",
+		46,
 		MUTED
 	)
 
-	local visibilitySection = createSection(scroll, "Visibility")
-	createLabel(visibilitySection, "VisibilityTitle", "Visibility", 24, TEXT)
+	local visibilitySection = createSection(
+		scroll,
+		"Visibility",
+		"Visibility",
+		"Toggle the overlay or temporary platform collision."
+	)
 	local visibilityRow = createButtonRow(visibilitySection, "VisibilityRow", {
 		{ "Grid", "Toggle Grid" },
 		{ "Platform", "Toggle Platform" },
@@ -281,22 +491,18 @@ local function buildWidget()
 	gridButton = visibilityRow[1]
 	platformButton = visibilityRow[2]
 
-	local exportSection = createSection(scroll, "Export")
-	createLabel(exportSection, "ExportTitle", "Export", 24, TEXT)
+	local exportSection = createSection(
+		scroll,
+		"Export",
+		"Export",
+		"Print the current grid map when you want to bake source data."
+	)
 	local exportLayoutButton = createButton(exportSection, "ExportLayout", "Print Layout to Output", 36)
 	createLabel(
 		exportSection,
 		"ExportHelp",
 		"Export uses . buildable, # blocked/path, P portal spawn, G goal, A auto-place slot.",
 		54,
-		MUTED
-	)
-
-	statusLabel = createLabel(
-		scroll,
-		"Status",
-		"Ready. Open the panel, pick a mode, then click the platform.",
-		58,
 		MUTED
 	)
 
@@ -626,6 +832,8 @@ local function applyPlatformVisual()
 
 	gridButton.Text = if visible then "Hide Grid" else "Show Grid"
 	platformButton.Text = if enabled then "Disable Platform" else "Enable Platform"
+	setButtonActive(gridButton, visible)
+	setButtonActive(platformButton, enabled)
 	updateAllCellVisuals(platform)
 end
 
@@ -717,7 +925,7 @@ end
 
 local function updateModeButtons()
 	for mode, button in modeButtons do
-		button.BackgroundColor3 = if activeMode == mode then BUTTON_ACTIVE else BUTTON_BG
+		setButtonActive(button, activeMode == mode)
 	end
 end
 
@@ -727,7 +935,7 @@ local function setMode(mode: PaintMode?, skipPluginDeactivate: boolean?)
 	local shouldDeactivate = activeMode ~= nil and mode == nil
 	if mode ~= nil and splineAddActive then
 		splineAddActive = false
-		splineAddButton.BackgroundColor3 = BUTTON_BG
+		setButtonActive(splineAddButton, false)
 	end
 
 	activeMode = mode
@@ -735,11 +943,13 @@ local function setMode(mode: PaintMode?, skipPluginDeactivate: boolean?)
 
 	if activeMode ~= nil then
 		plugin:Activate(false)
+		modeHintLabel.Text = `Painting: {activeMode}`
 		setStatus(`Paint mode: {activeMode}. Click the platform surface.`)
 	else
 		if shouldDeactivate and not skipPluginDeactivate then
 			plugin:Deactivate()
 		end
+		modeHintLabel.Text = "Pick a paint mode or edit the spline path."
 		setStatus("Paint mode off.")
 	end
 end
@@ -752,15 +962,17 @@ local function setSplineAddMode(enabled: boolean, skipPluginDeactivate: boolean?
 	end
 
 	splineAddActive = enabled
-	splineAddButton.BackgroundColor3 = if splineAddActive then BUTTON_ACTIVE else BUTTON_BG
+	setButtonActive(splineAddButton, splineAddActive)
 
 	if splineAddActive then
 		plugin:Activate(false)
+		modeHintLabel.Text = "Spline: adding control points"
 		setStatus("Add Point mode: click the platform to insert a red spline control point.")
 	else
 		if not skipPluginDeactivate then
 			plugin:Deactivate()
 		end
+		modeHintLabel.Text = "Pick a paint mode or edit the spline path."
 		setStatus("Add Point mode off.")
 	end
 end
