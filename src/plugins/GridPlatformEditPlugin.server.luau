@@ -18,17 +18,17 @@ local GOAL_COLOR = Color3.fromRGB(255, 147, 51)
 local AUTOPLACE_COLOR = Color3.fromRGB(14, 165, 233)
 local CONTROL_POINT_COLOR = Color3.fromRGB(255, 46, 31)
 local HOVER_COLOR = Color3.fromRGB(255, 255, 255)
-local PANEL_BG = Color3.fromRGB(16, 18, 23)
-local PANEL_HEADER = Color3.fromRGB(23, 27, 35)
-local PANEL_SECTION = Color3.fromRGB(27, 31, 40)
-local PANEL_STATUS = Color3.fromRGB(22, 26, 33)
-local BUTTON_BG = Color3.fromRGB(39, 45, 57)
-local BUTTON_ACTIVE = Color3.fromRGB(14, 165, 233)
-local BUTTON_HOVER = Color3.fromRGB(50, 58, 73)
+local PANEL_BG = Color3.fromRGB(11, 14, 19)
+local PANEL_HEADER = Color3.fromRGB(22, 27, 35)
+local PANEL_SECTION = Color3.fromRGB(15, 20, 27)
+local PANEL_STATUS = Color3.fromRGB(14, 18, 24)
+local BUTTON_BG = Color3.fromRGB(25, 31, 40)
+local BUTTON_ACTIVE = Color3.fromRGB(45, 212, 191)
+local BUTTON_HOVER = Color3.fromRGB(36, 44, 56)
 local BORDER = Color3.fromRGB(62, 73, 91)
 local BORDER_ACTIVE = Color3.fromRGB(125, 211, 252)
 local TEXT = Color3.fromRGB(242, 245, 250)
-local TEXT_ACTIVE = Color3.fromRGB(255, 255, 255)
+local TEXT_ACTIVE = Color3.fromRGB(4, 17, 19)
 local MUTED = Color3.fromRGB(166, 174, 187)
 local SUBTLE = Color3.fromRGB(109, 120, 138)
 
@@ -50,6 +50,7 @@ local CELL_VISUAL_INSET_STUDS = 0.04
 local GRID_PIXELS_PER_STUD = 8
 
 type PaintMode = "Toggle" | "Legal" | "Illegal" | "Portal" | "Goal" | "AutoPlace"
+type ToolTab = "Paint" | "Path" | "Stage" | "Data"
 type CellCode = "." | "#" | "P" | "G" | "A"
 
 type SplineSample = {
@@ -84,7 +85,19 @@ local mouse = plugin:GetMouse()
 local statusLabel: TextLabel
 local modeHintLabel: TextLabel
 local targetInfoLabel: TextLabel
+local inspectorStageLabel: TextLabel
+local inspectorCellLabel: TextLabel
+local inspectorTypeLabel: TextLabel
+local inspectorWorldLabel: TextLabel
+local inspectorBrushLabel: TextLabel
+local inspectorGridLabel: TextLabel
 local modeButtons: { [PaintMode]: TextButton } = {} :: any
+local toolTabButtons: { [ToolTab]: TextButton } = {} :: any
+local toolTabAnchors: { [ToolTab]: GuiObject } = {} :: any
+local stageProfileButtons: { TextButton } = {}
+local mainScrollFrame: ScrollingFrame? = nil
+local activeToolTab: ToolTab = "Paint"
+local activeStageProfile = "First Private Island"
 local splineAddActive = false
 local splineAddButton: TextButton
 local gridButton: TextButton
@@ -98,6 +111,9 @@ local hoverCellKey: string? = nil
 local dragPainting = false
 local dragPaintRecording: string? = nil
 local dragPaintedCells: { [string]: boolean } = {}
+local canvasPreviewFrame: Frame? = nil
+local canvasHoverFrame: Frame? = nil
+local canvasPreviewCells: { [string]: Frame } = {}
 
 local function setStatus(message: string, quiet: boolean?)
 	statusLabel.Text = message
@@ -143,7 +159,7 @@ local function createButton(parent: Instance, name: string, text: string, height
 	button.Parent = parent
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 7)
+	corner.CornerRadius = UDim.new(0, 6)
 	corner.Parent = button
 
 	local stroke = Instance.new("UIStroke")
@@ -177,7 +193,7 @@ local function createSection(parent: Instance, name: string, title: string, subt
 	section.Parent = parent
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
+	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = section
 
 	local stroke = Instance.new("UIStroke")
@@ -309,16 +325,183 @@ local function createLegendRow(parent: Instance)
 	createChip(legend, "AutoChip", "A Auto", AUTOPLACE_COLOR)
 end
 
+local function createInlineLabel(parent: Instance, name: string, text: string, color: Color3): TextLabel
+	local label = Instance.new("TextLabel")
+	label.Name = name
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamMedium
+	label.Text = text
+	label.TextColor3 = color
+	label.TextSize = 11
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextYAlignment = Enum.TextYAlignment.Center
+	label.Parent = parent
+	return label
+end
+
+local function createPropertyField(
+	parent: Instance,
+	name: string,
+	labelText: string,
+	valueText: string
+): TextLabel
+	local field = Instance.new("Frame")
+	field.Name = name
+	field.BackgroundColor3 = Color3.fromRGB(16, 21, 28)
+	field.BorderSizePixel = 0
+	field.Size = UDim2.new(0.5, -4, 0, 46)
+	field.Parent = parent
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 7)
+	corner.Parent = field
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = BORDER
+	stroke.Transparency = 0.55
+	stroke.Thickness = 1
+	stroke.Parent = field
+
+	local label = createInlineLabel(field, "Label", labelText, MUTED)
+	label.Position = UDim2.fromOffset(9, 5)
+	label.Size = UDim2.new(1, -18, 0, 14)
+	label.TextSize = 10
+
+	local value = createInlineLabel(field, "Value", valueText, TEXT)
+	value.Font = Enum.Font.GothamBold
+	value.Position = UDim2.fromOffset(9, 20)
+	value.Size = UDim2.new(1, -18, 0, 18)
+	value.TextSize = 12
+	return value
+end
+
+local function createStageProfileButton(
+	parent: Instance,
+	name: string,
+	title: string,
+	detail: string
+): TextButton
+	local button = createButton(parent, name, "", 46)
+	button.Text = ""
+	button.AutoButtonColor = true
+
+	local titleLabel = createInlineLabel(button, "Title", title, TEXT)
+	titleLabel.Font = Enum.Font.GothamBold
+	titleLabel.Position = UDim2.fromOffset(10, 6)
+	titleLabel.Size = UDim2.new(1, -20, 0, 16)
+	titleLabel.TextSize = 12
+
+	local detailLabel = createInlineLabel(button, "Detail", detail, MUTED)
+	detailLabel.Position = UDim2.fromOffset(10, 23)
+	detailLabel.Size = UDim2.new(1, -20, 0, 15)
+	detailLabel.TextSize = 10
+
+	return button
+end
+
+local function createCanvasPreview(parent: Instance): Frame
+	local canvas = Instance.new("Frame")
+	canvas.Name = "CanvasGrid"
+	canvas.BackgroundColor3 = Color3.fromRGB(10, 16, 23)
+	canvas.BorderSizePixel = 0
+	canvas.ClipsDescendants = true
+	canvas.Size = UDim2.new(1, 0, 0, 246)
+	canvas.Parent = parent
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = canvas
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(49, 64, 80)
+	stroke.Transparency = 0.1
+	stroke.Thickness = 1
+	stroke.Parent = canvas
+
+	local gridTexture = Instance.new("Frame")
+	gridTexture.Name = "CanvasBackdrop"
+	gridTexture.BackgroundColor3 = Color3.fromRGB(12, 19, 27)
+	gridTexture.BackgroundTransparency = 0.18
+	gridTexture.BorderSizePixel = 0
+	gridTexture.Size = UDim2.fromScale(1, 1)
+	gridTexture.ZIndex = 0
+	gridTexture.Parent = canvas
+
+	local hover = Instance.new("Frame")
+	hover.Name = "CanvasHover"
+	hover.BackgroundColor3 = HOVER_COLOR
+	hover.BackgroundTransparency = 0.55
+	hover.BorderSizePixel = 0
+	hover.Visible = false
+	hover.ZIndex = 5
+	hover.Parent = canvas
+
+	local hoverStroke = Instance.new("UIStroke")
+	hoverStroke.Name = "CanvasHoverStroke"
+	hoverStroke.Color = Color3.fromRGB(255, 255, 255)
+	hoverStroke.Thickness = 2
+	hoverStroke.Transparency = 0
+	hoverStroke.Parent = hover
+
+	canvasHoverFrame = hover
+	canvasPreviewFrame = canvas
+	return canvas
+end
+
+local function createLayerRow(parent: Instance, name: string, labelText: string, countText: string): Frame
+	local row = Instance.new("Frame")
+	row.Name = name
+	row.BackgroundColor3 = Color3.fromRGB(16, 21, 28)
+	row.BorderSizePixel = 0
+	row.Size = UDim2.new(1, 0, 0, 30)
+	row.Parent = parent
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 6)
+	corner.Parent = row
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = BORDER
+	stroke.Transparency = 0.62
+	stroke.Thickness = 1
+	stroke.Parent = row
+
+	local visibleBox = Instance.new("Frame")
+	visibleBox.Name = "Visible"
+	visibleBox.BackgroundColor3 = Color3.fromRGB(28, 36, 47)
+	visibleBox.BorderSizePixel = 0
+	visibleBox.Position = UDim2.fromOffset(9, 9)
+	visibleBox.Size = UDim2.fromOffset(11, 11)
+	visibleBox.Parent = row
+
+	local boxCorner = Instance.new("UICorner")
+	boxCorner.CornerRadius = UDim.new(0, 3)
+	boxCorner.Parent = visibleBox
+
+	local label = createInlineLabel(row, "Label", labelText, TEXT)
+	label.Position = UDim2.fromOffset(28, 0)
+	label.Size = UDim2.new(1, -78, 1, 0)
+	label.TextSize = 12
+
+	local count = createInlineLabel(row, "Count", countText, MUTED)
+	count.Position = UDim2.new(1, -46, 0, 0)
+	count.Size = UDim2.fromOffset(38, 30)
+	count.TextXAlignment = Enum.TextXAlignment.Right
+	count.TextSize = 11
+
+	return row
+end
+
 local function createHeaderPanel(parent: Instance)
 	local header = Instance.new("Frame")
 	header.Name = "ToolHeader"
 	header.BackgroundColor3 = PANEL_HEADER
 	header.BorderSizePixel = 0
-	header.Size = UDim2.new(1, 0, 0, 86)
+	header.Size = UDim2.new(1, 0, 0, 62)
 	header.Parent = parent
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 12)
+	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = header
 
 	local stroke = Instance.new("UIStroke")
@@ -335,27 +518,21 @@ local function createHeaderPanel(parent: Instance)
 	accent.Size = UDim2.new(1, 0, 0, 1)
 	accent.Parent = header
 
-	local eyebrow = createLabel(header, "Eyebrow", "ROBLOX STUDIO TOOL", 16, SUBTLE)
-	eyebrow.Font = Enum.Font.GothamBold
-	eyebrow.Position = UDim2.fromOffset(14, 10)
-	eyebrow.Size = UDim2.new(1, -28, 0, 16)
-	eyebrow.TextSize = 10
-
-	local title = createLabel(header, "Title", "Grid Platform Editor", 24, TEXT)
+	local title = createLabel(header, "Title", "Grid Platform Editor", 22, TEXT)
 	title.Font = Enum.Font.GothamBold
-	title.Position = UDim2.fromOffset(14, 27)
-	title.Size = UDim2.new(1, -28, 0, 24)
+	title.Position = UDim2.fromOffset(14, 9)
+	title.Size = UDim2.new(1, -28, 0, 22)
 	title.TextSize = 16
 	title.TextYAlignment = Enum.TextYAlignment.Center
 
 	targetInfoLabel = createLabel(header, "TargetInfo", "Target: not connected", 18, MUTED)
-	targetInfoLabel.Position = UDim2.fromOffset(14, 51)
+	targetInfoLabel.Position = UDim2.fromOffset(14, 31)
 	targetInfoLabel.Size = UDim2.new(1, -28, 0, 18)
 	targetInfoLabel.TextSize = 11
 	targetInfoLabel.TextYAlignment = Enum.TextYAlignment.Center
 
 	modeHintLabel = createLabel(header, "ModeHint", "No active brush", 16, SUBTLE)
-	modeHintLabel.Position = UDim2.fromOffset(14, 69)
+	modeHintLabel.Position = UDim2.fromOffset(14, 47)
 	modeHintLabel.Size = UDim2.new(1, -28, 0, 16)
 	modeHintLabel.TextSize = 10
 	modeHintLabel.TextYAlignment = Enum.TextYAlignment.Center
@@ -366,12 +543,12 @@ local function createStatusDock(parent: Instance)
 	dock.Name = "StatusDock"
 	dock.BackgroundColor3 = PANEL_STATUS
 	dock.BorderSizePixel = 0
-	dock.Position = UDim2.new(0, 0, 1, -64)
-	dock.Size = UDim2.new(1, 0, 0, 64)
+	dock.Position = UDim2.new(0, 0, 1, -46)
+	dock.Size = UDim2.new(1, 0, 0, 46)
 	dock.Parent = parent
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
+	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = dock
 
 	local stroke = Instance.new("UIStroke")
@@ -380,21 +557,21 @@ local function createStatusDock(parent: Instance)
 	stroke.Thickness = 1
 	stroke.Parent = dock
 
-	local label = createLabel(dock, "StatusTitle", "STATUS", 14, SUBTLE)
+	local label = createLabel(dock, "StatusTitle", "STATUS", 12, SUBTLE)
 	label.Font = Enum.Font.GothamBold
-	label.Position = UDim2.fromOffset(12, 8)
-	label.Size = UDim2.new(1, -24, 0, 14)
-	label.TextSize = 10
+	label.Position = UDim2.fromOffset(12, 6)
+	label.Size = UDim2.new(1, -24, 0, 12)
+	label.TextSize = 9
 
 	statusLabel = createLabel(
 		dock,
 		"StatusText",
 		"Ready. Pick a mode, hover the platform, then drag to paint.",
-		32,
+		22,
 		MUTED
 	)
-	statusLabel.Position = UDim2.fromOffset(12, 25)
-	statusLabel.Size = UDim2.new(1, -24, 0, 32)
+	statusLabel.Position = UDim2.fromOffset(12, 19)
+	statusLabel.Size = UDim2.new(1, -24, 0, 22)
 	statusLabel.TextSize = 12
 end
 
@@ -416,6 +593,23 @@ local function buildWidget()
 	createHeaderPanel(root)
 	createStatusDock(root)
 
+	local commandTabRow = createButtonRow(root, "CommandTabs", {
+		{ "PaintTab", "Paint" },
+		{ "PathTab", "Path" },
+		{ "StageTab", "Stage" },
+		{ "DataTab", "Data" },
+	})
+	local commandTabFrame = commandTabRow[1].Parent
+	if commandTabFrame ~= nil and commandTabFrame:IsA("Frame") then
+		commandTabFrame.Position = UDim2.fromOffset(0, 72)
+		commandTabFrame.Size = UDim2.new(1, 0, 0, 38)
+	end
+	toolTabButtons.Paint = commandTabRow[1]
+	toolTabButtons.Path = commandTabRow[2]
+	toolTabButtons.Stage = commandTabRow[3]
+	toolTabButtons.Data = commandTabRow[4]
+	setButtonActive(toolTabButtons.Paint, true)
+
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Name = "Scroll"
 	scroll.Active = true
@@ -425,20 +619,58 @@ local function buildWidget()
 	scroll.CanvasSize = UDim2.new()
 	scroll.ScrollBarThickness = 6
 	scroll.ScrollBarImageColor3 = BORDER
-	scroll.Position = UDim2.fromOffset(0, 96)
-	scroll.Size = UDim2.new(1, 0, 1, -170)
+	scroll.Position = UDim2.fromOffset(0, 120)
+	scroll.Size = UDim2.new(1, 0, 1, -176)
 	scroll.Parent = root
+	mainScrollFrame = scroll
 
 	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 10)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = scroll
 
+	local stageSection = createSection(
+		scroll,
+		"StageProfiles",
+		"Stage Profiles",
+		"Select the editing profile. Stage data switching can be wired to real maps next."
+	)
+	stageProfileButtons = {
+		createStageProfileButton(
+			stageSection,
+			"StageFirstPrivateIsland",
+			"First Private Island",
+			"Active map / 1 path / 2 portal slots"
+		),
+		createStageProfileButton(
+			stageSection,
+			"StageForestBend",
+			"Forest Bend",
+			"Draft profile for later stage data"
+		),
+		createStageProfileButton(
+			stageSection,
+			"StageTestPad",
+			"Secluded Test Pad",
+			"Safe isolated editing copy"
+		),
+	}
+	setButtonActive(stageProfileButtons[1], true)
+
+	local canvasSection = createSection(
+		scroll,
+		"CanvasFirst",
+		"Canvas",
+		"Large map preview mirrors the authored CellMap; hover and paint still happen in the 3D viewport."
+	)
+	createCanvasPreview(canvasSection)
+	createLegendRow(canvasSection)
+
 	local modeSection = createSection(
 		scroll,
 		"PaintMode",
-		"Paint Mode",
-		"Hover to preview. Hold click and drag to paint cells."
+		"Brush Palette",
+		"Pick what the next click paints. The strong hover square is the cell that commits."
 	)
 	local modeRow = createButtonRow(modeSection, "Modes", {
 		{ "Toggle", "Toggle" },
@@ -456,7 +688,39 @@ local function buildWidget()
 	modeButtons.Portal = specialModeRow[1]
 	modeButtons.Goal = specialModeRow[2]
 	modeButtons.AutoPlace = specialModeRow[3]
-	createLegendRow(modeSection)
+
+	local inspectorSection = createSection(
+		scroll,
+		"InspectorPanel",
+		"Inspector",
+		"Selected and hovered cell information stays visible while painting."
+	)
+	local propertyGrid = Instance.new("Frame")
+	propertyGrid.Name = "InspectorProperties"
+	propertyGrid.BackgroundTransparency = 1
+	propertyGrid.Size = UDim2.new(1, 0, 0, 154)
+	propertyGrid.Parent = inspectorSection
+
+	local propertyLayout = Instance.new("UIGridLayout")
+	propertyLayout.CellPadding = UDim2.fromOffset(8, 8)
+	propertyLayout.CellSize = UDim2.new(0.5, -4, 0, 46)
+	propertyLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	propertyLayout.Parent = propertyGrid
+
+	inspectorStageLabel = createPropertyField(propertyGrid, "StageField", "Stage", activeStageProfile)
+	inspectorCellLabel = createPropertyField(propertyGrid, "CellField", "Cell", "-")
+	inspectorTypeLabel = createPropertyField(propertyGrid, "TypeField", "Type", "-")
+	inspectorBrushLabel = createPropertyField(propertyGrid, "BrushField", "Brush", "None")
+	inspectorWorldLabel = createPropertyField(propertyGrid, "WorldField", "World", "-")
+	inspectorGridLabel = createPropertyField(propertyGrid, "GridField", "Grid", "32 x 27")
+
+	local layerSection =
+		createSection(scroll, "LayerTree", "Layer Tree", "Quick readout for the main editable systems.")
+	createLayerRow(layerSection, "GridCellsLayer", "Grid cells", "864")
+	createLayerRow(layerSection, "PathSplineLayer", "Path spline", "curve")
+	createLayerRow(layerSection, "PortalLayer", "Portal spawns", "P")
+	createLayerRow(layerSection, "GoalLayer", "Goal zones", "G")
+	createLayerRow(layerSection, "AutoPlaceLayer", "Auto-place slots", "A")
 
 	local placementSection = createSection(
 		scroll,
@@ -474,6 +738,12 @@ local function buildWidget()
 		{ "Snap", "Snap to Selection" },
 	})
 	calibrateButton = createButton(placementSection, "CalibrateGrid", "Calibrate Grid to 32 x 27", 38)
+	local visibilityRow = createButtonRow(placementSection, "VisibilityRow", {
+		{ "Grid", "Toggle Grid" },
+		{ "Platform", "Toggle Platform" },
+	})
+	gridButton = visibilityRow[1]
+	platformButton = visibilityRow[2]
 
 	local splineSection =
 		createSection(scroll, "SplinePath", "Spline Path", "Use red control points for smoother enemy turns.")
@@ -498,19 +768,6 @@ local function buildWidget()
 		MUTED
 	)
 
-	local visibilitySection = createSection(
-		scroll,
-		"Visibility",
-		"Visibility",
-		"Toggle the overlay or temporary platform collision."
-	)
-	local visibilityRow = createButtonRow(visibilitySection, "VisibilityRow", {
-		{ "Grid", "Toggle Grid" },
-		{ "Platform", "Toggle Platform" },
-	})
-	gridButton = visibilityRow[1]
-	platformButton = visibilityRow[2]
-
 	local exportSection = createSection(
 		scroll,
 		"Export",
@@ -525,6 +782,10 @@ local function buildWidget()
 		54,
 		MUTED
 	)
+	toolTabAnchors.Paint = canvasSection
+	toolTabAnchors.Path = splineSection
+	toolTabAnchors.Stage = stageSection
+	toolTabAnchors.Data = inspectorSection
 
 	return {
 		selectButton = selectRow[1],
@@ -808,9 +1069,121 @@ local function colorForCellCode(code: CellCode): Color3
 	return LEGAL_COLOR
 end
 
+local function labelForCellCode(code: CellCode): string
+	if code == "P" then
+		return "Portal spawn"
+	elseif code == "G" then
+		return "Goal zone"
+	elseif code == "A" then
+		return "Auto-place slot"
+	elseif code == "#" then
+		return "Blocked / path"
+	end
+	return "Legal build"
+end
+
+local function syncCanvasPreview(platform: Model)
+	local canvas = canvasPreviewFrame
+	if canvas == nil then
+		return
+	end
+
+	local expectedColumns = columns(platform)
+	local expectedRows = rows(platform)
+	local expectedCells = expectedColumns * expectedRows
+	local currentCells = 0
+	for _, child in canvas:GetChildren() do
+		if child:IsA("Frame") and string.sub(child.Name, 1, 12) == "PreviewCell_" then
+			currentCells += 1
+		end
+	end
+
+	if currentCells ~= expectedCells then
+		canvasPreviewCells = {}
+		for _, child in canvas:GetChildren() do
+			if child:IsA("Frame") and string.sub(child.Name, 1, 12) == "PreviewCell_" then
+				child:Destroy()
+			end
+		end
+	end
+
+	local inset = 0.003
+	for row = 1, expectedRows do
+		for column = 1, expectedColumns do
+			local key = gridCellKey(column, row)
+			local previewCell = canvasPreviewCells[key]
+			if previewCell == nil or previewCell.Parent ~= canvas then
+				previewCell = Instance.new("Frame")
+				previewCell.Name = `PreviewCell_{string.format("%02d", column)}_{string.format("%02d", row)}`
+				previewCell.BorderSizePixel = 0
+				previewCell.ZIndex = 2
+				previewCell.Parent = canvas
+				canvasPreviewCells[key] = previewCell
+			end
+
+			previewCell.Position =
+				UDim2.fromScale((column - 1) / expectedColumns + inset, (row - 1) / expectedRows + inset)
+			previewCell.Size =
+				UDim2.fromScale((1 / expectedColumns) - inset * 2, (1 / expectedRows) - inset * 2)
+		end
+	end
+end
+
+local function updateCanvasCellVisual(platform: Model, column: number, row: number)
+	local previewCell = canvasPreviewCells[gridCellKey(column, row)]
+	if previewCell == nil then
+		return
+	end
+
+	local code = cellCode(platform, column, row)
+	previewCell.BackgroundColor3 = colorForCellCode(code)
+	previewCell.BackgroundTransparency = if code == "." then 0.68 elseif code == "#" then 0.42 else 0.22
+end
+
+local function updateInspectorCell(platform: Model?, column: number?, row: number?, worldPosition: Vector3?)
+	if inspectorStageLabel ~= nil then
+		inspectorStageLabel.Text = activeStageProfile
+	end
+	if inspectorBrushLabel ~= nil then
+		inspectorBrushLabel.Text = if activeMode ~= nil
+			then activeMode
+			else if splineAddActive then "Spline point" else "None"
+	end
+
+	if platform == nil or column == nil or row == nil then
+		if inspectorCellLabel ~= nil then
+			inspectorCellLabel.Text = "-"
+		end
+		if inspectorTypeLabel ~= nil then
+			inspectorTypeLabel.Text = "-"
+		end
+		if inspectorWorldLabel ~= nil then
+			inspectorWorldLabel.Text = "-"
+		end
+		return
+	end
+
+	local code = cellCode(platform, column, row)
+	if inspectorCellLabel ~= nil then
+		inspectorCellLabel.Text = `{column}, {row}`
+	end
+	if inspectorTypeLabel ~= nil then
+		inspectorTypeLabel.Text = labelForCellCode(code)
+	end
+	if inspectorWorldLabel ~= nil then
+		if worldPosition ~= nil then
+			inspectorWorldLabel.Text =
+				`{math.floor(worldPosition.X)}, {math.floor(worldPosition.Y)}, {math.floor(worldPosition.Z)}`
+		else
+			inspectorWorldLabel.Text = "viewport"
+		end
+	end
+end
+
 local function updateCellVisual(platform: Model, column: number, row: number)
 	local frame = cellFrame(platform, column, row)
 	if frame == nil then
+		updateCanvasCellVisual(platform, column, row)
 		return
 	end
 
@@ -820,9 +1193,11 @@ local function updateCellVisual(platform: Model, column: number, row: number)
 		then SPECIAL_TRANSPARENCY
 		elseif code == "#" then ILLEGAL_TRANSPARENCY
 		else LEGAL_TRANSPARENCY
+	updateCanvasCellVisual(platform, column, row)
 end
 
 local function updateAllCellVisuals(platform: Model)
+	syncCanvasPreview(platform)
 	for row = 1, rows(platform) do
 		for column = 1, columns(platform) do
 			updateCellVisual(platform, column, row)
@@ -897,6 +1272,9 @@ end
 local function updateTargetInfo(platform: Model?)
 	if platform == nil then
 		targetInfoLabel.Text = "Target: not connected"
+		if inspectorGridLabel ~= nil then
+			inspectorGridLabel.Text = "-"
+		end
 		return
 	end
 	local base = platformBasePart(platform)
@@ -908,6 +1286,9 @@ local function updateTargetInfo(platform: Model?)
 		`{columns(platform)} x {rows(platform)} cells | {cellSize(platform)} studs | {width} x {depth} footprint | {if aligned
 			then "aligned"
 			else "needs calibration"}`
+	if inspectorGridLabel ~= nil then
+		inspectorGridLabel.Text = `{columns(platform)} x {rows(platform)}`
+	end
 end
 
 local function setBoolChild(parent: Instance, childName: string, value: boolean)
@@ -933,6 +1314,7 @@ local function applyPlatformVisual()
 	local enabled = platformEnabled(platform)
 	local visible = gridVisible(platform)
 	updateTargetInfo(platform)
+	updateAllCellVisuals(platform)
 	base.Transparency = if enabled then PLATFORM_TRANSPARENCY else 1
 	base.CanCollide = enabled
 	base.CanQuery = enabled
@@ -1019,8 +1401,12 @@ local function clearHoverPreview()
 	hoverColumn = nil
 	hoverRow = nil
 	hoverCellKey = nil
+	updateInspectorCell(nil, nil, nil, nil)
 	if hoverPreviewFrame ~= nil then
 		hoverPreviewFrame.Visible = false
+	end
+	if canvasHoverFrame ~= nil then
+		canvasHoverFrame.Visible = false
 	end
 end
 
@@ -1080,6 +1466,7 @@ local function setMode(mode: PaintMode?, skipPluginDeactivate: boolean?)
 
 	activeMode = mode
 	updateModeButtons()
+	updateInspectorCell(hoverPlatform, hoverColumn, hoverRow, nil)
 
 	if activeMode ~= nil then
 		plugin:Activate(false)
@@ -1103,6 +1490,7 @@ local function setSplineAddMode(enabled: boolean, skipPluginDeactivate: boolean?
 
 	splineAddActive = enabled
 	setButtonActive(splineAddButton, splineAddActive)
+	updateInspectorCell(hoverPlatform, hoverColumn, hoverRow, nil)
 
 	if splineAddActive then
 		plugin:Activate(false)
@@ -1115,6 +1503,39 @@ local function setSplineAddMode(enabled: boolean, skipPluginDeactivate: boolean?
 		modeHintLabel.Text = "Pick a paint mode or edit the spline path."
 		setStatus("Add Point mode off.")
 	end
+end
+
+local function setToolTab(tab: ToolTab)
+	activeToolTab = tab
+	for tabName, button in toolTabButtons do
+		setButtonActive(button, tabName == activeToolTab)
+	end
+
+	local scroll = mainScrollFrame
+	local anchor = toolTabAnchors[tab]
+	if scroll ~= nil and anchor ~= nil then
+		local y = anchor.AbsolutePosition.Y - scroll.AbsolutePosition.Y + scroll.CanvasPosition.Y
+		scroll.CanvasPosition = Vector2.new(0, math.max(0, y - 8))
+	end
+
+	if tab == "Paint" then
+		setStatus("Paint tab selected. Pick a brush, then hover and drag on the 3D platform.")
+	elseif tab == "Path" then
+		setStatus("Path tab selected. Use spline controls, then rebuild the curve.")
+	elseif tab == "Stage" then
+		setStatus("Stage tab selected. Profiles are ready for future stage data wiring.")
+	else
+		setStatus("Data tab selected. Export prints the current layout to Output.")
+	end
+end
+
+local function setStageProfile(profileName: string, selectedIndex: number)
+	activeStageProfile = profileName
+	for index, button in stageProfileButtons do
+		setButtonActive(button, index == selectedIndex)
+	end
+	updateInspectorCell(hoverPlatform, hoverColumn, hoverRow, nil)
+	setStatus(`Stage profile selected: {profileName}. Current tool still edits the connected GamePlatform.`)
 end
 
 local function cellAtWorldPosition(platform: Model, worldPosition: Vector3): (number?, number?)
@@ -1253,7 +1674,7 @@ local function updateHoverPreview()
 		return
 	end
 
-	local platform, column, row = mouseGridCell(true)
+	local platform, column, row, worldPosition = mouseGridCell(true)
 	if platform == nil or column == nil or row == nil then
 		clearHoverPreview()
 		return
@@ -1281,6 +1702,14 @@ local function updateHoverPreview()
 	hoverPlatform = platform
 	hoverColumn = column
 	hoverRow = row
+	updateInspectorCell(platform, column, row, worldPosition)
+	local canvasCell = canvasPreviewCells[gridCellKey(column, row)]
+	if canvasCell ~= nil and canvasHoverFrame ~= nil then
+		canvasHoverFrame.Position = canvasCell.Position
+		canvasHoverFrame.Size = canvasCell.Size
+		canvasHoverFrame.BackgroundColor3 = previewColor
+		canvasHoverFrame.Visible = true
+	end
 
 	local nextHoverCellKey = gridCellKey(column, row)
 	if nextHoverCellKey ~= hoverCellKey then
@@ -2088,6 +2517,29 @@ end)
 
 widget:GetPropertyChangedSignal("Enabled"):Connect(function()
 	openButton:SetActive(widget.Enabled)
+end)
+
+toolTabButtons.Paint.MouseButton1Click:Connect(function()
+	setToolTab("Paint")
+end)
+toolTabButtons.Path.MouseButton1Click:Connect(function()
+	setToolTab("Path")
+end)
+toolTabButtons.Stage.MouseButton1Click:Connect(function()
+	setToolTab("Stage")
+end)
+toolTabButtons.Data.MouseButton1Click:Connect(function()
+	setToolTab("Data")
+end)
+
+stageProfileButtons[1].MouseButton1Click:Connect(function()
+	setStageProfile("First Private Island", 1)
+end)
+stageProfileButtons[2].MouseButton1Click:Connect(function()
+	setStageProfile("Forest Bend", 2)
+end)
+stageProfileButtons[3].MouseButton1Click:Connect(function()
+	setStageProfile("Secluded Test Pad", 3)
 end)
 
 modeButtons.Toggle.MouseButton1Click:Connect(function()
