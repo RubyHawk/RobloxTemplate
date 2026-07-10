@@ -750,7 +750,10 @@ for _, pluginObject in
 		"CellCode",
 		"P = portal spawn",
 		"GridHoverPreview",
-		"BoxHandleAdornment",
+		"HoverStroke",
+		"mouseGridCell",
+		"hoverColumn",
+		"paintHoveredCell",
 		"mouse.Move",
 		"Button1Up",
 		"dragPainting",
@@ -774,6 +777,13 @@ do
 		string.find(gridPluginProject .. gridPluginSource, pluginObject, 1, true) ~= nil,
 		true,
 		`edit-mode grid plugin includes {pluginObject}`
+	)
+end
+for _, removedPluginObject in { "BoxHandleAdornment", "paintCellAt" } do
+	expectEqual(
+		string.find(gridPluginSource, removedPluginObject, 1, true),
+		nil,
+		`edit-mode grid plugin no longer uses separate {removedPluginObject} targeting`
 	)
 end
 local gridNpcBinder = fs.readFile("src/starter/GridNpcDemo.server.luau")

@@ -1,7 +1,6 @@
 --!strict
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
-local CoreGui = game:GetService("CoreGui")
 local Selection = game:GetService("Selection")
 local Workspace = game:GetService("Workspace")
 
@@ -91,7 +90,10 @@ local splineAddButton: TextButton
 local gridButton: TextButton
 local platformButton: TextButton
 local calibrateButton: TextButton
-local hoverAdornment: BoxHandleAdornment? = nil
+local hoverPreviewFrame: Frame? = nil
+local hoverPlatform: Model? = nil
+local hoverColumn: number? = nil
+local hoverRow: number? = nil
 local hoverCellKey: string? = nil
 local dragPainting = false
 local dragPaintRecording: string? = nil
@@ -741,7 +743,7 @@ local function rowString(platform: Model, row: number): StringValue?
 	return stringValue(folder, rowName(row))
 end
 
-local function cellFrame(platform: Model, column: number, row: number): Frame?
+local function gridCellsFrame(platform: Model): Frame?
 	local platformBase = platformBasePart(platform)
 	if platformBase == nil then
 		return nil
@@ -754,6 +756,15 @@ local function cellFrame(platform: Model, column: number, row: number): Frame?
 
 	local cells = overlay:FindFirstChild("Cells")
 	if cells == nil or not cells:IsA("Frame") then
+		return nil
+	end
+
+	return cells
+end
+
+local function cellFrame(platform: Model, column: number, row: number): Frame?
+	local cells = gridCellsFrame(platform)
+	if cells == nil then
 		return nil
 	end
 
@@ -1004,34 +1015,52 @@ local function finishPaintDrag()
 end
 
 local function clearHoverPreview()
+	hoverPlatform = nil
+	hoverColumn = nil
+	hoverRow = nil
 	hoverCellKey = nil
-	if hoverAdornment ~= nil then
-		hoverAdornment.Visible = false
-		hoverAdornment.Adornee = nil
+	if hoverPreviewFrame ~= nil then
+		hoverPreviewFrame.Visible = false
 	end
 end
 
-local function ensureHoverPreview(): BoxHandleAdornment
-	if hoverAdornment ~= nil and hoverAdornment.Parent ~= nil then
-		return hoverAdornment
-	end
-	local existing = CoreGui:FindFirstChild(HOVER_PREVIEW_NAME)
-	if existing ~= nil and existing:IsA("BoxHandleAdornment") then
-		hoverAdornment = existing
-		return existing
+local function ensureHoverPreview(platform: Model): Frame?
+	local cells = gridCellsFrame(platform)
+	if cells == nil then
+		return nil
 	end
 
-	local adornment = Instance.new("BoxHandleAdornment")
-	adornment.Name = HOVER_PREVIEW_NAME
-	adornment.AlwaysOnTop = true
-	adornment.Archivable = false
-	adornment.Color3 = HOVER_COLOR
-	adornment.Transparency = 0.25
-	adornment.ZIndex = 10
-	adornment.Visible = false
-	adornment.Parent = CoreGui
-	hoverAdornment = adornment
-	return adornment
+	if hoverPreviewFrame ~= nil and hoverPreviewFrame.Parent == cells then
+		return hoverPreviewFrame
+	end
+
+	local existing = cells:FindFirstChild(HOVER_PREVIEW_NAME)
+	if existing ~= nil then
+		if existing:IsA("Frame") then
+			hoverPreviewFrame = existing
+			return existing
+		end
+		existing:Destroy()
+	end
+
+	local preview = Instance.new("Frame")
+	preview.Name = HOVER_PREVIEW_NAME
+	preview.BackgroundColor3 = HOVER_COLOR
+	preview.BackgroundTransparency = 0.82
+	preview.BorderSizePixel = 0
+	preview.Visible = false
+	preview.ZIndex = 40
+	preview.Parent = cells
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Name = "HoverStroke"
+	stroke.Color = BORDER_ACTIVE
+	stroke.Thickness = 4
+	stroke.Transparency = 0
+	stroke.Parent = preview
+
+	hoverPreviewFrame = preview
+	return preview
 end
 
 local function updateModeButtons()
@@ -1114,18 +1143,6 @@ local function cellAtWorldPosition(platform: Model, worldPosition: Vector3): (nu
 	end
 
 	return column, row
-end
-
-local function cellLocalCenter(platform: Model, column: number, row: number, yOffset: number): Vector3?
-	local base = platformBasePart(platform)
-	if base == nil then
-		return nil
-	end
-	local size = cellSize(platform)
-	local minX, _, minZ = gridLocalBounds(platform)
-	local localX = minX + (column - 0.5) * size
-	local localZ = minZ + (row - 0.5) * size
-	return Vector3.new(localX, base.Size.Y / 2 + yOffset, localZ)
 end
 
 local function mousePlatformHit(surfaceOffset: number, quiet: boolean?): PlatformRayHit?
@@ -1213,41 +1230,57 @@ local function nextCodeForPaintMode(platform: Model, column: number, row: number
 	return if isCellBuildable(platform, column, row) then "#" else "."
 end
 
+local function mouseGridCell(quiet: boolean?): (Model?, number?, number?, Vector3?)
+	local hit = mousePlatformHit(0, quiet)
+	if hit == nil then
+		return nil, nil, nil, nil
+	end
+
+	local column, row = cellAtWorldPosition(hit.platform, hit.worldPosition)
+	if column == nil or row == nil then
+		if quiet ~= true then
+			setStatus("Aim inside a calibrated grid square.")
+		end
+		return nil, nil, nil, nil
+	end
+
+	return hit.platform, column, row, hit.worldPosition
+end
+
 local function updateHoverPreview()
 	if activeMode == nil and not splineAddActive then
 		clearHoverPreview()
 		return
 	end
 
-	local hit = mousePlatformHit(0, true)
-	if hit == nil then
+	local platform, column, row = mouseGridCell(true)
+	if platform == nil or column == nil or row == nil then
 		clearHoverPreview()
 		return
 	end
 
-	local platform = hit.platform
-	local column, row = cellAtWorldPosition(platform, hit.worldPosition)
-	if column == nil or row == nil then
+	local targetFrame = cellFrame(platform, column, row)
+	local preview = ensureHoverPreview(platform)
+	if targetFrame == nil or preview == nil then
 		clearHoverPreview()
 		return
 	end
 
-	local base = platformBasePart(platform)
-	local center = cellLocalCenter(platform, column, row, 0.16)
-	if base == nil or center == nil then
-		clearHoverPreview()
-		return
-	end
-
-	local preview = ensureHoverPreview()
-	preview.Adornee = base
-	preview.CFrame = CFrame.new(center)
-	preview.Size = Vector3.new(cellSize(platform) - 0.16, 0.18, cellSize(platform) - 0.16)
-	preview.Color3 = if activeMode ~= nil
+	local previewColor = if activeMode ~= nil
 		then colorForCellCode(nextCodeForPaintMode(platform, column, row, activeMode))
 		else CONTROL_POINT_COLOR
-	preview.Transparency = if activeMode ~= nil then 0.12 else 0.28
+	preview.Position = targetFrame.Position
+	preview.Size = targetFrame.Size
+	preview.BackgroundColor3 = previewColor
+	preview.BackgroundTransparency = if activeMode ~= nil then 0.48 else 0.58
+	local stroke = preview:FindFirstChild("HoverStroke")
+	if stroke ~= nil and stroke:IsA("UIStroke") then
+		stroke.Color = previewColor
+	end
 	preview.Visible = true
+	hoverPlatform = platform
+	hoverColumn = column
+	hoverRow = row
 
 	local nextHoverCellKey = gridCellKey(column, row)
 	if nextHoverCellKey ~= hoverCellKey then
@@ -1803,19 +1836,7 @@ local function exportSpline()
 	setStatus("Spline control points printed to Output.")
 end
 
-local function paintCellAt(worldPosition: Vector3, mode: PaintMode)
-	local platform = platformModel()
-	if platform == nil then
-		setStatus("GamePlatform is missing. Connect Rojo first.")
-		return false
-	end
-
-	local column, row = cellAtWorldPosition(platform, worldPosition)
-	if column == nil or row == nil then
-		setStatus("Click inside the platform rectangle.")
-		return false
-	end
-
+local function paintCell(platform: Model, column: number, row: number, mode: PaintMode)
 	local paintedKey = gridCellKey(column, row)
 	if dragPaintedCells[paintedKey] == true then
 		return false
@@ -1828,6 +1849,19 @@ local function paintCellAt(worldPosition: Vector3, mode: PaintMode)
 	setStatus(`Painted cell {column}, {row} as {nextCode}.`)
 	updateHoverPreview()
 	return true
+end
+
+local function paintHoveredCell(mode: PaintMode)
+	updateHoverPreview()
+	local platform = hoverPlatform
+	local column = hoverColumn
+	local row = hoverRow
+	if platform == nil or column == nil or row == nil then
+		setStatus("Hover a visible grid square before painting.")
+		return false
+	end
+
+	return paintCell(platform, column, row, mode)
 end
 
 local function selectPlatform()
@@ -2093,13 +2127,13 @@ platformButton.MouseButton1Click:Connect(togglePlatform)
 widgetButtons.exportButton.MouseButton1Click:Connect(exportLayout)
 
 mouse.Button1Down:Connect(function()
-	local hit = mousePlatformHit(0, false)
-	if hit == nil then
-		return
-	end
+	updateHoverPreview()
 
 	if splineAddActive then
-		addSplinePointAt(hit.worldPosition)
+		local _, _, _, worldPosition = mouseGridCell(false)
+		if worldPosition ~= nil then
+			addSplinePointAt(worldPosition)
+		end
 		return
 	end
 
@@ -2114,7 +2148,7 @@ mouse.Button1Down:Connect(function()
 	dragPainting = true
 	dragPaintRecording = recording
 	dragPaintedCells = {}
-	if not paintCellAt(hit.worldPosition, activeMode) then
+	if not paintHoveredCell(activeMode) then
 		finishPaintDrag()
 	end
 end)
@@ -2122,9 +2156,11 @@ end)
 mouse.Move:Connect(function()
 	updateHoverPreview()
 	if dragPainting and activeMode ~= nil then
-		local hit = mousePlatformHit(0, true)
-		if hit ~= nil then
-			paintCellAt(hit.worldPosition, activeMode)
+		local platform = hoverPlatform
+		local column = hoverColumn
+		local row = hoverRow
+		if platform ~= nil and column ~= nil and row ~= nil then
+			paintCell(platform, column, row, activeMode)
 		end
 	end
 end)
