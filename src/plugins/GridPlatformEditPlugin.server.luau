@@ -2,6 +2,7 @@
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local Selection = game:GetService("Selection")
+local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local ISLAND_NAME = "FirstPrivateIsland"
@@ -80,7 +81,7 @@ local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, fals
 local widget = plugin:CreateDockWidgetPluginGuiAsync("GridPlatformEditorPanel", widgetInfo)
 widget.Title = "Grid Platform Editor"
 
-local activeMode: PaintMode? = nil
+local activeMode: PaintMode? = "Legal"
 local mouse = plugin:GetMouse()
 local statusLabel: TextLabel
 local modeHintLabel: TextLabel
@@ -113,7 +114,11 @@ local dragPaintRecording: string? = nil
 local dragPaintedCells: { [string]: boolean } = {}
 local canvasPreviewFrame: Frame? = nil
 local canvasHoverFrame: Frame? = nil
-local canvasPreviewCells: { [string]: Frame } = {}
+local canvasPreviewCells: { [string]: TextButton } = {}
+local handleCanvasCellHover: ((number, number) -> ())? = nil
+local handleCanvasCellPaintStart: ((number, number) -> ())? = nil
+local handleCanvasCellPaintDrag: ((number, number) -> ())? = nil
+local handleCanvasPaintEnd: (() -> ())? = nil
 
 local function setStatus(message: string, quiet: boolean?)
 	statusLabel.Text = message
@@ -203,24 +208,25 @@ local function createSection(parent: Instance, name: string, title: string, subt
 	stroke.Parent = section
 
 	local padding = Instance.new("UIPadding")
-	padding.PaddingTop = UDim.new(0, 12)
-	padding.PaddingBottom = UDim.new(0, 12)
-	padding.PaddingLeft = UDim.new(0, 12)
-	padding.PaddingRight = UDim.new(0, 12)
+	padding.PaddingTop = UDim.new(0, 8)
+	padding.PaddingBottom = UDim.new(0, 8)
+	padding.PaddingLeft = UDim.new(0, 8)
+	padding.PaddingRight = UDim.new(0, 8)
 	padding.Parent = section
 
 	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 9)
+	layout.Padding = UDim.new(0, 6)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = section
 
-	local titleLabel = createLabel(section, `{name}Title`, title, 19, TEXT)
+	local titleLabel = createLabel(section, `{name}Title`, title, 16, TEXT)
 	titleLabel.Font = Enum.Font.GothamBold
-	titleLabel.TextSize = 14
+	titleLabel.TextSize = 12
 	titleLabel.TextYAlignment = Enum.TextYAlignment.Center
 	if subtitle ~= nil and subtitle ~= "" then
-		local subtitleLabel = createLabel(section, `{name}Subtitle`, subtitle, 34, MUTED)
-		subtitleLabel.TextSize = 12
+		local subtitleLabel = createLabel(section, `{name}Subtitle`, subtitle, 18, MUTED)
+		subtitleLabel.TextSize = 10
+		subtitleLabel.TextTruncate = Enum.TextTruncate.AtEnd
 	end
 
 	return section
@@ -230,18 +236,18 @@ local function createButtonRow(parent: Instance, name: string, buttons: { { stri
 	local row = Instance.new("Frame")
 	row.Name = name
 	row.BackgroundTransparency = 1
-	row.Size = UDim2.new(1, 0, 0, 38)
+	row.Size = UDim2.new(1, 0, 0, 32)
 	row.Parent = parent
 
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = Enum.FillDirection.Horizontal
-	layout.Padding = UDim.new(0, 7)
+	layout.Padding = UDim.new(0, 6)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = row
 
 	local created: { TextButton } = {}
 	for _, info in buttons do
-		local button = createButton(row, info[1], info[2], 38)
+		local button = createButton(row, info[1], info[2], 32)
 		button.Size = UDim2.new(1 / #buttons, -5, 1, 0)
 		table.insert(created, button)
 	end
@@ -265,7 +271,7 @@ local function createChip(parent: Instance, name: string, text: string, color: C
 	chip.Name = name
 	chip.BackgroundColor3 = Color3.fromRGB(31, 36, 46)
 	chip.BorderSizePixel = 0
-	chip.Size = UDim2.new(1, 0, 0, 24)
+	chip.Size = UDim2.new(1, 0, 0, 20)
 	chip.Parent = parent
 
 	local corner = Instance.new("UICorner")
@@ -282,8 +288,8 @@ local function createChip(parent: Instance, name: string, text: string, color: C
 	swatch.Name = "Swatch"
 	swatch.BackgroundColor3 = color
 	swatch.BorderSizePixel = 0
-	swatch.Position = UDim2.fromOffset(7, 7)
-	swatch.Size = UDim2.fromOffset(10, 10)
+	swatch.Position = UDim2.fromOffset(6, 6)
+	swatch.Size = UDim2.fromOffset(8, 8)
 	swatch.Parent = chip
 
 	local swatchCorner = Instance.new("UICorner")
@@ -296,10 +302,10 @@ local function createChip(parent: Instance, name: string, text: string, color: C
 	label.Font = Enum.Font.GothamMedium
 	label.Text = text
 	label.TextColor3 = MUTED
-	label.TextSize = 11
+	label.TextSize = 10
 	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.Position = UDim2.fromOffset(22, 0)
-	label.Size = UDim2.new(1, -26, 1, 0)
+	label.Position = UDim2.fromOffset(18, 0)
+	label.Size = UDim2.new(1, -21, 1, 0)
 	label.Parent = chip
 
 	return chip
@@ -309,12 +315,12 @@ local function createLegendRow(parent: Instance)
 	local legend = Instance.new("Frame")
 	legend.Name = "ModeLegend"
 	legend.BackgroundTransparency = 1
-	legend.Size = UDim2.new(1, 0, 0, 55)
+	legend.Size = UDim2.new(1, 0, 0, 44)
 	legend.Parent = parent
 
 	local grid = Instance.new("UIGridLayout")
-	grid.CellPadding = UDim2.fromOffset(6, 6)
-	grid.CellSize = UDim2.new(0.333, -5, 0, 24)
+	grid.CellPadding = UDim2.fromOffset(5, 4)
+	grid.CellSize = UDim2.new(0.333, -5, 0, 20)
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	grid.Parent = legend
 
@@ -381,20 +387,22 @@ local function createStageProfileButton(
 	title: string,
 	detail: string
 ): TextButton
-	local button = createButton(parent, name, "", 46)
+	local button = createButton(parent, name, "", 36)
 	button.Text = ""
 	button.AutoButtonColor = true
 
 	local titleLabel = createInlineLabel(button, "Title", title, TEXT)
 	titleLabel.Font = Enum.Font.GothamBold
-	titleLabel.Position = UDim2.fromOffset(10, 6)
-	titleLabel.Size = UDim2.new(1, -20, 0, 16)
-	titleLabel.TextSize = 12
+	titleLabel.Position = UDim2.fromOffset(7, 4)
+	titleLabel.Size = UDim2.new(1, -14, 0, 14)
+	titleLabel.TextSize = 10
+	titleLabel.TextTruncate = Enum.TextTruncate.AtEnd
 
 	local detailLabel = createInlineLabel(button, "Detail", detail, MUTED)
-	detailLabel.Position = UDim2.fromOffset(10, 23)
-	detailLabel.Size = UDim2.new(1, -20, 0, 15)
-	detailLabel.TextSize = 10
+	detailLabel.Position = UDim2.fromOffset(7, 19)
+	detailLabel.Size = UDim2.new(1, -14, 0, 13)
+	detailLabel.TextSize = 9
+	detailLabel.TextTruncate = Enum.TextTruncate.AtEnd
 
 	return button
 end
@@ -497,7 +505,7 @@ local function createHeaderPanel(parent: Instance)
 	header.Name = "ToolHeader"
 	header.BackgroundColor3 = PANEL_HEADER
 	header.BorderSizePixel = 0
-	header.Size = UDim2.new(1, 0, 0, 62)
+	header.Size = UDim2.new(1, 0, 0, 48)
 	header.Parent = parent
 
 	local corner = Instance.new("UICorner")
@@ -518,23 +526,23 @@ local function createHeaderPanel(parent: Instance)
 	accent.Size = UDim2.new(1, 0, 0, 1)
 	accent.Parent = header
 
-	local title = createLabel(header, "Title", "Grid Platform Editor", 22, TEXT)
+	local title = createLabel(header, "Title", "Grid Platform Editor", 18, TEXT)
 	title.Font = Enum.Font.GothamBold
-	title.Position = UDim2.fromOffset(14, 9)
-	title.Size = UDim2.new(1, -28, 0, 22)
-	title.TextSize = 16
+	title.Position = UDim2.fromOffset(12, 6)
+	title.Size = UDim2.new(1, -24, 0, 18)
+	title.TextSize = 14
 	title.TextYAlignment = Enum.TextYAlignment.Center
 
-	targetInfoLabel = createLabel(header, "TargetInfo", "Target: not connected", 18, MUTED)
-	targetInfoLabel.Position = UDim2.fromOffset(14, 31)
-	targetInfoLabel.Size = UDim2.new(1, -28, 0, 18)
-	targetInfoLabel.TextSize = 11
+	targetInfoLabel = createLabel(header, "TargetInfo", "Target: not connected", 15, MUTED)
+	targetInfoLabel.Position = UDim2.fromOffset(12, 24)
+	targetInfoLabel.Size = UDim2.new(1, -24, 0, 15)
+	targetInfoLabel.TextSize = 10
 	targetInfoLabel.TextYAlignment = Enum.TextYAlignment.Center
 
-	modeHintLabel = createLabel(header, "ModeHint", "No active brush", 16, SUBTLE)
-	modeHintLabel.Position = UDim2.fromOffset(14, 47)
-	modeHintLabel.Size = UDim2.new(1, -28, 0, 16)
-	modeHintLabel.TextSize = 10
+	modeHintLabel = createLabel(header, "ModeHint", "Brush: Legal", 11, SUBTLE)
+	modeHintLabel.Position = UDim2.fromOffset(12, 37)
+	modeHintLabel.Size = UDim2.new(1, -24, 0, 11)
+	modeHintLabel.TextSize = 9
 	modeHintLabel.TextYAlignment = Enum.TextYAlignment.Center
 end
 
@@ -543,8 +551,8 @@ local function createStatusDock(parent: Instance)
 	dock.Name = "StatusDock"
 	dock.BackgroundColor3 = PANEL_STATUS
 	dock.BorderSizePixel = 0
-	dock.Position = UDim2.new(0, 0, 1, -46)
-	dock.Size = UDim2.new(1, 0, 0, 46)
+	dock.Position = UDim2.new(0, 0, 1, -38)
+	dock.Size = UDim2.new(1, 0, 0, 38)
 	dock.Parent = parent
 
 	local corner = Instance.new("UICorner")
@@ -557,22 +565,17 @@ local function createStatusDock(parent: Instance)
 	stroke.Thickness = 1
 	stroke.Parent = dock
 
-	local label = createLabel(dock, "StatusTitle", "STATUS", 12, SUBTLE)
+	local label = createLabel(dock, "StatusTitle", "STATUS", 10, SUBTLE)
 	label.Font = Enum.Font.GothamBold
-	label.Position = UDim2.fromOffset(12, 6)
-	label.Size = UDim2.new(1, -24, 0, 12)
+	label.Position = UDim2.fromOffset(10, 5)
+	label.Size = UDim2.new(1, -20, 0, 10)
 	label.TextSize = 9
 
-	statusLabel = createLabel(
-		dock,
-		"StatusText",
-		"Ready. Pick a mode, hover the platform, then drag to paint.",
-		22,
-		MUTED
-	)
-	statusLabel.Position = UDim2.fromOffset(12, 19)
-	statusLabel.Size = UDim2.new(1, -24, 0, 22)
-	statusLabel.TextSize = 12
+	statusLabel =
+		createLabel(dock, "StatusText", "Ready. Paint on the canvas or switch brushes above.", 18, MUTED)
+	statusLabel.Position = UDim2.fromOffset(10, 16)
+	statusLabel.Size = UDim2.new(1, -20, 0, 18)
+	statusLabel.TextSize = 11
 end
 
 local function buildWidget()
@@ -584,10 +587,10 @@ local function buildWidget()
 	root.Parent = widget
 
 	local rootPadding = Instance.new("UIPadding")
-	rootPadding.PaddingTop = UDim.new(0, 10)
-	rootPadding.PaddingBottom = UDim.new(0, 10)
-	rootPadding.PaddingLeft = UDim.new(0, 10)
-	rootPadding.PaddingRight = UDim.new(0, 10)
+	rootPadding.PaddingTop = UDim.new(0, 8)
+	rootPadding.PaddingBottom = UDim.new(0, 8)
+	rootPadding.PaddingLeft = UDim.new(0, 8)
+	rootPadding.PaddingRight = UDim.new(0, 8)
 	rootPadding.Parent = root
 
 	createHeaderPanel(root)
@@ -601,8 +604,8 @@ local function buildWidget()
 	})
 	local commandTabFrame = commandTabRow[1].Parent
 	if commandTabFrame ~= nil and commandTabFrame:IsA("Frame") then
-		commandTabFrame.Position = UDim2.fromOffset(0, 72)
-		commandTabFrame.Size = UDim2.new(1, 0, 0, 38)
+		commandTabFrame.Position = UDim2.fromOffset(0, 56)
+		commandTabFrame.Size = UDim2.new(1, 0, 0, 32)
 	end
 	toolTabButtons.Paint = commandTabRow[1]
 	toolTabButtons.Path = commandTabRow[2]
@@ -619,50 +622,44 @@ local function buildWidget()
 	scroll.CanvasSize = UDim2.new()
 	scroll.ScrollBarThickness = 6
 	scroll.ScrollBarImageColor3 = BORDER
-	scroll.Position = UDim2.fromOffset(0, 120)
-	scroll.Size = UDim2.new(1, 0, 1, -176)
+	scroll.Position = UDim2.fromOffset(0, 96)
+	scroll.Size = UDim2.new(1, 0, 1, -142)
 	scroll.Parent = root
 	mainScrollFrame = scroll
 
 	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 10)
+	layout.Padding = UDim.new(0, 8)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = scroll
-
-	local stageSection = createSection(
-		scroll,
-		"StageProfiles",
-		"Stage Profiles",
-		"Select the editing profile. Stage data switching can be wired to real maps next."
-	)
-	stageProfileButtons = {
-		createStageProfileButton(
-			stageSection,
-			"StageFirstPrivateIsland",
-			"First Private Island",
-			"Active map / 1 path / 2 portal slots"
-		),
-		createStageProfileButton(
-			stageSection,
-			"StageForestBend",
-			"Forest Bend",
-			"Draft profile for later stage data"
-		),
-		createStageProfileButton(
-			stageSection,
-			"StageTestPad",
-			"Secluded Test Pad",
-			"Safe isolated editing copy"
-		),
-	}
-	setButtonActive(stageProfileButtons[1], true)
 
 	local canvasSection = createSection(
 		scroll,
 		"CanvasFirst",
 		"Canvas",
-		"Large map preview mirrors the authored CellMap; hover and paint still happen in the 3D viewport."
+		"Pick a stage profile, then paint cells directly on the canvas or in the 3D viewport."
 	)
+	local stageRow = Instance.new("Frame")
+	stageRow.Name = "StageProfiles"
+	stageRow.BackgroundTransparency = 1
+	stageRow.Size = UDim2.new(1, 0, 0, 36)
+	stageRow.Parent = canvasSection
+
+	local stageRowLayout = Instance.new("UIListLayout")
+	stageRowLayout.FillDirection = Enum.FillDirection.Horizontal
+	stageRowLayout.Padding = UDim.new(0, 6)
+	stageRowLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	stageRowLayout.Parent = stageRow
+
+	stageProfileButtons = {
+		createStageProfileButton(stageRow, "StageFirstPrivateIsland", "First Island", "active"),
+		createStageProfileButton(stageRow, "StageForestBend", "Forest Bend", "draft"),
+		createStageProfileButton(stageRow, "StageTestPad", "Test Pad", "safe"),
+	}
+	for _, stageButton in stageProfileButtons do
+		stageButton.Size = UDim2.new(1 / #stageProfileButtons, -4, 1, 0)
+	end
+	setButtonActive(stageProfileButtons[1], true)
+
 	createCanvasPreview(canvasSection)
 	createLegendRow(canvasSection)
 
@@ -688,6 +685,7 @@ local function buildWidget()
 	modeButtons.Portal = specialModeRow[1]
 	modeButtons.Goal = specialModeRow[2]
 	modeButtons.AutoPlace = specialModeRow[3]
+	setButtonActive(modeButtons.Legal, true)
 
 	local inspectorSection = createSection(
 		scroll,
@@ -784,7 +782,7 @@ local function buildWidget()
 	)
 	toolTabAnchors.Paint = canvasSection
 	toolTabAnchors.Path = splineSection
-	toolTabAnchors.Stage = stageSection
+	toolTabAnchors.Stage = canvasSection
 	toolTabAnchors.Data = inspectorSection
 
 	return {
@@ -1093,7 +1091,7 @@ local function syncCanvasPreview(platform: Model)
 	local expectedCells = expectedColumns * expectedRows
 	local currentCells = 0
 	for _, child in canvas:GetChildren() do
-		if child:IsA("Frame") and string.sub(child.Name, 1, 12) == "PreviewCell_" then
+		if child:IsA("TextButton") and string.sub(child.Name, 1, 12) == "PreviewCell_" then
 			currentCells += 1
 		end
 	end
@@ -1101,7 +1099,7 @@ local function syncCanvasPreview(platform: Model)
 	if currentCells ~= expectedCells then
 		canvasPreviewCells = {}
 		for _, child in canvas:GetChildren() do
-			if child:IsA("Frame") and string.sub(child.Name, 1, 12) == "PreviewCell_" then
+			if child:IsA("GuiObject") and string.sub(child.Name, 1, 12) == "PreviewCell_" then
 				child:Destroy()
 			end
 		end
@@ -1113,12 +1111,36 @@ local function syncCanvasPreview(platform: Model)
 			local key = gridCellKey(column, row)
 			local previewCell = canvasPreviewCells[key]
 			if previewCell == nil or previewCell.Parent ~= canvas then
-				previewCell = Instance.new("Frame")
+				previewCell = Instance.new("TextButton")
 				previewCell.Name = `PreviewCell_{string.format("%02d", column)}_{string.format("%02d", row)}`
+				previewCell.AutoButtonColor = false
 				previewCell.BorderSizePixel = 0
+				previewCell.Text = ""
+				previewCell.Selectable = false
 				previewCell.ZIndex = 2
 				previewCell.Parent = canvas
 				canvasPreviewCells[key] = previewCell
+
+				local cellColumn = column
+				local cellRow = row
+				previewCell.MouseEnter:Connect(function()
+					if handleCanvasCellHover ~= nil then
+						handleCanvasCellHover(cellColumn, cellRow)
+					end
+					if dragPainting and handleCanvasCellPaintDrag ~= nil then
+						handleCanvasCellPaintDrag(cellColumn, cellRow)
+					end
+				end)
+				previewCell.MouseButton1Down:Connect(function()
+					if handleCanvasCellPaintStart ~= nil then
+						handleCanvasCellPaintStart(cellColumn, cellRow)
+					end
+				end)
+				previewCell.MouseButton1Up:Connect(function()
+					if handleCanvasPaintEnd ~= nil then
+						handleCanvasPaintEnd()
+					end
+				end)
 			end
 
 			previewCell.Position =
@@ -2265,7 +2287,13 @@ local function exportSpline()
 	setStatus("Spline control points printed to Output.")
 end
 
-local function paintCell(platform: Model, column: number, row: number, mode: PaintMode)
+local function paintCell(
+	platform: Model,
+	column: number,
+	row: number,
+	mode: PaintMode,
+	skipViewportHoverUpdate: boolean?
+)
 	local paintedKey = gridCellKey(column, row)
 	if dragPaintedCells[paintedKey] == true then
 		return false
@@ -2276,7 +2304,9 @@ local function paintCell(platform: Model, column: number, row: number, mode: Pai
 	setCellCode(platform, column, row, nextCode)
 
 	setStatus(`Painted cell {column}, {row} as {nextCode}.`)
-	updateHoverPreview()
+	if skipViewportHoverUpdate ~= true then
+		updateHoverPreview()
+	end
 	return true
 end
 
@@ -2292,6 +2322,88 @@ local function paintHoveredCell(mode: PaintMode)
 
 	return paintCell(platform, column, row, mode)
 end
+
+local function showCanvasHover(platform: Model, column: number, row: number)
+	local canvasCell = canvasPreviewCells[gridCellKey(column, row)]
+	if canvasCell == nil then
+		return
+	end
+
+	local previewColor = if activeMode ~= nil
+		then colorForCellCode(nextCodeForPaintMode(platform, column, row, activeMode))
+		else colorForCellCode(cellCode(platform, column, row))
+
+	if canvasHoverFrame ~= nil then
+		canvasHoverFrame.Position = canvasCell.Position
+		canvasHoverFrame.Size = canvasCell.Size
+		canvasHoverFrame.BackgroundColor3 = previewColor
+		canvasHoverFrame.Visible = true
+	end
+
+	hoverPlatform = platform
+	hoverColumn = column
+	hoverRow = row
+	hoverCellKey = gridCellKey(column, row)
+	updateInspectorCell(platform, column, row, nil)
+	setStatus(`Canvas cell {column}, {row}: {labelForCellCode(cellCode(platform, column, row))}.`, true)
+end
+
+local function canvasPlatform(): Model?
+	local platform = platformModel()
+	if platform == nil then
+		setStatus("GamePlatform is missing. Connect Rojo first.")
+		return nil
+	end
+	return platform
+end
+
+local function beginCanvasPaint(column: number, row: number)
+	local platform = canvasPlatform()
+	if platform == nil then
+		return
+	end
+	showCanvasHover(platform, column, row)
+
+	if activeMode == nil then
+		setStatus("Pick a brush before painting on the canvas.")
+		return
+	end
+
+	local recording = beginRecording(`Paint canvas cells {activeMode}`)
+	if recording == nil then
+		return
+	end
+	dragPainting = true
+	dragPaintRecording = recording
+	dragPaintedCells = {}
+	paintCell(platform, column, row, activeMode, true)
+	showCanvasHover(platform, column, row)
+end
+
+local function dragCanvasPaint(column: number, row: number)
+	local platform = canvasPlatform()
+	if platform == nil then
+		return
+	end
+	showCanvasHover(platform, column, row)
+
+	if not dragPainting or activeMode == nil then
+		return
+	end
+	paintCell(platform, column, row, activeMode, true)
+	showCanvasHover(platform, column, row)
+end
+
+handleCanvasCellHover = function(column: number, row: number)
+	local platform = canvasPlatform()
+	if platform ~= nil then
+		showCanvasHover(platform, column, row)
+	end
+end
+
+handleCanvasCellPaintStart = beginCanvasPaint
+handleCanvasCellPaintDrag = dragCanvasPaint
+handleCanvasPaintEnd = finishPaintDrag
 
 local function selectPlatform()
 	local platform = platformModel()
@@ -2619,6 +2731,12 @@ end)
 
 mouse.Button1Up:Connect(function()
 	finishPaintDrag()
+end)
+
+UserInputService.InputEnded:Connect(function(input: InputObject)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		finishPaintDrag()
+	end
 end)
 
 plugin.Deactivation:Connect(function()
