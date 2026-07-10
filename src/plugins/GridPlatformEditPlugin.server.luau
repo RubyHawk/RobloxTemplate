@@ -94,7 +94,7 @@ local inspectorBrushLabel: TextLabel
 local inspectorGridLabel: TextLabel
 local modeButtons: { [PaintMode]: TextButton } = {} :: any
 local toolTabButtons: { [ToolTab]: TextButton } = {} :: any
-local toolTabAnchors: { [ToolTab]: GuiObject } = {} :: any
+local tabSections: { [ToolTab]: { GuiObject } } = {} :: any
 local stageProfileButtons: { TextButton } = {}
 local mainScrollFrame: ScrollingFrame? = nil
 local activeToolTab: ToolTab = "Paint"
@@ -578,6 +578,23 @@ local function createStatusDock(parent: Instance)
 	statusLabel.TextSize = 11
 end
 
+local function applyTabContent(tab: ToolTab)
+	for _, sections in tabSections do
+		for _, section in sections do
+			section.Visible = false
+		end
+	end
+
+	for _, section in tabSections[tab] or {} do
+		section.Visible = true
+	end
+
+	local scroll = mainScrollFrame
+	if scroll ~= nil then
+		scroll.CanvasPosition = Vector2.new(0, 0)
+	end
+end
+
 local function buildWidget()
 	local root = Instance.new("Frame")
 	root.Name = "Root"
@@ -632,17 +649,17 @@ local function buildWidget()
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = scroll
 
-	local canvasSection = createSection(
+	local stageSection = createSection(
 		scroll,
-		"CanvasFirst",
-		"Canvas",
-		"Pick a stage profile, then paint cells directly on the canvas or in the 3D viewport."
+		"StageProfiles",
+		"Stages",
+		"Pick the editing profile. Real map swapping can wire into these profiles next."
 	)
 	local stageRow = Instance.new("Frame")
-	stageRow.Name = "StageProfiles"
+	stageRow.Name = "StageProfileRow"
 	stageRow.BackgroundTransparency = 1
 	stageRow.Size = UDim2.new(1, 0, 0, 36)
-	stageRow.Parent = canvasSection
+	stageRow.Parent = stageSection
 
 	local stageRowLayout = Instance.new("UIListLayout")
 	stageRowLayout.FillDirection = Enum.FillDirection.Horizontal
@@ -660,6 +677,12 @@ local function buildWidget()
 	end
 	setButtonActive(stageProfileButtons[1], true)
 
+	local canvasSection = createSection(
+		scroll,
+		"CanvasFirst",
+		"Paint Canvas",
+		"Click or drag cells here. The canvas writes to the same CellMap as viewport painting."
+	)
 	createCanvasPreview(canvasSection)
 	createLegendRow(canvasSection)
 
@@ -780,10 +803,11 @@ local function buildWidget()
 		54,
 		MUTED
 	)
-	toolTabAnchors.Paint = canvasSection
-	toolTabAnchors.Path = splineSection
-	toolTabAnchors.Stage = canvasSection
-	toolTabAnchors.Data = inspectorSection
+	tabSections.Paint = { canvasSection, modeSection, inspectorSection }
+	tabSections.Path = { splineSection }
+	tabSections.Stage = { stageSection, placementSection }
+	tabSections.Data = { inspectorSection, layerSection, exportSection }
+	applyTabContent("Paint")
 
 	return {
 		selectButton = selectRow[1],
@@ -1532,21 +1556,27 @@ local function setToolTab(tab: ToolTab)
 	for tabName, button in toolTabButtons do
 		setButtonActive(button, tabName == activeToolTab)
 	end
-
-	local scroll = mainScrollFrame
-	local anchor = toolTabAnchors[tab]
-	if scroll ~= nil and anchor ~= nil then
-		local y = anchor.AbsolutePosition.Y - scroll.AbsolutePosition.Y + scroll.CanvasPosition.Y
-		scroll.CanvasPosition = Vector2.new(0, math.max(0, y - 8))
-	end
+	applyTabContent(tab)
 
 	if tab == "Paint" then
-		setStatus("Paint tab selected. Pick a brush, then hover and drag on the 3D platform.")
+		if activeMode == nil then
+			setMode("Legal", true)
+		end
+		setStatus("Paint tab selected. Click or drag on the canvas, or paint in the 3D viewport.")
 	elseif tab == "Path" then
+		if activeMode ~= nil then
+			setMode(nil, true)
+		end
 		setStatus("Path tab selected. Use spline controls, then rebuild the curve.")
 	elseif tab == "Stage" then
+		if activeMode ~= nil then
+			setMode(nil, true)
+		end
 		setStatus("Stage tab selected. Profiles are ready for future stage data wiring.")
 	else
+		if activeMode ~= nil then
+			setMode(nil, true)
+		end
 		setStatus("Data tab selected. Export prints the current layout to Output.")
 	end
 end
