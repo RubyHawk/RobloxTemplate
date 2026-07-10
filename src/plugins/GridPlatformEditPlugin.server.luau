@@ -13,6 +13,9 @@ local PATH_TILES_NAME = "PathTiles"
 local LEGAL_COLOR = Color3.fromRGB(38, 217, 97)
 local ILLEGAL_COLOR = Color3.fromRGB(255, 66, 41)
 local PATH_COLOR = Color3.fromRGB(255, 199, 36)
+local PORTAL_COLOR = Color3.fromRGB(99, 102, 241)
+local GOAL_COLOR = Color3.fromRGB(255, 147, 51)
+local AUTOPLACE_COLOR = Color3.fromRGB(14, 165, 233)
 local CONTROL_POINT_COLOR = Color3.fromRGB(255, 46, 31)
 local PANEL_BG = Color3.fromRGB(28, 30, 36)
 local PANEL_SECTION = Color3.fromRGB(38, 41, 49)
@@ -23,6 +26,7 @@ local MUTED = Color3.fromRGB(166, 174, 187)
 
 local LEGAL_TRANSPARENCY = 0.55
 local ILLEGAL_TRANSPARENCY = 0.22
+local SPECIAL_TRANSPARENCY = 0.18
 local PLATFORM_TRANSPARENCY = 0.18
 local PATH_TILE_TRANSPARENCY = 0.06
 local CONTROL_POINT_TRANSPARENCY = 0.18
@@ -34,7 +38,8 @@ local PATH_GRID_RADIUS = 4.35
 local PATH_GRID_SAMPLE_STEP = 0.8
 local SPLINE_SAMPLES_PER_SEGMENT = 24
 
-type PaintMode = "Toggle" | "Legal" | "Illegal"
+type PaintMode = "Toggle" | "Legal" | "Illegal" | "Portal" | "Goal" | "AutoPlace"
+type CellCode = "." | "#" | "P" | "G" | "A"
 
 type SplineSample = {
 	position: Vector3,
@@ -210,9 +215,17 @@ local function buildWidget()
 		{ "Legal", "Legal" },
 		{ "Illegal", "Illegal" },
 	})
+	local specialModeRow = createButtonRow(modeSection, "SpecialModes", {
+		{ "Portal", "Portal" },
+		{ "Goal", "Goal" },
+		{ "AutoPlace", "Auto Place" },
+	})
 	modeButtons.Toggle = modeRow[1]
 	modeButtons.Legal = modeRow[2]
 	modeButtons.Illegal = modeRow[3]
+	modeButtons.Portal = specialModeRow[1]
+	modeButtons.Goal = specialModeRow[2]
+	modeButtons.AutoPlace = specialModeRow[3]
 
 	local placementSection = createSection(scroll, "Placement")
 	createLabel(placementSection, "PlacementTitle", "Placement", 24, TEXT)
@@ -264,7 +277,7 @@ local function buildWidget()
 	createLabel(
 		exportSection,
 		"ExportHelp",
-		"After painting, export and send the Output text so the layout can be baked into source.",
+		"Export uses . buildable, # blocked/path, P portal spawn, G goal, A auto-place slot.",
 		54,
 		MUTED
 	)
@@ -502,12 +515,24 @@ local function cellFrame(platform: Model, column: number, row: number): Frame?
 	return nil
 end
 
-local function isCellBuildable(platform: Model, column: number, row: number): boolean
+local function normalizeCellCode(code: string?): CellCode
+	if code == "." or code == "#" or code == "P" or code == "G" or code == "A" then
+		return code
+	end
+	return "."
+end
+
+local function cellCode(platform: Model, column: number, row: number): CellCode
 	local rowValue = rowString(platform, row)
 	if rowValue == nil then
-		return true
+		return "."
 	end
-	return string.sub(rowValue.Value, column, column) ~= "#"
+	return normalizeCellCode(string.sub(rowValue.Value, column, column))
+end
+
+local function isCellBuildable(platform: Model, column: number, row: number): boolean
+	local code = cellCode(platform, column, row)
+	return code == "." or code == "A"
 end
 
 local function updateCellVisual(platform: Model, column: number, row: number)
@@ -516,9 +541,23 @@ local function updateCellVisual(platform: Model, column: number, row: number)
 		return
 	end
 
-	local buildable = isCellBuildable(platform, column, row)
-	frame.BackgroundColor3 = if buildable then LEGAL_COLOR else ILLEGAL_COLOR
-	frame.BackgroundTransparency = if buildable then LEGAL_TRANSPARENCY else ILLEGAL_TRANSPARENCY
+	local code = cellCode(platform, column, row)
+	if code == "P" then
+		frame.BackgroundColor3 = PORTAL_COLOR
+		frame.BackgroundTransparency = SPECIAL_TRANSPARENCY
+	elseif code == "G" then
+		frame.BackgroundColor3 = GOAL_COLOR
+		frame.BackgroundTransparency = SPECIAL_TRANSPARENCY
+	elseif code == "A" then
+		frame.BackgroundColor3 = AUTOPLACE_COLOR
+		frame.BackgroundTransparency = LEGAL_TRANSPARENCY
+	elseif code == "#" then
+		frame.BackgroundColor3 = ILLEGAL_COLOR
+		frame.BackgroundTransparency = ILLEGAL_TRANSPARENCY
+	else
+		frame.BackgroundColor3 = LEGAL_COLOR
+		frame.BackgroundTransparency = LEGAL_TRANSPARENCY
+	end
 end
 
 local function updateAllCellVisuals(platform: Model)
@@ -684,15 +723,14 @@ local function cellAtWorldPosition(platform: Model, worldPosition: Vector3): (nu
 	return column, row
 end
 
-local function setCellBuildable(platform: Model, column: number, row: number, buildable: boolean)
+local function setCellCode(platform: Model, column: number, row: number, code: CellCode)
 	local rowValue = rowString(platform, row)
 	if rowValue == nil then
 		return
 	end
 
 	local old = rowValue.Value
-	local marker = if buildable then "." else "#"
-	rowValue.Value = string.sub(old, 1, column - 1) .. marker .. string.sub(old, column + 1)
+	rowValue.Value = string.sub(old, 1, column - 1) .. code .. string.sub(old, column + 1)
 	updateCellVisual(platform, column, row)
 end
 
@@ -995,6 +1033,7 @@ local function rebuildPathGrid(platform: Model, path: SplinePath)
 
 		local nextValue = ""
 		for column = 1, columns(platform) do
+			local previousCode = cellCode(platform, column, row)
 			local localX = -base.Size.X / 2 + (column - 0.5) * size
 			local localZ = -base.Size.Z / 2 + (row - 0.5) * size
 			local cellPosition = base.CFrame:PointToWorldSpace(Vector3.new(localX, base.Size.Y / 2, localZ))
@@ -1007,7 +1046,15 @@ local function rebuildPathGrid(platform: Model, path: SplinePath)
 				end
 			end
 
-			nextValue ..= if blocked then "#" else "."
+			if previousCode == "P" or previousCode == "G" then
+				nextValue ..= previousCode
+			elseif blocked then
+				nextValue ..= "#"
+			elseif previousCode == "A" then
+				nextValue ..= "A"
+			else
+				nextValue ..= "."
+			end
 		end
 
 		rowValue.Value = nextValue
@@ -1241,20 +1288,24 @@ local function paintCellAt(worldPosition: Vector3, mode: PaintMode)
 		return
 	end
 
+	local nextCode: CellCode
 	if mode == "Legal" then
-		setCellBuildable(platform, column, row, true)
+		nextCode = "."
 	elseif mode == "Illegal" then
-		setCellBuildable(platform, column, row, false)
+		nextCode = "#"
+	elseif mode == "Portal" then
+		nextCode = "P"
+	elseif mode == "Goal" then
+		nextCode = "G"
+	elseif mode == "AutoPlace" then
+		nextCode = "A"
 	else
-		setCellBuildable(platform, column, row, not isCellBuildable(platform, column, row))
+		nextCode = if isCellBuildable(platform, column, row) then "#" else "."
 	end
+	setCellCode(platform, column, row, nextCode)
 
 	finishRecording(recording)
-	setStatus(
-		`Painted cell {column}, {row} as {if isCellBuildable(platform, column, row)
-			then "legal"
-			else "illegal"}.`
-	)
+	setStatus(`Painted cell {column}, {row} as {nextCode}.`)
 end
 
 local function selectPlatform()
@@ -1424,7 +1475,7 @@ local function exportLayout()
 
 	local lines = {
 		"-- GamePlatform layout export",
-		"-- . = legal/buildable, # = illegal/blocked",
+		"-- . = buildable, # = blocked/path, P = portal spawn, G = goal, A = auto-place slot",
 		"return {",
 		`\tcellSize = {cellSize(platform)},`,
 		`\tcolumns = {columns(platform)},`,
@@ -1463,6 +1514,15 @@ modeButtons.Legal.MouseButton1Click:Connect(function()
 end)
 modeButtons.Illegal.MouseButton1Click:Connect(function()
 	setMode(if activeMode == "Illegal" then nil else "Illegal")
+end)
+modeButtons.Portal.MouseButton1Click:Connect(function()
+	setMode(if activeMode == "Portal" then nil else "Portal")
+end)
+modeButtons.Goal.MouseButton1Click:Connect(function()
+	setMode(if activeMode == "Goal" then nil else "Goal")
+end)
+modeButtons.AutoPlace.MouseButton1Click:Connect(function()
+	setMode(if activeMode == "AutoPlace" then nil else "AutoPlace")
 end)
 
 widgetButtons.selectButton.MouseButton1Click:Connect(selectPlatform)

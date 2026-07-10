@@ -22,5 +22,6 @@ return {
 	},
 	features = {
 		runes = true,
+		towerDefense = true,
 	},
 }

@@ -6,7 +6,7 @@ local MigrationCore = require(script.Parent.MigrationCore)
 local Config = require(script.Parent.TemplateConfig)
 
 local Migrations = {}
-Migrations.CURRENT_VERSION = 5
+Migrations.CURRENT_VERSION = 6
 
 function Migrations.migrate(raw: any, now: number): any
 	local previousVersion = if type(raw) == "table" and type(raw.schemaVersion) == "number"
@@ -27,6 +27,17 @@ function Migrations.migrate(raw: any, now: number): any
 	end
 	if previousVersion < 5 and type(profile.runes) ~= "table" then
 		profile.runes = { owned = {}, totalRolls = 0, rollsSincePity = 0 }
+	end
+	if previousVersion < 6 and type(profile.towerDefense) ~= "table" then
+		profile.towerDefense = {
+			ownedUnits = {},
+			loadout = {},
+			stats = {
+				wins = 0,
+				losses = 0,
+				bestWave = 0,
+			},
+		}
 	end
 	return profile
 end

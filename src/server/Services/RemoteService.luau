@@ -20,6 +20,7 @@ local PublicProfileService = require(script.Parent.PublicProfileService)
 local RewardService = require(script.Parent.RewardService)
 local RuneService = require(script.Parent.RuneService)
 local SettingsService = require(script.Parent.SettingsService)
+local TowerDefenseService = require(script.Parent.TowerDefenseService)
 
 local RemoteService = {}
 local limiter = RateLimiter.new()
@@ -36,6 +37,13 @@ local requestFeatures: { [string]: string } = {
 	RedeemCode = "codes",
 	UpdateSetting = "settings",
 	SubmitFeedback = "feedback",
+	RollUnit = "towerDefense",
+	SetTowerLoadout = "towerDefense",
+	EquipBestUnits = "towerDefense",
+	PlaceUnit = "towerDefense",
+	AutoPlaceBestUnits = "towerDefense",
+	StartTowerWave = "towerDefense",
+	ResetTowerDefense = "towerDefense",
 }
 
 local function getOrCreate(className: string, name: string, parent: Instance): Instance
@@ -74,6 +82,9 @@ function RemoteService.snapshot(player: Player): any
 		potionMultiplier = Calculations.potionMultiplier(profile.boosts, os.time()),
 		runeMultiplier = EconomyService.getRuneMultiplier(player),
 		runes = if Config.features.runes == true then RuneService.snapshotFor(player) else nil,
+		towerDefense = if Config.features.towerDefense == true
+			then TowerDefenseService.snapshotFor(player)
+			else nil,
 		offline = RewardService.getPendingOffline(player),
 		likes = likes,
 		dailyRewards = Config.rewards.daily,
@@ -167,6 +178,25 @@ local function handleRequest(player: Player, packet: any)
 			return
 		end
 		result(player, FeedbackService.submit(player, payload.category, payload.message))
+	elseif action == "RollUnit" then
+		result(player, TowerDefenseService.rollUnit(player))
+	elseif action == "SetTowerLoadout" then
+		local unitIds = if type(payload) == "table" then payload.unitIds else nil
+		result(player, TowerDefenseService.setLoadout(player, unitIds))
+	elseif action == "EquipBestUnits" then
+		result(player, TowerDefenseService.equipBest(player))
+	elseif action == "PlaceUnit" then
+		if type(payload) ~= "table" then
+			result(player, false, "Invalid placement")
+			return
+		end
+		result(player, TowerDefenseService.placeUnit(player, payload.unitId, payload.column, payload.row))
+	elseif action == "AutoPlaceBestUnits" then
+		result(player, TowerDefenseService.autoPlaceBest(player))
+	elseif action == "StartTowerWave" then
+		result(player, TowerDefenseService.startWave(player))
+	elseif action == "ResetTowerDefense" then
+		result(player, TowerDefenseService.resetMatch(player))
 	elseif action == "AfkRollover" then
 		local profile = ProfileService.get(player)
 		if profile == nil or not profile.settings.afKRollOver then

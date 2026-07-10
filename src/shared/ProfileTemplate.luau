@@ -10,7 +10,7 @@ local ProfileTemplate = {}
 function ProfileTemplate.create(now: number): PlayerProfileV1
 	local currencies = CurrencyConfig.startingBalances(Config.economy.currencies)
 	return {
-		schemaVersion = 5,
+		schemaVersion = 6,
 		coins = currencies[Config.economy.primaryCurrencyId] or 0,
 		currencies = currencies,
 		inventory = {
@@ -50,6 +50,15 @@ function ProfileTemplate.create(now: number): PlayerProfileV1
 			owned = {},
 			totalRolls = 0,
 			rollsSincePity = 0,
+		},
+		towerDefense = {
+			ownedUnits = {},
+			loadout = {},
+			stats = {
+				wins = 0,
+				losses = 0,
+				bestWave = 0,
+			},
 		},
 		feedback = {
 			lastSubmittedAt = 0,

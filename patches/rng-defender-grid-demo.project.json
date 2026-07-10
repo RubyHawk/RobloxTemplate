@@ -66,6 +66,12 @@
           "Theme": {
             "$path": "../src/shared/Theme.luau"
           },
+          "TowerDefenseCatalog": {
+            "$path": "../src/shared/TowerDefenseCatalog.luau"
+          },
+          "TowerDefenseLogic": {
+            "$path": "../src/shared/TowerDefenseLogic.luau"
+          },
           "Types": {
             "$path": "../src/shared/Types.luau"
           }

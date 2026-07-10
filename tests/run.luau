@@ -4,6 +4,8 @@ local Calculations = require("../src/shared/Calculations")
 local CurrencyConfig = require("../src/shared/CurrencyConfig")
 local RuneCatalog = require("../src/shared/RuneCatalog")
 local RuneLogic = require("../src/shared/RuneLogic")
+local TowerDefenseCatalog = require("../src/shared/TowerDefenseCatalog")
+local TowerDefenseLogic = require("../src/shared/TowerDefenseLogic")
 local DataStoreNames = require("../src/shared/DataStoreNames")
 local DataStoreKeys = require("../src/shared/DataStoreKeys")
 local MigrationCore = require("../src/shared/MigrationCore")
@@ -129,6 +131,27 @@ local futureOk = pcall(function()
 	MigrationCore.migrate({ schemaVersion = 99 }, { schemaVersion = 1 }, 1)
 end)
 expectEqual(futureOk, false, "future profile schemas are refused instead of overwritten")
+local migrationsSource = fs.readFile("src/shared/Migrations.luau")
+expectEqual(
+	string.find(migrationsSource, "Migrations.CURRENT_VERSION = 6", 1, true) ~= nil,
+	true,
+	"tower defense profile schema version is current"
+)
+expectEqual(
+	string.find(migrationsSource, "previousVersion < 6", 1, true) ~= nil,
+	true,
+	"schema 5 profiles gain tower defense state"
+)
+expectEqual(
+	string.find(migrationsSource, "ownedUnits = {}", 1, true) ~= nil,
+	true,
+	"tower defense migration creates owned unit storage"
+)
+expectEqual(
+	string.find(migrationsSource, "bestWave = 0", 1, true) ~= nil,
+	true,
+	"tower defense migration initializes best wave"
+)
 
 expectEqual(DataStoreKeys.profile(123), "player:123", "profile key is documented and stable")
 expectEqual(DataStoreKeys.publicProfile(123), "user:123", "public profile key is documented")
@@ -544,6 +567,9 @@ for _, authoredGridObject in
 		'"Name": "CellMap"',
 		'"Name": "Row_01"',
 		'"Name": "Row_27"',
+		'"Value": "...A..A........................."',
+		'"Value": ".#P########....................."',
+		'"Value": ".............................#G#"',
 		'"Name": "CellSize"',
 		'"Name": "Columns"',
 		'"Name": "Rows"',
@@ -616,6 +642,8 @@ for _, patchObject in
 		'"FirstPrivateIsland"',
 		'"servePlaceIds": [128136881672145]',
 		'"$path": "rng-defender/DesignerConfig.luau"',
+		'"TowerDefenseCatalog"',
+		'"TowerDefenseLogic"',
 	}
 do
 	expectEqual(
@@ -631,6 +659,7 @@ for _, patchConfigObject in
 		'dataNamespace = "rngdefender"',
 		"placeId = 128136881672145",
 		"startingAmount = 100_000_000_000",
+		"towerDefense = true",
 	}
 do
 	expectEqual(
@@ -705,6 +734,11 @@ for _, pluginObject in
 		"Reset Flat",
 		"Snap to Selection",
 		"Spline Path",
+		"Portal",
+		"Goal",
+		"Auto Place",
+		"CellCode",
+		"P = portal spawn",
 		"Select Points",
 		"Rebuild Curve",
 		"Add Point",
@@ -929,6 +963,39 @@ expectEqual(
 	"ProductsGrid shifts down to match the taller StoreHeader"
 )
 
+-- Tower defense: unit collection, loadout ranking, grid cell roles, and wave scaling.
+expectEqual(TowerDefenseLogic.isBuildableCell("."), true, "normal grid cells are buildable for units")
+expectEqual(TowerDefenseLogic.isBuildableCell("A"), true, "auto-place grid cells are buildable for units")
+expectEqual(
+	TowerDefenseLogic.isPortalCell("P") and TowerDefenseLogic.isBlockedCell("P"),
+	true,
+	"portal grid cells spawn enemies and block unit placement"
+)
+expectEqual(
+	TowerDefenseLogic.isGoalCell("G") and TowerDefenseLogic.isBlockedCell("G"),
+	true,
+	"goal grid cells end enemy paths and block unit placement"
+)
+expectEqual(
+	TowerDefenseLogic.pickWeightedUnitIndex(TowerDefenseCatalog.units, 0) >= 1,
+	true,
+	"unit rolls pick a catalog entry at the lower bound"
+)
+expectEqual(
+	TowerDefenseLogic.pickWeightedUnitIndex(TowerDefenseCatalog.units, 0.9999) <= #TowerDefenseCatalog.units,
+	true,
+	"unit rolls pick a catalog entry at the upper bound"
+)
+local bestTowerLoadout = TowerDefenseLogic.bestLoadout({
+	forest_archer = { count = 1 },
+	mushroom_bomber = { count = 1 },
+	ancient_treant = { count = 1 },
+}, TowerDefenseCatalog.units, 2)
+expectEqual(bestTowerLoadout[1], "ancient_treant", "equip best favors the strongest owned unit")
+expectEqual(#bestTowerLoadout, 2, "equip best respects loadout slot cap")
+expectEqual(TowerDefenseLogic.waveScale(1), 1, "first tower defense wave uses base scale")
+expectEqual(TowerDefenseLogic.waveScale(5) > 1, true, "later tower defense waves scale up")
+
 -- Rune altar: weighted rolls, pity, flat configured cost, and permanent multiplier.
 expectEqual(
 	RuneLogic.weightTotal(RuneCatalog.rarities),
@@ -1106,5 +1173,65 @@ do
 		`rune sign pre-authors {authoredSignObject}`
 	)
 end
+
+local towerDefenseServiceSource = fs.readFile("src/server/Services/TowerDefenseService.luau")
+for _, towerDefenseMarker in
+	{
+		"TowerDefenseService.rollUnit",
+		"TowerDefenseService.setLoadout",
+		"TowerDefenseService.equipBest",
+		"TowerDefenseService.placeUnit",
+		"TowerDefenseService.autoPlaceBest",
+		"TowerDefenseService.startWave",
+		"TowerDefenseService.resetMatch",
+		"TowerDefenseService.snapshotFor",
+		"EconomyService.spendCurrency",
+		"TowerDefenseLogic.isBuildableCell",
+		"runtimeFolderName",
+		"RunService.Heartbeat",
+		"Portal, spline path, and goal need a valid route",
+	}
+do
+	expectEqual(
+		string.find(towerDefenseServiceSource, towerDefenseMarker, 1, true) ~= nil,
+		true,
+		`tower defense service includes {towerDefenseMarker}`
+	)
+end
+expectEqual(
+	string.find(towerDefenseServiceSource, "OnServerEvent", 1, true),
+	nil,
+	"tower defense service does not listen directly to client remotes"
+)
+local remoteServiceSource = fs.readFile("src/server/Services/RemoteService.luau")
+for _, towerDefenseRemoteMarker in
+	{
+		"RollUnit",
+		"SetTowerLoadout",
+		"EquipBestUnits",
+		"PlaceUnit",
+		"AutoPlaceBestUnits",
+		"StartTowerWave",
+		"ResetTowerDefense",
+		"TowerDefenseService.snapshotFor",
+	}
+do
+	expectEqual(
+		string.find(remoteServiceSource, towerDefenseRemoteMarker, 1, true) ~= nil,
+		true,
+		`remote service exposes validated tower defense action {towerDefenseRemoteMarker}`
+	)
+end
+expectEqual(
+	string.find(runeConfigSource, "towerDefense = false", 1, true) ~= nil,
+	true,
+	"tower defense feature is disabled by default template config"
+)
+expectEqual(
+	string.find(runeConfigSource, "unitRollCost = 75", 1, true) ~= nil
+		and string.find(runeConfigSource, "loadoutSlots = 4", 1, true) ~= nil,
+	true,
+	"tower defense gameplay loop has configured roll cost and loadout slots"
+)
 
 print(`{passed} pure Luau assertions passed`)

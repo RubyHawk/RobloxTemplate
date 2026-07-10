@@ -42,6 +42,7 @@ local Config = {
 		notifications = true,
 		afKRollOver = true,
 		runes = true,
+		towerDefense = false,
 		communityVerification = false,
 		discordVerification = false,
 		guilds = false,
@@ -91,6 +92,14 @@ local Config = {
 		circleHeightTolerance = 8,
 		pityThreshold = 40,
 		pityMinimumRarity = "epic",
+	},
+
+	towerDefense = {
+		unitRollCost = 75,
+		loadoutSlots = 4,
+		baseHealth = 20,
+		autoPlaceMaxUnits = 4,
+		runtimeFolderName = "TowerDefenseRuntime",
 	},
 
 	rewards = {

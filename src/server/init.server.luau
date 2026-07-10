@@ -17,6 +17,7 @@ local RewardService = require(Services.RewardService)
 local RuneService = require(Services.RuneService)
 local SocialService = require(Services.SocialService)
 local StoreService = require(Services.StoreService)
+local TowerDefenseService = require(Services.TowerDefenseService)
 local EconomyRateProvider = require(script.Providers.DefaultEconomyRateProvider)
 local DataStoreRuntime = require(script.Util.DataStoreRuntime)
 
@@ -37,6 +38,11 @@ if Config.features.runes then
 		publish = function(player, result)
 			RemoteService.sendEvent(player, "RuneResult", result)
 		end,
+	})
+end
+if Config.features.towerDefense then
+	TowerDefenseService.start({
+		publish = RemoteService.publish,
 	})
 end
 
@@ -81,6 +87,7 @@ local function playerRemoving(player: Player)
 	end
 	RewardService.forget(player)
 	RuneService.forget(player)
+	TowerDefenseService.forget(player)
 	FeedbackService.forget(player)
 	RemoteService.forget(player)
 	ProfileService.release(player)
