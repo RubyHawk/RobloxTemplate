@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Grid Platform Editor UI Concepts</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #0b0d11;
+      --ink: #eef3f7;
+      --muted: #9ca7b4;
+      --faint: #687484;
+      --line: #29313b;
+      --panel: #12161d;
+      --panel-2: #171c24;
+      --panel-3: #1d2430;
+      --teal: #2dd4bf;
+      --cyan: #38bdf8;
+      --green: #33d17a;
+      --red: #f05252;
+      --yellow: #facc15;
+      --orange: #fb923c;
+      --violet: #8b8cf6;
+      --shadow: 0 22px 70px rgba(0, 0, 0, 0.4);
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 10%, rgba(45, 212, 191, 0.08), transparent 28%),
+        linear-gradient(180deg, #11141a 0%, var(--page) 42%, #07090c 100%);
+    }
+
+    .board {
+      width: 1800px;
+      min-height: 1210px;
+      padding: 34px;
+      margin: 0 auto;
+    }
+
+    .board-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 720;
+      line-height: 1.15;
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .select-note {
+      border: 1px solid #35404e;
+      background: rgba(18, 22, 29, 0.74);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: #c8d2dc;
+      font-size: 13px;
+      line-height: 1.35;
+      min-width: 330px;
+    }
+
+    .concept-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .concept {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .concept-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 42px;
+    }
+
+    .concept-title strong {
+      font-size: 16px;
+      font-weight: 720;
+    }
+
+    .concept-title span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .plugin-panel {
+      height: 920px;
+      border: 1px solid #303946;
+      border-radius: 10px;
+      background: rgba(18, 22, 29, 0.94);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-top {
+      height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(25, 31, 40, 0.96);
+    }
+
+    .panel-title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .panel-title b {
+      font-size: 14px;
+      font-weight: 720;
+    }
+
+    .panel-title small {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(51, 209, 122, 0.13);
+    }
+
+    .panel-body {
+      padding: 14px;
+    }
+
+    .section {
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+      margin-top: 12px;
+    }
+
+    .section:first-child {
+      border-top: 0;
+      margin-top: 0;
+      padding-top: 0;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 9px;
+      color: #dce5ee;
+      font-size: 12px;
+      font-weight: 680;
+    }
+
+    .section-head .meta {
+      color: var(--faint);
+      font-weight: 520;
+    }
+
+    .segmented,
+    .tool-row,
+    .mini-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .segmented {
+      padding: 4px;
+      border: 1px solid #303a47;
+      border-radius: 8px;
+      background: #0e1218;
+    }
+
+    .segmented button,
+    .tool-button,
+    .mini-action {
+      height: 30px;
+      border: 1px solid #303a47;
+      border-radius: 6px;
+      color: #d7e0e8;
+      background: #1a2029;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .segmented button {
+      flex: 1;
+      border-color: transparent;
+      background: transparent;
+    }
+
+    .segmented .active,
+    .tool-button.active,
+    .mini-action.active {
+      color: #041113;
+      border-color: rgba(45, 212, 191, 0.82);
+      background: var(--teal);
+    }
+
+    .tool-button {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .tool-button .mark {
+      width: 11px;
+      height: 11px;
+      border-radius: 3px;
+      background: currentColor;
+      opacity: 0.9;
+    }
+
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+    }
+
+    .tool-grid .tool-button {
+      height: 42px;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 11px;
+    }
+
+    .target-bar {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid #2b3440;
+      border-radius: 8px;
+      background: #10151c;
+      font-size: 12px;
+    }
+
+    .target-bar b {
+      display: block;
+      margin-bottom: 2px;
+      font-size: 12px;
+    }
+
+    .target-bar small {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .pill {
+      padding: 5px 8px;
+      border: 1px solid #314253;
+      border-radius: 999px;
+      color: #a9dff3;
+      background: rgba(56, 189, 248, 0.1);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .grid-preview {
+      position: relative;
+      height: 190px;
+      border: 1px solid #344150;
+      border-radius: 8px;
+      overflow: hidden;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+        #0d141b;
+      background-size: 14px 14px;
+    }
+
+    .grid-preview:before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, transparent 0 38%, rgba(250, 204, 21, 0.9) 38% 43%, transparent 43% 100%),
+        linear-gradient(35deg, transparent 0 46%, rgba(250, 204, 21, 0.9) 46% 51%, transparent 51% 100%);
+      opacity: 0.85;
+      clip-path: polygon(21% 0, 70% 0, 77% 100%, 18% 100%);
+    }
+
+    .paint-cell {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border: 3px solid #ffffff;
+      background: rgba(45, 212, 191, 0.54);
+      box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.45), 0 0 28px rgba(45, 212, 191, 0.4);
+    }
+
+    .paint-cell.one {
+      left: 55%;
+      top: 44%;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      background: var(--green);
+    }
+
+    .swatch.bad { background: var(--red); }
+    .swatch.path { background: var(--yellow); }
+    .swatch.portal { background: var(--violet); }
+    .swatch.goal { background: var(--orange); }
+    .swatch.auto { background: var(--cyan); }
+
+    .property-row {
+      display: grid;
+      grid-template-columns: 118px 1fr;
+      gap: 8px;
+      align-items: center;
+      height: 30px;
+      border-bottom: 1px solid rgba(41, 49, 59, 0.72);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .property-row:last-child {
+      border-bottom: 0;
+    }
+
+    .property-row b {
+      color: #dce5ee;
+      font-weight: 560;
+    }
+
+    .status-strip {
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      margin-top: 12px;
+      border: 1px solid #2c3744;
+      border-radius: 7px;
+      color: #cbd7e3;
+      background: #0f141b;
+      font-size: 11px;
+    }
+
+    .note {
+      min-height: 82px;
+      border: 1px solid #28313d;
+      border-radius: 8px;
+      padding: 10px;
+      color: #aab6c3;
+      background: rgba(14, 18, 24, 0.84);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .stage-list {
+      display: grid;
+      gap: 7px;
+    }
+
+    .stage-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      height: 46px;
+      padding: 0 10px;
+      border: 1px solid #2c3845;
+      border-radius: 7px;
+      background: #101721;
+    }
+
+    .stage-item.active {
+      border-color: rgba(56, 189, 248, 0.68);
+      background: rgba(56, 189, 248, 0.1);
+    }
+
+    .stage-item b {
+      display: block;
+      font-size: 12px;
+    }
+
+    .stage-item small {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .stage-badge {
+      color: #081017;
+      background: #a7f3d0;
+      border-radius: 5px;
+      padding: 4px 6px;
+      font-size: 10px;
+      font-weight: 760;
+    }
+
+    .workflow {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .workflow-step {
+      min-height: 70px;
+      border: 1px solid #2d3745;
+      border-radius: 7px;
+      padding: 8px 6px;
+      background: #111821;
+      font-size: 11px;
+      color: #cdd7e0;
+    }
+
+    .workflow-step b {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--cyan);
+      font-size: 16px;
+    }
+
+    .big-map {
+      position: relative;
+      height: 335px;
+      border: 1px solid #314050;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #0b1118;
+    }
+
+    .big-map .map-cells {
+      position: absolute;
+      inset: 12px;
+      display: grid;
+      grid-template-columns: repeat(16, 1fr);
+      grid-template-rows: repeat(18, 1fr);
+      gap: 2px;
+      transform: rotate(-2deg);
+      opacity: 0.95;
+    }
+
+    .map-cells span {
+      border-radius: 2px;
+      background: rgba(51, 209, 122, 0.22);
+      border: 1px solid rgba(51, 209, 122, 0.23);
+    }
+
+    .map-cells .blocked {
+      background: rgba(240, 82, 82, 0.2);
+      border-color: rgba(240, 82, 82, 0.22);
+    }
+
+    .map-cells .path {
+      background: rgba(250, 204, 21, 0.9);
+      border-color: rgba(255, 244, 153, 0.95);
+    }
+
+    .map-cells .portal {
+      background: rgba(139, 140, 246, 0.85);
+      border-color: rgba(199, 210, 254, 0.95);
+    }
+
+    .map-cells .goal {
+      background: rgba(251, 146, 60, 0.95);
+      border-color: rgba(255, 237, 213, 0.9);
+    }
+
+    .map-cells .selected {
+      outline: 3px solid white;
+      box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.7), 0 0 24px rgba(45, 212, 191, 0.45);
+      z-index: 2;
+    }
+
+    .floating-palette {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+      padding: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 8px;
+      background: rgba(9, 12, 16, 0.78);
+      backdrop-filter: blur(16px);
+    }
+
+    .floating-palette button {
+      height: 32px;
+      border: 1px solid #344151;
+      border-radius: 6px;
+      color: #d7e0e8;
+      background: rgba(25, 31, 40, 0.84);
+      font: inherit;
+      font-size: 11px;
+    }
+
+    .floating-palette .active {
+      color: #061417;
+      background: var(--teal);
+      border-color: var(--teal);
+    }
+
+    .layer-list {
+      display: grid;
+      gap: 5px;
+    }
+
+    .layer-row {
+      height: 30px;
+      display: grid;
+      grid-template-columns: 18px 1fr auto;
+      align-items: center;
+      gap: 8px;
+      padding: 0 9px;
+      border: 1px solid #293340;
+      border-radius: 6px;
+      color: #cfd9e3;
+      background: #10151c;
+      font-size: 12px;
+    }
+
+    .layer-row.active {
+      border-color: rgba(45, 212, 191, 0.58);
+      background: rgba(45, 212, 191, 0.09);
+    }
+
+    .layer-icon {
+      width: 13px;
+      height: 13px;
+      border-radius: 3px;
+      border: 1px solid #5b6878;
+      background: #1f2935;
+    }
+
+    .command-bar {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      padding: 6px;
+      border: 1px solid #303a47;
+      border-radius: 8px;
+      background: #0e1218;
+    }
+
+    .command-bar button {
+      height: 32px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      color: #cfd9e3;
+      background: transparent;
+      font: inherit;
+      font-size: 11px;
+    }
+
+    .command-bar .active {
+      color: #111827;
+      background: #facc15;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .field {
+      min-height: 48px;
+      padding: 8px;
+      border: 1px solid #2d3745;
+      border-radius: 7px;
+      background: #10151c;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .field b {
+      display: block;
+      margin-top: 4px;
+      color: #e4ebf2;
+      font-size: 13px;
+    }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: 64px 1fr;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .timeline-labels {
+      display: grid;
+      grid-template-rows: repeat(4, 1fr);
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .timeline-bars {
+      display: grid;
+      grid-template-rows: repeat(4, 1fr);
+      gap: 7px;
+    }
+
+    .bar {
+      height: 20px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--cyan), rgba(56, 189, 248, 0.1));
+    }
+
+    .bar.short { width: 48%; background: linear-gradient(90deg, var(--green), rgba(51, 209, 122, 0.08)); }
+    .bar.mid { width: 72%; background: linear-gradient(90deg, var(--yellow), rgba(250, 204, 21, 0.08)); }
+    .bar.long { width: 92%; background: linear-gradient(90deg, var(--violet), rgba(139, 140, 246, 0.08)); }
+
+    .variant-b .panel-top { background: #151b22; }
+    .variant-b .segmented .active { background: var(--cyan); border-color: var(--cyan); }
+    .variant-c .plugin-panel { background: #10151c; }
+    .variant-c .panel-body { padding: 12px; }
+    .variant-d .panel-top { background: #181a20; }
+    .variant-d .segmented .active { background: var(--yellow); border-color: var(--yellow); }
+  </style>
+</head>
+<body>
+  <main class="board">
+    <header class="board-header">
+      <div>
+        <h1>Grid Platform Editor - Plugin UI Concepts</h1>
+        <div class="subtitle">Four modern directions for the same Roblox Studio workflow: paint cells, edit paths, manage portals, calibrate the platform, and prepare stage profiles.</div>
+      </div>
+      <div class="select-note">
+        Pick the letter you like most, or mix parts: for example "B layout with C map and D inspector." These are mockups only; no plugin code is changed yet.
+      </div>
+    </header>
+
+    <section class="concept-grid">
+      <article class="concept variant-a">
+        <div class="concept-title"><strong>A. Precision Console</strong><span>compact, direct, safest default</span></div>
+        <div class="plugin-panel">
+          <div class="panel-top">
+            <div class="panel-title"><b>Grid Platform Editor</b><small>FirstPrivateIsland / Stage 01</small></div>
+            <div class="status-dot"></div>
+          </div>
+          <div class="panel-body">
+            <div class="section">
+              <div class="target-bar">
+                <div><b>GamePlatform</b><small>32 x 27 cells, 4 studs, aligned</small></div>
+                <span class="pill">Live edit</span>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-head">Mode <span class="meta">hover paints exact cell</span></div>
+              <div class="segmented">
+                <button class="active">Paint</button>
+                <button>Path</button>
+                <button>Setup</button>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-head">Brush</div>
+              <div class="tool-grid">
+                <button class="tool-button active"><span class="mark"></span>Legal</button>
+                <button class="tool-button"><span class="mark" style="color: var(--red)"></span>Illegal</button>
+                <button class="tool-button"><span class="mark" style="color: var(--yellow)"></span>Path</button>
+                <button class="tool-button"><span class="mark" style="color: var(--violet)"></span>Portal</button>
+                <button class="tool-button"><span class="mark" style="color: var(--orange)"></span>Goal</button>
+                <button class="tool-button"><span class="mark" style="color: var(--cyan)"></span>Auto</button>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-head">Grid Preview <span class="meta">cell 14, 11</span></div>
+              <div class="grid-preview"><div class="paint-cell one"></div></div>
+              <div class="legend">
+                <div class="legend-item"><span class="swatch"></span>Legal</div>
+                <div class="legend-item"><span class="swatch bad"></span>Blocked</div>
+                <div class="legend-item"><span class="swatch path"></span>Path</div>
+                <div class="legend-item"><span class="swatch portal"></span>Portal</div>
+                <div class="legend-item"><span class="swatch goal"></span>Goal</div>
+                <div class="legend-item"><span class="swatch auto"></span>Auto</div>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-head">Platform</div>
+              <div class="tool-row">
+                <button class="tool-button">Calibrate</button>
+                <button class="tool-button">Snap</button>
+                <button class="tool-button">Select</button>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-head">Selection</div>
+              <div class="property-row"><span>Cell</span><b>14, 11</b></div>
+              <div class="property-row"><span>Type</span><b>Legal build</b></div>
+              <div class="property-row"><span>World</span><b>-12, 8, 24</b></div>
+            </div>
+            <div class="status-strip"><span>Ready to paint</span><span>Undo safe</span></div>
+          </div>
+        </div>
+        <div class="note">Best if we want the plugin to feel like a serious Studio utility immediately. Fast, restrained, easy to ship.</div>
+      </article>
+
+      <article class="concept variant-b">
+        <div class="concept-title"><strong>B. Stage Control</strong><span>profiles, levels, secluded editing</span></div>
+        <div class="plugin-panel">
+          <div class="panel-top">
+            <div class="panel-title"><b>Stage Builder</b><small>Private tower defense tools</small></div>
+            <span class="pill">Stage 01</span>
+          </div>
+          <div class="panel-body">
+            <div class="section">
+              <div class="section-head">Stage Profiles <span class="meta">private local tool</span></div>
+              <div class="stage-list">
+                <div class="stage-item active"><div><b>First Private Island</b><small>1 path, 2 portals, 18 auto slots</small></div><span class="stage-badge">OPEN</span></div>
+                <div class="stage-item"><div><b>Forest Bend</b><small>draft profile, hidden in live game</small></div><span class="stage-badge">DRAFT</span></div>
+                <div class="stage-item"><div><b>Secluded Test Pad</b><small>isolated edit copy</small></div><span class="stage-badge">TEST</span></div>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-head">Stage Workflow</div>
+              <div class="workflow">
+                <div class="workflow-step"><b>1</b>Clone stage</div>
+                <div class="workflow-step"><b>2</b>Paint grid</div>
+                <div class="workflow-step"><b>3</b>Set path</div>
+                <div class="workflow-step"><b>4</b>Export</div>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-head">Paint Mode</div>
+              <div class="segmented">
+                <button class="active">Build</button>
+                <button>Block</button>
+                <button>Spawn</button>
+                <button>Auto</button>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-head">Active Stage Grid</div>
+              <div class="grid-preview"><div class="paint-cell one" style="left: 38%; top: 56%; background: rgba(56, 189, 248, 0.55)"></div></div>
+            </div>
+            <div class="section">
+              <div class="section-head">Stage Actions</div>
+              <div class="tool-grid">
+                <button class="tool-button active">Open</button>
+                <button class="tool-button">Duplicate</button>
+                <button class="tool-button">Detach</button>
+                <button class="tool-button">Portal</button>
+                <button class="tool-button">Goal</button>
+                <button class="tool-button">Export</button>
+              </div>
+            </div>
+            <div class="status-strip"><span>Editing isolated stage copy</span><span>Not public</span></div>
+          </div>
+        </div>
+        <div class="note">Best if we want stages/levels to become first-class soon. This is the cleanest direction for profiles and secluded editing.</div>
+      </article>
+
+      <article class="concept variant-c">
+        <div class="concept-title"><strong>C. Canvas First</strong><span>visual map, strongest paint feedback</span></div>
+        <div class="plugin-panel">
+          <div class="panel-top">
+            <div class="panel-title"><b>Grid Paint</b><small>FirstPrivateIsland / 32 x 27</small></div>
+            <span class="pill">Cell 14, 11</span>
+          </div>
+          <div class="panel-body">
+            <div class="section">
+              <div class="big-map">
+                <div class="map-cells" data-map="canvas"></div>
+                <div class="floating-palette">
+                  <button class="active">Legal</button>
+                  <button>Block</button>
+                  <button>Path</button>
+                  <button>Portal</button>
+                  <button>Goal</button>
+                  <button>Auto</button>
+                </div>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-head">Quick Commands</div>
+              <div class="mini-actions">
+                <button class="mini-action active">Paint</button>
+                <button class="mini-action">Spline</button>
+                <button class="mini-action">Calibrate</button>
+                <button class="mini-action">Export</button>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-head">Path Spline <span class="meta">8 control points</span></div>
+              <div class="timeline">
+                <div class="timeline-labels"><span>Portal</span><span>Curve</span><span>Turn</span><span>Goal</span></div>
+                <div class="timeline-bars">
+                  <span class="bar short"></span>
+                  <span class="bar long"></span>
+                  <span class="bar mid"></span>
+                  <span class="bar"></span>
+                </div>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-head">Hover Target</div>
+              <div class="property-row"><span>Preview</span><b>strong overlay frame</b></div>
+              <div class="property-row"><span>Paint commit</span><b>same cached cell</b></div>
+              <div class="property-row"><span>Drag</span><b>continuous brush</b></div>
+            </div>
+            <div class="status-strip"><span>Painting legal cells</span><span>14, 11</span></div>
+          </div>
+        </div>
+        <div class="note">Best if the current pain is confidence while painting. The map owns the experience; controls are secondary and out of the way.</div>
+      </article>
+
+      <article class="concept variant-d">
+        <div class="concept-title"><strong>D. Inspector Pro</strong><span>power-user, scalable systems</span></div>
+        <div class="plugin-panel">
+          <div class="panel-top">
+            <div class="panel-title"><b>TD Level Tools</b><small>Grid, paths, portals, auto-place</small></div>
+            <div class="status-dot" style="background: var(--yellow); box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.13)"></div>
+          </div>
+          <div class="panel-body">
+            <div class="section">
+              <div class="command-bar">
+                <button class="active">Paint</button>
+                <button>Path</button>
+                <button>Portal</button>
+                <button>Auto</button>
+                <button>Data</button>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-head">Layer Tree <span class="meta">visible / locked</span></div>
+              <div class="layer-list">
+                <div class="layer-row active"><span class="layer-icon"></span><span>Grid cells</span><span>872</span></div>
+                <div class="layer-row"><span class="layer-icon"></span><span>Path spline</span><span>8</span></div>
+                <div class="layer-row"><span class="layer-icon"></span><span>Portal spawns</span><span>2</span></div>
+                <div class="layer-row"><span class="layer-icon"></span><span>Goal zones</span><span>1</span></div>
+                <div class="layer-row"><span class="layer-icon"></span><span>Auto-place slots</span><span>18</span></div>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-head">Viewport</div>
+              <div class="grid-preview"><div class="paint-cell one" style="left: 62%; top: 35%; background: rgba(250, 204, 21, 0.58)"></div></div>
+            </div>
+            <div class="section">
+              <div class="section-head">Properties</div>
+              <div class="field-grid">
+                <div class="field">Column<b>14</b></div>
+                <div class="field">Row<b>11</b></div>
+                <div class="field">Type<b>Path</b></div>
+                <div class="field">Cost<b>Allowed</b></div>
+                <div class="field">Stage<b>Stage 01</b></div>
+                <div class="field">Brush<b>1 x 1</b></div>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-head">Operations</div>
+              <div class="tool-row">
+                <button class="tool-button">Validate</button>
+                <button class="tool-button active">Apply</button>
+                <button class="tool-button">Export</button>
+              </div>
+            </div>
+            <div class="status-strip"><span>1 warning: portal is near edge</span><span>Review</span></div>
+          </div>
+        </div>
+        <div class="note">Best if the plugin will grow into a full production editor. More powerful, but it asks more from the user.</div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const maps = document.querySelectorAll("[data-map='canvas']");
+    maps.forEach((map) => {
+      for (let index = 0; index < 288; index += 1) {
+        const cell = document.createElement("span");
+        const column = index % 16;
+        const row = Math.floor(index / 16);
+        if ((column === 2 && row < 4) || (column > 11 && row > 12)) cell.className = "blocked";
+        if ((column === 5 && row > 2 && row < 12) || (row === 11 && column > 4 && column < 12) || (column === 11 && row > 10 && row < 16)) cell.className = "path";
+        if (column === 5 && row === 2) cell.className = "portal";
+        if (column === 11 && row === 16) cell.className = "goal";
+        if (column === 8 && row === 9) cell.className = "selected";
+        map.appendChild(cell);
+      }
+    });
+  </script>
+</body>
+</html>
