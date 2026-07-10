@@ -593,7 +593,14 @@ expectEqual(
 local gridPatchProject = fs.readFile("patches/rng-defender-grid-demo.project.json")
 for _, patchObject in
 	{
+		'"Template"',
+		'"Shared"',
+		'"TemplateServer"',
 		'"GridNpcDemo"',
+		'"RuneCircle"',
+		'"RuneCircleSign"',
+		'"RuneCircleUI"',
+		'"RuneCircleClient"',
 		'"FirstPrivateIsland"',
 		'"servePlaceIds": [128136881672145]',
 	}
@@ -602,6 +609,24 @@ do
 		string.find(gridPatchProject, patchObject, 1, true) ~= nil,
 		true,
 		`RNG Defender grid patch includes {patchObject}`
+	)
+end
+local runeCircleWorld = fs.readFile("src/world/RuneCircle.model.json")
+for _, runeCircleObject in
+	{
+		'"Name": "Platform"',
+		'"Name": "GlowRing"',
+		'"Name": "CoreGlow"',
+		'"Name": "RuneLight"',
+		'"Name": "Shard1"',
+		'"Name": "Shard2"',
+		'"Name": "Shard3"',
+	}
+do
+	expectEqual(
+		string.find(runeCircleWorld, runeCircleObject, 1, true) ~= nil,
+		true,
+		`rune test altar pre-authors {runeCircleObject}`
 	)
 end
 for _, removedPatchObject in

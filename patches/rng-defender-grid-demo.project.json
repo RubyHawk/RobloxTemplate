@@ -3,14 +3,49 @@
   "servePlaceIds": [128136881672145],
   "tree": {
     "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$ignoreUnknownInstances": true,
+      "Template": {
+        "$className": "Folder",
+        "Shared": {
+          "$path": "../src/shared"
+        }
+      }
+    },
     "ServerScriptService": {
       "$ignoreUnknownInstances": true,
+      "TemplateServer": {
+        "$path": "../src/server"
+      },
       "GridNpcDemo": {
         "$path": "../src/starter/GridNpcDemo.server.luau"
+      },
+      "RuneCircle": {
+        "$path": "../src/starter/RuneCircle.server.luau"
+      }
+    },
+    "StarterGui": {
+      "$ignoreUnknownInstances": true,
+      "RuneCircleSign": {
+        "$path": "../src/ui/RuneCircleSign.model.json"
+      },
+      "RuneCircleUI": {
+        "$path": "../src/ui/RuneCircleUI.model.json"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "$ignoreUnknownInstances": true,
+        "RuneCircleClient": {
+          "$path": "../src/starter-client/RuneCircle.client.luau"
+        }
       }
     },
     "Workspace": {
       "$ignoreUnknownInstances": true,
+      "RuneCircle": {
+        "$path": "../src/world/RuneCircle.model.json"
+      },
       "FirstPrivateIsland": {
         "$path": "../src/world/FirstPrivateIslandGridDemo.model.json"
       }

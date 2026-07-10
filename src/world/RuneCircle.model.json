@@ -1,0 +1,222 @@
+{
+  "ClassName": "Model",
+  "Children": [
+    {
+      "Name": "Platform",
+      "ClassName": "Part",
+      "Properties": {
+        "Anchored": true,
+        "CanCollide": true,
+        "CastShadow": false,
+        "Color": [
+          0.129411,
+          0.086274,
+          0.219607
+        ],
+        "Material": "SmoothPlastic",
+        "Orientation": [
+          0,
+          0,
+          90
+        ],
+        "Position": [
+          6,
+          20.9,
+          58
+        ],
+        "Shape": "Cylinder",
+        "Size": [
+          0.6,
+          14,
+          14
+        ]
+      },
+      "Children": []
+    },
+    {
+      "Name": "GlowRing",
+      "ClassName": "Part",
+      "Properties": {
+        "Anchored": true,
+        "CanCollide": false,
+        "CanQuery": false,
+        "CanTouch": false,
+        "CastShadow": false,
+        "Color": [
+          0.549019,
+          0.360784,
+          0.960784
+        ],
+        "Material": "Neon",
+        "Orientation": [
+          0,
+          0,
+          90
+        ],
+        "Position": [
+          6,
+          20.72,
+          58
+        ],
+        "Shape": "Cylinder",
+        "Size": [
+          0.3,
+          16.6,
+          16.6
+        ],
+        "Transparency": 0.1
+      },
+      "Children": []
+    },
+    {
+      "Name": "CoreGlow",
+      "ClassName": "Part",
+      "Properties": {
+        "Anchored": true,
+        "CanCollide": false,
+        "CanQuery": false,
+        "CanTouch": false,
+        "CastShadow": false,
+        "Color": [
+          0.721568,
+          0.549019,
+          1
+        ],
+        "Material": "Neon",
+        "Orientation": [
+          0,
+          0,
+          90
+        ],
+        "Position": [
+          6,
+          20.94,
+          58
+        ],
+        "Shape": "Cylinder",
+        "Size": [
+          0.62,
+          7,
+          7
+        ],
+        "Transparency": 0.25
+      },
+      "Children": [
+        {
+          "Name": "RuneLight",
+          "ClassName": "PointLight",
+          "Properties": {
+            "Brightness": 2.5,
+            "Color": [
+              0.619607,
+              0.419607,
+              1
+            ],
+            "Range": 20,
+            "Shadows": false
+          },
+          "Children": []
+        }
+      ]
+    },
+    {
+      "Name": "Shard1",
+      "ClassName": "Part",
+      "Properties": {
+        "Anchored": true,
+        "CanCollide": false,
+        "CanQuery": false,
+        "CanTouch": false,
+        "CastShadow": false,
+        "Color": [
+          0.898039,
+          0.619607,
+          1
+        ],
+        "Material": "Neon",
+        "Orientation": [
+          0,
+          0,
+          12
+        ],
+        "Position": [
+          11.5,
+          23.2,
+          58
+        ],
+        "Size": [
+          0.9,
+          1.5,
+          0.4
+        ]
+      },
+      "Children": []
+    },
+    {
+      "Name": "Shard2",
+      "ClassName": "Part",
+      "Properties": {
+        "Anchored": true,
+        "CanCollide": false,
+        "CanQuery": false,
+        "CanTouch": false,
+        "CastShadow": false,
+        "Color": [
+          0.898039,
+          0.619607,
+          1
+        ],
+        "Material": "Neon",
+        "Orientation": [
+          0,
+          120,
+          -8
+        ],
+        "Position": [
+          3.25,
+          23.2,
+          62.76
+        ],
+        "Size": [
+          0.9,
+          1.5,
+          0.4
+        ]
+      },
+      "Children": []
+    },
+    {
+      "Name": "Shard3",
+      "ClassName": "Part",
+      "Properties": {
+        "Anchored": true,
+        "CanCollide": false,
+        "CanQuery": false,
+        "CanTouch": false,
+        "CastShadow": false,
+        "Color": [
+          0.898039,
+          0.619607,
+          1
+        ],
+        "Material": "Neon",
+        "Orientation": [
+          0,
+          240,
+          10
+        ],
+        "Position": [
+          3.25,
+          23.2,
+          53.24
+        ],
+        "Size": [
+          0.9,
+          1.5,
+          0.4
+        ]
+      },
+      "Children": []
+    }
+  ]
+}
