@@ -1,6 +1,7 @@
 --!strict
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
+local CoreGui = game:GetService("CoreGui")
 local Selection = game:GetService("Selection")
 local Workspace = game:GetService("Workspace")
 
@@ -17,6 +18,7 @@ local PORTAL_COLOR = Color3.fromRGB(99, 102, 241)
 local GOAL_COLOR = Color3.fromRGB(255, 147, 51)
 local AUTOPLACE_COLOR = Color3.fromRGB(14, 165, 233)
 local CONTROL_POINT_COLOR = Color3.fromRGB(255, 46, 31)
+local HOVER_COLOR = Color3.fromRGB(255, 255, 255)
 local PANEL_BG = Color3.fromRGB(28, 30, 36)
 local PANEL_SECTION = Color3.fromRGB(38, 41, 49)
 local BUTTON_BG = Color3.fromRGB(58, 63, 74)
@@ -37,6 +39,7 @@ local PATH_TILE_DIAMETER = 4.45
 local PATH_GRID_RADIUS = 4.35
 local PATH_GRID_SAMPLE_STEP = 0.8
 local SPLINE_SAMPLES_PER_SEGMENT = 24
+local HOVER_PREVIEW_NAME = "GridHoverPreview"
 
 type PaintMode = "Toggle" | "Legal" | "Illegal" | "Portal" | "Goal" | "AutoPlace"
 type CellCode = "." | "#" | "P" | "G" | "A"
@@ -69,10 +72,17 @@ local splineAddActive = false
 local splineAddButton: TextButton
 local gridButton: TextButton
 local platformButton: TextButton
+local hoverAdornment: BoxHandleAdornment? = nil
+local hoverCellKey: string? = nil
+local dragPainting = false
+local dragPaintRecording: string? = nil
+local dragPaintedCells: { [string]: boolean } = {}
 
-local function setStatus(message: string)
+local function setStatus(message: string, quiet: boolean?)
 	statusLabel.Text = message
-	print(`Grid Platform Editor: {message}`)
+	if quiet ~= true then
+		print(`Grid Platform Editor: {message}`)
+	end
 end
 
 local function createLabel(
@@ -484,6 +494,10 @@ local function cellName(column: number, row: number): string
 	return `Cell_{string.format("%02d", column)}_{string.format("%02d", row)}`
 end
 
+local function gridCellKey(column: number, row: number): string
+	return `{column}:{row}`
+end
+
 local function rowString(platform: Model, row: number): StringValue?
 	local folder = mapFolder(platform)
 	if folder == nil then
@@ -535,6 +549,19 @@ local function isCellBuildable(platform: Model, column: number, row: number): bo
 	return code == "." or code == "A"
 end
 
+local function colorForCellCode(code: CellCode): Color3
+	if code == "P" then
+		return PORTAL_COLOR
+	elseif code == "G" then
+		return GOAL_COLOR
+	elseif code == "A" then
+		return AUTOPLACE_COLOR
+	elseif code == "#" then
+		return ILLEGAL_COLOR
+	end
+	return LEGAL_COLOR
+end
+
 local function updateCellVisual(platform: Model, column: number, row: number)
 	local frame = cellFrame(platform, column, row)
 	if frame == nil then
@@ -542,22 +569,11 @@ local function updateCellVisual(platform: Model, column: number, row: number)
 	end
 
 	local code = cellCode(platform, column, row)
-	if code == "P" then
-		frame.BackgroundColor3 = PORTAL_COLOR
-		frame.BackgroundTransparency = SPECIAL_TRANSPARENCY
-	elseif code == "G" then
-		frame.BackgroundColor3 = GOAL_COLOR
-		frame.BackgroundTransparency = SPECIAL_TRANSPARENCY
-	elseif code == "A" then
-		frame.BackgroundColor3 = AUTOPLACE_COLOR
-		frame.BackgroundTransparency = LEGAL_TRANSPARENCY
-	elseif code == "#" then
-		frame.BackgroundColor3 = ILLEGAL_COLOR
-		frame.BackgroundTransparency = ILLEGAL_TRANSPARENCY
-	else
-		frame.BackgroundColor3 = LEGAL_COLOR
-		frame.BackgroundTransparency = LEGAL_TRANSPARENCY
-	end
+	frame.BackgroundColor3 = colorForCellCode(code)
+	frame.BackgroundTransparency = if code == "P" or code == "G"
+		then SPECIAL_TRANSPARENCY
+		elseif code == "#" then ILLEGAL_TRANSPARENCY
+		else LEGAL_TRANSPARENCY
 end
 
 local function updateAllCellVisuals(platform: Model)
@@ -659,6 +675,46 @@ local function finishRecording(recording: string?)
 	end
 end
 
+local function finishPaintDrag()
+	if dragPainting then
+		finishRecording(dragPaintRecording)
+	end
+	dragPainting = false
+	dragPaintRecording = nil
+	dragPaintedCells = {}
+end
+
+local function clearHoverPreview()
+	hoverCellKey = nil
+	if hoverAdornment ~= nil then
+		hoverAdornment.Visible = false
+		hoverAdornment.Adornee = nil
+	end
+end
+
+local function ensureHoverPreview(): BoxHandleAdornment
+	if hoverAdornment ~= nil and hoverAdornment.Parent ~= nil then
+		return hoverAdornment
+	end
+	local existing = CoreGui:FindFirstChild(HOVER_PREVIEW_NAME)
+	if existing ~= nil and existing:IsA("BoxHandleAdornment") then
+		hoverAdornment = existing
+		return existing
+	end
+
+	local adornment = Instance.new("BoxHandleAdornment")
+	adornment.Name = HOVER_PREVIEW_NAME
+	adornment.AlwaysOnTop = true
+	adornment.Archivable = false
+	adornment.Color3 = HOVER_COLOR
+	adornment.Transparency = 0.25
+	adornment.ZIndex = 10
+	adornment.Visible = false
+	adornment.Parent = CoreGui
+	hoverAdornment = adornment
+	return adornment
+end
+
 local function updateModeButtons()
 	for mode, button in modeButtons do
 		button.BackgroundColor3 = if activeMode == mode then BUTTON_ACTIVE else BUTTON_BG
@@ -666,6 +722,8 @@ local function updateModeButtons()
 end
 
 local function setMode(mode: PaintMode?, skipPluginDeactivate: boolean?)
+	finishPaintDrag()
+	clearHoverPreview()
 	local shouldDeactivate = activeMode ~= nil and mode == nil
 	if mode ~= nil and splineAddActive then
 		splineAddActive = false
@@ -687,6 +745,8 @@ local function setMode(mode: PaintMode?, skipPluginDeactivate: boolean?)
 end
 
 local function setSplineAddMode(enabled: boolean, skipPluginDeactivate: boolean?)
+	finishPaintDrag()
+	clearHoverPreview()
 	if enabled then
 		setMode(nil)
 	end
@@ -723,6 +783,17 @@ local function cellAtWorldPosition(platform: Model, worldPosition: Vector3): (nu
 	return column, row
 end
 
+local function cellLocalCenter(platform: Model, column: number, row: number, yOffset: number): Vector3?
+	local base = platformBasePart(platform)
+	if base == nil then
+		return nil
+	end
+	local size = cellSize(platform)
+	local localX = -base.Size.X / 2 + (column - 0.5) * size
+	local localZ = -base.Size.Z / 2 + (row - 0.5) * size
+	return Vector3.new(localX, base.Size.Y / 2 + yOffset, localZ)
+end
+
 local function setCellCode(platform: Model, column: number, row: number, code: CellCode)
 	local rowValue = rowString(platform, row)
 	if rowValue == nil then
@@ -732,6 +803,67 @@ local function setCellCode(platform: Model, column: number, row: number, code: C
 	local old = rowValue.Value
 	rowValue.Value = string.sub(old, 1, column - 1) .. code .. string.sub(old, column + 1)
 	updateCellVisual(platform, column, row)
+end
+
+local function nextCodeForPaintMode(platform: Model, column: number, row: number, mode: PaintMode): CellCode
+	if mode == "Legal" then
+		return "."
+	elseif mode == "Illegal" then
+		return "#"
+	elseif mode == "Portal" then
+		return "P"
+	elseif mode == "Goal" then
+		return "G"
+	elseif mode == "AutoPlace" then
+		return "A"
+	end
+	return if isCellBuildable(platform, column, row) then "#" else "."
+end
+
+local function updateHoverPreview(worldPosition: Vector3)
+	local platform = platformModel()
+	if platform == nil or (activeMode == nil and not splineAddActive) then
+		clearHoverPreview()
+		return
+	end
+
+	local column, row = cellAtWorldPosition(platform, worldPosition)
+	if column == nil or row == nil then
+		clearHoverPreview()
+		return
+	end
+
+	local base = platformBasePart(platform)
+	local center = cellLocalCenter(platform, column, row, 0.16)
+	if base == nil or center == nil then
+		clearHoverPreview()
+		return
+	end
+
+	local preview = ensureHoverPreview()
+	preview.Adornee = base
+	preview.CFrame = CFrame.new(center)
+	preview.Size = Vector3.new(cellSize(platform) - 0.16, 0.18, cellSize(platform) - 0.16)
+	preview.Color3 = if activeMode ~= nil
+		then colorForCellCode(nextCodeForPaintMode(platform, column, row, activeMode))
+		else CONTROL_POINT_COLOR
+	preview.Transparency = if activeMode ~= nil then 0.12 else 0.28
+	preview.Visible = true
+
+	local nextHoverCellKey = gridCellKey(column, row)
+	if nextHoverCellKey ~= hoverCellKey then
+		hoverCellKey = nextHoverCellKey
+		if activeMode ~= nil then
+			local currentCode = cellCode(platform, column, row)
+			local nextCode = nextCodeForPaintMode(platform, column, row, activeMode)
+			setStatus(
+				`Hover cell {column}, {row}: {currentCode} -> {nextCode}. Hold click and drag to paint.`,
+				true
+			)
+		else
+			setStatus(`Hover cell {column}, {row}: click to add a spline point.`, true)
+		end
+	end
 end
 
 local function numberedName(prefix: string, index: number): string
@@ -1274,38 +1406,27 @@ local function paintCellAt(worldPosition: Vector3, mode: PaintMode)
 	local platform = platformModel()
 	if platform == nil then
 		setStatus("GamePlatform is missing. Connect Rojo first.")
-		return
+		return false
 	end
 
 	local column, row = cellAtWorldPosition(platform, worldPosition)
 	if column == nil or row == nil then
 		setStatus("Click inside the platform rectangle.")
-		return
+		return false
 	end
 
-	local recording = beginRecording(`Paint cell {mode}`)
-	if recording == nil then
-		return
+	local paintedKey = gridCellKey(column, row)
+	if dragPaintedCells[paintedKey] == true then
+		return false
 	end
+	dragPaintedCells[paintedKey] = true
 
-	local nextCode: CellCode
-	if mode == "Legal" then
-		nextCode = "."
-	elseif mode == "Illegal" then
-		nextCode = "#"
-	elseif mode == "Portal" then
-		nextCode = "P"
-	elseif mode == "Goal" then
-		nextCode = "G"
-	elseif mode == "AutoPlace" then
-		nextCode = "A"
-	else
-		nextCode = if isCellBuildable(platform, column, row) then "#" else "."
-	end
+	local nextCode = nextCodeForPaintMode(platform, column, row, mode)
 	setCellCode(platform, column, row, nextCode)
 
-	finishRecording(recording)
 	setStatus(`Painted cell {column}, {row} as {nextCode}.`)
+	updateHoverPreview(worldPosition)
+	return true
 end
 
 local function selectPlatform()
@@ -1550,10 +1671,33 @@ mouse.Button1Down:Connect(function()
 	if activeMode == nil then
 		return
 	end
-	paintCellAt(mouse.Hit.Position, activeMode)
+
+	local recording = beginRecording(`Paint grid cells {activeMode}`)
+	if recording == nil then
+		return
+	end
+	dragPainting = true
+	dragPaintRecording = recording
+	dragPaintedCells = {}
+	if not paintCellAt(mouse.Hit.Position, activeMode) then
+		finishPaintDrag()
+	end
+end)
+
+mouse.Move:Connect(function()
+	updateHoverPreview(mouse.Hit.Position)
+	if dragPainting and activeMode ~= nil then
+		paintCellAt(mouse.Hit.Position, activeMode)
+	end
+end)
+
+mouse.Button1Up:Connect(function()
+	finishPaintDrag()
 end)
 
 plugin.Deactivation:Connect(function()
+	finishPaintDrag()
+	clearHoverPreview()
 	setMode(nil, true)
 	setSplineAddMode(false, true)
 end)

@@ -43,6 +43,7 @@ type Placement = {
 
 type Enemy = {
 	id: string,
+	name: string,
 	health: number,
 	maxHealth: number,
 	speed: number,
@@ -93,6 +94,9 @@ local PATH_POINTS_NAME = "PathPoints"
 local SPLINE_SAMPLES_PER_SEGMENT = 18
 local ENEMY_VERTICAL_OFFSET = 1.25
 local TOWER_VERTICAL_OFFSET = 1.35
+local NAMEPLATE_NAME = "DebugNameplate"
+local HEALTH_BAR_FILL_NAME = "HealthBarFill"
+local HEALTH_TEXT_NAME = "HealthText"
 local rng = Random.new()
 local matches: { [Player]: MatchState } = {}
 local publishSnapshot: ((player: Player) -> ())? = nil
@@ -334,6 +338,126 @@ local function ensureRuntimeFolder(player: Player, match: MatchState): Folder
 	return folder
 end
 
+local function createDebugNameplate(
+	part: BasePart,
+	title: string,
+	subtitle: string,
+	fillColor: Color3
+): BillboardGui
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = NAMEPLATE_NAME
+	billboard.Adornee = part
+	billboard.AlwaysOnTop = true
+	billboard.LightInfluence = 0
+	billboard.MaxDistance = 220
+	billboard.Size = UDim2.fromOffset(170, 58)
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, 2.9, 0)
+	billboard.Parent = part
+
+	local root = Instance.new("Frame")
+	root.Name = "Root"
+	root.BackgroundColor3 = Color3.fromRGB(12, 18, 16)
+	root.BackgroundTransparency = 0.18
+	root.BorderSizePixel = 0
+	root.Size = UDim2.fromScale(1, 1)
+	root.Parent = billboard
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 6)
+	corner.Parent = root
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(184, 226, 181)
+	stroke.Transparency = 0.22
+	stroke.Thickness = 1
+	stroke.Parent = root
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Name = "NameText"
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Font = Enum.Font.SourceSansBold
+	nameLabel.Position = UDim2.fromOffset(8, 3)
+	nameLabel.Size = UDim2.new(1, -16, 0, 20)
+	nameLabel.Text = title
+	nameLabel.TextColor3 = Color3.fromRGB(242, 255, 237)
+	nameLabel.TextScaled = true
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Center
+	nameLabel.Parent = root
+
+	local subtitleLabel = Instance.new("TextLabel")
+	subtitleLabel.Name = "SubtitleText"
+	subtitleLabel.BackgroundTransparency = 1
+	subtitleLabel.Font = Enum.Font.SourceSans
+	subtitleLabel.Position = UDim2.fromOffset(8, 23)
+	subtitleLabel.Size = UDim2.new(1, -16, 0, 14)
+	subtitleLabel.Text = subtitle
+	subtitleLabel.TextColor3 = Color3.fromRGB(190, 214, 188)
+	subtitleLabel.TextScaled = true
+	subtitleLabel.TextXAlignment = Enum.TextXAlignment.Center
+	subtitleLabel.Parent = root
+
+	local bar = Instance.new("Frame")
+	bar.Name = "HealthBar"
+	bar.BackgroundColor3 = Color3.fromRGB(42, 51, 46)
+	bar.BorderSizePixel = 0
+	bar.Position = UDim2.fromOffset(10, 40)
+	bar.Size = UDim2.new(1, -20, 0, 9)
+	bar.Parent = root
+
+	local barCorner = Instance.new("UICorner")
+	barCorner.CornerRadius = UDim.new(1, 0)
+	barCorner.Parent = bar
+
+	local fill = Instance.new("Frame")
+	fill.Name = HEALTH_BAR_FILL_NAME
+	fill.BackgroundColor3 = fillColor
+	fill.BorderSizePixel = 0
+	fill.Size = UDim2.fromScale(1, 1)
+	fill.Parent = bar
+
+	local fillCorner = Instance.new("UICorner")
+	fillCorner.CornerRadius = UDim.new(1, 0)
+	fillCorner.Parent = fill
+
+	local healthText = Instance.new("TextLabel")
+	healthText.Name = HEALTH_TEXT_NAME
+	healthText.BackgroundTransparency = 1
+	healthText.Font = Enum.Font.SourceSansBold
+	healthText.Position = UDim2.fromOffset(10, 39)
+	healthText.Size = UDim2.new(1, -20, 0, 11)
+	healthText.TextColor3 = Color3.fromRGB(255, 255, 255)
+	healthText.TextScaled = true
+	healthText.TextXAlignment = Enum.TextXAlignment.Center
+	healthText.Parent = root
+
+	return billboard
+end
+
+local function setNameplateBar(part: BasePart?, current: number, maximum: number, label: string?)
+	if part == nil then
+		return
+	end
+	local billboard = part:FindFirstChild(NAMEPLATE_NAME)
+	if billboard == nil or not billboard:IsA("BillboardGui") then
+		return
+	end
+	local root = billboard:FindFirstChild("Root")
+	if root == nil or not root:IsA("Frame") then
+		return
+	end
+	local bar = root:FindFirstChild("HealthBar")
+	local healthText = root:FindFirstChild(HEALTH_TEXT_NAME)
+	if bar ~= nil and bar:IsA("Frame") then
+		local fill = bar:FindFirstChild(HEALTH_BAR_FILL_NAME)
+		if fill ~= nil and fill:IsA("Frame") then
+			fill.Size = UDim2.fromScale(math.clamp(current / math.max(maximum, 1), 0, 1), 1)
+		end
+	end
+	if healthText ~= nil and healthText:IsA("TextLabel") then
+		healthText.Text = label or `{math.max(math.ceil(current), 0)}/{math.max(math.ceil(maximum), 1)} HP`
+	end
+end
+
 local function createTowerPart(player: Player, match: MatchState, placement: Placement): BasePart
 	local part = Instance.new("Part")
 	part.Name = placement.id
@@ -347,6 +471,14 @@ local function createTowerPart(player: Player, match: MatchState, placement: Pla
 	part.Material = Enum.Material.SmoothPlastic
 	part.CFrame = CFrame.new(placement.position) * CFrame.Angles(0, 0, math.rad(90))
 	part.Parent = ensureRuntimeFolder(player, match)
+	local unit = TowerDefenseCatalog.unit(placement.unitId)
+	createDebugNameplate(
+		part,
+		if unit ~= nil then unit.name else placement.unitId,
+		`Cell {placement.cell.column}, {placement.cell.row}`,
+		Color3.fromRGB(82, 196, 104)
+	)
+	setNameplateBar(part, 1, 1, "1/1 HP")
 	return part
 end
 
@@ -367,6 +499,8 @@ local function createEnemyPart(player: Player, match: MatchState, enemy: Enemy):
 	part.Material = Enum.Material.SmoothPlastic
 	part.Position = sampleSplinePath(path, 0)
 	part.Parent = ensureRuntimeFolder(player, match)
+	createDebugNameplate(part, enemy.name, enemy.id, Color3.fromRGB(239, 68, 68))
+	setNameplateBar(part, enemy.health, enemy.maxHealth, nil)
 	return part
 end
 
@@ -638,6 +772,7 @@ local function spawnEnemy(player: Player, match: MatchState)
 	local maxHealth = math.floor(enemyDefinition.health * match.enemyHealthScale)
 	local enemy: Enemy = {
 		id = `Enemy_{match.nextEnemyId}`,
+		name = enemyDefinition.name,
 		health = maxHealth,
 		maxHealth = maxHealth,
 		speed = enemyDefinition.speed,
@@ -810,6 +945,7 @@ local function tickTowers(player: Player, match: MatchState, now: number)
 		end
 		target.health -= unit.damage
 		placement.nextAttackAt = now + unit.fireRate
+		setNameplateBar(target.part, target.health, target.maxHealth, nil)
 		if target.health <= 0 then
 			EconomyService.awardCurrencyRaw(
 				player,

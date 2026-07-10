@@ -739,6 +739,11 @@ for _, pluginObject in
 		"Auto Place",
 		"CellCode",
 		"P = portal spawn",
+		"GridHoverPreview",
+		"BoxHandleAdornment",
+		"mouse.Move",
+		"Button1Up",
+		"dragPainting",
 		"Select Points",
 		"Rebuild Curve",
 		"Add Point",
@@ -1190,6 +1195,11 @@ for _, towerDefenseMarker in
 		"runtimeFolderName",
 		"RunService.Heartbeat",
 		"Portal, spline path, and goal need a valid route",
+		"BillboardGui",
+		"DebugNameplate",
+		"HealthBarFill",
+		"setNameplateBar",
+		"StudsOffsetWorldSpace",
 	}
 do
 	expectEqual(
