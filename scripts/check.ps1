@@ -68,6 +68,9 @@ Invoke-Checked "Incremental preset package build" {
 Invoke-Checked "RPG preset package build" {
     rojo build ui-packages\UI_RPG.project.json --output build\UI_RPG.rbxm
 }
+Invoke-Checked "Grid platform plugin build" {
+    rojo build plugins\grid-platform-editor.project.json --output build\GridPlatformEditPlugin.rbxm
+}
 Invoke-Checked "Game Designer UI smoke test" {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\game-designer.ps1 -SmokeTest
 }

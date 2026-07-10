@@ -8,6 +8,7 @@ local MigrationCore = require("../src/shared/MigrationCore")
 local ReceiptLedger = require("../src/shared/ReceiptLedger")
 local SessionLock = require("../src/server/Util/SessionLock")
 local fs = require("@lune/fs")
+local luau = require("@lune/luau")
 local serde = require("@lune/serde")
 
 local passed = 0
@@ -678,6 +679,33 @@ expectEqual(
 	) ~= nil,
 	true,
 	"ProductsGrid shifts down to match the taller StoreHeader"
+)
+
+-- The Studio grid plugin once died in the field with "Out of local registers
+-- when trying to allocate ...: exceeded limit 200": Luau caps local registers
+-- per scope, the plugin's flat top level had crept up to that cap, and one
+-- more feature stopped the whole script from compiling, so the toolbar button
+-- never appeared. Compile the shipped source and budget the top-level local
+-- count so the cliff stays far away.
+local gridPluginSource = fs.readFile("src/plugins/GridPlatformEditPlugin.server.luau")
+expectEqual(
+	pcall(function()
+		luau.compile(gridPluginSource)
+	end),
+	true,
+	"grid platform plugin compiles inside Luau register limits"
+)
+
+local gridPluginTopLevelLocals = 0
+for line in string.gmatch(gridPluginSource .. "\n", "(.-)\n") do
+	if string.sub(line, 1, 6) == "local " then
+		gridPluginTopLevelLocals += 1
+	end
+end
+expectEqual(
+	gridPluginTopLevelLocals <= 80,
+	true,
+	`grid plugin keeps top-level locals inside the register budget (found {gridPluginTopLevelLocals})`
 )
 
 print(`{passed} pure Luau assertions passed`)
