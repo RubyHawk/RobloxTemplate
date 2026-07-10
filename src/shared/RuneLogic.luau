@@ -1,7 +1,7 @@
 --!strict
 
--- Pure rune altar math: weighted rarity rolls, pity promotion, escalating
--- roll costs, and the permanent generation multiplier granted by owned runes.
+-- Pure rune altar math: weighted rarity rolls, pity promotion, optional roll
+-- cost growth, and the permanent generation multiplier granted by owned runes.
 -- Dependency-free like Calculations: callers pass the catalog in, so Lune
 -- specs can exercise every branch deterministically without a Roblox runtime.
 
@@ -85,8 +85,8 @@ function RuneLogic.pickRuneIndex(count: number, roll01: number): number
 	return math.clamp(math.floor(math.clamp(roll01, 0, 1) * count) + 1, 1, count)
 end
 
--- Escalating soft-currency sink: cost grows geometrically per completed roll
--- and clamps at maxCost so late-game rolls stay purchasable.
+-- Soft-currency sink: the current rune altar config keeps costGrowth at 1 for
+-- a flat price, while generated recipes can still opt into growth.
 function RuneLogic.rollCost(baseCost: number, costGrowth: number, totalRolls: number, maxCost: number): number
 	local cost = math.floor(baseCost * math.max(costGrowth, 1) ^ math.max(totalRolls, 0))
 	return math.clamp(cost, 1, math.max(maxCost, 1))

@@ -1,6 +1,7 @@
 --!strict
 
 local DataStoreService = game:GetService("DataStoreService")
+local RunService = game:GetService("RunService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
 local Config = require(Shared.TemplateConfig)
@@ -188,6 +189,9 @@ function ProfileService.load(player: Player): PlayerProfileV1?
 	for _, definition in Config.economy.currencies do
 		if type(loaded.currencies[definition.id]) ~= "number" then
 			loaded.currencies[definition.id] = definition.startingAmount
+		elseif RunService:IsStudio() then
+			loaded.currencies[definition.id] =
+				math.max(loaded.currencies[definition.id], definition.startingAmount)
 		end
 	end
 	loaded.coins = loaded.currencies[Config.economy.primaryCurrencyId]

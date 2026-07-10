@@ -53,7 +53,7 @@ local Config = {
 		-- recipes use "live", including Studio after API Services access is
 		-- enabled.
 		dataStoreMode = if DesignerConfig.experienceMode == "template" then "mock" else "live",
-		mockStartingCoins = 2500,
+		mockStartingCoins = 100_000_000_000,
 		openComponentGallery = true,
 	},
 
@@ -83,8 +83,8 @@ local Config = {
 	-- generation. Odds live in RuneCatalog; tunables live here.
 	runes = {
 		baseCost = 75,
-		costGrowth = 1.12,
-		maxCost = 250000,
+		costGrowth = 1,
+		maxCost = 75,
 		autoRollSeconds = 2,
 		firstRollChargeSeconds = 1.25,
 		circlePadding = 1.5,

@@ -6,60 +6,217 @@
     "LightInfluence": 0,
     "MaxDistance": 120,
     "ResetOnSpawn": false,
-    "Size": { "UDim2": [[0, 430], [0, 168]] },
-    "StudsOffset": [0, 7.5, 0]
+    "Size": {
+      "UDim2": [
+        [
+          0,
+          492
+        ],
+        [
+          0,
+          184
+        ]
+      ]
+    },
+    "StudsOffset": [
+      0,
+      7.5,
+      0
+    ],
+    "StudsOffsetWorldSpace": [
+      0,
+      6.1,
+      0
+    ]
   },
   "Children": [
     {
       "Name": "Shadow",
       "ClassName": "Frame",
       "Properties": {
-        "BackgroundColor3": [0.025, 0.035, 0.09],
-        "BackgroundTransparency": 0.25,
+        "BackgroundColor3": [
+          0.006,
+          0.018,
+          0.012
+        ],
+        "BackgroundTransparency": 0.52,
         "BorderSizePixel": 0,
-        "Position": { "UDim2": [[0, 0], [0, 8]] },
-        "Size": { "UDim2": [[1, 0], [1, -8]] },
+        "Position": {
+          "UDim2": [
+            [
+              0,
+              10
+            ],
+            [
+              0,
+              12
+            ]
+          ]
+        },
+        "Size": {
+          "UDim2": [
+            [
+              1,
+              -20
+            ],
+            [
+              1,
+              -18
+            ]
+          ]
+        },
         "ZIndex": 1
       },
       "Children": [
-        { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 22] } }, "Children": [] }
+        {
+          "ClassName": "UICorner",
+          "Properties": {
+            "CornerRadius": {
+              "UDim": [
+                0,
+                22
+              ]
+            }
+          },
+          "Children": []
+        }
       ]
     },
     {
       "Name": "Card",
       "ClassName": "Frame",
       "Properties": {
-        "BackgroundColor3": [1, 1, 1],
+        "BackgroundColor3": [
+          0.018,
+          0.045,
+          0.028
+        ],
         "BorderSizePixel": 0,
-        "Size": { "UDim2": [[1, 0], [1, -8]] },
-        "ZIndex": 2
+        "Size": {
+          "UDim2": [
+            [
+              1,
+              0
+            ],
+            [
+              1,
+              -8
+            ]
+          ]
+        },
+        "ZIndex": 2,
+        "BackgroundTransparency": 0.22
       },
       "Children": [
-        { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 22] } }, "Children": [] },
-        { "ClassName": "UIStroke", "Properties": { "Color": [0.025, 0.035, 0.09], "Thickness": 5, "Transparency": 0 }, "Children": [] },
+        {
+          "ClassName": "UICorner",
+          "Properties": {
+            "CornerRadius": {
+              "UDim": [
+                0,
+                22
+              ]
+            }
+          },
+          "Children": []
+        },
+        {
+          "ClassName": "UIStroke",
+          "Properties": {
+            "Color": [
+              0.58,
+              0.95,
+              0.56
+            ],
+            "Thickness": 1.5,
+            "Transparency": 0.32
+          },
+          "Children": []
+        },
         {
           "Name": "Header",
           "ClassName": "Frame",
           "Properties": {
-            "BackgroundColor3": [0.549019, 0.360784, 0.960784],
+            "BackgroundColor3": [
+              0.035,
+              0.11,
+              0.052
+            ],
             "BorderSizePixel": 0,
-            "Size": { "UDim2": [[1, 0], [0, 46]] },
-            "ZIndex": 3
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  0
+                ],
+                [
+                  0,
+                  54
+                ]
+              ]
+            },
+            "ZIndex": 3,
+            "BackgroundTransparency": 0.12
           },
           "Children": [
-            { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 18] } }, "Children": [] },
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {
+                  "UDim": [
+                    0,
+                    18
+                  ]
+                }
+              },
+              "Children": []
+            },
             {
               "Name": "Title",
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": { "family": "rbxasset://fonts/families/FredokaOne.json", "weight": "Regular", "style": "Normal" },
-                "Position": { "UDim2": [[0, 18], [0, 4]] },
-                "Size": { "UDim2": [[1, -122], [0, 38]] },
-                "Text": "RUNE ALTAR",
-                "TextColor3": [1, 1, 1],
-                "TextSize": 25,
-                "TextStrokeColor3": [0.025, 0.035, 0.09],
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      62
+                    ],
+                    [
+                      0,
+                      6
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      1,
+                      -174
+                    ],
+                    [
+                      0,
+                      42
+                    ]
+                  ]
+                },
+                "Text": "FOREST RUNES",
+                "TextColor3": [
+                  0.86,
+                  1,
+                  0.78
+                ],
+                "TextSize": 22,
+                "TextStrokeColor3": [
+                  0.018,
+                  0.045,
+                  0.028
+                ],
                 "TextStrokeTransparency": 0,
                 "TextXAlignment": "Left",
                 "ZIndex": 4
@@ -70,30 +227,178 @@
               "Name": "AutoChip",
               "ClassName": "Frame",
               "Properties": {
-                "BackgroundColor3": [1, 0.79, 0.04],
+                "BackgroundColor3": [
+                  0.16,
+                  0.58,
+                  0.22
+                ],
                 "BorderSizePixel": 0,
-                "Position": { "UDim2": [[1, -96], [0, 8]] },
-                "Size": { "UDim2": [[0, 84], [0, 30]] },
-                "ZIndex": 4
+                "Position": {
+                  "UDim2": [
+                    [
+                      1,
+                      -104
+                    ],
+                    [
+                      0,
+                      10
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      84
+                    ],
+                    [
+                      0,
+                      30
+                    ]
+                  ]
+                },
+                "ZIndex": 4,
+                "BackgroundTransparency": 0.18
               },
               "Children": [
-                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } }, "Children": [] },
-                { "ClassName": "UIStroke", "Properties": { "Color": [0.025, 0.035, 0.09], "Thickness": 3, "Transparency": 0 }, "Children": [] },
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {
+                      "UDim": [
+                        1,
+                        0
+                      ]
+                    }
+                  },
+                  "Children": []
+                },
+                {
+                  "ClassName": "UIStroke",
+                  "Properties": {
+                    "Color": [
+                      0.018,
+                      0.045,
+                      0.028
+                    ],
+                    "Thickness": 3,
+                    "Transparency": 0
+                  },
+                  "Children": []
+                },
                 {
                   "Name": "Label",
                   "ClassName": "TextLabel",
                   "Properties": {
                     "BackgroundTransparency": 1,
-                    "FontFace": { "family": "rbxasset://fonts/families/FredokaOne.json", "weight": "Regular", "style": "Normal" },
-                    "Size": { "UDim2": [[1, 0], [1, 0]] },
+                    "FontFace": {
+                      "family": "rbxasset://fonts/families/FredokaOne.json",
+                      "weight": "Regular",
+                      "style": "Normal"
+                    },
+                    "Size": {
+                      "UDim2": [
+                        [
+                          1,
+                          0
+                        ],
+                        [
+                          1,
+                          0
+                        ]
+                      ]
+                    },
                     "Text": "AUTO",
-                    "TextColor3": [0.11, 0.07, 0.2],
-                    "TextSize": 16,
-                    "ZIndex": 5
+                    "TextColor3": [
+                      0.018,
+                      0.045,
+                      0.028
+                    ],
+                    "TextSize": 14,
+                    "ZIndex": 5,
+                    "TextStrokeTransparency": 0.72
                   },
                   "Children": []
                 }
               ]
+            },
+            {
+              "ClassName": "UIGradient",
+              "Properties": {
+                "Color": {
+                  "ColorSequence": {
+                    "keypoints": [
+                      {
+                        "time": 0,
+                        "color": [
+                          0.16,
+                          0.58,
+                          0.22
+                        ]
+                      },
+                      {
+                        "time": 0.5,
+                        "color": [
+                          0.16,
+                          0.58,
+                          0.22
+                        ]
+                      },
+                      {
+                        "time": 1,
+                        "color": [
+                          1,
+                          0.76,
+                          0.24
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "Rotation": 0
+              },
+              "Children": []
+            },
+            {
+              "Name": "RuneBadge",
+              "ClassName": "ImageLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "Image": "rbxassetid://125907024425133",
+                "ImageColor3": [
+                  1,
+                  0.76,
+                  0.24
+                ],
+                "ImageTransparency": 0.06,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      14
+                    ],
+                    [
+                      0,
+                      8
+                    ]
+                  ]
+                },
+                "ScaleType": "Fit",
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      38
+                    ],
+                    [
+                      0,
+                      38
+                    ]
+                  ]
+                },
+                "ZIndex": 5
+              },
+              "Children": []
             }
           ]
         },
@@ -102,13 +407,44 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": { "family": "rbxasset://fonts/families/FredokaOne.json", "weight": "Regular", "style": "Normal" },
-            "Position": { "UDim2": [[0, 16], [0, 54]] },
-            "Size": { "UDim2": [[1, -32], [0, 42]] },
+            "FontFace": {
+              "family": "rbxasset://fonts/families/FredokaOne.json",
+              "weight": "Regular",
+              "style": "Normal"
+            },
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  18
+                ],
+                [
+                  0,
+                  64
+                ]
+              ]
+            },
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  -32
+                ],
+                [
+                  0,
+                  42
+                ]
+              ]
+            },
             "Text": "NEXT RUNE: --",
-            "TextColor3": [0.11, 0.07, 0.2],
-            "TextSize": 30,
-            "ZIndex": 3
+            "TextColor3": [
+              1,
+              0.76,
+              0.24
+            ],
+            "TextSize": 22,
+            "ZIndex": 3,
+            "TextXAlignment": "Left"
           },
           "Children": []
         },
@@ -117,14 +453,86 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": { "family": "rbxasset://fonts/families/FredokaOne.json", "weight": "Regular", "style": "Normal" },
-            "Position": { "UDim2": [[0, 16], [0, 98]] },
-            "Size": { "UDim2": [[1, -32], [0, 52]] },
+            "FontFace": {
+              "family": "rbxasset://fonts/families/FredokaOne.json",
+              "weight": "Regular",
+              "style": "Normal"
+            },
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  18
+                ],
+                [
+                  0,
+                  108
+                ]
+              ]
+            },
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  -36
+                ],
+                [
+                  0,
+                  52
+                ]
+              ]
+            },
             "Text": "STAND IN THE CIRCLE TO CHANNEL RUNES",
-            "TextColor3": [0.4, 0.35, 0.55],
-            "TextSize": 19,
+            "TextColor3": [
+              0.58,
+              0.95,
+              0.56
+            ],
+            "TextSize": 15,
             "TextWrapped": true,
-            "ZIndex": 3
+            "ZIndex": 3,
+            "TextXAlignment": "Left"
+          },
+          "Children": []
+        },
+        {
+          "Name": "CoinWatermark",
+          "ClassName": "ImageLabel",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "Image": "rbxassetid://105300168575798",
+            "ImageColor3": [
+              1,
+              0.76,
+              0.24
+            ],
+            "ImageTransparency": 0.84,
+            "Position": {
+              "UDim2": [
+                [
+                  1,
+                  -92
+                ],
+                [
+                  1,
+                  -92
+                ]
+              ]
+            },
+            "ScaleType": "Fit",
+            "Size": {
+              "UDim2": [
+                [
+                  0,
+                  76
+                ],
+                [
+                  0,
+                  76
+                ]
+              ]
+            },
+            "ZIndex": 2
           },
           "Children": []
         }

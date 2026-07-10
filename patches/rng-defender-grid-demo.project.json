@@ -8,7 +8,67 @@
       "Template": {
         "$className": "Folder",
         "Shared": {
-          "$path": "../src/shared"
+          "$className": "Folder",
+          "Calculations": {
+            "$path": "../src/shared/Calculations.luau"
+          },
+          "Catalogs": {
+            "$path": "../src/shared/Catalogs.luau"
+          },
+          "CurrencyConfig": {
+            "$path": "../src/shared/CurrencyConfig.luau"
+          },
+          "DataStoreKeys": {
+            "$path": "../src/shared/DataStoreKeys.luau"
+          },
+          "DataStoreNames": {
+            "$path": "../src/shared/DataStoreNames.luau"
+          },
+          "DesignerConfig": {
+            "$path": "rng-defender/DesignerConfig.luau"
+          },
+          "FeatureRegistry": {
+            "$path": "../src/shared/FeatureRegistry.luau"
+          },
+          "IconAssets": {
+            "$path": "../src/shared/IconAssets.luau"
+          },
+          "IconCatalog": {
+            "$path": "../src/shared/IconCatalog.luau"
+          },
+          "MigrationCore": {
+            "$path": "../src/shared/MigrationCore.luau"
+          },
+          "Migrations": {
+            "$path": "../src/shared/Migrations.luau"
+          },
+          "ProfileTemplate": {
+            "$path": "../src/shared/ProfileTemplate.luau"
+          },
+          "Providers": {
+            "$path": "../src/shared/Providers.luau"
+          },
+          "ReceiptLedger": {
+            "$path": "../src/shared/ReceiptLedger.luau"
+          },
+          "RemoteNames": {
+            "$path": "../src/shared/RemoteNames.luau"
+          },
+          "RuneCatalog": {
+            "$path": "../src/shared/RuneCatalog.luau"
+          },
+          "RuneLogic": {
+            "$path": "../src/shared/RuneLogic.luau"
+          },
+          "TemplateConfig": {
+            "$path": "../src/shared/TemplateConfig.luau"
+          },
+          "Theme": {
+            "$path": "../src/shared/Theme.luau"
+          },
+          "Types": {
+            "$path": "../src/shared/Types.luau"
+          }
         }
       }
     },

@@ -291,6 +291,18 @@ expectEqual(
 	true,
 	"overlapping shutdown releases wait instead of clearing the same lock twice"
 )
+expectEqual(
+	string.find(profileServiceSource, "RunService:IsStudio()", 1, true) ~= nil
+		and string.find(
+				profileServiceSource,
+				"math.max(loaded.currencies[definition.id], definition.startingAmount)",
+				1,
+				true
+			)
+			~= nil,
+	true,
+	"Studio playtests top up existing profiles to the configured starting currency"
+)
 
 local leaderboardSource = fs.readFile("src/server/Services/LeaderboardService.luau")
 expectEqual(
@@ -603,6 +615,7 @@ for _, patchObject in
 		'"RuneCircleClient"',
 		'"FirstPrivateIsland"',
 		'"servePlaceIds": [128136881672145]',
+		'"$path": "rng-defender/DesignerConfig.luau"',
 	}
 do
 	expectEqual(
@@ -611,16 +624,45 @@ do
 		`RNG Defender grid patch includes {patchObject}`
 	)
 end
+local rngPatchDesignerConfig = fs.readFile("patches/rng-defender/DesignerConfig.luau")
+for _, patchConfigObject in
+	{
+		'experienceMode = "playable"',
+		'dataNamespace = "rngdefender"',
+		"placeId = 128136881672145",
+		"startingAmount = 100_000_000_000",
+	}
+do
+	expectEqual(
+		string.find(rngPatchDesignerConfig, patchConfigObject, 1, true) ~= nil,
+		true,
+		`RNG Defender patch config includes {patchConfigObject}`
+	)
+end
 local runeCircleWorld = fs.readFile("src/world/RuneCircle.model.json")
 for _, runeCircleObject in
 	{
+		'"Name": "OuterAura"',
+		'"Name": "OuterGlass"',
 		'"Name": "Platform"',
 		'"Name": "GlowRing"',
+		'"Name": "MiddleGlow"',
+		'"Name": "InnerWell"',
 		'"Name": "CoreGlow"',
 		'"Name": "RuneLight"',
+		'"Name": "RuneSigilPlate"',
+		'"Name": "ForestMotes"',
+		'"Name": "RuneMist"',
+		'"Name": "RootBand1"',
+		'"Name": "LeafRune1"',
+		'"Name": "MossStone1"',
+		'"Name": "RuneBlade8"',
+		'"Name": "AnchorCrystal6"',
 		'"Name": "Shard1"',
 		'"Name": "Shard2"',
 		'"Name": "Shard3"',
+		"FOREST RUNES",
+		"rbxassetid://125907024425133",
 	}
 do
 	expectEqual(
@@ -887,7 +929,7 @@ expectEqual(
 	"ProductsGrid shifts down to match the taller StoreHeader"
 )
 
--- Rune altar: weighted rolls, pity, cost curve, and permanent multiplier.
+-- Rune altar: weighted rolls, pity, flat configured cost, and permanent multiplier.
 expectEqual(
 	RuneLogic.weightTotal(RuneCatalog.rarities),
 	10000,
@@ -927,6 +969,7 @@ expectEqual(RuneLogic.pickRuneIndex(2, 0.99), 2, "rune pick upper bound")
 expectEqual(RuneLogic.pickRuneIndex(0, 0.5), 0, "empty rune pools pick nothing")
 
 expectEqual(RuneLogic.rollCost(75, 1.12, 0, 250000), 75, "first roll costs the base price")
+expectEqual(RuneLogic.rollCost(75, 1, 500, 75), 75, "configured rune cost stays flat")
 expectEqual(RuneLogic.rollCost(75, 1.12, 2, 250000), math.floor(75 * 1.12 * 1.12), "roll cost escalates")
 expectEqual(RuneLogic.rollCost(75, 1.12, 500, 250000), 250000, "roll cost clamps at the configured cap")
 
@@ -999,18 +1042,44 @@ expectEqual(
 	true,
 	"rune pity guarantee is configurable"
 )
+expectEqual(
+	string.find(runeConfigSource, "mockStartingCoins = 100_000_000_000", 1, true) ~= nil,
+	true,
+	"Studio mock testing starts with 100B coins"
+)
+expectEqual(
+	string.find(runeConfigSource, "costGrowth = 1", 1, true) ~= nil,
+	true,
+	"configured rune price does not grow after each roll"
+)
+expectEqual(
+	string.find(runeConfigSource, "maxCost = 75", 1, true) ~= nil,
+	true,
+	"configured rune price cap matches the flat base price"
+)
+local designerConfigSource = fs.readFile("src/shared/DesignerConfig.luau")
+expectEqual(
+	string.find(designerConfigSource, "startingAmount = 100_000_000_000", 1, true) ~= nil,
+	true,
+	"template test currency starts at 100B coins"
+)
 
 local runeUi = fs.readFile("src/ui/RuneCircleUI.model.json")
 for _, authoredRuneObject in
 	{
 		'"Name": "RevealCard"',
 		'"Name": "RarityBanner"',
+		'"Name": "GlassArtwork"',
+		'"Name": "RuneHalo"',
 		'"Name": "NewTag"',
 		'"Name": "PityTag"',
 		'"Name": "OddsPanel"',
+		'"Name": "OddsArtwork"',
 		'"Name": "RarityRow6"',
 		'"Name": "TotalChip"',
 		'"Name": "RestrictedNote"',
+		"rbxassetid://125907024425133",
+		"rbxassetid://111977708425543",
 	}
 do
 	expectEqual(
@@ -1020,7 +1089,17 @@ do
 	)
 end
 local runeSign = fs.readFile("src/ui/RuneCircleSign.model.json")
-for _, authoredSignObject in { '"Name": "CostLine"', '"Name": "StatusLine"', '"Name": "AutoChip"' } do
+for _, authoredSignObject in
+	{
+		'"Name": "CostLine"',
+		'"Name": "StatusLine"',
+		'"Name": "AutoChip"',
+		'"Name": "RuneBadge"',
+		'"Name": "CoinWatermark"',
+		"FOREST RUNES",
+		"rbxassetid://105300168575798",
+	}
+do
 	expectEqual(
 		string.find(runeSign, authoredSignObject, 1, true) ~= nil,
 		true,

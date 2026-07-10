@@ -43,6 +43,38 @@ local shards = {
 	circleModel:WaitForChild("Shard3") :: BasePart,
 }
 
+local function optionalPart(name: string): BasePart?
+	local child = circleModel:FindFirstChild(name)
+	if child ~= nil and child:IsA("BasePart") then
+		return child
+	end
+	return nil
+end
+
+local outerAura = optionalPart("OuterAura")
+local middleGlow = optionalPart("MiddleGlow")
+local innerWell = optionalPart("InnerWell")
+local runeBlades: { BasePart } = {}
+for index = 1, 8 do
+	local blade = optionalPart(`RuneBlade{index}`)
+	if blade ~= nil then
+		table.insert(runeBlades, blade)
+	end
+end
+local anchorCrystals: { BasePart } = {}
+for index = 1, 6 do
+	local crystal = optionalPart(`AnchorCrystal{index}`)
+	if crystal ~= nil then
+		table.insert(anchorCrystals, crystal)
+	end
+end
+local forestEmitters: { ParticleEmitter } = {}
+for _, descendant in circleModel:GetDescendants() do
+	if descendant:IsA("ParticleEmitter") then
+		table.insert(forestEmitters, descendant)
+	end
+end
+
 if Config.features.runes ~= true then
 	-- Recipe disabled the altar: keep the GUIs off and make the authored
 	-- circle inert instead of advertising a dead feature.
@@ -51,6 +83,9 @@ if Config.features.runes ~= true then
 			descendant.Transparency = 1
 			descendant.CanCollide = false
 		elseif descendant:IsA("PointLight") then
+			descendant.Enabled = false
+		elseif descendant:IsA("ParticleEmitter") then
+			descendant.Rate = 0
 			descendant.Enabled = false
 		end
 	end
@@ -320,9 +355,21 @@ RunService.Heartbeat:Connect(function(deltaTime: number)
 	if isReducedMotion() then
 		if not staticApplied then
 			staticApplied = true
-			glowRing.Transparency = 0.1
-			coreGlow.Transparency = 0.25
-			runeLight.Brightness = 2.5
+			glowRing.Transparency = 0.36
+			coreGlow.Transparency = 0.24
+			runeLight.Brightness = 3
+			if outerAura ~= nil then
+				outerAura.Transparency = 0.76
+			end
+			if middleGlow ~= nil then
+				middleGlow.Transparency = 0.68
+			end
+			if innerWell ~= nil then
+				innerWell.Transparency = 0.42
+			end
+			for _, emitter in forestEmitters do
+				emitter.Rate = 3
+			end
 		end
 		return
 	end
@@ -331,9 +378,21 @@ RunService.Heartbeat:Connect(function(deltaTime: number)
 	local speed = if standing then 5 else 1.6
 	local pulse = 0.5 + 0.5 * math.sin(clock * speed)
 	local flashing = os.clock() < flashUntil
-	glowRing.Transparency = if flashing then 0 else 0.06 + 0.3 * (1 - pulse)
-	coreGlow.Transparency = if flashing then 0.05 else 0.18 + 0.32 * (1 - pulse)
-	runeLight.Brightness = if flashing then 6 else 1.6 + 2.2 * pulse
+	glowRing.Transparency = if flashing then 0.08 else 0.34 + 0.22 * (1 - pulse)
+	coreGlow.Transparency = if flashing then 0.08 else 0.2 + 0.3 * (1 - pulse)
+	runeLight.Brightness = if flashing then 7 else 2.2 + 2.8 * pulse
+	if outerAura ~= nil then
+		outerAura.Transparency = if flashing then 0.48 else 0.68 + 0.14 * (1 - pulse)
+	end
+	if middleGlow ~= nil then
+		middleGlow.Transparency = if flashing then 0.34 else 0.58 + 0.18 * (1 - pulse)
+	end
+	if innerWell ~= nil then
+		innerWell.Transparency = if standing then 0.32 else 0.42
+	end
+	for _, emitter in forestEmitters do
+		emitter.Rate = if standing then 18 else 7
+	end
 
 	local orbitSpeed = if standing then 1.1 else 0.35
 	for index, shard in shards do
@@ -344,5 +403,28 @@ RunService.Heartbeat:Connect(function(deltaTime: number)
 			center.Y + 2.4 + bob,
 			center.Z + math.sin(angle) * 5.6
 		) * CFrame.Angles(0, -angle, math.rad(12))
+	end
+
+	local bladeSpeed = if standing then 0.34 else 0.12
+	for index, blade in runeBlades do
+		local angle = ((index - 1) / math.max(#runeBlades, 1)) * math.pi * 2 + clock * bladeSpeed
+		local radius = 8.65 + math.sin(clock * 1.2 + index) * 0.08
+		blade.Transparency = if standing then 0.08 + 0.1 * (1 - pulse) else 0.16
+		blade.CFrame = CFrame.new(
+			center.X + math.cos(angle) * radius,
+			center.Y + 0.44,
+			center.Z + math.sin(angle) * radius
+		) * CFrame.Angles(0, -angle + math.pi / 2, math.rad(7 * math.sin(clock + index)))
+	end
+
+	for index, crystal in anchorCrystals do
+		local angle = ((index - 1) / math.max(#anchorCrystals, 1)) * math.pi * 2 + math.pi / 6
+		local bob = math.sin(clock * 1.5 + index) * 0.22
+		crystal.Transparency = if standing then 0.08 + 0.12 * (1 - pulse) else 0.18
+		crystal.CFrame = CFrame.new(
+			center.X + math.cos(angle) * 10.25,
+			center.Y + 0.82 + bob,
+			center.Z + math.sin(angle) * 10.25
+		)
 	end
 end)
