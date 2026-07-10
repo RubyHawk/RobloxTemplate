@@ -1,0 +1,2362 @@
+{
+  "ClassName": "ScreenGui",
+  "Properties": {
+    "DisplayOrder": -5,
+    "Enabled": false,
+    "IgnoreGuiInset": false,
+    "ResetOnSpawn": false
+  },
+  "Children": [
+    {
+      "Name": "RevealCard",
+      "ClassName": "Frame",
+      "Properties": {
+        "AnchorPoint": [
+          0.5,
+          0.5
+        ],
+        "BackgroundColor3": [
+          1,
+          1,
+          1
+        ],
+        "BorderSizePixel": 0,
+        "Position": {
+          "UDim2": [
+            [
+              0.5,
+              0
+            ],
+            [
+              0.42,
+              0
+            ]
+          ]
+        },
+        "Size": {
+          "UDim2": [
+            [
+              0,
+              300
+            ],
+            [
+              0,
+              360
+            ]
+          ]
+        },
+        "Visible": false,
+        "ZIndex": 20
+      },
+      "Children": [
+        {
+          "ClassName": "UICorner",
+          "Properties": {
+            "CornerRadius": {
+              "UDim": [
+                0,
+                22
+              ]
+            }
+          },
+          "Children": []
+        },
+        {
+          "ClassName": "UIStroke",
+          "Properties": {
+            "Color": [
+              0.025,
+              0.035,
+              0.09
+            ],
+            "Thickness": 5,
+            "Transparency": 0
+          },
+          "Children": []
+        },
+        {
+          "ClassName": "UIScale",
+          "Properties": {},
+          "Children": []
+        },
+        {
+          "Name": "RarityBanner",
+          "ClassName": "Frame",
+          "Properties": {
+            "BackgroundColor3": [
+              0.549019,
+              0.360784,
+              0.960784
+            ],
+            "BorderSizePixel": 0,
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  0
+                ],
+                [
+                  0,
+                  58
+                ]
+              ]
+            },
+            "ZIndex": 22
+          },
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {
+                  "UDim": [
+                    0,
+                    18
+                  ]
+                }
+              },
+              "Children": []
+            },
+            {
+              "Name": "BannerLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "RUNE",
+                "ZIndex": 23,
+                "Size": {
+                  "UDim2": [
+                    [
+                      1,
+                      0
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  1,
+                  1,
+                  1
+                ],
+                "TextSize": 24,
+                "TextStrokeColor3": [
+                  0.025,
+                  0.035,
+                  0.09
+                ],
+                "TextStrokeTransparency": 0
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "NewTag",
+          "ClassName": "Frame",
+          "Properties": {
+            "BackgroundColor3": [
+              1,
+              0.79,
+              0.04
+            ],
+            "BorderSizePixel": 0,
+            "Position": {
+              "UDim2": [
+                [
+                  1,
+                  -84
+                ],
+                [
+                  0,
+                  -14
+                ]
+              ]
+            },
+            "Rotation": 12,
+            "Size": {
+              "UDim2": [
+                [
+                  0,
+                  76
+                ],
+                [
+                  0,
+                  34
+                ]
+              ]
+            },
+            "Visible": false,
+            "ZIndex": 25
+          },
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {
+                  "UDim": [
+                    1,
+                    0
+                  ]
+                }
+              },
+              "Children": []
+            },
+            {
+              "ClassName": "UIStroke",
+              "Properties": {
+                "Color": [
+                  0.025,
+                  0.035,
+                  0.09
+                ],
+                "Thickness": 3,
+                "Transparency": 0
+              },
+              "Children": []
+            },
+            {
+              "Name": "Label",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "NEW!",
+                "ZIndex": 26,
+                "Size": {
+                  "UDim2": [
+                    [
+                      1,
+                      0
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.11,
+                  0.07,
+                  0.2
+                ],
+                "TextSize": 15
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "PityTag",
+          "ClassName": "Frame",
+          "Properties": {
+            "BackgroundColor3": [
+              0.956,
+              0.447,
+              0.713
+            ],
+            "BorderSizePixel": 0,
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  8
+                ],
+                [
+                  0,
+                  -14
+                ]
+              ]
+            },
+            "Rotation": -8,
+            "Size": {
+              "UDim2": [
+                [
+                  0,
+                  124
+                ],
+                [
+                  0,
+                  30
+                ]
+              ]
+            },
+            "Visible": false,
+            "ZIndex": 25
+          },
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {
+                  "UDim": [
+                    1,
+                    0
+                  ]
+                }
+              },
+              "Children": []
+            },
+            {
+              "ClassName": "UIStroke",
+              "Properties": {
+                "Color": [
+                  0.025,
+                  0.035,
+                  0.09
+                ],
+                "Thickness": 3,
+                "Transparency": 0
+              },
+              "Children": []
+            },
+            {
+              "Name": "Label",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "GUARANTEED!",
+                "ZIndex": 26,
+                "Size": {
+                  "UDim2": [
+                    [
+                      1,
+                      0
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  1,
+                  1,
+                  1
+                ],
+                "TextSize": 15
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "Glyph",
+          "ClassName": "TextLabel",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "FontFace": {
+              "family": "rbxasset://fonts/families/FredokaOne.json",
+              "weight": "Regular",
+              "style": "Normal"
+            },
+            "Text": "?",
+            "ZIndex": 21,
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  62
+                ]
+              ]
+            },
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  0
+                ],
+                [
+                  0,
+                  96
+                ]
+              ]
+            },
+            "TextColor3": [
+              0.11,
+              0.07,
+              0.2
+            ],
+            "TextSize": 72
+          },
+          "Children": []
+        },
+        {
+          "Name": "RuneName",
+          "ClassName": "TextLabel",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "FontFace": {
+              "family": "rbxasset://fonts/families/FredokaOne.json",
+              "weight": "Regular",
+              "style": "Normal"
+            },
+            "Text": "RUNE",
+            "ZIndex": 21,
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  12
+                ],
+                [
+                  0,
+                  160
+                ]
+              ]
+            },
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  -24
+                ],
+                [
+                  0,
+                  36
+                ]
+              ]
+            },
+            "TextColor3": [
+              0.11,
+              0.07,
+              0.2
+            ],
+            "TextSize": 26
+          },
+          "Children": []
+        },
+        {
+          "Name": "BonusLine",
+          "ClassName": "TextLabel",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "FontFace": {
+              "family": "rbxasset://fonts/families/FredokaOne.json",
+              "weight": "Regular",
+              "style": "Normal"
+            },
+            "Text": "+0% GENERATION",
+            "ZIndex": 21,
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  12
+                ],
+                [
+                  0,
+                  198
+                ]
+              ]
+            },
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  -24
+                ],
+                [
+                  0,
+                  30
+                ]
+              ]
+            },
+            "TextColor3": [
+              0.08,
+              0.7,
+              0.5
+            ],
+            "TextSize": 21
+          },
+          "Children": []
+        },
+        {
+          "Name": "OwnedLine",
+          "ClassName": "TextLabel",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "FontFace": {
+              "family": "rbxasset://fonts/families/FredokaOne.json",
+              "weight": "Regular",
+              "style": "Normal"
+            },
+            "Text": "OWNED x1",
+            "ZIndex": 21,
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  12
+                ],
+                [
+                  0,
+                  232
+                ]
+              ]
+            },
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  -24
+                ],
+                [
+                  0,
+                  26
+                ]
+              ]
+            },
+            "TextColor3": [
+              0.4,
+              0.35,
+              0.55
+            ],
+            "TextSize": 18
+          },
+          "Children": []
+        },
+        {
+          "Name": "TotalLine",
+          "ClassName": "TextLabel",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "FontFace": {
+              "family": "rbxasset://fonts/families/FredokaOne.json",
+              "weight": "Regular",
+              "style": "Normal"
+            },
+            "Text": "RUNE BOOST x1.00",
+            "ZIndex": 21,
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  12
+                ],
+                [
+                  0,
+                  274
+                ]
+              ]
+            },
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  -24
+                ],
+                [
+                  0,
+                  28
+                ]
+              ]
+            },
+            "TextColor3": [
+              0.549019,
+              0.360784,
+              0.960784
+            ],
+            "TextSize": 19
+          },
+          "Children": []
+        },
+        {
+          "Name": "NextCostLine",
+          "ClassName": "TextLabel",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "FontFace": {
+              "family": "rbxasset://fonts/families/FredokaOne.json",
+              "weight": "Regular",
+              "style": "Normal"
+            },
+            "Text": "NEXT RUNE: --",
+            "ZIndex": 21,
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  12
+                ],
+                [
+                  0,
+                  306
+                ]
+              ]
+            },
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  -24
+                ],
+                [
+                  0,
+                  28
+                ]
+              ]
+            },
+            "TextColor3": [
+              0.4,
+              0.35,
+              0.55
+            ],
+            "TextSize": 18
+          },
+          "Children": []
+        }
+      ]
+    },
+    {
+      "Name": "OddsPanel",
+      "ClassName": "Frame",
+      "Properties": {
+        "AnchorPoint": [
+          1,
+          0.5
+        ],
+        "BackgroundColor3": [
+          1,
+          1,
+          1
+        ],
+        "BorderSizePixel": 0,
+        "Position": {
+          "UDim2": [
+            [
+              1,
+              -12
+            ],
+            [
+              0.5,
+              0
+            ]
+          ]
+        },
+        "Size": {
+          "UDim2": [
+            [
+              0,
+              252
+            ],
+            [
+              0,
+              322
+            ]
+          ]
+        },
+        "Visible": false,
+        "ZIndex": 10
+      },
+      "Children": [
+        {
+          "ClassName": "UICorner",
+          "Properties": {
+            "CornerRadius": {
+              "UDim": [
+                0,
+                16
+              ]
+            }
+          },
+          "Children": []
+        },
+        {
+          "ClassName": "UIStroke",
+          "Properties": {
+            "Color": [
+              0.025,
+              0.035,
+              0.09
+            ],
+            "Thickness": 4,
+            "Transparency": 0
+          },
+          "Children": []
+        },
+        {
+          "Name": "Title",
+          "ClassName": "TextLabel",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "FontFace": {
+              "family": "rbxasset://fonts/families/FredokaOne.json",
+              "weight": "Regular",
+              "style": "Normal"
+            },
+            "Text": "RUNE ODDS",
+            "ZIndex": 11,
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  8
+                ]
+              ]
+            },
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  0
+                ],
+                [
+                  0,
+                  28
+                ]
+              ]
+            },
+            "TextColor3": [
+              0.11,
+              0.07,
+              0.2
+            ],
+            "TextSize": 20
+          },
+          "Children": []
+        },
+        {
+          "Name": "RarityRow1",
+          "ClassName": "Frame",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  10
+                ],
+                [
+                  0,
+                  44
+                ]
+              ]
+            },
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  -20
+                ],
+                [
+                  0,
+                  38
+                ]
+              ]
+            },
+            "ZIndex": 11
+          },
+          "Children": [
+            {
+              "Name": "Swatch",
+              "ClassName": "Frame",
+              "Properties": {
+                "AnchorPoint": [
+                  0,
+                  0.5
+                ],
+                "BackgroundColor3": [
+                  0.611764,
+                  0.639215,
+                  0.686274
+                ],
+                "BorderSizePixel": 0,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      0
+                    ],
+                    [
+                      0.5,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      14
+                    ],
+                    [
+                      0,
+                      14
+                    ]
+                  ]
+                },
+                "ZIndex": 12
+              },
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {
+                      "UDim": [
+                        1,
+                        0
+                      ]
+                    }
+                  },
+                  "Children": []
+                }
+              ]
+            },
+            {
+              "Name": "NameLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "COMMON",
+                "ZIndex": 12,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      22
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      96
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.11,
+                  0.07,
+                  0.2
+                ],
+                "TextSize": 15,
+                "TextXAlignment": "Left"
+              },
+              "Children": []
+            },
+            {
+              "Name": "OddsLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "54%",
+                "ZIndex": 12,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      120
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      52
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.4,
+                  0.35,
+                  0.55
+                ],
+                "TextSize": 15,
+                "TextXAlignment": "Right"
+              },
+              "Children": []
+            },
+            {
+              "Name": "OwnedLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "x0",
+                "ZIndex": 12,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      176
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      1,
+                      -176
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.4,
+                  0.35,
+                  0.55
+                ],
+                "TextSize": 15,
+                "TextXAlignment": "Right"
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "RarityRow2",
+          "ClassName": "Frame",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  10
+                ],
+                [
+                  0,
+                  84
+                ]
+              ]
+            },
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  -20
+                ],
+                [
+                  0,
+                  38
+                ]
+              ]
+            },
+            "ZIndex": 11
+          },
+          "Children": [
+            {
+              "Name": "Swatch",
+              "ClassName": "Frame",
+              "Properties": {
+                "AnchorPoint": [
+                  0,
+                  0.5
+                ],
+                "BackgroundColor3": [
+                  0.290196,
+                  0.870588,
+                  0.50196
+                ],
+                "BorderSizePixel": 0,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      0
+                    ],
+                    [
+                      0.5,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      14
+                    ],
+                    [
+                      0,
+                      14
+                    ]
+                  ]
+                },
+                "ZIndex": 12
+              },
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {
+                      "UDim": [
+                        1,
+                        0
+                      ]
+                    }
+                  },
+                  "Children": []
+                }
+              ]
+            },
+            {
+              "Name": "NameLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "UNCOMMON",
+                "ZIndex": 12,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      22
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      96
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.11,
+                  0.07,
+                  0.2
+                ],
+                "TextSize": 15,
+                "TextXAlignment": "Left"
+              },
+              "Children": []
+            },
+            {
+              "Name": "OddsLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "26%",
+                "ZIndex": 12,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      120
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      52
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.4,
+                  0.35,
+                  0.55
+                ],
+                "TextSize": 15,
+                "TextXAlignment": "Right"
+              },
+              "Children": []
+            },
+            {
+              "Name": "OwnedLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "x0",
+                "ZIndex": 12,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      176
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      1,
+                      -176
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.4,
+                  0.35,
+                  0.55
+                ],
+                "TextSize": 15,
+                "TextXAlignment": "Right"
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "RarityRow3",
+          "ClassName": "Frame",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  10
+                ],
+                [
+                  0,
+                  124
+                ]
+              ]
+            },
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  -20
+                ],
+                [
+                  0,
+                  38
+                ]
+              ]
+            },
+            "ZIndex": 11
+          },
+          "Children": [
+            {
+              "Name": "Swatch",
+              "ClassName": "Frame",
+              "Properties": {
+                "AnchorPoint": [
+                  0,
+                  0.5
+                ],
+                "BackgroundColor3": [
+                  0.37647,
+                  0.647058,
+                  0.980392
+                ],
+                "BorderSizePixel": 0,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      0
+                    ],
+                    [
+                      0.5,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      14
+                    ],
+                    [
+                      0,
+                      14
+                    ]
+                  ]
+                },
+                "ZIndex": 12
+              },
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {
+                      "UDim": [
+                        1,
+                        0
+                      ]
+                    }
+                  },
+                  "Children": []
+                }
+              ]
+            },
+            {
+              "Name": "NameLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "RARE",
+                "ZIndex": 12,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      22
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      96
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.11,
+                  0.07,
+                  0.2
+                ],
+                "TextSize": 15,
+                "TextXAlignment": "Left"
+              },
+              "Children": []
+            },
+            {
+              "Name": "OddsLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "12.5%",
+                "ZIndex": 12,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      120
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      52
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.4,
+                  0.35,
+                  0.55
+                ],
+                "TextSize": 15,
+                "TextXAlignment": "Right"
+              },
+              "Children": []
+            },
+            {
+              "Name": "OwnedLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "x0",
+                "ZIndex": 12,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      176
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      1,
+                      -176
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.4,
+                  0.35,
+                  0.55
+                ],
+                "TextSize": 15,
+                "TextXAlignment": "Right"
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "RarityRow4",
+          "ClassName": "Frame",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  10
+                ],
+                [
+                  0,
+                  164
+                ]
+              ]
+            },
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  -20
+                ],
+                [
+                  0,
+                  38
+                ]
+              ]
+            },
+            "ZIndex": 11
+          },
+          "Children": [
+            {
+              "Name": "Swatch",
+              "ClassName": "Frame",
+              "Properties": {
+                "AnchorPoint": [
+                  0,
+                  0.5
+                ],
+                "BackgroundColor3": [
+                  0.752941,
+                  0.517647,
+                  0.988235
+                ],
+                "BorderSizePixel": 0,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      0
+                    ],
+                    [
+                      0.5,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      14
+                    ],
+                    [
+                      0,
+                      14
+                    ]
+                  ]
+                },
+                "ZIndex": 12
+              },
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {
+                      "UDim": [
+                        1,
+                        0
+                      ]
+                    }
+                  },
+                  "Children": []
+                }
+              ]
+            },
+            {
+              "Name": "NameLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "EPIC",
+                "ZIndex": 12,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      22
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      96
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.11,
+                  0.07,
+                  0.2
+                ],
+                "TextSize": 15,
+                "TextXAlignment": "Left"
+              },
+              "Children": []
+            },
+            {
+              "Name": "OddsLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "5.5%",
+                "ZIndex": 12,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      120
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      52
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.4,
+                  0.35,
+                  0.55
+                ],
+                "TextSize": 15,
+                "TextXAlignment": "Right"
+              },
+              "Children": []
+            },
+            {
+              "Name": "OwnedLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "x0",
+                "ZIndex": 12,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      176
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      1,
+                      -176
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.4,
+                  0.35,
+                  0.55
+                ],
+                "TextSize": 15,
+                "TextXAlignment": "Right"
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "RarityRow5",
+          "ClassName": "Frame",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  10
+                ],
+                [
+                  0,
+                  204
+                ]
+              ]
+            },
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  -20
+                ],
+                [
+                  0,
+                  38
+                ]
+              ]
+            },
+            "ZIndex": 11
+          },
+          "Children": [
+            {
+              "Name": "Swatch",
+              "ClassName": "Frame",
+              "Properties": {
+                "AnchorPoint": [
+                  0,
+                  0.5
+                ],
+                "BackgroundColor3": [
+                  0.984313,
+                  0.749019,
+                  0.141176
+                ],
+                "BorderSizePixel": 0,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      0
+                    ],
+                    [
+                      0.5,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      14
+                    ],
+                    [
+                      0,
+                      14
+                    ]
+                  ]
+                },
+                "ZIndex": 12
+              },
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {
+                      "UDim": [
+                        1,
+                        0
+                      ]
+                    }
+                  },
+                  "Children": []
+                }
+              ]
+            },
+            {
+              "Name": "NameLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "LEGENDARY",
+                "ZIndex": 12,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      22
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      96
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.11,
+                  0.07,
+                  0.2
+                ],
+                "TextSize": 15,
+                "TextXAlignment": "Left"
+              },
+              "Children": []
+            },
+            {
+              "Name": "OddsLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "1.7%",
+                "ZIndex": 12,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      120
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      52
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.4,
+                  0.35,
+                  0.55
+                ],
+                "TextSize": 15,
+                "TextXAlignment": "Right"
+              },
+              "Children": []
+            },
+            {
+              "Name": "OwnedLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "x0",
+                "ZIndex": 12,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      176
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      1,
+                      -176
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.4,
+                  0.35,
+                  0.55
+                ],
+                "TextSize": 15,
+                "TextXAlignment": "Right"
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "RarityRow6",
+          "ClassName": "Frame",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  10
+                ],
+                [
+                  0,
+                  244
+                ]
+              ]
+            },
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  -20
+                ],
+                [
+                  0,
+                  38
+                ]
+              ]
+            },
+            "ZIndex": 11
+          },
+          "Children": [
+            {
+              "Name": "Swatch",
+              "ClassName": "Frame",
+              "Properties": {
+                "AnchorPoint": [
+                  0,
+                  0.5
+                ],
+                "BackgroundColor3": [
+                  0.956862,
+                  0.447058,
+                  0.713725
+                ],
+                "BorderSizePixel": 0,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      0
+                    ],
+                    [
+                      0.5,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      14
+                    ],
+                    [
+                      0,
+                      14
+                    ]
+                  ]
+                },
+                "ZIndex": 12
+              },
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {
+                      "UDim": [
+                        1,
+                        0
+                      ]
+                    }
+                  },
+                  "Children": []
+                }
+              ]
+            },
+            {
+              "Name": "NameLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "MYTHIC",
+                "ZIndex": 12,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      22
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      96
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.11,
+                  0.07,
+                  0.2
+                ],
+                "TextSize": 15,
+                "TextXAlignment": "Left"
+              },
+              "Children": []
+            },
+            {
+              "Name": "OddsLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "0.3%",
+                "ZIndex": 12,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      120
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      0,
+                      52
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.4,
+                  0.35,
+                  0.55
+                ],
+                "TextSize": 15,
+                "TextXAlignment": "Right"
+              },
+              "Children": []
+            },
+            {
+              "Name": "OwnedLabel",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": {
+                  "family": "rbxasset://fonts/families/FredokaOne.json",
+                  "weight": "Regular",
+                  "style": "Normal"
+                },
+                "Text": "x0",
+                "ZIndex": 12,
+                "Position": {
+                  "UDim2": [
+                    [
+                      0,
+                      176
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ]
+                },
+                "Size": {
+                  "UDim2": [
+                    [
+                      1,
+                      -176
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "TextColor3": [
+                  0.4,
+                  0.35,
+                  0.55
+                ],
+                "TextSize": 15,
+                "TextXAlignment": "Right"
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "TotalLine",
+          "ClassName": "TextLabel",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "FontFace": {
+              "family": "rbxasset://fonts/families/FredokaOne.json",
+              "weight": "Regular",
+              "style": "Normal"
+            },
+            "Text": "RUNE BOOST x1.00",
+            "ZIndex": 11,
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  10
+                ],
+                [
+                  0,
+                  288
+                ]
+              ]
+            },
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  -20
+                ],
+                [
+                  0,
+                  26
+                ]
+              ]
+            },
+            "TextColor3": [
+              0.549019,
+              0.360784,
+              0.960784
+            ],
+            "TextSize": 17
+          },
+          "Children": []
+        },
+        {
+          "Name": "RestrictedNote",
+          "ClassName": "TextLabel",
+          "Properties": {
+            "BackgroundColor3": [
+              1,
+              1,
+              1
+            ],
+            "BackgroundTransparency": 0.08,
+            "BorderSizePixel": 0,
+            "FontFace": {
+              "family": "rbxasset://fonts/families/FredokaOne.json",
+              "weight": "Regular",
+              "style": "Normal"
+            },
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  10
+                ],
+                [
+                  0,
+                  44
+                ]
+              ]
+            },
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  -20
+                ],
+                [
+                  0,
+                  240
+                ]
+              ]
+            },
+            "Text": "RUNE ROLLS ARE UNAVAILABLE FOR THIS ACCOUNT",
+            "TextColor3": [
+              1,
+              0.254901,
+              0.474509
+            ],
+            "TextSize": 20,
+            "TextWrapped": true,
+            "Visible": false,
+            "ZIndex": 14
+          },
+          "Children": []
+        }
+      ]
+    },
+    {
+      "Name": "TotalChip",
+      "ClassName": "Frame",
+      "Properties": {
+        "AnchorPoint": [
+          1,
+          0
+        ],
+        "BackgroundColor3": [
+          0.549019,
+          0.360784,
+          0.960784
+        ],
+        "BorderSizePixel": 0,
+        "Position": {
+          "UDim2": [
+            [
+              1,
+              -12
+            ],
+            [
+              0,
+              12
+            ]
+          ]
+        },
+        "Size": {
+          "UDim2": [
+            [
+              0,
+              196
+            ],
+            [
+              0,
+              40
+            ]
+          ]
+        },
+        "Visible": false,
+        "ZIndex": 6
+      },
+      "Children": [
+        {
+          "ClassName": "UICorner",
+          "Properties": {
+            "CornerRadius": {
+              "UDim": [
+                1,
+                0
+              ]
+            }
+          },
+          "Children": []
+        },
+        {
+          "ClassName": "UIStroke",
+          "Properties": {
+            "Color": [
+              0.025,
+              0.035,
+              0.09
+            ],
+            "Thickness": 3,
+            "Transparency": 0
+          },
+          "Children": []
+        },
+        {
+          "Name": "Label",
+          "ClassName": "TextLabel",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "FontFace": {
+              "family": "rbxasset://fonts/families/FredokaOne.json",
+              "weight": "Regular",
+              "style": "Normal"
+            },
+            "Text": "RUNE BOOST x1.00",
+            "ZIndex": 7,
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  0
+                ],
+                [
+                  1,
+                  0
+                ]
+              ]
+            },
+            "TextColor3": [
+              1,
+              1,
+              1
+            ],
+            "TextSize": 16
+          },
+          "Children": []
+        }
+      ]
+    },
+    {
+      "Name": "Audio",
+      "ClassName": "Folder",
+      "Properties": {},
+      "Children": [
+        {
+          "Name": "RollPlayer",
+          "ClassName": "AudioPlayer",
+          "Properties": {
+            "Volume": 0.6
+          },
+          "Children": []
+        },
+        {
+          "Name": "RevealPlayer",
+          "ClassName": "AudioPlayer",
+          "Properties": {
+            "Volume": 0.7
+          },
+          "Children": []
+        },
+        {
+          "Name": "RarePlayer",
+          "ClassName": "AudioPlayer",
+          "Properties": {
+            "Volume": 0.8
+          },
+          "Children": []
+        },
+        {
+          "Name": "Output",
+          "ClassName": "AudioDeviceOutput",
+          "Properties": {},
+          "Children": []
+        },
+        {
+          "Name": "RollWire",
+          "ClassName": "Wire",
+          "Properties": {},
+          "Children": []
+        },
+        {
+          "Name": "RevealWire",
+          "ClassName": "Wire",
+          "Properties": {},
+          "Children": []
+        },
+        {
+          "Name": "RareWire",
+          "ClassName": "Wire",
+          "Properties": {},
+          "Children": []
+        }
+      ]
+    }
+  ]
+}

@@ -26,6 +26,16 @@ export type GuildReservation = {
 	role: string?,
 }
 
+export type RuneOwnedEntry = {
+	count: number,
+}
+
+export type RuneSaveState = {
+	owned: { [string]: RuneOwnedEntry },
+	totalRolls: number,
+	rollsSincePity: number,
+}
+
 export type PlayerProfileV1 = {
 	schemaVersion: number,
 	coins: number,
@@ -53,6 +63,7 @@ export type PlayerProfileV1 = {
 		discordVerified: boolean,
 	},
 	guild: GuildReservation,
+	runes: RuneSaveState,
 	feedback: {
 		lastSubmittedAt: number,
 	},
@@ -84,8 +95,35 @@ export type ClientSnapshot = {
 	friendBonus: number,
 	premiumBonus: number,
 	potionMultiplier: number,
+	runeMultiplier: number,
+	runes: RuneClientState?,
 	serverTime: number,
 	features: { [string]: boolean },
+}
+
+export type RuneClientState = {
+	owned: { [string]: RuneOwnedEntry },
+	totalRolls: number,
+	rollsSincePity: number,
+	pityThreshold: number,
+	nextCost: number,
+	currencyId: string,
+	totalBonusPercent: number,
+	multiplier: number,
+	restricted: boolean,
+}
+
+export type RuneRollResult = {
+	runeId: string,
+	rarityId: string,
+	cost: number,
+	ownedCount: number,
+	isNew: boolean,
+	pityTriggered: boolean,
+	totalRolls: number,
+	nextCost: number,
+	totalBonusPercent: number,
+	multiplier: number,
 }
 
 export type ProviderResult<T> = {

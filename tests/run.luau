@@ -2,6 +2,8 @@
 
 local Calculations = require("../src/shared/Calculations")
 local CurrencyConfig = require("../src/shared/CurrencyConfig")
+local RuneCatalog = require("../src/shared/RuneCatalog")
+local RuneLogic = require("../src/shared/RuneLogic")
 local DataStoreNames = require("../src/shared/DataStoreNames")
 local DataStoreKeys = require("../src/shared/DataStoreKeys")
 local MigrationCore = require("../src/shared/MigrationCore")
@@ -485,6 +487,8 @@ end
 local authoredVisualBinders = fs.readFile("src/ReplicatedFirst/Loading.client.luau")
 	.. fs.readFile("src/starter/StarterExample.server.luau")
 	.. fs.readFile("src/starter-client/StarterExample.client.luau")
+	.. fs.readFile("src/starter/RuneCircle.server.luau")
+	.. fs.readFile("src/starter-client/RuneCircle.client.luau")
 for _, forbiddenConstructor in { "Instance.new", ":Clone(", ":Destroy(" } do
 	expectEqual(
 		string.find(authoredVisualBinders, forbiddenConstructor, 1, true),
@@ -501,6 +505,11 @@ for _, authoredWorldObject in
 		'"BonusEarningPad"',
 		'"BonusPrompt"',
 		'"PlayableStarterClient"',
+		'"RuneCircle"',
+		'"GlowRing"',
+		'"CoreGlow"',
+		'"RuneCircleSign"',
+		'"RuneCircleUI"',
 	}
 do
 	expectEqual(
@@ -679,5 +688,146 @@ expectEqual(
 	true,
 	"ProductsGrid shifts down to match the taller StoreHeader"
 )
+
+-- Rune altar: weighted rolls, pity, cost curve, and permanent multiplier.
+expectEqual(
+	RuneLogic.weightTotal(RuneCatalog.rarities),
+	10000,
+	"rune rarity weights sum to exactly 10000 so disclosed odds total 100%"
+)
+local oddsSum = 0
+for _, rarity in RuneCatalog.rarities do
+	oddsSum += RuneLogic.oddsPercent(rarity)
+	expectEqual(
+		#RuneCatalog.runesForRarity(rarity.id) > 0,
+		true,
+		`rarity {rarity.id} has at least one authored rune`
+	)
+end
+expectEqual(math.abs(oddsSum - 100) < 1e-9, true, "displayed rune odds add up to exactly 100 percent")
+for _, rune in RuneCatalog.runes do
+	expectEqual(RuneCatalog.rarity(rune.rarityId) ~= nil, true, `rune {rune.id} maps to a real rarity`)
+	expectEqual(rune.bonusPercent > 0, true, `rune {rune.id} grants a positive generation bonus`)
+end
+
+local commonIndex = RuneLogic.pickRarityIndex(RuneCatalog.rarities, 0, 0, 40, 4)
+expectEqual(commonIndex, 1, "lowest roll lands on the most common rarity")
+local boundaryIndex = RuneLogic.pickRarityIndex(RuneCatalog.rarities, 0.54, 0, 40, 4)
+expectEqual(boundaryIndex, 2, "exact tier boundary promotes to the next rarity")
+local mythicIndex = RuneLogic.pickRarityIndex(RuneCatalog.rarities, 0.9999, 0, 40, 4)
+expectEqual(mythicIndex, #RuneCatalog.rarities, "highest roll lands on the rarest rarity")
+
+local pityIndex, pityTriggered = RuneLogic.pickRarityIndex(RuneCatalog.rarities, 0, 39, 40, 4)
+expectEqual(pityTriggered, true, "pity triggers on the guaranteed roll")
+expectEqual(pityIndex >= 4, true, "pity roll cannot drop below the guaranteed rarity")
+local noPityIndex, noPityTriggered = RuneLogic.pickRarityIndex(RuneCatalog.rarities, 0, 38, 40, 4)
+expectEqual(noPityTriggered, false, "pity stays quiet before the threshold")
+expectEqual(noPityIndex, 1, "regular rolls still hit common before the pity threshold")
+
+expectEqual(RuneLogic.pickRuneIndex(2, 0), 1, "rune pick lower bound")
+expectEqual(RuneLogic.pickRuneIndex(2, 0.99), 2, "rune pick upper bound")
+expectEqual(RuneLogic.pickRuneIndex(0, 0.5), 0, "empty rune pools pick nothing")
+
+expectEqual(RuneLogic.rollCost(75, 1.12, 0, 250000), 75, "first roll costs the base price")
+expectEqual(RuneLogic.rollCost(75, 1.12, 2, 250000), math.floor(75 * 1.12 * 1.12), "roll cost escalates")
+expectEqual(RuneLogic.rollCost(75, 1.12, 500, 250000), 250000, "roll cost clamps at the configured cap")
+
+local ownedSample = {
+	ember_rune = { count = 2 },
+	celestial_rune = { count = 1 },
+	forgotten_rune = { count = 5 },
+	corrupt_rune = { count = 0 / 0 },
+}
+expectEqual(
+	RuneLogic.totalBonusPercent(ownedSample, RuneCatalog),
+	104,
+	"generation bonus sums owned copies and skips unknown or corrupt entries"
+)
+expectEqual(
+	math.floor(RuneLogic.multiplier({ owned = ownedSample }, RuneCatalog) * 100 + 0.5),
+	204,
+	"rune multiplier converts the summed bonus into an earnings factor"
+)
+expectEqual(RuneLogic.multiplier(nil, RuneCatalog), 1, "missing rune state keeps a neutral multiplier")
+expectEqual(RuneLogic.countOwned(ownedSample), 8, "owned counter keeps unknown saved runes")
+expectEqual(
+	RuneLogic.countOwnedForRarity(ownedSample, "common", RuneCatalog),
+	2,
+	"per-rarity counter follows the catalog"
+)
+
+local runeMigrated = MigrationCore.migrate({ schemaVersion = 4, coins = 5 }, {
+	schemaVersion = 5,
+	coins = 0,
+	runes = { owned = {}, totalRolls = 0, rollsSincePity = 0 },
+}, 5)
+expectEqual(type(runeMigrated.runes), "table", "older profiles gain the rune state on migration")
+expectEqual(runeMigrated.runes.totalRolls, 0, "migrated rune state starts unrolled")
+local runePreserved = MigrationCore.migrate({
+	schemaVersion = 5,
+	coins = 5,
+	runes = { owned = { mystery_rune = { count = 3 } }, totalRolls = 7, rollsSincePity = 2 },
+}, {
+	schemaVersion = 5,
+	coins = 0,
+	runes = { owned = {}, totalRolls = 0, rollsSincePity = 0 },
+}, 5)
+expectEqual(
+	runePreserved.runes.owned.mystery_rune.count,
+	3,
+	"unknown saved runes survive migration untouched"
+)
+expectEqual(runePreserved.runes.totalRolls, 7, "rune roll history survives migration")
+
+local runeServiceSource = fs.readFile("src/server/Services/RuneService.luau")
+expectEqual(
+	string.find(runeServiceSource, "GetPolicyInfoForPlayerAsync", 1, true) ~= nil,
+	true,
+	"rune rolls check the paid-random-items policy"
+)
+expectEqual(
+	string.find(runeServiceSource, "ArePaidRandomItemsRestricted", 1, true) ~= nil,
+	true,
+	"rune rolls respect ArePaidRandomItemsRestricted"
+)
+expectEqual(
+	string.find(runeServiceSource, "OnServerEvent", 1, true),
+	nil,
+	"rune rolls are server-initiated; no client remote can trigger them"
+)
+local runeConfigSource = fs.readFile("src/shared/TemplateConfig.luau")
+expectEqual(
+	string.find(runeConfigSource, "pityMinimumRarity", 1, true) ~= nil,
+	true,
+	"rune pity guarantee is configurable"
+)
+
+local runeUi = fs.readFile("src/ui/RuneCircleUI.model.json")
+for _, authoredRuneObject in
+	{
+		'"Name": "RevealCard"',
+		'"Name": "RarityBanner"',
+		'"Name": "NewTag"',
+		'"Name": "PityTag"',
+		'"Name": "OddsPanel"',
+		'"Name": "RarityRow6"',
+		'"Name": "TotalChip"',
+		'"Name": "RestrictedNote"',
+	}
+do
+	expectEqual(
+		string.find(runeUi, authoredRuneObject, 1, true) ~= nil,
+		true,
+		`rune UI pre-authors {authoredRuneObject}`
+	)
+end
+local runeSign = fs.readFile("src/ui/RuneCircleSign.model.json")
+for _, authoredSignObject in { '"Name": "CostLine"', '"Name": "StatusLine"', '"Name": "AutoChip"' } do
+	expectEqual(
+		string.find(runeSign, authoredSignObject, 1, true) ~= nil,
+		true,
+		`rune sign pre-authors {authoredSignObject}`
+	)
+end
 
 print(`{passed} pure Luau assertions passed`)
