@@ -134,14 +134,19 @@ end)
 expectEqual(futureOk, false, "future profile schemas are refused instead of overwritten")
 local migrationsSource = fs.readFile("src/shared/Migrations.luau")
 expectEqual(
-	string.find(migrationsSource, "Migrations.CURRENT_VERSION = 6", 1, true) ~= nil,
+	string.find(migrationsSource, "Migrations.CURRENT_VERSION = 7", 1, true) ~= nil,
 	true,
-	"tower defense profile schema version is current"
+	"profile schema version is current"
 )
 expectEqual(
 	string.find(migrationsSource, "previousVersion < 6", 1, true) ~= nil,
 	true,
 	"schema 5 profiles gain tower defense state"
+)
+expectEqual(
+	string.find(migrationsSource, "previousVersion < 7", 1, true) ~= nil,
+	true,
+	"schema 6 profiles gain the rune channel mode selection"
 )
 expectEqual(
 	string.find(migrationsSource, "ownedUnits = {}", 1, true) ~= nil,
