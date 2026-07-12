@@ -37,6 +37,7 @@ local requestFeatures: { [string]: string } = {
 	RedeemCode = "codes",
 	UpdateSetting = "settings",
 	SubmitFeedback = "feedback",
+	SetRuneMode = "runes",
 	RollUnit = "towerDefense",
 	SetTowerLoadout = "towerDefense",
 	EquipBestUnits = "towerDefense",
@@ -81,6 +82,12 @@ function RemoteService.snapshot(player: Player): any
 		premiumBonus = if profile.entitlements.premium then Config.economy.premiumBonus else 0,
 		potionMultiplier = Calculations.potionMultiplier(profile.boosts, os.time()),
 		runeMultiplier = EconomyService.getRuneMultiplier(player),
+		channelMultiplier = RuneService.channelEarningsMultiplier(player),
+		temporaryMultiplier = Calculations.temporaryMultiplier(
+			profile.boosts,
+			os.time(),
+			RuneService.channelEarningsMultiplier(player)
+		),
 		runes = if Config.features.runes == true then RuneService.snapshotFor(player) else nil,
 		towerDefense = if Config.features.towerDefense == true
 			then TowerDefenseService.snapshotFor(player)
@@ -178,6 +185,15 @@ local function handleRequest(player: Player, packet: any)
 			return
 		end
 		result(player, FeedbackService.submit(player, payload.category, payload.message))
+	elseif action == "SetRuneMode" then
+		-- Only shape checks live here; RuneService re-validates that the mode
+		-- exists and is unlocked for this player.
+		local modeId = if type(payload) == "table" then payload.modeId else nil
+		if type(modeId) ~= "string" or #modeId < 1 or #modeId > 40 then
+			result(player, false, "Invalid channel mode")
+			return
+		end
+		result(player, RuneService.setMode(player, modeId))
 	elseif action == "RollUnit" then
 		result(player, TowerDefenseService.rollUnit(player))
 	elseif action == "SetTowerLoadout" then

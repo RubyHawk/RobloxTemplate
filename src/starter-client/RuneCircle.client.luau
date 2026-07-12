@@ -95,6 +95,7 @@ end
 local remotes = ReplicatedStorage:WaitForChild(RemoteNames.folder)
 local stateRemote = remotes:WaitForChild(RemoteNames.state) :: RemoteEvent
 local queryRemote = remotes:WaitForChild(RemoteNames.query) :: RemoteFunction
+local requestRemote = remotes:WaitForChild(RemoteNames.request) :: RemoteEvent
 
 local revealCard = screenGui:WaitForChild("RevealCard") :: Frame
 local cardScale = revealCard:WaitForChild("UIScale") :: UIScale
@@ -114,6 +115,61 @@ local oddsTotalLine = oddsPanel:WaitForChild("TotalLine") :: TextLabel
 local restrictedNote = oddsPanel:WaitForChild("RestrictedNote") :: TextLabel
 local totalChip = screenGui:WaitForChild("TotalChip") :: Frame
 local totalChipLabel = totalChip:WaitForChild("Label") :: TextLabel
+
+-- Channel-mode instances bind optionally so places built before this feature
+-- keep working: missing slots simply stay hidden.
+local function optionalLabel(parent: Instance, name: string): TextLabel?
+	local child = parent:FindFirstChild(name)
+	if child ~= nil and child:IsA("TextLabel") then
+		return child
+	end
+	return nil
+end
+
+local function optionalGui(parent: Instance, name: string): GuiObject?
+	local child = parent:FindFirstChild(name)
+	if child ~= nil and child:IsA("GuiObject") then
+		return child
+	end
+	return nil
+end
+
+local milestoneLine = optionalLabel(revealCard, "MilestoneLine")
+local modeHint = optionalLabel(oddsPanel, "ModeHint")
+local modePanelChild = screenGui:FindFirstChild("ModePanel")
+local modePanel: Frame? = if modePanelChild ~= nil and modePanelChild:IsA("Frame")
+	then modePanelChild
+	else nil
+
+type ModeButtonSlots = {
+	button: TextButton,
+	nameLabel: TextLabel?,
+	lockLabel: GuiObject?,
+	activeBar: GuiObject?,
+}
+local modeButtons: { [number]: ModeButtonSlots } = {}
+local momentumFill: GuiObject? = nil
+local momentumTierLabel: TextLabel? = nil
+local momentumNextLabel: TextLabel? = nil
+if modePanel ~= nil then
+	for index = 1, 4 do
+		local button = modePanel:FindFirstChild(`ModeButton{index}`)
+		if button ~= nil and button:IsA("TextButton") then
+			modeButtons[index] = {
+				button = button,
+				nameLabel = optionalLabel(button, "NameLabel"),
+				lockLabel = optionalGui(button, "LockLabel"),
+				activeBar = optionalGui(button, "ActiveBar"),
+			}
+		end
+	end
+	local meter = modePanel:FindFirstChild("MomentumMeter")
+	if meter ~= nil then
+		momentumFill = optionalGui(meter, "Fill")
+		momentumTierLabel = optionalLabel(meter, "TierLabel")
+		momentumNextLabel = optionalLabel(meter, "NextLabel")
+	end
+end
 
 local audioFolder = screenGui:WaitForChild("Audio") :: Folder
 local rollPlayer = audioFolder:WaitForChild("RollPlayer") :: AudioPlayer
@@ -171,6 +227,27 @@ local reducedMotion = false
 local flashUntil = 0
 local revealToken = 0
 
+-- Live channel state pushed by the server on transitions. momentumSeconds is
+-- extrapolated from receivedAt purely for smooth meters; the server remains
+-- authoritative and corrects on every transition event and snapshot.
+local channel: any = nil
+local channelReceivedAt = 0
+
+local function channelMode(): any
+	if channel == nil then
+		return nil
+	end
+	return RuneLogic.findMode(Config.runes.channelModes, channel.modeId)
+end
+
+local function channelMomentumNow(): number
+	if channel == nil then
+		return 0
+	end
+	local base = if type(channel.momentumSeconds) == "number" then channel.momentumSeconds else 0
+	return base + math.max(os.clock() - channelReceivedAt, 0)
+end
+
 local function isReducedMotion(): boolean
 	if GuiService.ReducedMotionEnabled then
 		return true
@@ -201,6 +278,12 @@ end
 local function applyOddsPanel()
 	local runesState = if state then state.runes else nil
 	local owned = if runesState then runesState.owned else nil
+	-- Compliance: while luck momentum is active the server sends the exact
+	-- adjusted weights it rolls with, and those are what we display.
+	local effectiveWeights: any = nil
+	if channel ~= nil and channel.kind == "luck" and type(channel.effectiveWeights) == "table" then
+		effectiveWeights = channel.effectiveWeights
+	end
 	for index, rarity in RuneCatalog.rarities do
 		local row = oddsPanel:FindFirstChild(`RarityRow{index}`)
 		if row == nil then
@@ -216,13 +299,82 @@ local function applyOddsPanel()
 		end
 		local oddsLabel = row:FindFirstChild("OddsLabel")
 		if oddsLabel and oddsLabel:IsA("TextLabel") then
-			oddsLabel.Text = `{RuneLogic.oddsPercent(rarity)}%`
+			local weight = if effectiveWeights ~= nil and type(effectiveWeights[index]) == "number"
+				then effectiveWeights[index]
+				else rarity.weight
+			oddsLabel.Text = `{weight / 100}%`
 		end
 		local ownedLabel = row:FindFirstChild("OwnedLabel")
 		if ownedLabel and ownedLabel:IsA("TextLabel") then
 			ownedLabel.Text = `x{RuneLogic.countOwnedForRarity(owned, rarity.id, RuneCatalog)}`
 		end
 	end
+end
+
+local function applyModePanel()
+	if modePanel == nil then
+		return
+	end
+	local runesState = if state then state.runes else nil
+	local unlockedById: { [string]: boolean } = {}
+	if runesState ~= nil and type(runesState.modes) == "table" then
+		for _, availability in runesState.modes do
+			if type(availability) == "table" and type(availability.id) == "string" then
+				unlockedById[availability.id] = availability.unlocked == true
+			end
+		end
+	end
+	local activeId: any = nil
+	if channel ~= nil then
+		activeId = channel.modeId
+	elseif runesState ~= nil then
+		activeId = runesState.selectedMode
+	end
+	for index = 1, 4 do
+		local slots = modeButtons[index]
+		if slots == nil then
+			continue
+		end
+		local mode = Config.runes.channelModes[index]
+		if mode == nil then
+			slots.button.Visible = false
+			continue
+		end
+		slots.button.Visible = true
+		if slots.nameLabel ~= nil then
+			slots.nameLabel.Text = string.upper(mode.name)
+		end
+		if slots.lockLabel ~= nil then
+			slots.lockLabel.Visible = unlockedById[mode.id] ~= true
+		end
+		if slots.activeBar ~= nil then
+			slots.activeBar.Visible = mode.id == activeId
+		end
+	end
+end
+
+local function applyChannel(nextChannel: any)
+	if type(nextChannel) == "table" and nextChannel.active == true then
+		channel = nextChannel
+	else
+		channel = nil
+	end
+	channelReceivedAt = os.clock()
+	if modeHint ~= nil then
+		local tierValue = if channel ~= nil and type(channel.tierValue) == "number"
+			then channel.tierValue
+			else 1
+		if channel ~= nil and tierValue > 1 then
+			modeHint.Text = if channel.kind == "luck"
+				then `LUCK x{tierValue} WHILE CHANNELING`
+				else `EARNINGS x{tierValue} WHILE CHANNELING`
+			modeHint.Visible = true
+		else
+			modeHint.Visible = false
+		end
+	end
+	applyOddsPanel()
+	applyModePanel()
 end
 
 local function applyState(nextState: any)
@@ -249,7 +401,7 @@ local function applyState(nextState: any)
 	totalChipLabel.Text = multiplierText
 	totalChip.Visible = RuneLogic.countOwned(runesState.owned) > 0
 	restrictedNote.Visible = runesState.restricted == true
-	applyOddsPanel()
+	applyChannel(runesState.channel)
 end
 
 local function currentStatusText(): string
@@ -260,7 +412,9 @@ local function currentStatusText(): string
 	if runesState.restricted == true then
 		return "RUNE ROLLS ARE UNAVAILABLE FOR THIS ACCOUNT"
 	end
-	if not standing then
+	-- The server's channel state decides "channeling"; the local geometry
+	-- check only bridges the beat before the first server event arrives.
+	if channel == nil and not standing then
 		return "STAND IN THE CIRCLE TO CHANNEL RUNES"
 	end
 	local balances = state.profile.currencies
@@ -297,16 +451,33 @@ local function showReveal(result: any)
 	TweenService:Create(cardScale, tweenInfo(0.25, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 	flashUntil = os.clock() + 0.4
 
+	if milestoneLine ~= nil then
+		local milestones = Config.runes.copyMilestones
+		local reached = RuneLogic.milestoneMultiplier(milestones, result.ownedCount)
+		local upcoming = RuneLogic.nextMilestone(milestones, result.ownedCount)
+		if upcoming ~= nil then
+			milestoneLine.Text = if reached > 1
+				then `MILESTONE x{reached} • NEXT AT {upcoming.copies} COPIES`
+				else `MILESTONE x{upcoming.multiplier} AT {upcoming.copies} COPIES`
+			milestoneLine.Visible = true
+		elseif reached > 1 then
+			milestoneLine.Text = `MILESTONE x{reached} MAXED`
+			milestoneLine.Visible = true
+		else
+			milestoneLine.Visible = false
+		end
+	end
+
 	revealPlayer:Play()
 	local rarityIndex = RuneCatalog.rarityIndex(rarity.id) or 1
-	local epicIndex = RuneCatalog.rarityIndex("epic") or math.huge
-	if rarityIndex >= epicIndex then
+	local rareMinimumIndex = RuneCatalog.rarityIndex(Config.runes.rareAudioMinimumRarity) or math.huge
+	if rarityIndex >= rareMinimumIndex then
 		rarePlayer:Play()
 	else
 		rollPlayer:Play()
 	end
 
-	task.delay(3, function()
+	task.delay(Config.runes.revealSeconds, function()
 		if token == revealToken then
 			revealCard.Visible = false
 		end
@@ -321,8 +492,21 @@ stateRemote.OnClientEvent:Connect(function(packet: any)
 		applyState(packet.data)
 	elseif packet.kind == "RuneResult" then
 		showReveal(packet.data)
+	elseif packet.kind == "RuneChannel" then
+		applyChannel(packet.data)
 	end
 end)
+
+-- Swapping is only an intent: the server validates the mode id, checks the
+-- unlock, and answers through the usual Result + snapshot channel.
+for index, slots in modeButtons do
+	slots.button.Activated:Connect(function()
+		local mode = Config.runes.channelModes[index]
+		if mode ~= nil then
+			requestRemote:FireServer({ action = "SetRuneMode", payload = { modeId = mode.id } })
+		end
+	end)
+end
 
 task.spawn(function()
 	for _ = 1, 30 do
@@ -345,12 +529,48 @@ local center = platform.Position
 local staticApplied = false
 RunService.Heartbeat:Connect(function(deltaTime: number)
 	clock += deltaTime
-	local nowStanding = insideCircle()
-	if nowStanding ~= standing then
-		standing = nowStanding
-		oddsPanel.Visible = standing
+	-- Local geometry only drives the instant altar glow; panel visibility and
+	-- status follow the server's channel state (with the local check bridging
+	-- the beat before the first server event).
+	standing = insideCircle()
+	local panelsVisible = channel ~= nil or standing
+	if oddsPanel.Visible ~= panelsVisible then
+		oddsPanel.Visible = panelsVisible
+	end
+	if modePanel ~= nil and modePanel.Visible ~= panelsVisible then
+		modePanel.Visible = panelsVisible
 	end
 	statusLine.Text = currentStatusText()
+
+	if channel ~= nil and (momentumFill ~= nil or momentumTierLabel ~= nil or momentumNextLabel ~= nil) then
+		local mode = channelMode()
+		local tiers: any = if mode ~= nil then mode.tiers else {}
+		local momentum = channelMomentumNow()
+		local tierIndex = RuneLogic.momentumTier(tiers, momentum)
+		local nextAt = RuneLogic.nextTierAt(tiers, momentum)
+		if momentumTierLabel ~= nil then
+			momentumTierLabel.Text = `TIER {tierIndex}`
+		end
+		if momentumNextLabel ~= nil then
+			momentumNextLabel.Text = if nextAt ~= nil
+				then `NEXT TIER {math.ceil(nextAt - momentum)}s`
+				else "MAX TIER"
+		end
+		if momentumFill ~= nil then
+			local fraction = 1
+			if nextAt ~= nil then
+				local previousAt = 0
+				if type(tiers) == "table" and tierIndex > 0 then
+					local tier = tiers[tierIndex]
+					if type(tier) == "table" and type(tier.atSeconds) == "number" then
+						previousAt = tier.atSeconds
+					end
+				end
+				fraction = math.clamp((momentum - previousAt) / math.max(nextAt - previousAt, 0.01), 0, 1)
+			end
+			momentumFill.Size = UDim2.new(fraction, 0, 1, 0)
+		end
+	end
 
 	if isReducedMotion() then
 		if not staticApplied then

@@ -10,7 +10,7 @@ local ProfileTemplate = {}
 function ProfileTemplate.create(now: number): PlayerProfileV1
 	local currencies = CurrencyConfig.startingBalances(Config.economy.currencies)
 	return {
-		schemaVersion = 6,
+		schemaVersion = 7,
 		coins = currencies[Config.economy.primaryCurrencyId] or 0,
 		currencies = currencies,
 		inventory = {
@@ -50,6 +50,7 @@ function ProfileTemplate.create(now: number): PlayerProfileV1
 			owned = {},
 			totalRolls = 0,
 			rollsSincePity = 0,
+			selectedMode = Config.runes.defaultChannelMode,
 		},
 		towerDefense = {
 			ownedUnits = {},

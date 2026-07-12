@@ -460,7 +460,13 @@ local function applyState(nextState: any)
 		legacyCoinLabel.Text = UIFactory.formatNumber(balances[primaryId] or state.profile.coins or 0)
 	end
 	local runeMultiplier = if type(state.runeMultiplier) == "number" then state.runeMultiplier else 1
-	local totalBoost = (1 + state.friendBonus + state.premiumBonus) * state.potionMultiplier * runeMultiplier
+	local channelMultiplier = if type(state.channelMultiplier) == "number" then state.channelMultiplier else 1
+	-- Strongest temporary boost (potion vs channel surge, never stacked);
+	-- older servers only send potionMultiplier.
+	local temporaryMultiplier = if type(state.temporaryMultiplier) == "number"
+		then state.temporaryMultiplier
+		else state.potionMultiplier
+	local totalBoost = (1 + state.friendBonus + state.premiumBonus) * temporaryMultiplier * runeMultiplier
 	boostLabel.Text =
 		`x{string.format("%.2f", totalBoost)} BOOST  •  {state.profile.social.friendCountInServer} FRIENDS`
 	if boostSummaryButton and boostDetails then
@@ -472,9 +478,10 @@ local function applyState(nextState: any)
 			FriendsValue = `+{math.round(state.friendBonus * 100)}%`,
 			PremiumValue = `+{math.round(state.premiumBonus * 100)}%`,
 			PotionValue = `x{string.format("%.2f", state.potionMultiplier)}`,
-			-- Presets may pre-author a RunesValue label; packs without one
-			-- simply skip it below.
+			-- Presets may pre-author RunesValue/ChannelValue labels; packs
+			-- without them simply skip those rows below.
 			RunesValue = `x{string.format("%.2f", runeMultiplier)}`,
+			ChannelValue = `x{string.format("%.2f", channelMultiplier)}`,
 			TotalValue = `x{string.format("%.2f", totalBoost)}`,
 		}
 		for name, text in detailValues do
