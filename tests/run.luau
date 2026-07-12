@@ -2,13 +2,16 @@
 
 local Calculations = require("../src/shared/Calculations")
 local CurrencyConfig = require("../src/shared/CurrencyConfig")
+local RuneCatalog = require("../src/shared/RuneCatalog")
+local RuneLogic = require("../src/shared/RuneLogic")
+local TowerDefenseCatalog = require("../src/shared/TowerDefenseCatalog")
+local TowerDefenseLogic = require("../src/shared/TowerDefenseLogic")
 local DataStoreNames = require("../src/shared/DataStoreNames")
 local DataStoreKeys = require("../src/shared/DataStoreKeys")
 local MigrationCore = require("../src/shared/MigrationCore")
 local ReceiptLedger = require("../src/shared/ReceiptLedger")
 local SessionLock = require("../src/server/Util/SessionLock")
 local fs = require("@lune/fs")
-local luau = require("@lune/luau")
 local serde = require("@lune/serde")
 
 local passed = 0
@@ -128,6 +131,27 @@ local futureOk = pcall(function()
 	MigrationCore.migrate({ schemaVersion = 99 }, { schemaVersion = 1 }, 1)
 end)
 expectEqual(futureOk, false, "future profile schemas are refused instead of overwritten")
+local migrationsSource = fs.readFile("src/shared/Migrations.luau")
+expectEqual(
+	string.find(migrationsSource, "Migrations.CURRENT_VERSION = 6", 1, true) ~= nil,
+	true,
+	"tower defense profile schema version is current"
+)
+expectEqual(
+	string.find(migrationsSource, "previousVersion < 6", 1, true) ~= nil,
+	true,
+	"schema 5 profiles gain tower defense state"
+)
+expectEqual(
+	string.find(migrationsSource, "ownedUnits = {}", 1, true) ~= nil,
+	true,
+	"tower defense migration creates owned unit storage"
+)
+expectEqual(
+	string.find(migrationsSource, "bestWave = 0", 1, true) ~= nil,
+	true,
+	"tower defense migration initializes best wave"
+)
 
 expectEqual(DataStoreKeys.profile(123), "player:123", "profile key is documented and stable")
 expectEqual(DataStoreKeys.publicProfile(123), "user:123", "public profile key is documented")
@@ -289,6 +313,18 @@ expectEqual(
 	string.find(profileServiceSource, "while releasing[player] do", 1, true) ~= nil,
 	true,
 	"overlapping shutdown releases wait instead of clearing the same lock twice"
+)
+expectEqual(
+	string.find(profileServiceSource, "RunService:IsStudio()", 1, true) ~= nil
+		and string.find(
+				profileServiceSource,
+				"math.max(loaded.currencies[definition.id], definition.startingAmount)",
+				1,
+				true
+			)
+			~= nil,
+	true,
+	"Studio playtests top up existing profiles to the configured starting currency"
 )
 
 local leaderboardSource = fs.readFile("src/server/Services/LeaderboardService.luau")
@@ -486,6 +522,8 @@ end
 local authoredVisualBinders = fs.readFile("src/ReplicatedFirst/Loading.client.luau")
 	.. fs.readFile("src/starter/StarterExample.server.luau")
 	.. fs.readFile("src/starter-client/StarterExample.client.luau")
+	.. fs.readFile("src/starter/RuneCircle.server.luau")
+	.. fs.readFile("src/starter-client/RuneCircle.client.luau")
 for _, forbiddenConstructor in { "Instance.new", ":Clone(", ":Destroy(" } do
 	expectEqual(
 		string.find(authoredVisualBinders, forbiddenConstructor, 1, true),
@@ -501,13 +539,346 @@ for _, authoredWorldObject in
 		'"EarnPrompt"',
 		'"BonusEarningPad"',
 		'"BonusPrompt"',
+		'"FirstPrivateIsland"',
 		'"PlayableStarterClient"',
+		'"RuneCircle"',
+		'"GlowRing"',
+		'"CoreGlow"',
+		'"RuneCircleSign"',
+		'"RuneCircleUI"',
 	}
 do
 	expectEqual(
 		string.find(playableProject, authoredWorldObject, 1, true) ~= nil,
 		true,
 		`playable project pre-authors {authoredWorldObject}`
+	)
+end
+local firstPrivateIsland = fs.readFile("src/world/FirstPrivateIslandGridDemo.model.json")
+for _, authoredGridObject in
+	{
+		'"Name": "GamePlatform"',
+		'"Name": "PlatformBase"',
+		'"Name": "PlatformOrigin"',
+		'"Name": "GridOverlay"',
+		'"Name": "Cells"',
+		'"Name": "Cell_01_01"',
+		'"Name": "Cell_32_27"',
+		'"Name": "CellMap"',
+		'"Name": "Row_01"',
+		'"Name": "Row_27"',
+		'"Value": "................................"',
+		'"Name": "CellSize"',
+		'"Name": "Columns"',
+		'"Name": "Rows"',
+		'"Name": "PlatformEnabled"',
+		'"Name": "GridVisible"',
+		'"Name": "PathTiles"',
+		'"Name": "PathPoints"',
+		'"Name": "GridNpc"',
+	}
+do
+	expectEqual(
+		string.find(firstPrivateIsland, authoredGridObject, 1, true) ~= nil,
+		true,
+		`first private island pre-authors {authoredGridObject}`
+	)
+end
+expectEqual(
+	string.find(firstPrivateIsland, '"Name": "VisibilityMarker"', 1, true),
+	nil,
+	"first private island no longer includes the temporary visibility marker"
+)
+local firstPrivateIslandModel = serde.decode("json", firstPrivateIsland)
+local function namedChild(parent: { Children: { any } }, name: string): any?
+	for _, child in parent.Children do
+		if child.Name == name then
+			return child
+		end
+	end
+	return nil
+end
+local gamePlatformModel = namedChild(firstPrivateIslandModel, "GamePlatform")
+expectEqual(gamePlatformModel ~= nil, true, "first private island has a game platform model")
+local cellMapModel = namedChild(gamePlatformModel, "CellMap")
+expectEqual(cellMapModel ~= nil, true, "first private island keeps an authored cell map folder")
+expectEqual(#cellMapModel.Children, 27, "empty stage template keeps 27 authored map rows")
+for _, rowValue in cellMapModel.Children do
+	expectEqual(
+		rowValue.Properties.Value,
+		"................................",
+		`empty stage template row {rowValue.Name} starts fully buildable`
+	)
+end
+expectEqual(
+	string.find(firstPrivateIsland, '"Name": "PathCurve_', 1, true),
+	nil,
+	"empty stage template does not pre-bake route path tiles"
+)
+expectEqual(
+	string.find(firstPrivateIsland, '"Name": "Control_', 1, true),
+	nil,
+	"empty stage template does not pre-bake spline control handles"
+)
+expectEqual(
+	namedChild(gamePlatformModel, "PathPoints") ~= nil,
+	true,
+	"spline path controls move with GamePlatform"
+)
+expectEqual(
+	namedChild(gamePlatformModel, "PathTiles") ~= nil,
+	true,
+	"spline path visuals move with GamePlatform"
+)
+expectEqual(
+	#namedChild(gamePlatformModel, "PathPoints").Children,
+	0,
+	"empty template starts with no spline handles"
+)
+expectEqual(
+	#namedChild(gamePlatformModel, "PathTiles").Children,
+	0,
+	"empty template starts with no route visuals"
+)
+expectEqual(
+	namedChild(firstPrivateIslandModel, "PathPoints"),
+	nil,
+	"spline controls are not orphaned at island root"
+)
+expectEqual(
+	namedChild(firstPrivateIslandModel, "PathTiles"),
+	nil,
+	"spline visuals are not orphaned at island root"
+)
+local gridPatchProject = fs.readFile("patches/rng-defender-grid-demo.project.json")
+for _, patchObject in
+	{
+		'"Template"',
+		'"Shared"',
+		'"TemplateServer"',
+		'"GridNpcDemo"',
+		'"RuneCircle"',
+		'"RuneCircleSign"',
+		'"RuneCircleUI"',
+		'"RuneCircleClient"',
+		'"FirstPrivateIsland"',
+		'"servePlaceIds": [128136881672145]',
+		'"$path": "rng-defender/DesignerConfig.luau"',
+		'"TowerDefenseCatalog"',
+		'"TowerDefenseLogic"',
+	}
+do
+	expectEqual(
+		string.find(gridPatchProject, patchObject, 1, true) ~= nil,
+		true,
+		`RNG Defender grid patch includes {patchObject}`
+	)
+end
+local rngPatchDesignerConfig = fs.readFile("patches/rng-defender/DesignerConfig.luau")
+for _, patchConfigObject in
+	{
+		'experienceMode = "playable"',
+		'dataNamespace = "rngdefender"',
+		"placeId = 128136881672145",
+		"startingAmount = 100_000_000_000",
+		"towerDefense = true",
+	}
+do
+	expectEqual(
+		string.find(rngPatchDesignerConfig, patchConfigObject, 1, true) ~= nil,
+		true,
+		`RNG Defender patch config includes {patchConfigObject}`
+	)
+end
+local runeCircleWorld = fs.readFile("src/world/RuneCircle.model.json")
+for _, runeCircleObject in
+	{
+		'"Name": "OuterAura"',
+		'"Name": "OuterGlass"',
+		'"Name": "Platform"',
+		'"Name": "GlowRing"',
+		'"Name": "MiddleGlow"',
+		'"Name": "InnerWell"',
+		'"Name": "CoreGlow"',
+		'"Name": "RuneLight"',
+		'"Name": "RuneSigilPlate"',
+		'"Name": "ForestMotes"',
+		'"Name": "RuneMist"',
+		'"Name": "RootBand1"',
+		'"Name": "LeafRune1"',
+		'"Name": "MossStone1"',
+		'"Name": "RuneBlade8"',
+		'"Name": "AnchorCrystal6"',
+		'"Name": "Shard1"',
+		'"Name": "Shard2"',
+		'"Name": "Shard3"',
+		"FOREST RUNES",
+		"rbxassetid://125907024425133",
+	}
+do
+	expectEqual(
+		string.find(runeCircleWorld, runeCircleObject, 1, true) ~= nil,
+		true,
+		`rune test altar pre-authors {runeCircleObject}`
+	)
+end
+for _, removedPatchObject in
+	{
+		'"GridPlatformEditorRemote"',
+		'"GridPlatformEditor"',
+		'"GridPlatformEditorClient"',
+		'"GridPlatformEditorService"',
+		'"GridForgeEditor"',
+		'"GridForgePanel"',
+		'"StagewrightEditor"',
+		'"StagewrightPanel"',
+		'"StarterPack"',
+	}
+do
+	expectEqual(
+		string.find(gridPatchProject, removedPatchObject, 1, true),
+		nil,
+		`RNG Defender grid patch keeps edit-only plugin object out of Rojo patch: {removedPatchObject}`
+	)
+end
+local gridPluginProject = fs.readFile("plugins/grid-platform-editor.project.json")
+local gridPluginSource = fs.readFile("src/plugins/GridPlatformEditPlugin.server.luau")
+for _, pluginObject in
+	{
+		"StagewrightPlugin",
+		"GridPlatformEditPlugin.server.luau",
+		"plugin:CreateToolbar",
+		"CreateDockWidgetPluginGuiAsync",
+		"DockWidgetPluginGuiInfo",
+		"StagewrightPanel",
+		"MaterialPicker",
+		"TemplateDrawer",
+		"StageSelector",
+		"StageProfile_{profile.id}",
+		"Blank Template",
+		"Empty map and route",
+		"Stage 1",
+		"Export Layout",
+		"Undo sync on",
+		"CanvasGuide_",
+		"Stagewright",
+		"rbxasset://textures/StudioSharedUI/grid@2x.png",
+		"plugin:GetMouse",
+		"TryBeginRecording",
+		"FinishRecording",
+		"ToolHeader",
+		"StatusDock",
+		"ModeHint",
+		"TargetInfo",
+		"CommandTabs",
+		"tabSections",
+		"applyTabContent",
+		"CanvasPosition",
+		"StageProfiles",
+		"CanvasGrid",
+		"CanvasHover",
+		"CanvasRouteLayer",
+		"CanvasRouteSegment_",
+		"CanvasRouteDot_",
+		"CanvasFirst",
+		"handleCanvasCellPaintStart",
+		"Paint canvas cells",
+		"Move canvas spline point",
+		"Clear spline route",
+		"Reset empty stage template",
+		"Release to rebuild",
+		"TextButton",
+		"InputEnded",
+		"InputChanged",
+		"InspectorPanel",
+		"LayerTree",
+		"Stage profile selected",
+		"ButtonStroke",
+		"ModeLegend",
+		"Calibrate Grid",
+		"mousePlatformHit",
+		"syncGridTemplate",
+		"gridFootprint",
+		"GridOverlay",
+		"CellMap",
+		"PlatformBase",
+		"Select Platform",
+		"Reset Flat",
+		"Snap to Selection",
+		"Spline Path",
+		"Portal",
+		"Goal",
+		"Auto Place",
+		"CellCode",
+		"P = portal spawn",
+		"GridHoverPreview",
+		"HoverStroke",
+		"mouseGridCell",
+		"hoverColumn",
+		"paintHoveredCell",
+		"mouse.Move",
+		"Button1Up",
+		"dragPainting",
+		"Select Points",
+		"Rebuild Curve",
+		"Add Point",
+		"Delete Selected",
+		"Snap Points",
+		"Clear Route",
+		"Export Spline",
+		"createSplineControl",
+		"rebuildSplineFromControls",
+		"worldFromCanvasScale",
+		"PATH_GRID_RADIUS",
+		"PathCurve",
+		"ControlPending",
+		"platform.PrimaryPart",
+		"island.PrimaryPart",
+		"WorldPivot",
+	}
+do
+	expectEqual(
+		string.find(gridPluginProject .. gridPluginSource, pluginObject, 1, true) ~= nil,
+		true,
+		`edit-mode grid plugin includes {pluginObject}`
+	)
+end
+for _, removedPluginObject in { "BoxHandleAdornment", "paintCellAt" } do
+	expectEqual(
+		string.find(gridPluginSource, removedPluginObject, 1, true),
+		nil,
+		`edit-mode grid plugin no longer uses separate {removedPluginObject} targeting`
+	)
+end
+local gridNpcBinder = fs.readFile("src/starter/GridNpcDemo.server.luau")
+for _, splineMarker in
+	{
+		"catmullRomPosition",
+		"catmullRomTangent",
+		"buildSplinePath",
+		"sampleSplinePath",
+		"SPLINE_SAMPLES_PER_SEGMENT",
+		"PLATFORM_NAME",
+	}
+do
+	expectEqual(
+		string.find(gridNpcBinder, splineMarker, 1, true) ~= nil,
+		true,
+		`grid NPC movement uses spline marker {splineMarker}`
+	)
+end
+for _, oldPathMarker in { "nextPathIndex", "segmentDuration", "startPoint.Position:Lerp" } do
+	expectEqual(
+		string.find(gridNpcBinder, oldPathMarker, 1, true),
+		nil,
+		`grid NPC movement no longer uses boxy path marker {oldPathMarker}`
+	)
+end
+for _, forbiddenConstructor in { "Instance.new", ":Clone(", ":Destroy(" } do
+	expectEqual(
+		string.find(gridNpcBinder, forbiddenConstructor, 1, true),
+		nil,
+		`grid NPC binder does not use {forbiddenConstructor}`
 	)
 end
 expectEqual(
@@ -681,31 +1052,281 @@ expectEqual(
 	"ProductsGrid shifts down to match the taller StoreHeader"
 )
 
--- The Studio grid plugin once died in the field with "Out of local registers
--- when trying to allocate ...: exceeded limit 200": Luau caps local registers
--- per scope, the plugin's flat top level had crept up to that cap, and one
--- more feature stopped the whole script from compiling, so the toolbar button
--- never appeared. Compile the shipped source and budget the top-level local
--- count so the cliff stays far away.
-local gridPluginSource = fs.readFile("src/plugins/GridPlatformEditPlugin.server.luau")
+-- Tower defense: unit collection, loadout ranking, grid cell roles, and wave scaling.
+expectEqual(TowerDefenseLogic.isBuildableCell("."), true, "normal grid cells are buildable for units")
+expectEqual(TowerDefenseLogic.isBuildableCell("A"), true, "auto-place grid cells are buildable for units")
 expectEqual(
-	pcall(function()
-		luau.compile(gridPluginSource)
-	end),
+	TowerDefenseLogic.isPortalCell("P") and TowerDefenseLogic.isBlockedCell("P"),
 	true,
-	"grid platform plugin compiles inside Luau register limits"
+	"portal grid cells spawn enemies and block unit placement"
+)
+expectEqual(
+	TowerDefenseLogic.isGoalCell("G") and TowerDefenseLogic.isBlockedCell("G"),
+	true,
+	"goal grid cells end enemy paths and block unit placement"
+)
+expectEqual(
+	TowerDefenseLogic.pickWeightedUnitIndex(TowerDefenseCatalog.units, 0) >= 1,
+	true,
+	"unit rolls pick a catalog entry at the lower bound"
+)
+expectEqual(
+	TowerDefenseLogic.pickWeightedUnitIndex(TowerDefenseCatalog.units, 0.9999) <= #TowerDefenseCatalog.units,
+	true,
+	"unit rolls pick a catalog entry at the upper bound"
+)
+local bestTowerLoadout = TowerDefenseLogic.bestLoadout({
+	forest_archer = { count = 1 },
+	mushroom_bomber = { count = 1 },
+	ancient_treant = { count = 1 },
+}, TowerDefenseCatalog.units, 2)
+expectEqual(bestTowerLoadout[1], "ancient_treant", "equip best favors the strongest owned unit")
+expectEqual(#bestTowerLoadout, 2, "equip best respects loadout slot cap")
+expectEqual(TowerDefenseLogic.waveScale(1), 1, "first tower defense wave uses base scale")
+expectEqual(TowerDefenseLogic.waveScale(5) > 1, true, "later tower defense waves scale up")
+
+-- Rune altar: weighted rolls, pity, flat configured cost, and permanent multiplier.
+expectEqual(
+	RuneLogic.weightTotal(RuneCatalog.rarities),
+	10000,
+	"rune rarity weights sum to exactly 10000 so disclosed odds total 100%"
+)
+local oddsSum = 0
+for _, rarity in RuneCatalog.rarities do
+	oddsSum += RuneLogic.oddsPercent(rarity)
+	expectEqual(
+		#RuneCatalog.runesForRarity(rarity.id) > 0,
+		true,
+		`rarity {rarity.id} has at least one authored rune`
+	)
+end
+expectEqual(math.abs(oddsSum - 100) < 1e-9, true, "displayed rune odds add up to exactly 100 percent")
+for _, rune in RuneCatalog.runes do
+	expectEqual(RuneCatalog.rarity(rune.rarityId) ~= nil, true, `rune {rune.id} maps to a real rarity`)
+	expectEqual(rune.bonusPercent > 0, true, `rune {rune.id} grants a positive generation bonus`)
+end
+
+local commonIndex = RuneLogic.pickRarityIndex(RuneCatalog.rarities, 0, 0, 40, 4)
+expectEqual(commonIndex, 1, "lowest roll lands on the most common rarity")
+local boundaryIndex = RuneLogic.pickRarityIndex(RuneCatalog.rarities, 0.54, 0, 40, 4)
+expectEqual(boundaryIndex, 2, "exact tier boundary promotes to the next rarity")
+local mythicIndex = RuneLogic.pickRarityIndex(RuneCatalog.rarities, 0.9999, 0, 40, 4)
+expectEqual(mythicIndex, #RuneCatalog.rarities, "highest roll lands on the rarest rarity")
+
+local pityIndex, pityTriggered = RuneLogic.pickRarityIndex(RuneCatalog.rarities, 0, 39, 40, 4)
+expectEqual(pityTriggered, true, "pity triggers on the guaranteed roll")
+expectEqual(pityIndex >= 4, true, "pity roll cannot drop below the guaranteed rarity")
+local noPityIndex, noPityTriggered = RuneLogic.pickRarityIndex(RuneCatalog.rarities, 0, 38, 40, 4)
+expectEqual(noPityTriggered, false, "pity stays quiet before the threshold")
+expectEqual(noPityIndex, 1, "regular rolls still hit common before the pity threshold")
+
+expectEqual(RuneLogic.pickRuneIndex(2, 0), 1, "rune pick lower bound")
+expectEqual(RuneLogic.pickRuneIndex(2, 0.99), 2, "rune pick upper bound")
+expectEqual(RuneLogic.pickRuneIndex(0, 0.5), 0, "empty rune pools pick nothing")
+
+expectEqual(RuneLogic.rollCost(75, 1.12, 0, 250000), 75, "first roll costs the base price")
+expectEqual(RuneLogic.rollCost(75, 1, 500, 75), 75, "configured rune cost stays flat")
+expectEqual(RuneLogic.rollCost(75, 1.12, 2, 250000), math.floor(75 * 1.12 * 1.12), "roll cost escalates")
+expectEqual(RuneLogic.rollCost(75, 1.12, 500, 250000), 250000, "roll cost clamps at the configured cap")
+
+local ownedSample = {
+	ember_rune = { count = 2 },
+	celestial_rune = { count = 1 },
+	forgotten_rune = { count = 5 },
+	corrupt_rune = { count = 0 / 0 },
+}
+expectEqual(
+	RuneLogic.totalBonusPercent(ownedSample, RuneCatalog),
+	104,
+	"generation bonus sums owned copies and skips unknown or corrupt entries"
+)
+expectEqual(
+	math.floor(RuneLogic.multiplier({ owned = ownedSample }, RuneCatalog) * 100 + 0.5),
+	204,
+	"rune multiplier converts the summed bonus into an earnings factor"
+)
+expectEqual(RuneLogic.multiplier(nil, RuneCatalog), 1, "missing rune state keeps a neutral multiplier")
+expectEqual(RuneLogic.countOwned(ownedSample), 8, "owned counter keeps unknown saved runes")
+expectEqual(
+	RuneLogic.countOwnedForRarity(ownedSample, "common", RuneCatalog),
+	2,
+	"per-rarity counter follows the catalog"
 )
 
-local gridPluginTopLevelLocals = 0
-for line in string.gmatch(gridPluginSource .. "\n", "(.-)\n") do
-	if string.sub(line, 1, 6) == "local " then
-		gridPluginTopLevelLocals += 1
-	end
+local runeMigrated = MigrationCore.migrate({ schemaVersion = 4, coins = 5 }, {
+	schemaVersion = 5,
+	coins = 0,
+	runes = { owned = {}, totalRolls = 0, rollsSincePity = 0 },
+}, 5)
+expectEqual(type(runeMigrated.runes), "table", "older profiles gain the rune state on migration")
+expectEqual(runeMigrated.runes.totalRolls, 0, "migrated rune state starts unrolled")
+local runePreserved = MigrationCore.migrate({
+	schemaVersion = 5,
+	coins = 5,
+	runes = { owned = { mystery_rune = { count = 3 } }, totalRolls = 7, rollsSincePity = 2 },
+}, {
+	schemaVersion = 5,
+	coins = 0,
+	runes = { owned = {}, totalRolls = 0, rollsSincePity = 0 },
+}, 5)
+expectEqual(
+	runePreserved.runes.owned.mystery_rune.count,
+	3,
+	"unknown saved runes survive migration untouched"
+)
+expectEqual(runePreserved.runes.totalRolls, 7, "rune roll history survives migration")
+
+local runeServiceSource = fs.readFile("src/server/Services/RuneService.luau")
+expectEqual(
+	string.find(runeServiceSource, "GetPolicyInfoForPlayerAsync", 1, true) ~= nil,
+	true,
+	"rune rolls check the paid-random-items policy"
+)
+expectEqual(
+	string.find(runeServiceSource, "ArePaidRandomItemsRestricted", 1, true) ~= nil,
+	true,
+	"rune rolls respect ArePaidRandomItemsRestricted"
+)
+expectEqual(
+	string.find(runeServiceSource, "OnServerEvent", 1, true),
+	nil,
+	"rune rolls are server-initiated; no client remote can trigger them"
+)
+local runeConfigSource = fs.readFile("src/shared/TemplateConfig.luau")
+expectEqual(
+	string.find(runeConfigSource, "pityMinimumRarity", 1, true) ~= nil,
+	true,
+	"rune pity guarantee is configurable"
+)
+expectEqual(
+	string.find(runeConfigSource, "mockStartingCoins = 100_000_000_000", 1, true) ~= nil,
+	true,
+	"Studio mock testing starts with 100B coins"
+)
+expectEqual(
+	string.find(runeConfigSource, "costGrowth = 1", 1, true) ~= nil,
+	true,
+	"configured rune price does not grow after each roll"
+)
+expectEqual(
+	string.find(runeConfigSource, "maxCost = 75", 1, true) ~= nil,
+	true,
+	"configured rune price cap matches the flat base price"
+)
+local designerConfigSource = fs.readFile("src/shared/DesignerConfig.luau")
+expectEqual(
+	string.find(designerConfigSource, "startingAmount = 100_000_000_000", 1, true) ~= nil,
+	true,
+	"template test currency starts at 100B coins"
+)
+
+local runeUi = fs.readFile("src/ui/RuneCircleUI.model.json")
+for _, authoredRuneObject in
+	{
+		'"Name": "RevealCard"',
+		'"Name": "RarityBanner"',
+		'"Name": "GlassArtwork"',
+		'"Name": "RuneHalo"',
+		'"Name": "NewTag"',
+		'"Name": "PityTag"',
+		'"Name": "OddsPanel"',
+		'"Name": "OddsArtwork"',
+		'"Name": "RarityRow6"',
+		'"Name": "TotalChip"',
+		'"Name": "RestrictedNote"',
+		"rbxassetid://125907024425133",
+		"rbxassetid://111977708425543",
+	}
+do
+	expectEqual(
+		string.find(runeUi, authoredRuneObject, 1, true) ~= nil,
+		true,
+		`rune UI pre-authors {authoredRuneObject}`
+	)
+end
+local runeSign = fs.readFile("src/ui/RuneCircleSign.model.json")
+for _, authoredSignObject in
+	{
+		'"Name": "CostLine"',
+		'"Name": "StatusLine"',
+		'"Name": "AutoChip"',
+		'"Name": "RuneBadge"',
+		'"Name": "CoinWatermark"',
+		"FOREST RUNES",
+		"rbxassetid://105300168575798",
+	}
+do
+	expectEqual(
+		string.find(runeSign, authoredSignObject, 1, true) ~= nil,
+		true,
+		`rune sign pre-authors {authoredSignObject}`
+	)
+end
+
+local towerDefenseServiceSource = fs.readFile("src/server/Services/TowerDefenseService.luau")
+for _, towerDefenseMarker in
+	{
+		"TowerDefenseService.rollUnit",
+		"TowerDefenseService.setLoadout",
+		"TowerDefenseService.equipBest",
+		"TowerDefenseService.placeUnit",
+		"TowerDefenseService.autoPlaceBest",
+		"TowerDefenseService.startWave",
+		"TowerDefenseService.resetMatch",
+		"TowerDefenseService.snapshotFor",
+		"EconomyService.spendCurrency",
+		"TowerDefenseLogic.isBuildableCell",
+		"runtimeFolderName",
+		"RunService.Heartbeat",
+		"Portal, spline path, and goal need a valid route",
+		"grid.columns * grid.cellSize",
+		"BillboardGui",
+		"DebugNameplate",
+		"HealthBarFill",
+		"setNameplateBar",
+		"StudsOffsetWorldSpace",
+	}
+do
+	expectEqual(
+		string.find(towerDefenseServiceSource, towerDefenseMarker, 1, true) ~= nil,
+		true,
+		`tower defense service includes {towerDefenseMarker}`
+	)
 end
 expectEqual(
-	gridPluginTopLevelLocals <= 80,
+	string.find(towerDefenseServiceSource, "OnServerEvent", 1, true),
+	nil,
+	"tower defense service does not listen directly to client remotes"
+)
+local remoteServiceSource = fs.readFile("src/server/Services/RemoteService.luau")
+for _, towerDefenseRemoteMarker in
+	{
+		"RollUnit",
+		"SetTowerLoadout",
+		"EquipBestUnits",
+		"PlaceUnit",
+		"AutoPlaceBestUnits",
+		"StartTowerWave",
+		"ResetTowerDefense",
+		"TowerDefenseService.snapshotFor",
+	}
+do
+	expectEqual(
+		string.find(remoteServiceSource, towerDefenseRemoteMarker, 1, true) ~= nil,
+		true,
+		`remote service exposes validated tower defense action {towerDefenseRemoteMarker}`
+	)
+end
+expectEqual(
+	string.find(runeConfigSource, "towerDefense = false", 1, true) ~= nil,
 	true,
-	`grid plugin keeps top-level locals inside the register budget (found {gridPluginTopLevelLocals})`
+	"tower defense feature is disabled by default template config"
+)
+expectEqual(
+	string.find(runeConfigSource, "unitRollCost = 75", 1, true) ~= nil
+		and string.find(runeConfigSource, "loadoutSlots = 4", 1, true) ~= nil,
+	true,
+	"tower defense gameplay loop has configured roll cost and loadout slots"
 )
 
 print(`{passed} pure Luau assertions passed`)

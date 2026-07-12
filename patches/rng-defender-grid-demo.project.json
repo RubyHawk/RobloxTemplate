@@ -1,0 +1,120 @@
+{
+  "name": "RNGDefenderGridDemoPatch",
+  "servePlaceIds": [128136881672145],
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$ignoreUnknownInstances": true,
+      "Template": {
+        "$className": "Folder",
+        "Shared": {
+          "$className": "Folder",
+          "Calculations": {
+            "$path": "../src/shared/Calculations.luau"
+          },
+          "Catalogs": {
+            "$path": "../src/shared/Catalogs.luau"
+          },
+          "CurrencyConfig": {
+            "$path": "../src/shared/CurrencyConfig.luau"
+          },
+          "DataStoreKeys": {
+            "$path": "../src/shared/DataStoreKeys.luau"
+          },
+          "DataStoreNames": {
+            "$path": "../src/shared/DataStoreNames.luau"
+          },
+          "DesignerConfig": {
+            "$path": "rng-defender/DesignerConfig.luau"
+          },
+          "FeatureRegistry": {
+            "$path": "../src/shared/FeatureRegistry.luau"
+          },
+          "IconAssets": {
+            "$path": "../src/shared/IconAssets.luau"
+          },
+          "IconCatalog": {
+            "$path": "../src/shared/IconCatalog.luau"
+          },
+          "MigrationCore": {
+            "$path": "../src/shared/MigrationCore.luau"
+          },
+          "Migrations": {
+            "$path": "../src/shared/Migrations.luau"
+          },
+          "ProfileTemplate": {
+            "$path": "../src/shared/ProfileTemplate.luau"
+          },
+          "Providers": {
+            "$path": "../src/shared/Providers.luau"
+          },
+          "ReceiptLedger": {
+            "$path": "../src/shared/ReceiptLedger.luau"
+          },
+          "RemoteNames": {
+            "$path": "../src/shared/RemoteNames.luau"
+          },
+          "RuneCatalog": {
+            "$path": "../src/shared/RuneCatalog.luau"
+          },
+          "RuneLogic": {
+            "$path": "../src/shared/RuneLogic.luau"
+          },
+          "TemplateConfig": {
+            "$path": "../src/shared/TemplateConfig.luau"
+          },
+          "Theme": {
+            "$path": "../src/shared/Theme.luau"
+          },
+          "TowerDefenseCatalog": {
+            "$path": "../src/shared/TowerDefenseCatalog.luau"
+          },
+          "TowerDefenseLogic": {
+            "$path": "../src/shared/TowerDefenseLogic.luau"
+          },
+          "Types": {
+            "$path": "../src/shared/Types.luau"
+          }
+        }
+      }
+    },
+    "ServerScriptService": {
+      "$ignoreUnknownInstances": true,
+      "TemplateServer": {
+        "$path": "../src/server"
+      },
+      "GridNpcDemo": {
+        "$path": "../src/starter/GridNpcDemo.server.luau"
+      },
+      "RuneCircle": {
+        "$path": "../src/starter/RuneCircle.server.luau"
+      }
+    },
+    "StarterGui": {
+      "$ignoreUnknownInstances": true,
+      "RuneCircleSign": {
+        "$path": "../src/ui/RuneCircleSign.model.json"
+      },
+      "RuneCircleUI": {
+        "$path": "../src/ui/RuneCircleUI.model.json"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "$ignoreUnknownInstances": true,
+        "RuneCircleClient": {
+          "$path": "../src/starter-client/RuneCircle.client.luau"
+        }
+      }
+    },
+    "Workspace": {
+      "$ignoreUnknownInstances": true,
+      "RuneCircle": {
+        "$path": "../src/world/RuneCircle.model.json"
+      },
+      "FirstPrivateIsland": {
+        "$path": "../src/world/FirstPrivateIslandGridDemo.model.json"
+      }
+    }
+  }
+}

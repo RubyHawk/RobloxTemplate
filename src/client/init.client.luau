@@ -459,7 +459,8 @@ local function applyState(nextState: any)
 	if legacyCoinLabel and legacyCoinLabel:IsA("TextLabel") then
 		legacyCoinLabel.Text = UIFactory.formatNumber(balances[primaryId] or state.profile.coins or 0)
 	end
-	local totalBoost = (1 + state.friendBonus + state.premiumBonus) * state.potionMultiplier
+	local runeMultiplier = if type(state.runeMultiplier) == "number" then state.runeMultiplier else 1
+	local totalBoost = (1 + state.friendBonus + state.premiumBonus) * state.potionMultiplier * runeMultiplier
 	boostLabel.Text =
 		`x{string.format("%.2f", totalBoost)} BOOST  •  {state.profile.social.friendCountInServer} FRIENDS`
 	if boostSummaryButton and boostDetails then
@@ -471,6 +472,9 @@ local function applyState(nextState: any)
 			FriendsValue = `+{math.round(state.friendBonus * 100)}%`,
 			PremiumValue = `+{math.round(state.premiumBonus * 100)}%`,
 			PotionValue = `x{string.format("%.2f", state.potionMultiplier)}`,
+			-- Presets may pre-author a RunesValue label; packs without one
+			-- simply skip it below.
+			RunesValue = `x{string.format("%.2f", runeMultiplier)}`,
 			TotalValue = `x{string.format("%.2f", totalBoost)}`,
 		}
 		for name, text in detailValues do

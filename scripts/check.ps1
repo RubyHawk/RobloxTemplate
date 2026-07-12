@@ -29,8 +29,8 @@ $runtimeUiFiles = @(
     Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot "..\src\client\UI") -Filter "*.luau" -File
     Get-Item -LiteralPath (Join-Path $PSScriptRoot "..\src\client\init.client.luau")
     Get-Item -LiteralPath (Join-Path $PSScriptRoot "..\src\ReplicatedFirst\Loading.client.luau")
-    Get-Item -LiteralPath (Join-Path $PSScriptRoot "..\src\starter\StarterExample.server.luau")
-    Get-Item -LiteralPath (Join-Path $PSScriptRoot "..\src\starter-client\StarterExample.client.luau")
+    Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot "..\src\starter") -Filter "*.luau" -File
+    Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot "..\src\starter-client") -Filter "*.luau" -File
     Get-Item -LiteralPath (Join-Path $PSScriptRoot "..\ui-packages\PackagePreview.client.luau")
 )
 $runtimeUiConstructors = @(

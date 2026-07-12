@@ -18,7 +18,7 @@ return {
 			symbol = "$",
 			iconAssetId = "105300168575798",
 			color = { 255, 202, 10 },
-			startingAmount = 2500,
+			startingAmount = 100_000_000_000,
 		},
 	},
 	features = {},

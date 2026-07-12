@@ -14,8 +14,10 @@ local ProfileService = require(Services.ProfileService)
 local PublicProfileService = require(Services.PublicProfileService)
 local RemoteService = require(Services.RemoteService)
 local RewardService = require(Services.RewardService)
+local RuneService = require(Services.RuneService)
 local SocialService = require(Services.SocialService)
 local StoreService = require(Services.StoreService)
+local TowerDefenseService = require(Services.TowerDefenseService)
 local EconomyRateProvider = require(script.Providers.DefaultEconomyRateProvider)
 local DataStoreRuntime = require(script.Util.DataStoreRuntime)
 
@@ -30,6 +32,18 @@ if Config.features.leaderboards then
 end
 if Config.features.crossServerChat then
 	AnnouncementService.start(RemoteService.broadcastAnnouncement)
+end
+if Config.features.runes then
+	RuneService.start({
+		publish = function(player, result)
+			RemoteService.sendEvent(player, "RuneResult", result)
+		end,
+	})
+end
+if Config.features.towerDefense then
+	TowerDefenseService.start({
+		publish = RemoteService.publish,
+	})
 end
 
 local function playerAdded(player: Player)
@@ -72,6 +86,8 @@ local function playerRemoving(player: Player)
 		LeaderboardService.flushPlayer(player)
 	end
 	RewardService.forget(player)
+	RuneService.forget(player)
+	TowerDefenseService.forget(player)
 	FeedbackService.forget(player)
 	RemoteService.forget(player)
 	ProfileService.release(player)

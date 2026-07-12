@@ -41,6 +41,8 @@ local Config = {
 		likesBoard = true,
 		notifications = true,
 		afKRollOver = true,
+		runes = true,
+		towerDefense = false,
 		communityVerification = false,
 		discordVerification = false,
 		guilds = false,
@@ -52,7 +54,7 @@ local Config = {
 		-- recipes use "live", including Studio after API Services access is
 		-- enabled.
 		dataStoreMode = if DesignerConfig.experienceMode == "template" then "mock" else "live",
-		mockStartingCoins = 2500,
+		mockStartingCoins = 100_000_000_000,
 		openComponentGallery = true,
 	},
 
@@ -75,6 +77,29 @@ local Config = {
 		freeOfflineCapHours = 4,
 		paidOfflineCapHours = 12,
 		extendedOfflineGamePassId = 0,
+	},
+
+	-- Rune altar: standing in the authored circle automatically spends the
+	-- primary currency on random rune cards that permanently raise currency
+	-- generation. Odds live in RuneCatalog; tunables live here.
+	runes = {
+		baseCost = 75,
+		costGrowth = 1,
+		maxCost = 75,
+		autoRollSeconds = 2,
+		firstRollChargeSeconds = 1.25,
+		circlePadding = 1.5,
+		circleHeightTolerance = 8,
+		pityThreshold = 40,
+		pityMinimumRarity = "epic",
+	},
+
+	towerDefense = {
+		unitRollCost = 75,
+		loadoutSlots = 4,
+		baseHealth = 20,
+		autoPlaceMaxUnits = 4,
+		runtimeFolderName = "TowerDefenseRuntime",
 	},
 
 	rewards = {
