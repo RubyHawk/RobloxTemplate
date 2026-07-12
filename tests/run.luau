@@ -567,23 +567,15 @@ for _, authoredGridObject in
 		'"Name": "CellMap"',
 		'"Name": "Row_01"',
 		'"Name": "Row_27"',
-		'"Value": "...A..A........................."',
-		'"Value": ".#P########....................."',
-		'"Value": ".............................#G#"',
+		'"Value": "................................"',
 		'"Name": "CellSize"',
 		'"Name": "Columns"',
 		'"Name": "Rows"',
 		'"Name": "PlatformEnabled"',
 		'"Name": "GridVisible"',
 		'"Name": "PathTiles"',
-		'"Name": "PathCurve_001"',
-		'"Name": "PathCurve_080"',
 		'"Name": "PathPoints"',
-		'"Name": "Control_001"',
-		'"Name": "Control_011"',
 		'"Name": "GridNpc"',
-		'"Shape": "Cylinder"',
-		'"Shape": "Ball"',
 	}
 do
 	expectEqual(
@@ -608,6 +600,26 @@ local function namedChild(parent: { Children: { any } }, name: string): any?
 end
 local gamePlatformModel = namedChild(firstPrivateIslandModel, "GamePlatform")
 expectEqual(gamePlatformModel ~= nil, true, "first private island has a game platform model")
+local cellMapModel = namedChild(gamePlatformModel, "CellMap")
+expectEqual(cellMapModel ~= nil, true, "first private island keeps an authored cell map folder")
+expectEqual(#cellMapModel.Children, 27, "empty stage template keeps 27 authored map rows")
+for _, rowValue in cellMapModel.Children do
+	expectEqual(
+		rowValue.Properties.Value,
+		"................................",
+		`empty stage template row {rowValue.Name} starts fully buildable`
+	)
+end
+expectEqual(
+	string.find(firstPrivateIsland, '"Name": "PathCurve_', 1, true),
+	nil,
+	"empty stage template does not pre-bake route path tiles"
+)
+expectEqual(
+	string.find(firstPrivateIsland, '"Name": "Control_', 1, true),
+	nil,
+	"empty stage template does not pre-bake spline control handles"
+)
 expectEqual(
 	namedChild(gamePlatformModel, "PathPoints") ~= nil,
 	true,
@@ -617,6 +629,16 @@ expectEqual(
 	namedChild(gamePlatformModel, "PathTiles") ~= nil,
 	true,
 	"spline path visuals move with GamePlatform"
+)
+expectEqual(
+	#namedChild(gamePlatformModel, "PathPoints").Children,
+	0,
+	"empty template starts with no spline handles"
+)
+expectEqual(
+	#namedChild(gamePlatformModel, "PathTiles").Children,
+	0,
+	"empty template starts with no route visuals"
 )
 expectEqual(
 	namedChild(firstPrivateIslandModel, "PathPoints"),
@@ -706,6 +728,10 @@ for _, removedPatchObject in
 		'"GridPlatformEditor"',
 		'"GridPlatformEditorClient"',
 		'"GridPlatformEditorService"',
+		'"GridForgeEditor"',
+		'"GridForgePanel"',
+		'"StagewrightEditor"',
+		'"StagewrightPanel"',
 		'"StarterPack"',
 	}
 do
@@ -719,11 +745,24 @@ local gridPluginProject = fs.readFile("plugins/grid-platform-editor.project.json
 local gridPluginSource = fs.readFile("src/plugins/GridPlatformEditPlugin.server.luau")
 for _, pluginObject in
 	{
+		"StagewrightPlugin",
 		"GridPlatformEditPlugin.server.luau",
 		"plugin:CreateToolbar",
 		"CreateDockWidgetPluginGuiAsync",
 		"DockWidgetPluginGuiInfo",
-		"GridPlatformEditorPanel",
+		"StagewrightPanel",
+		"MaterialPicker",
+		"TemplateDrawer",
+		"StageSelector",
+		"StageProfile_{profile.id}",
+		"Blank Template",
+		"Empty map and route",
+		"Stage 1",
+		"Export Layout",
+		"Undo sync on",
+		"CanvasGuide_",
+		"Stagewright",
+		"rbxasset://textures/StudioSharedUI/grid@2x.png",
 		"plugin:GetMouse",
 		"TryBeginRecording",
 		"FinishRecording",
@@ -738,11 +777,19 @@ for _, pluginObject in
 		"StageProfiles",
 		"CanvasGrid",
 		"CanvasHover",
+		"CanvasRouteLayer",
+		"CanvasRouteSegment_",
+		"CanvasRouteDot_",
 		"CanvasFirst",
 		"handleCanvasCellPaintStart",
 		"Paint canvas cells",
+		"Move canvas spline point",
+		"Clear spline route",
+		"Reset empty stage template",
+		"Release to rebuild",
 		"TextButton",
 		"InputEnded",
+		"InputChanged",
 		"InspectorPanel",
 		"LayerTree",
 		"Stage profile selected",
@@ -777,9 +824,11 @@ for _, pluginObject in
 		"Add Point",
 		"Delete Selected",
 		"Snap Points",
+		"Clear Route",
 		"Export Spline",
 		"createSplineControl",
 		"rebuildSplineFromControls",
+		"worldFromCanvasScale",
 		"PATH_GRID_RADIUS",
 		"PathCurve",
 		"ControlPending",

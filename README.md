@@ -16,7 +16,7 @@ The launcher installs anything missing and replaces any old Rojo session. Two pe
 
 The numbered CMD files remain available as manual shortcuts. `SANDBOX.cmd` opens the permanent test experience directly, but your non-programmer coworker normally only needs `START_HERE.cmd`.
 
-For the private tower-defense grid editor plugin, have your coworker pull or download this private repo, then double-click **`6_INSTALL_GRID_PLUGIN.cmd`**. It builds `GridPlatformEditPlugin.rbxm` from the repo and copies it into that person's local Roblox Studio Plugins folder. It does not publish the plugin or make it public.
+For the private tower-defense Stagewright plugin, have your coworker pull or download this private repo, then double-click **`6_INSTALL_GRID_PLUGIN.cmd`**. It builds `Stagewright.rbxm` from the repo and copies it into that person's local Roblox Studio Plugins folder. It does not publish the plugin or make it public.
 
 Use `ICON_LIBRARY.cmd` to swap or disable shared UI icons and record their Roblox image mapping. The selected PNGs and manifest are committed so both developers see the same artwork; the large duplicate extraction under `build/` remains local.
 

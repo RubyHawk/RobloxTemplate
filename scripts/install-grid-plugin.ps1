@@ -7,9 +7,11 @@ Set-StrictMode -Version Latest
 $root = Split-Path -Parent $PSScriptRoot
 $projectFile = Join-Path $root "plugins\grid-platform-editor.project.json"
 $buildDirectory = Join-Path $root "build"
-$pluginOutput = Join-Path $buildDirectory "GridPlatformEditPlugin.rbxm"
+$pluginOutput = Join-Path $buildDirectory "Stagewright.rbxm"
 $pluginDirectory = Join-Path $env:LOCALAPPDATA "Roblox\Plugins"
-$pluginDestination = Join-Path $pluginDirectory "GridPlatformEditPlugin.rbxm"
+$pluginDestination = Join-Path $pluginDirectory "Stagewright.rbxm"
+$legacyPluginDestination = Join-Path $pluginDirectory "GridPlatformEditPlugin.rbxm"
+$gridForgePluginDestination = Join-Path $pluginDirectory "GridForge.rbxm"
 
 function Write-Step([string]$Message) {
     Write-Host ""
@@ -25,7 +27,7 @@ function Invoke-Checked([string]$Name, [scriptblock]$Command) {
 
 Push-Location $root
 try {
-    Write-Host "Private Grid Platform plugin installer" -ForegroundColor Yellow
+    Write-Host "Private Stagewright plugin installer" -ForegroundColor Yellow
     Write-Host "This does not publish anything to Roblox."
     Write-Host "It only builds the plugin from this private repo and copies it into your local Studio Plugins folder."
 
@@ -56,6 +58,12 @@ try {
     Write-Step "Installing into your local Roblox Studio Plugins folder"
     New-Item -ItemType Directory -Path $pluginDirectory -Force | Out-Null
     Copy-Item -LiteralPath $pluginOutput -Destination $pluginDestination -Force
+    if (Test-Path -LiteralPath $legacyPluginDestination -PathType Leaf) {
+        Remove-Item -LiteralPath $legacyPluginDestination -Force
+    }
+    if (Test-Path -LiteralPath $gridForgePluginDestination -PathType Leaf) {
+        Remove-Item -LiteralPath $gridForgePluginDestination -Force
+    }
 
     $installed = Get-Item -LiteralPath $pluginDestination
     Write-Host "[OK] Installed: $($installed.FullName)" -ForegroundColor Green
@@ -69,7 +77,7 @@ try {
 
     Write-Host ""
     Write-Host "DONE" -ForegroundColor Green
-    Write-Host "Open Roblox Studio, then go to Plugins > Grid Platform > Grid Editor."
+    Write-Host "Open Roblox Studio, then go to Plugins > Stagewright > Stagewright."
     Write-Host "Nothing was uploaded or made public."
 }
 catch {

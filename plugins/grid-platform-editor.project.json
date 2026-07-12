@@ -1,5 +1,5 @@
 {
-  "name": "GridPlatformEditPlugin",
+  "name": "StagewrightPlugin",
   "tree": {
     "$path": "../src/plugins/GridPlatformEditPlugin.server.luau"
   }
