@@ -1,16 +1,19 @@
 --!strict
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Selection = game:GetService("Selection")
 local Workspace = game:GetService("Workspace")
 
 local AuthoringArea = {}
+local StagePlatformLayout = require(script.Parent.Shared.StagePlatformLayout)
 
-local LAYOUT_VERSION = 1
+local LAYOUT_VERSION = 2
 local AUTHORING_ATTRIBUTE = "StagewrightAuthoringPlatform"
 local MANAGED_ATTRIBUTE = "StagewrightManaged"
+local OUTLINE_TAG = "StagewrightIslandOutlinePreview"
 
 type AuthoringConfig = {
 	enabled: boolean,
@@ -274,6 +277,143 @@ function AuthoringArea.origin(): CFrame
 	return if base ~= nil and base:IsA("BasePart") then base.CFrame else CFrame.new()
 end
 
+local function outlinePart(
+	parent: Model,
+	name: string,
+	size: Vector3,
+	frame: CFrame,
+	partColor: Color3,
+	transparency: number,
+	material: Enum.Material
+): Part
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.CastShadow = false
+	part.Locked = true
+	part.Color = partColor
+	part.Material = material
+	part.Size = size
+	part.CFrame = frame
+	part.Transparency = transparency
+	part:SetAttribute("StagewrightDevelopmentGuide", true)
+	part.Parent = parent
+	return part
+end
+
+function AuthoringArea.clearIslandOutlines()
+	for _, tagged in CollectionService:GetTagged(OUTLINE_TAG) do
+		if tagged:IsDescendantOf(Workspace) then
+			tagged:Destroy()
+		end
+	end
+end
+
+function AuthoringArea.showIslandOutlines(columns: number, rows: number, cellSize: number): boolean
+	AuthoringArea.clearIslandOutlines()
+	if RunService:IsRunning() then
+		return false
+	end
+	local templateConfig = config()
+	if templateConfig == nil then
+		return false
+	end
+	local center = centerPart(templateConfig)
+	local outlines = templateConfig.towerDefense.developmentOutlines
+	if center == nil or type(outlines) ~= "table" then
+		return false
+	end
+	local folder = Instance.new("Folder")
+	folder.Name = outlines.folderName
+	folder.Archivable = false
+	folder:SetAttribute("StagewrightEditorOnly", true)
+	folder:SetAttribute("PlatformCount", templateConfig.towerDefense.platformSlotCount)
+	folder:SetAttribute("GridColumns", columns)
+	folder:SetAttribute("GridRows", rows)
+	folder:SetAttribute("CellSize", cellSize)
+	folder.Parent = Workspace
+	CollectionService:AddTag(folder, OUTLINE_TAG)
+	local width = columns * cellSize
+	local depth = rows * cellSize
+	local first = templateConfig.towerDefense.firstPlatformOffsetFromCenter
+	local firstOffset = { x = first[1], y = first[2], z = first[3] }
+	local slotCount = templateConfig.towerDefense.platformSlotCount
+	local lineColor = Color3.fromRGB(outlines.lineColor[1], outlines.lineColor[2], outlines.lineColor[3])
+	local fillColor = Color3.fromRGB(outlines.fillColor[1], outlines.fillColor[2], outlines.fillColor[3])
+	local facingColor =
+		Color3.fromRGB(outlines.facingColor[1], outlines.facingColor[2], outlines.facingColor[3])
+	for slot = 1, slotCount do
+		local offset, yaw = StagePlatformLayout.slotOffset(firstOffset, slot, slotCount)
+		local origin = center.CFrame
+			* CFrame.new(offset.x, offset.y, offset.z)
+			* CFrame.Angles(0, yaw + math.rad(templateConfig.towerDefense.firstPlatformYawDegrees), 0)
+		local model = Instance.new("Model")
+		model.Name = `Island_{string.format("%02d", slot)}`
+		model:SetAttribute("PlatformSlot", slot)
+		model:SetAttribute("StagewrightDevelopmentGuide", true)
+		model.Parent = folder
+		local height = outlines.heightOffset
+		local lineHeight = outlines.lineHeight
+		local thickness = outlines.lineThickness
+		outlinePart(
+			model,
+			"Footprint",
+			Vector3.new(width, 0.03, depth),
+			origin * CFrame.new(0, height - 0.03, 0),
+			fillColor,
+			outlines.fillTransparency,
+			Enum.Material.SmoothPlastic
+		)
+		for _, edge in
+			{
+				{
+					"LeftEdge",
+					Vector3.new(thickness, lineHeight, depth + thickness),
+					CFrame.new(-width * 0.5, height, 0),
+				},
+				{
+					"RightEdge",
+					Vector3.new(thickness, lineHeight, depth + thickness),
+					CFrame.new(width * 0.5, height, 0),
+				},
+				{
+					"FrontEdge",
+					Vector3.new(width + thickness, lineHeight, thickness),
+					CFrame.new(0, height, -depth * 0.5),
+				},
+				{
+					"BackEdge",
+					Vector3.new(width + thickness, lineHeight, thickness),
+					CFrame.new(0, height, depth * 0.5),
+				},
+			}
+		do
+			outlinePart(
+				model,
+				edge[1] :: string,
+				edge[2] :: Vector3,
+				origin * (edge[3] :: CFrame),
+				lineColor,
+				outlines.lineTransparency,
+				Enum.Material.Neon
+			)
+		end
+		outlinePart(
+			model,
+			"FacingGuide",
+			Vector3.new(thickness * 1.8, lineHeight * 1.5, depth * 0.22),
+			origin * CFrame.new(0, height + lineHeight * 0.5, -depth * 0.36),
+			facingColor,
+			0.02,
+			Enum.Material.Neon
+		)
+	end
+	return true
+end
+
 function AuthoringArea.focus()
 	local platform = AuthoringArea.ensure() or AuthoringArea.findPlatform()
 	if platform == nil then
@@ -344,6 +484,7 @@ function AuthoringArea.ensure(): Model?
 		alignPlatform(platform, desiredOrigin, templateConfig.towerDefense.platformOriginName)
 		area:SetAttribute("StagewrightLayoutVersion", LAYOUT_VERSION)
 		area:SetAttribute("EditorOnly", true)
+		area:SetAttribute("StagewrightEditorOnly", true)
 		area:SetAttribute("RuntimeIslandCount", templateConfig.towerDefense.platformSlotCount)
 		area:SetAttribute("WorldCenterName", center.Name)
 		return platform

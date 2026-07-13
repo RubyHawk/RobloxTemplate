@@ -197,9 +197,20 @@ local Config = {
 		authoringArea = {
 			enabled = true,
 			areaName = "StagewrightAdminArea",
-			offsetFromCenter = { 0, -240, 0 },
+			offsetFromCenter = { 0, -1000, 0 },
 			roomSize = { 168, 44, 148 },
 			wallThickness = 2,
+		},
+		developmentOutlines = {
+			folderName = "StagewrightIslandOutlines",
+			heightOffset = 0.22,
+			lineHeight = 0.14,
+			lineThickness = 0.32,
+			lineTransparency = 0.08,
+			lineColor = { 69, 224, 255 },
+			fillTransparency = 0.9,
+			fillColor = { 35, 139, 170 },
+			facingColor = { 255, 177, 54 },
 		},
 		gridVisuals = {
 			enabled = true,

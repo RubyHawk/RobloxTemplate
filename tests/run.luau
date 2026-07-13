@@ -831,6 +831,12 @@ for _, pluginObject in
 		"WhiteRoom",
 		"Focus Admin",
 		"StagewrightFocusAdminArea",
+		"StagewrightToggleIslandOutlines",
+		"Island Guides: On",
+		"showIslandOutlines",
+		"StagewrightIslandOutlinePreview",
+		"StagePlatformLayout",
+		"developmentOutlines",
 		"RunService:IsRunning()",
 	}
 do
@@ -2226,6 +2232,10 @@ for _, gridRendererMarker in
 		"TowerDefensePlatformSlot",
 		"LocalOwner",
 		"VisualFade",
+		"StagewrightEditorOnly",
+		"hideLegacyEditGridUi",
+		'"edit grid"',
+		"gridplatformeditor",
 	}
 do
 	expectEqual(

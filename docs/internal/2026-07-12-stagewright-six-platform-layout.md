@@ -44,7 +44,7 @@ Legacy-source characterization result (superseded by the production layout below
   `firstPlatformOffsetFromCenter`; runtime no longer reads the movable
   `GamePlatform.PlatformOrigin` when `center_grass` is available.
 - The canonical editable `GamePlatform` is moved intact into
-  `Workspace.StagewrightAdminArea`, 240 studs below the center, inside an
+  `Workspace.StagewrightAdminArea`, 1,000 studs below the center, inside an
   open-front white room.
 - The admin platform is editor state, not a seventh player slot. Each player
   island continues to receive a generated playable grid from the exported

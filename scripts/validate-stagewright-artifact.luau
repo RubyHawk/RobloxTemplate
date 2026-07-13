@@ -44,6 +44,7 @@ for _, requiredName in
 		"StageGraph",
 		"StageLegacy",
 		"StagePath",
+		"StagePlatformLayout",
 		"StageSchema",
 		"StageExport",
 		"StageTrace",
@@ -59,6 +60,8 @@ for _, marker in
 		"Trace Route",
 		"StagewrightLayoutVersion",
 		"Focus Admin",
+		"StagewrightIslandOutlinePreview",
+		"StagewrightToggleIslandOutlines",
 	}
 do
 	assert(
@@ -88,7 +91,14 @@ do
 	assert(runtimeNames[requiredName], `Tower-defense artifact is missing {requiredName}`)
 end
 for _, marker in
-	{ expectedChecksum, "TowerEnemies", "maximum travel distance exceeded", "StagewrightClientGrids" }
+	{
+		expectedChecksum,
+		"TowerEnemies",
+		"maximum travel distance exceeded",
+		"StagewrightClientGrids",
+		"StagewrightEditorOnly",
+		"hideLegacyEditGridUi",
+	}
 do
 	assert(
 		string.find(runtimeSource, marker, 1, true),

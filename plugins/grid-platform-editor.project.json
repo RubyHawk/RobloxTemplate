@@ -13,6 +13,9 @@
       "StagePath": {
         "$path": "../src/shared/StagePath.luau"
       },
+      "StagePlatformLayout": {
+        "$path": "../src/shared/StagePlatformLayout.luau"
+      },
       "StageGraph": {
         "$path": "../src/shared/StageGraph.luau"
       },

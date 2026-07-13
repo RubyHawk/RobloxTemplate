@@ -18,7 +18,8 @@ No workflow below creates a Roblox experience.
 4. The launcher installs the local Stagewright plugin and opens the existing shared place without starting Rojo.
 5. Open **Plugins → Stagewright**. The plugin moves the existing `FirstPrivateIsland.GamePlatform` intact into the open-front white `Workspace.StagewrightAdminArea` below the map. If the place has no `ServerStorage.StagewrightProject`, Stagewright imports that admin platform once.
 6. Confirm before editing:
-   - **Stage → Focus Admin** frames the white authoring room and the main `GamePlatform` remains visible inside it.
+   - **Stage → Focus Admin** frames the white authoring room and the main `GamePlatform` remains visible inside it. From the production map, the room is too deep to show through water or island gaps.
+   - **Island Guides: On** shows cyan 32×27 footprints on all six beaches and an orange orientation guide on each one. Toggle it off and on without changing authored stage data.
    - `FirstPrivateIsland` no longer owns the editable `GamePlatform`; the six island origins remain unchanged because they come from `center_grass` plus configuration.
    - Every legacy `#` remains an authored `Blocked` cell.
    - `P`, `G`, and `A` appear as independent roles.
@@ -75,6 +76,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sandbox.ps1 -RecipeP
 In Studio:
 
 1. Connect Rojo and use **Test → Start** with six players, one for each island platform.
+   - Confirm the white admin room, Edit-mode island guides, Stagewright widget, and any legacy `Edit Grid` control are absent from every player client.
    - Confirm every island has a visible ownership card. Occupied cards show the avatar, display name, username, and platform number; the local player's card says `YOUR PLATFORM`.
    - Confirm unoccupied islands say `AVAILABLE`.
    - In each client, confirm that client's grid, route, and ownership card remain fully visible while the other five playable island platforms are faded.

@@ -1,10 +1,15 @@
 --!strict
 
 local CollectionService = game:GetService("CollectionService")
+local RunService = game:GetService("RunService")
 local Selection = game:GetService("Selection")
 local ServerStorage = game:GetService("ServerStorage")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
+
+if RunService:IsRunning() then
+	return
+end
 
 local AuthoringArea = require(script.AuthoringArea)
 local ProjectStore = require(script.ProjectStore)
@@ -53,6 +58,7 @@ local paintedKeys: { [string]: boolean } = {}
 local previewFolder: Folder? = nil
 local previewMoveRevision = 0
 local pendingConfirmation: { id: string, expires: number }? = nil
+local islandOutlinesEnabled = true
 
 local toolbar = plugin:CreateToolbar(PLUGIN_NAME)
 local openButton = toolbar:CreateButton(
@@ -151,6 +157,17 @@ local mutate: (string, () -> ()) -> ()
 
 local function stage(): any
 	return project.stages[selectedStageId]
+end
+
+local function renderIslandOutlines()
+	if not islandOutlinesEnabled then
+		AuthoringArea.clearIslandOutlines()
+		return
+	end
+	local current = stage()
+	if current ~= nil then
+		AuthoringArea.showIslandOutlines(current.grid.columns, current.grid.rows, current.grid.cellSize)
+	end
 end
 
 local function graph(): any?
@@ -728,6 +745,13 @@ end
 button(stageActions, "Focus Admin", 88, function()
 	AuthoringArea.focus()
 	setStatus("Focused the separate Stagewright admin authoring area.")
+end)
+local islandGuideButton: TextButton
+islandGuideButton = button(stageActions, "Island Guides: On", 104, function()
+	islandOutlinesEnabled = not islandOutlinesEnabled
+	islandGuideButton.Text = if islandOutlinesEnabled then "Island Guides: On" else "Island Guides: Off"
+	renderIslandOutlines()
+	setStatus(if islandOutlinesEnabled then "Six island footprint guides shown." else "Island guides hidden.")
 end)
 
 local function renderStageList()
@@ -1327,6 +1351,7 @@ function rerenderAll()
 	renderStageList()
 	renderGraphList()
 	renderIssues()
+	renderIslandOutlines()
 	if activeMode == "Graph" then
 		rebuildPreview()
 	end
@@ -1373,6 +1398,18 @@ local focusAdminAction = plugin:CreatePluginAction(
 focusAdminAction.Triggered:Connect(function()
 	AuthoringArea.focus()
 end)
+local outlineAction = plugin:CreatePluginAction(
+	"StagewrightToggleIslandOutlines",
+	"Toggle Island Footprints",
+	"Show or hide all six playable island footprints in Edit mode",
+	"",
+	true
+)
+outlineAction.Triggered:Connect(function()
+	islandOutlinesEnabled = not islandOutlinesEnabled
+	islandGuideButton.Text = if islandOutlinesEnabled then "Island Guides: On" else "Island Guides: Off"
+	renderIslandOutlines()
+end)
 local duplicateAction = plugin:CreatePluginAction(
 	"StagewrightDuplicateStage",
 	"Duplicate Stage",
@@ -1399,6 +1436,7 @@ end)
 plugin.Unloading:Connect(function()
 	ProjectStore.cleanup()
 	clearPreview()
+	AuthoringArea.clearIslandOutlines()
 end)
 ProjectStore.observe(function()
 	project = ProjectStore.get()

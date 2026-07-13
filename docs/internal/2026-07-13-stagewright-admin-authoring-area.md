@@ -4,7 +4,7 @@
 
 The editable `GamePlatform` is no longer the runtime anchor for player slot 1.
 Stagewright keeps one canonical authoring platform under
-`Workspace.StagewrightAdminArea`, 240 studs below `center_grass`, inside an
+`Workspace.StagewrightAdminArea`, 1,000 studs below `center_grass`, inside an
 open-front white room. The plugin preserves the existing model and moves it as
 one pivot operation, so `CellMap`, path controls, surface previews, unknown
 children, and metadata stay intact.
@@ -29,6 +29,15 @@ move a player's gameplay route, towers, or ownership marker.
   inside it carry the transient Stagewright preview tag.
 - The **Focus Admin** button and `StagewrightFocusAdminArea` PluginAction select
   the main platform and move the Studio camera to the open side of the room.
+- The deeper offset keeps the white room out of sight through water and gaps in
+  the production world. During Play, the client also hides every descendant of
+  `StagewrightEditorOnly` roots, so the room cannot leak into gameplay.
+- **Island Guides** creates a non-archivable, Edit-mode-only footprint at each
+  of the six authoritative slot transforms. Cyan edges show the exact grid
+  bounds and the orange bar shows orientation.
+- Legacy `Edit Grid` controls are hidden if they remain in Team Create data,
+  and the Stagewright plugin exits before constructing editor controls in Play
+  Server or Play Client data models.
 
 ## Runtime result
 
