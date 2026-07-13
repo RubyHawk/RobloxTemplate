@@ -10,6 +10,8 @@ You do not need to understand Git, Rojo, Wally, or the notification worker to op
 4. In Studio, select **Plugins → Rojo → Connect**.
 5. Edit UI objects under **StarterGui**, press **Ctrl+S**, then press **Play**.
 
+For the existing shared tower-defense place, use **`7_STAGEWRIGHT_SHARED.cmd`** and follow [`docs/STAGEWRIGHT_QA.md`](docs/STAGEWRIGHT_QA.md). That launcher intentionally avoids Rojo so Team Create-only legacy map data can be exported before repository sync.
+
 You should see a Coins HUD and buttons for the inventory, store, rewards, profile, codes, leaderboards, feedback, community, and settings.
 
 The launcher installs anything missing and replaces any old Rojo session. Two permanent Roblox experiences are reused, both configured in `experiences.config.json`: the shared test option rebuilds your selected preset and opens the same player-test experience every time, and the template option opens the permanent template workbench experience (or a local file until you link its IDs). Nothing ever creates another Roblox experience. The **Repair setup** and **Run project checks** buttons explain problems in plain language.

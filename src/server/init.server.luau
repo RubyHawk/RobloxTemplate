@@ -17,6 +17,8 @@ local RewardService = require(Services.RewardService)
 local RuneService = require(Services.RuneService)
 local SocialService = require(Services.SocialService)
 local StoreService = require(Services.StoreService)
+local StageRuntimeService = require(Services.StageRuntimeService)
+local StagePlatformService = require(Services.StagePlatformService)
 local TowerDefenseService = require(Services.TowerDefenseService)
 local EconomyRateProvider = require(script.Providers.DefaultEconomyRateProvider)
 local DataStoreRuntime = require(script.Util.DataStoreRuntime)
@@ -41,13 +43,27 @@ if Config.features.runes then
 	})
 end
 if Config.features.towerDefense then
+	StagePlatformService.start()
+	StageRuntimeService.start({
+		origin = StagePlatformService.originFor,
+		available = StagePlatformService.hasPlatform,
+	})
 	TowerDefenseService.start({
 		publish = RemoteService.publish,
+		publishEnemies = RemoteService.publishTowerEnemies,
 	})
 end
 
 local function playerAdded(player: Player)
 	task.spawn(function()
+		if Config.features.towerDefense and not StagePlatformService.hasPlatform(player) then
+			if player.Parent then
+				player:Kick(
+					"No playable platform was available in this server. Please rejoin to enter another server."
+				)
+			end
+			return
+		end
 		local profile = ProfileService.load(player)
 		if profile == nil then
 			if player.Parent then
@@ -88,6 +104,8 @@ local function playerRemoving(player: Player)
 	RewardService.forget(player)
 	RuneService.forget(player)
 	TowerDefenseService.forget(player)
+	StagePlatformService.forget(player)
+	StageRuntimeService.forget(player)
 	FeedbackService.forget(player)
 	RemoteService.forget(player)
 	ProfileService.release(player)

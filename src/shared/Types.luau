@@ -40,9 +40,17 @@ export type TowerDefenseUnitEntry = {
 	count: number,
 }
 
+export type TowerDefenseStageProgress = {
+	unlocked: boolean,
+	clears: number,
+	bestWave: number,
+}
+
 export type TowerDefenseSaveState = {
 	ownedUnits: { [string]: TowerDefenseUnitEntry },
 	loadout: { string },
+	selectedStageId: string,
+	stageProgress: { [string]: TowerDefenseStageProgress },
 	stats: {
 		wins: number,
 		losses: number,
@@ -143,6 +151,15 @@ export type TowerDefenseEnemyState = {
 	health: number,
 	maxHealth: number,
 	progress: number,
+	stageId: string?,
+	graphId: string?,
+	edgeId: string?,
+	edgeDistance: number?,
+	edgeLength: number?,
+	speed: number?,
+	laneIndex: number?,
+	distanceTraveled: number?,
+	serverTime: number?,
 }
 
 export type TowerDefenseClientState = {
@@ -152,6 +169,8 @@ export type TowerDefenseClientState = {
 	loadoutSlots: number,
 	baseHealth: number,
 	maxBaseHealth: number,
+	activeStageId: string,
+	stageOrigin: CFrame,
 	wave: number,
 	waveRunning: boolean,
 	placements: { TowerDefensePlacementState },

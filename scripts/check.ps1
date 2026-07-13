@@ -56,6 +56,7 @@ foreach ($screenName in $requiredScreens) {
 
 Invoke-Checked "StyLua" { stylua --check src tests ui-packages }
 Invoke-Checked "Selene" { selene src tests ui-packages }
+Invoke-Checked "Stagewright repository parity" { lune run scripts/stagewright-import.luau stage-data/stagewright-project.json --check }
 Invoke-Checked "Wally" { wally install }
 Invoke-Checked "Rojo build" { rojo build bootstrap.project.json --output RobloxTemplate.rbxlx }
 New-Item -ItemType Directory -Path build -Force | Out-Null
@@ -70,6 +71,9 @@ Invoke-Checked "RPG preset package build" {
 }
 Invoke-Checked "Grid platform plugin build" {
     rojo build plugins\grid-platform-editor.project.json --output build\GridPlatformEditPlugin.rbxm
+}
+Invoke-Checked "Shared tower-defense safe patch build" {
+    rojo build patches\rng-defender-grid-demo.project.json --output build\RNGDefenderSafePatch.rbxlx
 }
 Invoke-Checked "Game Designer UI smoke test" {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\game-designer.ps1 -SmokeTest
@@ -99,6 +103,10 @@ Invoke-Checked "Permanent sandbox configuration" {
 Invoke-Checked "Template experience configuration" {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\start.ps1 -SmokeTest
 }
+Invoke-Checked "Stagewright built artifact validation" { lune run scripts/validate-stagewright-artifact.luau }
+Invoke-Checked "Stagewright shared source configuration" {
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\stagewright-shared.ps1 -SmokeTest
+}
 Invoke-Checked "Figma bridge syntax" { node --check figma\roblox-ui-bridge\code.js }
 $presetDirectories = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot "..\src\ui\presets") -Directory | Sort-Object Name)
 foreach ($presetDirectory in $presetDirectories) {
@@ -111,6 +119,7 @@ Invoke-Checked "Figma patch application" {
     node scripts\figma-ui-bridge.mjs self-test --model src\ui\presets\incremental\TemplateUI.model.json
 }
 Invoke-Checked "Luau tests" { lune run tests/run }
+Invoke-Checked "Stagewright performance budgets" { lune run scripts/benchmark-stagewright.luau }
 if (-not (Test-Path -LiteralPath "worker\node_modules" -PathType Container)) {
     Invoke-Checked "Worker install" { npm ci --prefix worker }
 }

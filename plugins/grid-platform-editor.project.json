@@ -1,6 +1,30 @@
 {
   "name": "StagewrightPlugin",
   "tree": {
-    "$path": "../src/plugins/GridPlatformEditPlugin.server.luau"
+    "$path": "../src/plugins/GridPlatformEditPlugin.server.luau",
+    "ProjectStore": {
+      "$path": "../src/plugins/Stagewright/ProjectStore.luau"
+    },
+    "Shared": {
+      "$className": "Folder",
+      "StagePath": {
+        "$path": "../src/shared/StagePath.luau"
+      },
+      "StageGraph": {
+        "$path": "../src/shared/StageGraph.luau"
+      },
+      "StageTrace": {
+        "$path": "../src/shared/StageTrace.luau"
+      },
+      "StageLegacy": {
+        "$path": "../src/shared/StageLegacy.luau"
+      },
+      "StageSchema": {
+        "$path": "../src/shared/StageSchema.luau"
+      },
+      "StageExport": {
+        "$path": "../src/shared/StageExport.luau"
+      }
+    }
   }
 }

@@ -14,6 +14,10 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $PSScriptRoot
+$recipeId = [System.IO.Path]::GetFileNameWithoutExtension($RecipePath)
+if ($recipeId -notmatch '^[a-z][a-z0-9_-]{0,39}$') {
+    throw "Recipe filenames must use lowercase letters, numbers, underscores, or hyphens."
+}
 $recipe = Get-Content -LiteralPath $RecipePath -Raw -Encoding UTF8 | ConvertFrom-Json
 $preset = [string]$recipe.preset
 if ($preset -notmatch '^[a-z][a-z0-9_-]{0,39}$') {
@@ -51,7 +55,7 @@ foreach ($currency in $currencies) {
     $usedIds[$id] = $true
 }
 
-$generated = Join-Path $root "build/designer/$preset"
+$generated = Join-Path $root "build/designer/$recipeId"
 $exports = Join-Path $root "exports"
 New-Item -ItemType Directory -Path $generated, $exports -Force | Out-Null
 
@@ -167,7 +171,7 @@ function Update-ProjectPaths($Node) {
 
 $presetRoot = "../../../src/ui/presets/$preset"
 $project = Get-Content -LiteralPath (Join-Path $root "default.project.json") -Raw -Encoding UTF8 | ConvertFrom-Json
-$project.name = "Generated_$preset"
+$project.name = "Generated_$recipeId"
 Update-ProjectPaths $project.tree
 if ($PlaceId -gt 0) {
     $project | Add-Member -MemberType NoteProperty -Name servePlaceIds -Value @($PlaceId) -Force
@@ -195,12 +199,17 @@ $safePreset = if ($preset -eq "rpg") {
 } else {
     (Get-Culture).TextInfo.ToTitleCase(($preset -replace '[-_]+', ' ')) -replace ' ', ''
 }
+$safeRecipe = if ($recipeId -eq "rpg") {
+    "RPG"
+} else {
+    (Get-Culture).TextInfo.ToTitleCase(($recipeId -replace '[-_]+', ' ')) -replace ' ', ''
+}
 $packageOutput = Join-Path $exports "UI_$safePreset.rbxm"
 & rojo build $packageProjectPath --output $packageOutput
 if ($LASTEXITCODE -ne 0) { throw "Rojo could not build the selected UI package." }
 
 if (-not $PackageOnly) {
-    $placeOutput = Join-Path $exports "Playable_$safePreset.rbxlx"
+    $placeOutput = Join-Path $exports "Playable_$safeRecipe.rbxlx"
     & rojo build $projectPath --output $placeOutput
     if ($LASTEXITCODE -ne 0) { throw "Rojo could not build the selected test experience." }
 

@@ -52,6 +52,7 @@ if (-not (Test-Path -LiteralPath $RecipePath -PathType Leaf)) {
 }
 
 $recipe = Get-Content -LiteralPath $RecipePath -Raw -Encoding UTF8 | ConvertFrom-Json
+$recipeId = [System.IO.Path]::GetFileNameWithoutExtension($RecipePath)
 $preset = [string]$recipe.preset
 if ($preset -notmatch '^[a-z][a-z0-9_-]{0,39}$') {
     throw "The selected recipe has an invalid preset name."
@@ -92,7 +93,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "First-time setup failed." }
     }
 
-    Write-Host "Building $preset for the permanent sandbox..." -ForegroundColor Cyan
+    Write-Host "Building recipe $recipeId with UI preset $preset for the permanent sandbox..." -ForegroundColor Cyan
     & (Join-Path $PSScriptRoot "build-game-preset.ps1") `
         -RecipePath $RecipePath `
         -NoStudio `
@@ -100,7 +101,7 @@ try {
         -PlaceId $placeId
     if ($LASTEXITCODE -ne 0) { throw "The sandbox build failed." }
 
-    $projectPath = Join-Path $root "build/designer/$preset/SelectedExperience.project.json"
+    $projectPath = Join-Path $root "build/designer/$recipeId/SelectedExperience.project.json"
     $project = Get-Content -LiteralPath $projectPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $allowedPlaces = @($project.servePlaceIds)
     if ($allowedPlaces -notcontains $placeId) {
@@ -108,7 +109,7 @@ try {
     }
 
     if ($SmokeTest) {
-        Write-Host "Sandbox verified: $($playerTest.name) | universe $universeId | place $placeId | preset $preset"
+        Write-Host "Sandbox verified: $($playerTest.name) | universe $universeId | place $placeId | recipe $recipeId | UI $preset"
         exit 0
     }
 
@@ -126,8 +127,9 @@ try {
     Write-Host ""
     Write-Host "SHARED SANDBOX READY" -ForegroundColor Green
     Write-Host "  Experience: $($playerTest.name)"
-    Write-Host "  Preset:     $preset"
-    Write-Host "  Save space: $preset (isolated from other presets)"
+    Write-Host "  Recipe:     $recipeId"
+    Write-Host "  UI preset:  $preset"
+    Write-Host "  Save space: $([string]$recipe.dataNamespace) (isolated from other recipes)"
     Write-Host ""
     Write-Host "In Studio, click Plugins > Rojo > Connect, then press Play." -ForegroundColor Cyan
     Write-Host "Use File > Publish to Roblox to update this same sandbox; do not use Publish As." -ForegroundColor Yellow

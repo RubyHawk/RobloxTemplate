@@ -21,9 +21,15 @@ local AudioController = require(Controllers.AudioController)
 local AfkController = require(Controllers.AfkController)
 local NotificationController = require(Controllers.NotificationController)
 local ResponsiveController = require(Controllers.ResponsiveController)
+local StageEnemyRenderer = require(Controllers.StageEnemyRenderer)
+local StageGridRenderer = require(Controllers.StageGridRenderer)
+local StagePlatformOwnerController = require(Controllers.StagePlatformOwnerController)
 local UIFactory = require(script.UI.UIFactory)
 local ScreenRegistry = require(script.UI.ScreenRegistry)
 local Screens = require(script.UI.Screens)
+
+StageGridRenderer.initialize()
+StagePlatformOwnerController.initialize()
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild(RemoteNames.folder)
@@ -161,6 +167,7 @@ local function showToast(message: string)
 end
 
 AudioController.initialize()
+StageEnemyRenderer.initialize()
 
 local function optionalScreenGui(name: string): ScreenGui?
 	local candidate = playerGui:FindFirstChild(name)
@@ -503,6 +510,7 @@ local function applyState(nextState: any)
 		moreButtonsByScreen.Settings.Visible = features.settings ~= false
 	end
 	AfkController.setEnabled(state.profile.settings.afKRollOver)
+	StageEnemyRenderer.apply(state.towerDefense)
 	binder.apply(state)
 end
 
@@ -512,6 +520,12 @@ stateRemote.OnClientEvent:Connect(function(packet)
 	end
 	if packet.kind == "Snapshot" then
 		applyState(packet.data)
+	elseif packet.kind == "TowerEnemies" then
+		StageEnemyRenderer.apply(packet.data)
+		if state ~= nil then
+			state.towerDefense = packet.data
+			binder.apply(state)
+		end
 	elseif packet.kind == "Result" then
 		showToast(packet.message or if packet.ok then "Done" else "Request failed")
 		if packet.ok then

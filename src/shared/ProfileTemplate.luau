@@ -10,7 +10,7 @@ local ProfileTemplate = {}
 function ProfileTemplate.create(now: number): PlayerProfileV1
 	local currencies = CurrencyConfig.startingBalances(Config.economy.currencies)
 	return {
-		schemaVersion = 6,
+		schemaVersion = 7,
 		coins = currencies[Config.economy.primaryCurrencyId] or 0,
 		currencies = currencies,
 		inventory = {
@@ -54,6 +54,14 @@ function ProfileTemplate.create(now: number): PlayerProfileV1
 		towerDefense = {
 			ownedUnits = {},
 			loadout = {},
+			selectedStageId = Config.towerDefense.startingStageId,
+			stageProgress = {
+				[Config.towerDefense.startingStageId] = {
+					unlocked = true,
+					clears = 0,
+					bestWave = 0,
+				},
+			},
 			stats = {
 				wins = 0,
 				losses = 0,

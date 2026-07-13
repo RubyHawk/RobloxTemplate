@@ -60,6 +60,33 @@
           "RuneLogic": {
             "$path": "../src/shared/RuneLogic.luau"
           },
+          "StageCatalog": {
+            "$path": "../src/shared/StageCatalog.luau"
+          },
+          "StageCatalog.generated": {
+            "$path": "../src/shared/StageCatalog.generated.luau"
+          },
+          "StageGraph": {
+            "$path": "../src/shared/StageGraph.luau"
+          },
+          "StageLegacy": {
+            "$path": "../src/shared/StageLegacy.luau"
+          },
+          "StagePath": {
+            "$path": "../src/shared/StagePath.luau"
+          },
+          "StagePlatformLayout": {
+            "$path": "../src/shared/StagePlatformLayout.luau"
+          },
+          "StageSchema": {
+            "$path": "../src/shared/StageSchema.luau"
+          },
+          "StageTrace": {
+            "$path": "../src/shared/StageTrace.luau"
+          },
+          "StageTypes": {
+            "$path": "../src/shared/StageTypes.luau"
+          },
           "TemplateConfig": {
             "$path": "../src/shared/TemplateConfig.luau"
           },
@@ -97,11 +124,17 @@
       },
       "RuneCircleUI": {
         "$path": "../src/ui/RuneCircleUI.model.json"
+      },
+      "StagePlatformOwners": {
+        "$path": "../src/ui/StagePlatformOwners.model.json"
       }
     },
     "StarterPlayer": {
       "StarterPlayerScripts": {
         "$ignoreUnknownInstances": true,
+        "TemplateClient": {
+          "$path": "../src/client"
+        },
         "RuneCircleClient": {
           "$path": "../src/starter-client/RuneCircle.client.luau"
         }
@@ -111,9 +144,6 @@
       "$ignoreUnknownInstances": true,
       "RuneCircle": {
         "$path": "../src/world/RuneCircle.model.json"
-      },
-      "FirstPrivateIsland": {
-        "$path": "../src/world/FirstPrivateIslandGridDemo.model.json"
       }
     }
   }

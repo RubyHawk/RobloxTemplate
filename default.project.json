@@ -33,6 +33,9 @@
       },
       "RuneCircleUI": {
         "$path": "src/ui/RuneCircleUI.model.json"
+      },
+      "StagePlatformOwners": {
+        "$path": "src/ui/StagePlatformOwners.model.json"
       }
     },
     "StarterPlayer": {

@@ -22,8 +22,10 @@ jobs:
       - run: rokit install
       - run: stylua --check src tests ui-packages
       - run: selene src tests ui-packages
+      - run: lune run scripts/stagewright-import.luau stage-data/stagewright-project.json --check
       - run: wally install
       - run: rojo build bootstrap.project.json --output RobloxTemplate.rbxlx
+      - run: rojo build patches/rng-defender-grid-demo.project.json --output RNGDefenderSafePatch.rbxlx
       - name: Figma bridge checks
         run: |
           node --check figma/roblox-ui-bridge/code.js
@@ -36,12 +38,14 @@ jobs:
           for recipe in config-presets/*.json; do
             pwsh -NoProfile -File scripts/build-game-preset.ps1 -RecipePath "$recipe" -NoStudio
           done
+      - run: lune run scripts/validate-stagewright-artifact.luau
       - name: Launcher config guards (no Studio, no network)
         run: |
           pwsh -NoProfile -File scripts/sandbox.ps1 -RecipePath config-presets/incremental.json -SmokeTest
           pwsh -NoProfile -File scripts/start.ps1 -SmokeTest
       - run: pwsh -NoProfile -File scripts/sync-icon-manifest.ps1 -Check
       - run: lune run tests/run
+      - run: lune run scripts/benchmark-stagewright.luau
       - run: npm ci --prefix worker
       - run: npm --prefix worker run typecheck
       - run: npm --prefix worker test

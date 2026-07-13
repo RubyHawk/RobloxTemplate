@@ -12,6 +12,7 @@ local Types = require(Shared.Types)
 
 local EconomyService = require(script.Parent.EconomyService)
 local ProfileService = require(script.Parent.ProfileService)
+local StageRuntimeService = require(script.Parent.StageRuntimeService)
 
 type TowerDefenseClientState = Types.TowerDefenseClientState
 type TowerDefenseEnemyState = Types.TowerDefenseEnemyState
@@ -20,16 +21,6 @@ type TowerDefensePlacementState = Types.TowerDefensePlacementState
 type Cell = {
 	column: number,
 	row: number,
-}
-
-type SplineSample = {
-	position: Vector3,
-	distance: number,
-}
-
-type SplinePath = {
-	samples: { SplineSample },
-	length: number,
 }
 
 type Placement = {
@@ -50,7 +41,11 @@ type Enemy = {
 	reward: number,
 	baseDamage: number,
 	distance: number,
-	part: BasePart?,
+	edgeId: string,
+	edgeDistance: number,
+	laneIndex: number,
+	nodeVisits: { [string]: number },
+	tags: { string },
 }
 
 type MatchState = {
@@ -69,144 +64,52 @@ type MatchState = {
 	spawnEnemyId: string,
 	enemyHealthScale: number,
 	enemyRewardScale: number,
-	path: SplinePath?,
+	stageId: string,
+	graphId: string,
+	graph: any?,
+	stageFlags: { [string]: boolean },
+	nextSnapshotAt: number,
 	folder: Folder?,
 }
 
 type GridData = {
-	base: BasePart,
+	stage: any,
 	cellSize: number,
 	columns: number,
 	rows: number,
-	map: { string },
 	autoPlaceCells: { Cell },
 	portalCells: { Cell },
 	goalCells: { Cell },
-	pathPoints: { BasePart },
 }
 
 local TowerDefenseService = {}
 
-local ISLAND_NAME = "FirstPrivateIsland"
-local PLATFORM_NAME = "GamePlatform"
-local MAP_NAME = "CellMap"
-local PATH_POINTS_NAME = "PathPoints"
-local SPLINE_SAMPLES_PER_SEGMENT = 18
-local ENEMY_VERTICAL_OFFSET = 1.25
-local TOWER_VERTICAL_OFFSET = 1.35
+local TOWER_VERTICAL_OFFSET = 0.7
 local NAMEPLATE_NAME = "DebugNameplate"
 local HEALTH_BAR_FILL_NAME = "HealthBarFill"
 local HEALTH_TEXT_NAME = "HealthText"
 local rng = Random.new()
 local matches: { [Player]: MatchState } = {}
 local publishSnapshot: ((player: Player) -> ())? = nil
+local publishEnemyCorrection: ((player: Player) -> ())? = nil
 local loopConnected = false
 
-local function findModel(parent: Instance, name: string): Model?
-	local child = parent:FindFirstChild(name)
-	if child ~= nil and child:IsA("Model") then
-		return child
-	end
-	return nil
-end
-
-local function findFolder(parent: Instance, name: string): Folder?
-	local child = parent:FindFirstChild(name)
-	if child ~= nil and child:IsA("Folder") then
-		return child
-	end
-	return nil
-end
-
-local function findInt(parent: Instance, name: string, fallback: number): number
-	local child = parent:FindFirstChild(name)
-	if child ~= nil and child:IsA("IntValue") then
-		return child.Value
-	end
-	return fallback
-end
-
-local function platformModel(): Model?
-	local island = findModel(Workspace, ISLAND_NAME)
-	if island == nil then
+local function readGrid(player: Player): GridData?
+	if not StageRuntimeService.hasPlatform(player) then
 		return nil
 	end
-	return findModel(island, PLATFORM_NAME)
-end
-
-local function platformBasePart(platform: Model): BasePart?
-	local base = platform:FindFirstChild("PlatformBase")
-	if base ~= nil and base:IsA("BasePart") then
-		return base
-	end
-	return nil
-end
-
-local function collectPathPoints(platform: Model): { BasePart }
-	local folder = findFolder(platform, PATH_POINTS_NAME)
-	local points: { BasePart } = {}
-	if folder == nil then
-		return points
-	end
-	for _, child in folder:GetChildren() do
-		if child:IsA("BasePart") then
-			table.insert(points, child)
-		end
-	end
-	table.sort(points, function(left, right)
-		return left.Name < right.Name
-	end)
-	return points
-end
-
-local function readGrid(): GridData?
-	local platform = platformModel()
-	if platform == nil then
+	local stage = StageRuntimeService.activeStage(player)
+	if stage == nil then
 		return nil
 	end
-	local base = platformBasePart(platform)
-	local cellMap = findFolder(platform, MAP_NAME)
-	if base == nil or cellMap == nil then
-		return nil
-	end
-
-	local columns = findInt(platform, "Columns", 32)
-	local rows = findInt(platform, "Rows", 27)
-	local cellSize = findInt(platform, "CellSize", 4)
-	local map: { string } = {}
-	local autoPlaceCells: { Cell } = {}
-	local portalCells: { Cell } = {}
-	local goalCells: { Cell } = {}
-
-	for row = 1, rows do
-		local rowNode = cellMap:FindFirstChild(`Row_{string.format("%02d", row)}`)
-		local rowValue = if rowNode ~= nil and rowNode:IsA("StringValue") then rowNode.Value else ""
-		if #rowValue < columns then
-			rowValue ..= string.rep(".", columns - #rowValue)
-		end
-		map[row] = rowValue
-		for column = 1, columns do
-			local code = TowerDefenseLogic.normalizeCellCode(string.sub(rowValue, column, column))
-			if code == "A" then
-				table.insert(autoPlaceCells, { column = column, row = row })
-			elseif code == "P" then
-				table.insert(portalCells, { column = column, row = row })
-			elseif code == "G" then
-				table.insert(goalCells, { column = column, row = row })
-			end
-		end
-	end
-
 	return {
-		base = base,
-		cellSize = cellSize,
-		columns = columns,
-		rows = rows,
-		map = map,
-		autoPlaceCells = autoPlaceCells,
-		portalCells = portalCells,
-		goalCells = goalCells,
-		pathPoints = collectPathPoints(platform),
+		stage = stage,
+		cellSize = stage.grid.cellSize,
+		columns = stage.grid.columns,
+		rows = stage.grid.rows,
+		autoPlaceCells = StageRuntimeService.cellsWithRole(stage, "AutoPlace"),
+		portalCells = StageRuntimeService.cellsWithRole(stage, "EnemySpawn"),
+		goalCells = StageRuntimeService.cellsWithRole(stage, "EnemyGoal"),
 	}
 end
 
@@ -214,104 +117,26 @@ local function cellCode(grid: GridData, cell: Cell): string
 	if cell.column < 1 or cell.column > grid.columns or cell.row < 1 or cell.row > grid.rows then
 		return "#"
 	end
-	return TowerDefenseLogic.normalizeCellCode(string.sub(grid.map[cell.row] or "", cell.column, cell.column))
+	local authored = StageRuntimeService.cell(grid.stage, cell.column, cell.row)
+	local roles = authored.roles or {}
+	if roles.EnemySpawn then
+		return "P"
+	elseif roles.EnemyGoal then
+		return "G"
+	elseif roles.AutoPlace then
+		return "A"
+	elseif not StageRuntimeService.isBuildable(grid.stage, cell.column, cell.row) then
+		return "#"
+	end
+	return "."
 end
 
 local function cellKey(cell: Cell): string
 	return `{cell.column}:{cell.row}`
 end
 
-local function cellWorldPosition(grid: GridData, cell: Cell, verticalOffset: number): Vector3
-	local gridWidth = grid.columns * grid.cellSize
-	local gridDepth = grid.rows * grid.cellSize
-	local localX = -gridWidth / 2 + (cell.column - 0.5) * grid.cellSize
-	local localZ = -gridDepth / 2 + (cell.row - 0.5) * grid.cellSize
-	return grid.base.CFrame:PointToWorldSpace(
-		Vector3.new(localX, grid.base.Size.Y / 2 + verticalOffset, localZ)
-	)
-end
-
-local function controlPointPosition(points: { Vector3 }, index: number): Vector3
-	return points[math.clamp(index, 1, #points)]
-end
-
-local function catmullRomPosition(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, alpha: number): Vector3
-	local alpha2 = alpha * alpha
-	local alpha3 = alpha2 * alpha
-	return (
-		(p1 * 2)
-		+ ((p2 - p0) * alpha)
-		+ ((p0 * 2 - p1 * 5 + p2 * 4 - p3) * alpha2)
-		+ ((p1 * 3 - p0 - p2 * 3 + p3) * alpha3)
-	) * 0.5
-end
-
-local function buildSplinePath(positions: { Vector3 }): SplinePath?
-	if #positions < 2 then
-		return nil
-	end
-	local samples: { SplineSample } = {}
-	local totalDistance = 0
-	local function insertSample(position: Vector3)
-		if #samples > 0 then
-			totalDistance += (position - samples[#samples].position).Magnitude
-		end
-		table.insert(samples, { position = position, distance = totalDistance })
-	end
-	for segment = 1, #positions - 1 do
-		local p0 = controlPointPosition(positions, segment - 1)
-		local p1 = controlPointPosition(positions, segment)
-		local p2 = controlPointPosition(positions, segment + 1)
-		local p3 = controlPointPosition(positions, segment + 2)
-		for step = 0, SPLINE_SAMPLES_PER_SEGMENT do
-			if segment > 1 and step == 0 then
-				continue
-			end
-			insertSample(catmullRomPosition(p0, p1, p2, p3, step / SPLINE_SAMPLES_PER_SEGMENT))
-		end
-	end
-	if totalDistance < 0.1 then
-		return nil
-	end
-	return { samples = samples, length = totalDistance }
-end
-
-local function sampleSplinePath(path: SplinePath, distance: number): Vector3
-	local samples = path.samples
-	if distance <= 0 then
-		return samples[1].position
-	elseif distance >= path.length then
-		return samples[#samples].position
-	end
-	local low = 2
-	local high = #samples
-	while low < high do
-		local middle = math.floor((low + high) / 2)
-		if samples[middle].distance < distance then
-			low = middle + 1
-		else
-			high = middle
-		end
-	end
-	local after = samples[low]
-	local before = samples[low - 1]
-	local span = after.distance - before.distance
-	local alpha = if span > 0 then math.clamp((distance - before.distance) / span, 0, 1) else 0
-	return before.position:Lerp(after.position, alpha)
-end
-
-local function routeForGrid(grid: GridData): SplinePath?
-	local positions: { Vector3 } = {}
-	if grid.portalCells[1] ~= nil then
-		table.insert(positions, cellWorldPosition(grid, grid.portalCells[1], ENEMY_VERTICAL_OFFSET))
-	end
-	for _, point in grid.pathPoints do
-		table.insert(positions, point.Position + Vector3.new(0, ENEMY_VERTICAL_OFFSET, 0))
-	end
-	if grid.goalCells[1] ~= nil then
-		table.insert(positions, cellWorldPosition(grid, grid.goalCells[1], ENEMY_VERTICAL_OFFSET))
-	end
-	return buildSplinePath(positions)
+local function cellWorldPosition(player: Player, grid: GridData, cell: Cell, verticalOffset: number): Vector3
+	return StageRuntimeService.cellWorldPosition(player, grid.stage, cell.column, cell.row, verticalOffset)
 end
 
 local function ensureRuntimeFolder(player: Player, match: MatchState): Folder
@@ -484,28 +309,6 @@ local function createTowerPart(player: Player, match: MatchState, placement: Pla
 	return part
 end
 
-local function createEnemyPart(player: Player, match: MatchState, enemy: Enemy): BasePart?
-	local path = match.path
-	if path == nil then
-		return nil
-	end
-	local part = Instance.new("Part")
-	part.Name = enemy.id
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanQuery = false
-	part.CanTouch = false
-	part.Shape = Enum.PartType.Ball
-	part.Size = Vector3.new(1.4, 1.4, 1.4)
-	part.Color = Color3.fromRGB(95, 57, 35)
-	part.Material = Enum.Material.SmoothPlastic
-	part.Position = sampleSplinePath(path, 0)
-	part.Parent = ensureRuntimeFolder(player, match)
-	createDebugNameplate(part, enemy.name, enemy.id, Color3.fromRGB(239, 68, 68))
-	setNameplateBar(part, enemy.health, enemy.maxHealth, nil)
-	return part
-end
-
 local function clearRuntime(match: MatchState)
 	if match.folder ~= nil then
 		match.folder:Destroy()
@@ -530,7 +333,11 @@ local function defaultMatch(): MatchState
 		spawnEnemyId = "",
 		enemyHealthScale = 1,
 		enemyRewardScale = 1,
-		path = nil,
+		stageId = "",
+		graphId = "",
+		graph = nil,
+		stageFlags = {},
+		nextSnapshotAt = 0,
 		folder = nil,
 	}
 end
@@ -548,6 +355,15 @@ local function publish(player: Player)
 	local callback = publishSnapshot
 	if callback ~= nil and player.Parent ~= nil then
 		callback(player)
+	end
+end
+
+local function publishEnemies(player: Player)
+	local callback = publishEnemyCorrection
+	if callback ~= nil and player.Parent ~= nil then
+		callback(player)
+	else
+		publish(player)
 	end
 end
 
@@ -683,7 +499,7 @@ local function placeUnitInternal(
 	if not hasUnit(player, unitId) or not inLoadout(player, unitId) then
 		return false, "Unit is not in your loadout"
 	end
-	local grid = readGrid()
+	local grid = readGrid(player)
 	if grid == nil then
 		return false, "Grid is unavailable"
 	end
@@ -713,7 +529,7 @@ local function placeUnitInternal(
 		id = id,
 		unitId = unitId,
 		cell = { column = cell.column, row = cell.row },
-		position = cellWorldPosition(grid, cell, TOWER_VERTICAL_OFFSET),
+		position = cellWorldPosition(player, grid, cell, TOWER_VERTICAL_OFFSET),
 		nextAttackAt = 0,
 		part = nil,
 	}
@@ -739,7 +555,7 @@ function TowerDefenseService.autoPlaceBest(player: Player): (boolean, string)
 		return false, message
 	end
 	local td = profileTowerState(player)
-	local grid = readGrid()
+	local grid = readGrid(player)
 	if td == nil or grid == nil then
 		return false, "Grid is unavailable"
 	end
@@ -766,8 +582,31 @@ end
 
 local function spawnEnemy(player: Player, match: MatchState)
 	local enemyDefinition = TowerDefenseCatalog.enemy(match.spawnEnemyId)
-	local path = match.path
-	if enemyDefinition == nil or path == nil then
+	local graph = match.graph
+	if enemyDefinition == nil or graph == nil then
+		return
+	end
+	if #match.enemyOrder >= Config.towerDefense.maximumEnemiesPerPlayer then
+		warn(`Tower defense spawn rejected: enemy cap reached for {player.Name}`)
+		match.waveRunning = false
+		match.pendingSpawns = 0
+		return
+	end
+	local spawnNode = StageRuntimeService.firstSpawnNode(graph)
+	if spawnNode == nil then
+		warn(`Tower defense graph {match.graphId} has no spawn node`)
+		match.waveRunning = false
+		match.pendingSpawns = 0
+		return
+	end
+	local nodeVisits = { [spawnNode.id] = 1 }
+	local tags = table.clone(enemyDefinition.tags)
+	local context = StageRuntimeService.context(player, match.wave, tags, nodeVisits, match.stageFlags)
+	local firstEdge, reason = StageRuntimeService.chooseEdge(graph, spawnNode.id, context)
+	if firstEdge == nil then
+		warn(`Tower defense route failed at {spawnNode.id}: {reason or "no eligible edge"}`)
+		match.waveRunning = false
+		match.pendingSpawns = 0
 		return
 	end
 	match.nextEnemyId += 1
@@ -781,9 +620,12 @@ local function spawnEnemy(player: Player, match: MatchState)
 		reward = math.floor(enemyDefinition.reward * match.enemyRewardScale),
 		baseDamage = enemyDefinition.baseDamage,
 		distance = 0,
-		part = nil,
+		edgeId = firstEdge.id,
+		edgeDistance = 0,
+		laneIndex = 1,
+		nodeVisits = nodeVisits,
+		tags = tags,
 	}
-	enemy.part = createEnemyPart(player, match, enemy)
 	match.enemies[enemy.id] = enemy
 	table.insert(match.enemyOrder, enemy.id)
 end
@@ -802,18 +644,20 @@ function TowerDefenseService.startWave(player: Player): (boolean, string)
 		matches[player] = defaultMatch()
 		match = matches[player]
 	end
-	local grid = readGrid()
+	local grid = readGrid(player)
 	if grid == nil then
 		return false, "Grid is unavailable"
 	end
-	local path = routeForGrid(grid)
-	if path == nil then
-		return false, "Portal, spline path, and goal need a valid route"
+	local graph = StageRuntimeService.firstGraph(grid.stage)
+	if graph == nil or StageRuntimeService.firstSpawnNode(graph) == nil then
+		return false, "The active stage needs a valid route graph"
 	end
 
 	match.wave += 1
 	match.waveRunning = true
-	match.path = path
+	match.stageId = grid.stage.id
+	match.graphId = graph.id
+	match.graph = graph
 	local wave = TowerDefenseCatalog.wave(match.wave)
 	local loopScale = TowerDefenseLogic.waveScale(match.wave)
 	match.pendingSpawns = math.max(wave.count, 1)
@@ -837,11 +681,26 @@ function TowerDefenseService.resetMatch(player: Player): (boolean, string)
 	return true, "Tower defense match reset"
 end
 
-local function removeEnemy(match: MatchState, enemyId: string)
-	local enemy = match.enemies[enemyId]
-	if enemy ~= nil and enemy.part ~= nil then
-		enemy.part:Destroy()
+function TowerDefenseService.activateStage(player: Player, stageId: any): (boolean, string)
+	if not StageRuntimeService.hasPlatform(player) then
+		return false, "No tower-defense platform is available"
 	end
+	local match = matches[player]
+	if match ~= nil and match.waveRunning then
+		return false, "Finish or reset the current wave before changing stages"
+	end
+	local ok, message = StageRuntimeService.activate(player, stageId)
+	if not ok then
+		return false, message
+	end
+	if match ~= nil then
+		clearRuntime(match)
+	end
+	matches[player] = defaultMatch()
+	return true, message
+end
+
+local function removeEnemy(match: MatchState, enemyId: string)
 	match.enemies[enemyId] = nil
 	for index, id in match.enemyOrder do
 		if id == enemyId then
@@ -867,71 +726,175 @@ local function tickSpawns(player: Player, match: MatchState, now: number)
 end
 
 local function tickEnemies(player: Player, match: MatchState, deltaTime: number)
-	local path = match.path
-	if path == nil then
+	local graph = match.graph
+	local stage = StageRuntimeService.activeStage(player)
+	if graph == nil or stage == nil or stage.id ~= match.stageId then
 		return
+	end
+	local function invalidateRoute(nodeOrEdgeId: string, reason: string)
+		warn(`Invalid Stagewright route {match.stageId}/{match.graphId} at {nodeOrEdgeId}: {reason}`)
+		match.waveRunning = false
+		match.pendingSpawns = 0
+		for _, id in table.clone(match.enemyOrder) do
+			removeEnemy(match, id)
+		end
+		publishEnemies(player)
 	end
 	for _, enemyId in table.clone(match.enemyOrder) do
 		local enemy = match.enemies[enemyId]
 		if enemy == nil then
 			continue
 		end
-		enemy.distance += enemy.speed * deltaTime
-		if enemy.distance >= path.length then
-			match.baseHealth = math.max(match.baseHealth - enemy.baseDamage, 0)
-			removeEnemy(match, enemyId)
-			if match.baseHealth <= 0 then
-				local profile = ProfileService.get(player)
-				if profile ~= nil then
-					profile.towerDefense.stats.losses += 1
-					ProfileService.markDirty(player, "towerDefense:loss")
-				end
-				match.waveRunning = false
-				match.pendingSpawns = 0
-				for _, id in table.clone(match.enemyOrder) do
-					removeEnemy(match, id)
-				end
-				publish(player)
+		local remaining = enemy.speed * deltaTime
+		enemy.distance += remaining
+		if enemy.distance > graph.maxTravelDistance then
+			invalidateRoute(enemy.edgeId, "maximum travel distance exceeded")
+			return
+		end
+		while remaining > 0 do
+			local edge = graph.edges[enemy.edgeId]
+			if edge == nil or edge.length <= 0 then
+				invalidateRoute(enemy.edgeId, "missing or zero-length edge")
 				return
 			end
-		elseif enemy.part ~= nil then
-			enemy.part.Position = sampleSplinePath(path, enemy.distance)
+			local available = math.max(edge.length - enemy.edgeDistance, 0)
+			if remaining < available then
+				enemy.edgeDistance += remaining
+				remaining = 0
+				break
+			end
+			remaining -= available
+			enemy.edgeDistance = edge.length
+			local node = graph.nodes[edge.toNodeId]
+			if node == nil then
+				invalidateRoute(edge.id, "destination node is missing")
+				return
+			end
+			enemy.nodeVisits[node.id] = (enemy.nodeVisits[node.id] or 0) + 1
+			local totalVisits = 0
+			for _, count in enemy.nodeVisits do
+				totalVisits += count
+			end
+			if totalVisits > graph.maxNodeVisitsPerEnemy then
+				invalidateRoute(node.id, "maximum node visits exceeded")
+				return
+			end
+			if node.kind == "Goal" then
+				match.baseHealth = math.max(match.baseHealth - enemy.baseDamage, 0)
+				removeEnemy(match, enemyId)
+				if match.baseHealth <= 0 then
+					local profile = ProfileService.get(player)
+					if profile ~= nil then
+						profile.towerDefense.stats.losses += 1
+						ProfileService.markDirty(player, "towerDefense:loss")
+					end
+					match.waveRunning = false
+					match.pendingSpawns = 0
+					for _, id in table.clone(match.enemyOrder) do
+						removeEnemy(match, id)
+					end
+					publish(player)
+					return
+				end
+				break
+			end
+			local context = StageRuntimeService.context(
+				player,
+				match.wave,
+				enemy.tags,
+				enemy.nodeVisits,
+				match.stageFlags
+			)
+			local nextEdge, reason = StageRuntimeService.chooseEdge(graph, node.id, context)
+			if nextEdge == nil then
+				invalidateRoute(node.id, reason or "no eligible edge")
+				return
+			end
+			enemy.edgeId = nextEdge.id
+			enemy.edgeDistance = 0
 		end
 	end
 end
 
-local function enemyPosition(match: MatchState, enemy: Enemy): Vector3?
-	if enemy.part ~= nil then
-		return enemy.part.Position
+local function enemyPosition(player: Player, match: MatchState, enemy: Enemy): Vector3?
+	local stage = StageRuntimeService.activeStage(player)
+	local graph = match.graph
+	if stage == nil or graph == nil or stage.id ~= match.stageId then
+		return nil
 	end
-	local path = match.path
-	return if path ~= nil then sampleSplinePath(path, enemy.distance) else nil
+	local frame = StageRuntimeService.sampleEdge(
+		player,
+		stage,
+		graph,
+		enemy.edgeId,
+		enemy.edgeDistance,
+		enemy.laneIndex
+	)
+	return if frame ~= nil then frame.Position else nil
+end
+
+type EnemySpatialIndex = {
+	positions: { [string]: Vector3 },
+	buckets: { [string]: { Enemy } },
+	bucketSize: number,
+}
+
+local function spatialKey(position: Vector3, bucketSize: number): string
+	return `{math.floor(position.X / bucketSize)}:{math.floor(position.Z / bucketSize)}`
+end
+
+local function buildEnemySpatialIndex(player: Player, match: MatchState): EnemySpatialIndex
+	local bucketSize = 32
+	local index: EnemySpatialIndex = { positions = {}, buckets = {}, bucketSize = bucketSize }
+	for enemyId, enemy in match.enemies do
+		local position = enemyPosition(player, match, enemy)
+		if position ~= nil then
+			index.positions[enemyId] = position
+			local key = spatialKey(position, bucketSize)
+			local bucket = index.buckets[key]
+			if bucket == nil then
+				bucket = {}
+				index.buckets[key] = bucket
+			end
+			table.insert(bucket, enemy)
+		end
+	end
+	return index
 end
 
 local function findTarget(
-	match: MatchState,
 	placement: Placement,
-	unit: TowerDefenseCatalog.UnitDefinition
+	unit: TowerDefenseCatalog.UnitDefinition,
+	spatial: EnemySpatialIndex
 ): Enemy?
 	local bestEnemy: Enemy? = nil
 	local bestScore = -math.huge
-	for _, enemy in match.enemies do
-		local position = enemyPosition(match, enemy)
-		if position == nil or (position - placement.position).Magnitude > unit.range then
-			continue
-		end
-		local score = if unit.targeting == "Nearest"
-			then -(position - placement.position).Magnitude
-			else enemy.distance
-		if score > bestScore then
-			bestScore = score
-			bestEnemy = enemy
+	local radius = math.ceil(unit.range / spatial.bucketSize)
+	local centerX = math.floor(placement.position.X / spatial.bucketSize)
+	local centerZ = math.floor(placement.position.Z / spatial.bucketSize)
+	for offsetX = -radius, radius do
+		for offsetZ = -radius, radius do
+			local bucket = spatial.buckets[`{centerX + offsetX}:{centerZ + offsetZ}`] or {}
+			for _, enemy in bucket do
+				local position = spatial.positions[enemy.id]
+				if position == nil or (position - placement.position).Magnitude > unit.range then
+					continue
+				end
+				local score = if unit.targeting == "Nearest"
+					then -(position - placement.position).Magnitude
+					else enemy.distance
+				if score > bestScore then
+					bestScore = score
+					bestEnemy = enemy
+				end
+			end
 		end
 	end
 	return bestEnemy
 end
 
 local function tickTowers(player: Player, match: MatchState, now: number)
+	local spatial = buildEnemySpatialIndex(player, match)
 	for _, placementId in match.placementOrder do
 		local placement = match.placements[placementId]
 		if placement == nil or now < placement.nextAttackAt then
@@ -941,13 +904,12 @@ local function tickTowers(player: Player, match: MatchState, now: number)
 		if unit == nil then
 			continue
 		end
-		local target = findTarget(match, placement, unit)
+		local target = findTarget(placement, unit, spatial)
 		if target == nil then
 			continue
 		end
 		target.health -= unit.damage
 		placement.nextAttackAt = now + unit.fireRate
-		setNameplateBar(target.part, target.health, target.maxHealth, nil)
 		if target.health <= 0 then
 			EconomyService.awardCurrencyRaw(
 				player,
@@ -972,26 +934,45 @@ local function tickWaveCompletion(player: Player, match: MatchState)
 		if profile ~= nil then
 			profile.towerDefense.stats.wins += 1
 			profile.towerDefense.stats.bestWave = math.max(profile.towerDefense.stats.bestWave, match.wave)
+			local stageProgress = profile.towerDefense.stageProgress[match.stageId]
+			if stageProgress == nil then
+				stageProgress = { unlocked = true, clears = 0, bestWave = 0 }
+				profile.towerDefense.stageProgress[match.stageId] = stageProgress
+			end
+			stageProgress.unlocked = true
+			stageProgress.clears += 1
+			stageProgress.bestWave = math.max(stageProgress.bestWave, match.wave)
 			ProfileService.markDirty(player, "towerDefense:waveClear")
 		end
 		publish(player)
 	end
 end
 
+local simulationAccumulator = 0
+
 local function tick(deltaTime: number)
 	if Config.features.towerDefense ~= true then
 		return
 	end
-	local now = os.clock()
-	for _, player in Players:GetPlayers() do
-		local match = matches[player]
-		if match == nil or not match.waveRunning then
-			continue
+	local step = 1 / math.max(Config.towerDefense.simulationHz, 1)
+	simulationAccumulator += math.min(deltaTime, step * 4)
+	while simulationAccumulator >= step do
+		simulationAccumulator -= step
+		local now = os.clock()
+		for _, player in Players:GetPlayers() do
+			local match = matches[player]
+			if match == nil or not match.waveRunning then
+				continue
+			end
+			tickSpawns(player, match, now)
+			tickEnemies(player, match, step)
+			tickTowers(player, match, now)
+			tickWaveCompletion(player, match)
+			if match.waveRunning and now >= match.nextSnapshotAt then
+				match.nextSnapshotAt = now + 1 / math.max(Config.towerDefense.networkSnapshotHz, 1)
+				publishEnemies(player)
+			end
 		end
-		tickSpawns(player, match, now)
-		tickEnemies(player, match, deltaTime)
-		tickTowers(player, match, now)
-		tickWaveCompletion(player, match)
 	end
 end
 
@@ -1001,7 +982,7 @@ function TowerDefenseService.snapshotFor(player: Player): TowerDefenseClientStat
 		return nil
 	end
 	local match = matchFor(player)
-	local grid = readGrid()
+	local grid = readGrid(player)
 	local placements: { TowerDefensePlacementState } = {}
 	for _, placementId in match.placementOrder do
 		local placement = match.placements[placementId]
@@ -1017,19 +998,32 @@ function TowerDefenseService.snapshotFor(player: Player): TowerDefenseClientStat
 		end
 	end
 	local enemies: { TowerDefenseEnemyState } = {}
-	local pathLength = if match.path ~= nil then match.path.length else 1
+	local serverTime = Workspace:GetServerTimeNow()
 	for _, enemyId in match.enemyOrder do
 		local enemy = match.enemies[enemyId]
 		if enemy ~= nil then
+			local edge = if match.graph ~= nil then match.graph.edges[enemy.edgeId] else nil
+			local edgeLength = if edge ~= nil then edge.length else 1
 			table.insert(enemies, {
 				id = enemy.id,
 				health = enemy.health,
 				maxHealth = enemy.maxHealth,
-				progress = math.clamp(enemy.distance / math.max(pathLength, 1), 0, 1),
+				progress = math.clamp(enemy.edgeDistance / math.max(edgeLength, 1), 0, 1),
+				stageId = match.stageId,
+				graphId = match.graphId,
+				edgeId = enemy.edgeId,
+				edgeDistance = enemy.edgeDistance,
+				edgeLength = edgeLength,
+				speed = enemy.speed,
+				laneIndex = enemy.laneIndex,
+				distanceTraveled = enemy.distance,
+				serverTime = serverTime,
 			})
 		end
 	end
 	return {
+		activeStageId = StageRuntimeService.activeStageId(player),
+		stageOrigin = if grid ~= nil then StageRuntimeService.originFor(player, grid.stage) else CFrame.new(),
 		ownedUnits = profile.towerDefense.ownedUnits,
 		loadout = profile.towerDefense.loadout,
 		rollCost = Config.towerDefense.unitRollCost,
@@ -1046,8 +1040,12 @@ function TowerDefenseService.snapshotFor(player: Player): TowerDefenseClientStat
 	}
 end
 
-function TowerDefenseService.start(options: { publish: (player: Player) -> () })
+function TowerDefenseService.start(options: {
+	publish: (player: Player) -> (),
+	publishEnemies: ((player: Player) -> ())?,
+})
 	publishSnapshot = options.publish
+	publishEnemyCorrection = options.publishEnemies
 	if loopConnected or Config.features.towerDefense ~= true then
 		return
 	end
@@ -1060,9 +1058,6 @@ function TowerDefenseService.forget(player: Player)
 	if match ~= nil then
 		for _, placement in match.placements do
 			clearDeadPart(placement.part)
-		end
-		for _, enemy in match.enemies do
-			clearDeadPart(enemy.part)
 		end
 		clearRuntime(match)
 	end

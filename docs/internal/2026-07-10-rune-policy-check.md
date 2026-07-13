@@ -13,4 +13,4 @@ Implementation decisions:
 - When the rune currency is Robux-purchasable, `RuneService` checks `PolicyService:GetPolicyInfoForPlayerAsync(player)`, reads `ArePaidRandomItemsRestricted`, fails closed on policy lookup errors, and blocks rolling with a visible unavailable state for restricted players.
 - Rune boosts are permanent additive generation bonuses, not temporary boosts, so they do not interact with the "strongest potion wins" rule.
 
-Shared tower-defense world note: the collaborative tower-defense experience lives at place `128136881672145` in `experiences.config.json` under `towerDefense`; universe ID is still unknown.
+Shared tower-defense world note: the collaborative tower-defense experience lives at place `128136881672145`, universe `10479279603`, in `experiences.config.json` under `towerDefense`.

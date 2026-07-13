@@ -6,12 +6,20 @@ local RuneCatalog = require("../src/shared/RuneCatalog")
 local RuneLogic = require("../src/shared/RuneLogic")
 local TowerDefenseCatalog = require("../src/shared/TowerDefenseCatalog")
 local TowerDefenseLogic = require("../src/shared/TowerDefenseLogic")
+local StageGraph = require("../src/shared/StageGraph")
+local StageLegacy = require("../src/shared/StageLegacy")
+local StagePath = require("../src/shared/StagePath")
+local StagePlatformLayout = require("../src/shared/StagePlatformLayout")
+local StageSchema = require("../src/shared/StageSchema")
+local StageExport = require("../src/shared/StageExport")
+local StageTrace = require("../src/shared/StageTrace")
 local DataStoreNames = require("../src/shared/DataStoreNames")
 local DataStoreKeys = require("../src/shared/DataStoreKeys")
 local MigrationCore = require("../src/shared/MigrationCore")
 local ReceiptLedger = require("../src/shared/ReceiptLedger")
 local SessionLock = require("../src/server/Util/SessionLock")
 local fs = require("@lune/fs")
+local luau = require("@lune/luau")
 local serde = require("@lune/serde")
 
 local passed = 0
@@ -133,7 +141,7 @@ end)
 expectEqual(futureOk, false, "future profile schemas are refused instead of overwritten")
 local migrationsSource = fs.readFile("src/shared/Migrations.luau")
 expectEqual(
-	string.find(migrationsSource, "Migrations.CURRENT_VERSION = 6", 1, true) ~= nil,
+	string.find(migrationsSource, "Migrations.CURRENT_VERSION = 7", 1, true) ~= nil,
 	true,
 	"tower defense profile schema version is current"
 )
@@ -152,6 +160,15 @@ expectEqual(
 	true,
 	"tower defense migration initializes best wave"
 )
+for _, stageMigrationMarker in
+	{ "previousVersion < 7", "selectedStageId", "stageProgress", "startingProgress.unlocked = true" }
+do
+	expectEqual(
+		string.find(migrationsSource, stageMigrationMarker, 1, true) ~= nil,
+		true,
+		`stage profile migration includes {stageMigrationMarker}`
+	)
+end
 
 expectEqual(DataStoreKeys.profile(123), "player:123", "profile key is documented and stable")
 expectEqual(DataStoreKeys.publicProfile(123), "user:123", "public profile key is documented")
@@ -661,7 +678,6 @@ for _, patchObject in
 		'"RuneCircleSign"',
 		'"RuneCircleUI"',
 		'"RuneCircleClient"',
-		'"FirstPrivateIsland"',
 		'"servePlaceIds": [128136881672145]',
 		'"$path": "rng-defender/DesignerConfig.luau"',
 		'"TowerDefenseCatalog"',
@@ -679,6 +695,7 @@ for _, patchConfigObject in
 	{
 		'experienceMode = "playable"',
 		'dataNamespace = "rngdefender"',
+		"universeId = 10479279603",
 		"placeId = 128136881672145",
 		"startingAmount = 100_000_000_000",
 		"towerDefense = true",
@@ -741,109 +758,71 @@ do
 		`RNG Defender grid patch keeps edit-only plugin object out of Rojo patch: {removedPatchObject}`
 	)
 end
+expectEqual(
+	string.find(gridPatchProject, '"FirstPrivateIsland"', 1, true),
+	nil,
+	"shared tower-defense patch never manages the Team Create island"
+)
+expectEqual(
+	string.find(gridPatchProject, '"StageCatalog.generated"', 1, true) ~= nil,
+	true,
+	"shared tower-defense patch includes generated Stagewright runtime data"
+)
 local gridPluginProject = fs.readFile("plugins/grid-platform-editor.project.json")
 local gridPluginSource = fs.readFile("src/plugins/GridPlatformEditPlugin.server.luau")
+local stagewrightStoreSource = fs.readFile("src/plugins/Stagewright/ProjectStore.luau")
 for _, pluginObject in
 	{
 		"StagewrightPlugin",
 		"GridPlatformEditPlugin.server.luau",
 		"plugin:CreateToolbar",
 		"CreateDockWidgetPluginGuiAsync",
-		"DockWidgetPluginGuiInfo",
 		"StagewrightPanel",
-		"MaterialPicker",
-		"TemplateDrawer",
-		"StageSelector",
-		"StageProfile_{profile.id}",
-		"Blank Template",
-		"Empty map and route",
-		"Stage 1",
-		"Export Layout",
-		"Undo sync on",
-		"CanvasGuide_",
-		"Stagewright",
-		"rbxasset://textures/StudioSharedUI/grid@2x.png",
-		"plugin:GetMouse",
+		"Versioned Stage Editor",
+		"StagewrightProject",
+		"StagewrightPayload",
+		"StagewrightRuntime",
+		"PromptSaveSelectionAsync",
+		"PluginAction",
+		"plugin.Unloading",
 		"TryBeginRecording",
 		"FinishRecording",
-		"ToolHeader",
-		"StatusDock",
-		"ModeHint",
-		"TargetInfo",
-		"CommandTabs",
-		"tabSections",
-		"applyTabContent",
+		"ProjectStore.createStage",
+		"ProjectStore.deleteStage",
+		"ProjectStore.inboundReferences",
+		"GenerateGUID",
+		"StageLegacy.project",
+		"StageExport.bake",
+		"StagewrightTransientPreview",
+		"terrain_ground",
+		"build_blocked",
+		"traversal_blocked",
+		"EnemySpawn",
+		"StageTransition",
+		"Junction",
+		"Connect From",
+		"Add Condition",
+		"Trace Route",
+		"Set Fallback",
+		"Add Lane",
+		"outHandleOffset",
+		"inHandleOffset",
+		"Working changes",
+		"Export hash matched",
 		"CanvasPosition",
-		"StageProfiles",
-		"CanvasGrid",
-		"CanvasHover",
-		"CanvasRouteLayer",
-		"CanvasRouteSegment_",
-		"CanvasRouteDot_",
-		"CanvasFirst",
-		"handleCanvasCellPaintStart",
-		"Paint canvas cells",
-		"Move canvas spline point",
-		"Clear spline route",
-		"Reset empty stage template",
-		"Release to rebuild",
-		"TextButton",
-		"InputEnded",
-		"InputChanged",
-		"InspectorPanel",
-		"LayerTree",
-		"Stage profile selected",
-		"ButtonStroke",
-		"ModeLegend",
-		"Calibrate Grid",
-		"mousePlatformHit",
-		"syncGridTemplate",
-		"gridFootprint",
-		"GridOverlay",
-		"CellMap",
-		"PlatformBase",
-		"Select Platform",
-		"Reset Flat",
-		"Snap to Selection",
-		"Spline Path",
-		"Portal",
-		"Goal",
-		"Auto Place",
-		"CellCode",
-		"P = portal spawn",
-		"GridHoverPreview",
-		"HoverStroke",
-		"mouseGridCell",
-		"hoverColumn",
-		"paintHoveredCell",
-		"mouse.Move",
-		"Button1Up",
-		"dragPainting",
-		"Select Points",
-		"Rebuild Curve",
-		"Add Point",
-		"Delete Selected",
-		"Snap Points",
-		"Clear Route",
-		"Export Spline",
-		"createSplineControl",
-		"rebuildSplineFromControls",
-		"worldFromCanvasScale",
-		"PATH_GRID_RADIUS",
-		"PathCurve",
-		"ControlPending",
-		"platform.PrimaryPart",
-		"island.PrimaryPart",
-		"WorldPivot",
+		"AbsoluteWindowSize",
 	}
 do
 	expectEqual(
-		string.find(gridPluginProject .. gridPluginSource, pluginObject, 1, true) ~= nil,
+		string.find(gridPluginProject .. gridPluginSource .. stagewrightStoreSource, pluginObject, 1, true)
+			~= nil,
 		true,
 		`edit-mode grid plugin includes {pluginObject}`
 	)
 end
-for _, removedPluginObject in { "BoxHandleAdornment", "paintCellAt" } do
+for _, removedPluginObject in
+	{ "DEFAULT_STAGE_PROFILES", "catmullRomPosition", "PATH_GRID_RADIUS", "Runtime: any" }
+do
 	expectEqual(
 		string.find(gridPluginSource, removedPluginObject, 1, true),
 		nil,
@@ -851,23 +830,23 @@ for _, removedPluginObject in { "BoxHandleAdornment", "paintCellAt" } do
 	)
 end
 local gridNpcBinder = fs.readFile("src/starter/GridNpcDemo.server.luau")
-for _, splineMarker in
+for _, sharedPathMarker in
 	{
-		"catmullRomPosition",
-		"catmullRomTangent",
-		"buildSplinePath",
-		"sampleSplinePath",
-		"SPLINE_SAMPLES_PER_SEGMENT",
-		"PLATFORM_NAME",
+		"StageCatalog",
+		"StagePath.sample",
+		"edge.samples",
+		"sample.tangent",
+		"sample.up",
+		"Workspace:GetServerTimeNow",
 	}
 do
 	expectEqual(
-		string.find(gridNpcBinder, splineMarker, 1, true) ~= nil,
+		string.find(gridNpcBinder, sharedPathMarker, 1, true) ~= nil,
 		true,
-		`grid NPC movement uses spline marker {splineMarker}`
+		`grid NPC movement uses shared path marker {sharedPathMarker}`
 	)
 end
-for _, oldPathMarker in { "nextPathIndex", "segmentDuration", "startPoint.Position:Lerp" } do
+for _, oldPathMarker in { "catmullRomPosition", "buildSplinePath", "sampleSplinePath", "PathPoints" } do
 	expectEqual(
 		string.find(gridNpcBinder, oldPathMarker, 1, true),
 		nil,
@@ -1085,6 +1064,344 @@ expectEqual(#bestTowerLoadout, 2, "equip best respects loadout slot cap")
 expectEqual(TowerDefenseLogic.waveScale(1), 1, "first tower defense wave uses base scale")
 expectEqual(TowerDefenseLogic.waveScale(5) > 1, true, "later tower defense waves scale up")
 
+-- Stagewright: shared Bezier geometry and deterministic conditional graph traversal.
+local straightSamples, straightLength = StagePath.bake(
+	{ x = 0, y = 0, z = 0 },
+	{ x = 10 / 3, y = 0, z = 0 },
+	{ x = 20 / 3, y = 0, z = 0 },
+	{ x = 10, y = 0, z = 0 }
+)
+expectEqual(math.abs(straightLength - 10) < 1e-6, true, "stage path bake preserves straight edge length")
+local straightMiddle = StagePath.sample(straightSamples, straightLength, 5)
+expectEqual(
+	straightMiddle ~= nil and math.abs(straightMiddle.position.x - 5) < 1e-6,
+	true,
+	"stage path samples by distance"
+)
+expectEqual(
+	straightMiddle ~= nil and straightMiddle.tangent.x > 0.999,
+	true,
+	"stage path provides stable orientation tangent"
+)
+local firstPlatformOffset = { x = 183.524, y = 13.344, z = 94.169 }
+local slotOneOffset, slotOneYaw = StagePlatformLayout.slotOffset(firstPlatformOffset, 1, 6)
+local slotFourOffset, slotFourYaw = StagePlatformLayout.slotOffset(firstPlatformOffset, 4, 6)
+expectEqual(
+	math.abs(slotOneOffset.x - firstPlatformOffset.x) < 1e-9,
+	true,
+	"platform slot one preserves authored X"
+)
+expectEqual(
+	math.abs(slotOneOffset.z - firstPlatformOffset.z) < 1e-9,
+	true,
+	"platform slot one preserves authored Z"
+)
+expectEqual(slotOneYaw, 0, "platform slot one preserves authored orientation")
+expectEqual(math.abs(slotFourOffset.x + firstPlatformOffset.x) < 1e-9, true, "opposite platform mirrors X")
+expectEqual(math.abs(slotFourOffset.z + firstPlatformOffset.z) < 1e-9, true, "opposite platform mirrors Z")
+expectEqual(math.abs(slotFourYaw - math.pi) < 1e-9, true, "six platform slots rotate in 60-degree steps")
+
+local branchGraph = {
+	nodes = {
+		spawn = { id = "spawn", kind = "Spawn" },
+		upper = { id = "upper", kind = "Goal" },
+		fallback = { id = "fallback", kind = "Goal" },
+	},
+	edges = {
+		wave_gate = {
+			id = "wave_gate",
+			fromNodeId = "spawn",
+			toNodeId = "upper",
+			priority = 1,
+			predicates = { { kind = "WaveRange", minimum = 5, maximum = 10 } },
+		},
+		fallback = {
+			id = "fallback",
+			fromNodeId = "spawn",
+			toNodeId = "fallback",
+			priority = 2,
+			predicates = {},
+		},
+	},
+}
+local routeContext = {
+	wave = 2,
+	stageFlags = {},
+	enemyTags = {},
+	nodeVisits = {},
+	unlockedStages = {},
+	upgradeLevels = {},
+	currencies = {},
+}
+local selectedEdge = StageGraph.chooseEdge(branchGraph, "spawn", routeContext)
+expectEqual(selectedEdge ~= nil and selectedEdge.id, "fallback", "stage graph uses unconditional fallback")
+routeContext.wave = 6
+selectedEdge = StageGraph.chooseEdge(branchGraph, "spawn", routeContext)
+expectEqual(selectedEdge ~= nil and selectedEdge.id, "wave_gate", "stage graph evaluates built-in predicates")
+expectEqual(#StageGraph.validate(branchGraph), 0, "valid stage graph passes shared validation")
+local fallbackTrace = StageTrace.trace(branchGraph, "spawn", routeContext)
+expectEqual(fallbackTrace.reachedGoal, true, "edit-mode route trace reaches a goal")
+expectEqual(fallbackTrace.edgeIds[1], "wave_gate", "route trace uses the same deterministic edge evaluator")
+local predicateContext = {
+	wave = 7,
+	stageFlags = { hardMode = true },
+	enemyTags = { Flying = true },
+	nodeVisits = { spawn = 1 },
+	unlockedStages = { stage_two = true },
+	upgradeLevels = { range = 4 },
+	currencies = { coins = 500 },
+}
+expectEqual(
+	StageGraph.predicatesPass({
+		{ kind = "StageFlagEquals", key = "hardMode", value = true },
+		{ kind = "EnemyTag", tag = "Flying" },
+		{ kind = "VisitCountBelow", nodeId = "spawn", maximum = 3 },
+		{ kind = "StageUnlocked", stageId = "stage_two" },
+		{ kind = "UpgradeLevelAtLeast", upgradeId = "range", level = 4 },
+		{ kind = "CurrencyAtLeast", currencyId = "coins", amount = 250 },
+	}, predicateContext),
+	true,
+	"all built-in route predicates evaluate from authoritative context"
+)
+local cyclicGraph = serde.decode("json", serde.encode("json", branchGraph))
+cyclicGraph.nodes.loop = { id = "loop", kind = "Junction" }
+cyclicGraph.edges.wave_gate.toNodeId = "loop"
+cyclicGraph.edges.loop = {
+	id = "loop",
+	fromNodeId = "loop",
+	toNodeId = "loop",
+	priority = 1,
+	predicates = {},
+}
+local cyclicIssues = StageGraph.validate(cyclicGraph)
+expectEqual(#cyclicIssues > 0, true, "unbounded graph cycles are rejected before export")
+local cyclicTrace = StageTrace.trace(cyclicGraph, "spawn", routeContext, 12)
+expectEqual(cyclicTrace.reachedGoal, false, "route trace safety cap stops an unbounded cycle")
+expectEqual(
+	string.find(cyclicTrace.stoppedReason, "Maximum node visits", 1, true) ~= nil,
+	true,
+	"route trace reports the safety cap diagnostic"
+)
+local finiteJsonOk = pcall(function()
+	StageSchema.encodeCanonical({ invalid = 0 / 0 })
+end)
+expectEqual(finiteJsonOk, false, "Stagewright serialization rejects NaN payloads")
+local invalidCellIssues = StageSchema.validateStage({
+	id = "invalid_cell_stage",
+	grid = {
+		columns = 2,
+		rows = 2,
+		cellSize = 4,
+		defaultCell = {},
+		cells = { ["3:1"] = { buildPolicy = "Allowed" } },
+	},
+	pathGraphs = {},
+})
+expectEqual(invalidCellIssues[1].code, "CellOutOfBounds", "out-of-range stage cells fail validation")
+local legacyLayered = StageSchema.legacyCells({ ".#PGA?" }, 6)
+expectEqual(legacyLayered["2:1"].buildPolicy, "Blocked", "legacy path blocks remain authored manual blocks")
+expectEqual(legacyLayered["3:1"].roles.EnemySpawn, true, "legacy portal migrates to spawn role")
+expectEqual(legacyLayered["4:1"].roles.EnemyGoal, true, "legacy goal migrates to goal role")
+expectEqual(legacyLayered["5:1"].roles.AutoPlace, true, "legacy auto-place migrates independently")
+expectEqual(legacyLayered["6:1"].metadata.legacyCode, "?", "unknown legacy cells are preserved as metadata")
+local importedLegacy, legacyNotices = StageLegacy.project({
+	columns = 4,
+	rows = 2,
+	cellSize = 2,
+	rowValues = { "....", "...G" },
+	controlPositions = {
+		{ x = -3, y = 0, z = 0 },
+		{ x = 0, y = 0, z = 0 },
+	},
+	stageId = "stage_default",
+	graphId = "graph_main",
+	stageName = "Legacy Fixture",
+	blankFallback = false,
+})
+local importedLegacyStage = importedLegacy.stages.stage_default
+local importedLegacyGraph = importedLegacyStage.pathGraphs.graph_main
+expectEqual(
+	importedLegacyStage.grid.cells["1:2"].roles.EnemySpawn,
+	true,
+	"legacy controls infer a missing spawn role at Control_001"
+)
+expectEqual(
+	importedLegacyGraph.nodes.node_spawn.position.x,
+	-3,
+	"Control_001 becomes the inferred graph spawn without an extra segment"
+)
+expectEqual(
+	importedLegacyGraph.edges.edge_001.toNodeId,
+	"node_control_002",
+	"legacy controls retain their authored order"
+)
+expectEqual(
+	importedLegacyGraph.edges.edge_001.outHandleOffset.x,
+	0.5,
+	"legacy Catmull-Rom tangents convert to cubic Bezier handles"
+)
+local convertedEdge = importedLegacyGraph.edges.edge_001
+local convertedFrom = importedLegacyGraph.nodes[convertedEdge.fromNodeId].position
+local convertedTo = importedLegacyGraph.nodes[convertedEdge.toNodeId].position
+local convertedAlpha = 0.37
+local convertedBezier = StagePath.position(convertedFrom, {
+	x = convertedFrom.x + convertedEdge.outHandleOffset.x,
+	y = convertedFrom.y + convertedEdge.outHandleOffset.y,
+	z = convertedFrom.z + convertedEdge.outHandleOffset.z,
+}, {
+	x = convertedTo.x + convertedEdge.inHandleOffset.x,
+	y = convertedTo.y + convertedEdge.inHandleOffset.y,
+	z = convertedTo.z + convertedEdge.inHandleOffset.z,
+}, convertedTo, convertedAlpha)
+local function catmullComponent(p0: number, p1: number, p2: number, p3: number, alpha: number): number
+	local alpha2 = alpha * alpha
+	local alpha3 = alpha2 * alpha
+	return (
+		(p1 * 2)
+		+ ((p2 - p0) * alpha)
+		+ ((p0 * 2 - p1 * 5 + p2 * 4 - p3) * alpha2)
+		+ ((p1 * 3 - p0 - p2 * 3 + p3) * alpha3)
+	) * 0.5
+end
+local legacyGoalPosition = importedLegacyGraph.nodes.node_goal.position
+local expectedLegacyX =
+	catmullComponent(convertedFrom.x, convertedFrom.x, convertedTo.x, legacyGoalPosition.x, convertedAlpha)
+local expectedLegacyZ =
+	catmullComponent(convertedFrom.z, convertedFrom.z, convertedTo.z, legacyGoalPosition.z, convertedAlpha)
+expectEqual(
+	math.abs(convertedBezier.x - expectedLegacyX) < 1e-9
+		and math.abs(convertedBezier.z - expectedLegacyZ) < 1e-9,
+	true,
+	"converted Bezier geometry exactly matches the legacy Catmull-Rom segment"
+)
+expectEqual(#legacyNotices, 1, "legacy spawn inference produces an explicit diagnostic")
+expectEqual(
+	StageExport.bake(importedLegacy).bundle ~= nil,
+	true,
+	"inferred legacy route exports successfully"
+)
+local schemaOneProject = {
+	schemaVersion = 1,
+	startingStageId = "legacy",
+	stages = {
+		legacy = {
+			id = "legacy",
+			grid = { columns = 2, rows = 2, cellSize = 4, cells = {} },
+			pathGraphs = {},
+			unknownFutureField = { preserved = true },
+		},
+	},
+}
+local migratedStageProject = StageSchema.migrateProject(schemaOneProject)
+expectEqual(migratedStageProject.schemaVersion, 2, "Stagewright authoring schemas migrate sequentially")
+expectEqual(
+	migratedStageProject.stages.legacy.unknownFutureField.preserved,
+	true,
+	"Stagewright migration preserves unknown stage data"
+)
+expectEqual(
+	StageSchema.migrateProject(migratedStageProject).schemaVersion,
+	2,
+	"Stagewright migration is idempotent"
+)
+local authoringProject = serde.decode("json", fs.readFile("stage-data/stagewright-project.json"))
+local authoredProductionStage = authoringProject.stages.stage_default
+expectEqual(authoredProductionStage.name, "Centerbound S-Curve", "repository uses the clean production stage")
+expectEqual(
+	authoredProductionStage.metadata["stagewright.layoutVersion"],
+	1,
+	"repository records the intentional production layout version"
+)
+expectEqual(
+	authoredProductionStage.grid.cells["30:22"].roles.EnemySpawn,
+	true,
+	"production spawn is at the island rim"
+)
+expectEqual(
+	authoredProductionStage.grid.cells["3:6"].roles.EnemyGoal,
+	true,
+	"production goal faces the shared center"
+)
+expectEqual(
+	authoredProductionStage.pathGraphs.graph_main.edges.edge_006.toNodeId,
+	"node_goal",
+	"production S-curve reaches the goal through six Bezier edges"
+)
+local firstExport = StageExport.bake(authoringProject)
+local secondExport = StageExport.bake(authoringProject)
+expectEqual(firstExport.bundle ~= nil, true, "valid Stagewright project bakes a runtime bundle")
+expectEqual(
+	firstExport.bundle ~= nil and secondExport.bundle ~= nil and firstExport.bundle.checksum,
+	secondExport.bundle ~= nil and secondExport.bundle.checksum,
+	"unchanged Stagewright exports are checksum deterministic"
+)
+local runtimeStage = firstExport.bundle ~= nil and firstExport.bundle.stages.stage_default or nil
+local runtimeGraph = runtimeStage ~= nil and runtimeStage.pathGraphs.graph_main or nil
+local autoPlaceCount = 0
+for key, cell in authoredProductionStage.grid.cells do
+	if cell.roles ~= nil and cell.roles.AutoPlace == true then
+		autoPlaceCount += 1
+		expectEqual(
+			runtimeStage ~= nil and runtimeStage.routeNoBuildMask[key],
+			nil,
+			`production auto-place cell {key} stays outside the route corridor`
+		)
+	end
+end
+expectEqual(autoPlaceCount, 6, "production stage provides six safe auto-place cells")
+local firstRuntimeEdgeId: string? = nil
+if runtimeGraph ~= nil then
+	for edgeId in runtimeGraph.edges do
+		if firstRuntimeEdgeId == nil or edgeId < firstRuntimeEdgeId then
+			firstRuntimeEdgeId = edgeId
+		end
+	end
+end
+local firstRuntimeEdge = if firstRuntimeEdgeId ~= nil then runtimeGraph.edges[firstRuntimeEdgeId] else nil
+expectEqual(
+	firstRuntimeEdge ~= nil and firstRuntimeEdge.length > 0,
+	true,
+	"runtime export includes baked edge arc length"
+)
+local routeMaskKey = if runtimeStage ~= nil then next(runtimeStage.routeNoBuildMask) else nil
+expectEqual(
+	routeMaskKey ~= nil,
+	true,
+	"runtime export derives route reservation without rewriting authored cells"
+)
+local authoringGraph = authoringProject.stages.stage_default.pathGraphs.graph_main
+expectEqual(
+	firstRuntimeEdgeId ~= nil and authoringGraph.edges[firstRuntimeEdgeId].samples,
+	nil,
+	"runtime baking does not mutate the authoring working copy"
+)
+local traversalConflict = serde.decode("json", serde.encode("json", authoringProject))
+local conflictingCell = traversalConflict.stages.stage_default.grid.cells[routeMaskKey] or {}
+conflictingCell.enemyTraversalPolicy = "Blocked"
+traversalConflict.stages.stage_default.grid.cells[routeMaskKey] = conflictingCell
+local conflictExport = StageExport.bake(traversalConflict)
+expectEqual(conflictExport.bundle, nil, "enemy-blocked route corridors prevent export")
+local foundTraversalConflict = false
+for _, issue in conflictExport.issues do
+	if issue.code == "RouteTraversalConflict" and issue.objectId == routeMaskKey then
+		foundTraversalConflict = true
+		break
+	end
+end
+expectEqual(foundTraversalConflict, true, "route conflict validation identifies the authored cell")
+local coincidentEdge = serde.decode("json", serde.encode("json", authoringProject))
+local coincidentGraph = coincidentEdge.stages.stage_default.pathGraphs.graph_main
+local zeroEdge = coincidentGraph.edges[firstRuntimeEdgeId]
+local zeroFromPosition = coincidentGraph.nodes[zeroEdge.fromNodeId].position
+coincidentGraph.nodes[zeroEdge.toNodeId].position = {
+	x = zeroFromPosition.x,
+	y = zeroFromPosition.y,
+	z = zeroFromPosition.z,
+}
+zeroEdge.outHandleOffset = { x = 0, y = 0, z = 0 }
+zeroEdge.inHandleOffset = { x = 0, y = 0, z = 0 }
+expectEqual(StageExport.bake(coincidentEdge).bundle, nil, "zero-length Bezier edges prevent export")
+
 -- Rune altar: weighted rolls, pity, flat configured cost, and permanent multiplier.
 expectEqual(
 	RuneLogic.weightTotal(RuneCatalog.rarities),
@@ -1273,13 +1590,18 @@ for _, towerDefenseMarker in
 		"TowerDefenseService.autoPlaceBest",
 		"TowerDefenseService.startWave",
 		"TowerDefenseService.resetMatch",
+		"TowerDefenseService.activateStage",
 		"TowerDefenseService.snapshotFor",
 		"EconomyService.spendCurrency",
 		"TowerDefenseLogic.isBuildableCell",
 		"runtimeFolderName",
 		"RunService.Heartbeat",
-		"Portal, spline path, and goal need a valid route",
-		"grid.columns * grid.cellSize",
+		"StageRuntimeService.chooseEdge",
+		"maximum travel distance exceeded",
+		"Workspace:GetServerTimeNow",
+		"buildEnemySpatialIndex",
+		"simulationAccumulator",
+		"publishEnemies",
 		"BillboardGui",
 		"DebugNameplate",
 		"HealthBarFill",
@@ -1293,10 +1615,163 @@ do
 		`tower defense service includes {towerDefenseMarker}`
 	)
 end
+local stageRuntimeSource = fs.readFile("src/server/Services/StageRuntimeService.luau")
+for _, authorityMarker in
+	{
+		'type(stageId) ~= "string"',
+		"#stageId > 80",
+		"StageRuntimeService.isUnlocked",
+		"ProfileService.get(player)",
+		"upgradeLevelProvider(player",
+		"profile.currencies",
+		"availabilityProvider(player)",
+	}
+do
+	expectEqual(
+		string.find(stageRuntimeSource, authorityMarker, 1, true) ~= nil,
+		true,
+		`stage activation and predicates remain server-authoritative: {authorityMarker}`
+	)
+end
+local stagePlatformSource = fs.readFile("src/server/Services/StagePlatformService.luau")
+local stagePlatformCompiles = pcall(function()
+	luau.load(stagePlatformSource)
+end)
+expectEqual(stagePlatformCompiles, true, "six-platform allocator compiles as Luau")
+for _, platformMarker in
+	{
+		"platformSlotCount",
+		"centerPartNames",
+		"firstPlatformOffsetFromCenter",
+		"center.CFrame:ToObjectSpace(firstOrigin.CFrame)",
+		"CFrame.Angles(0, yaw, 0)",
+		"TowerDefensePlatformSlot",
+		"StagePlatformService.originForSlot",
+		"platformOriginsFolderName",
+		"CFrameValue",
+		"OwnerUserId",
+		"OwnerDisplayName",
+		"Players.MaxPlayers",
+		"CapacityMatchesSlotCount",
+		"Players.PlayerAdded:Connect",
+		"publishOwner(existing, player)",
+	}
+do
+	expectEqual(
+		string.find(stagePlatformSource, platformMarker, 1, true) ~= nil,
+		true,
+		`six-platform allocator includes {platformMarker}`
+	)
+end
+local serverBootstrapSource = fs.readFile("src/server/init.server.luau")
+expectEqual(
+	string.find(serverBootstrapSource, "not StagePlatformService.hasPlatform(player)", 1, true) ~= nil,
+	true,
+	"players without an authoritative platform are rejected before profile load"
+)
+local stageGridRendererSource = fs.readFile("src/client/Controllers/StageGridRenderer.luau")
+local gridRendererCompiles = pcall(function()
+	luau.load(stageGridRendererSource)
+end)
+expectEqual(gridRendererCompiles, true, "six-grid renderer compiles as Luau")
+for _, gridRendererMarker in
+	{
+		"StageCatalog.defaultStageId",
+		"platformOriginsFolderName",
+		"StagePath.sample",
+		"gridVisuals",
+		"LocalTransparencyModifier",
+		"Platform_",
+		"otherPlatformFade",
+		"TowerDefensePlatformSlot",
+		"LocalOwner",
+		"VisualFade",
+	}
+do
+	expectEqual(
+		string.find(stageGridRendererSource, gridRendererMarker, 1, true) ~= nil,
+		true,
+		`six-grid renderer includes {gridRendererMarker}`
+	)
+end
+for _, forbiddenGridRendererMarker in { 'Instance.new("SurfaceGui")', 'Instance.new("Frame")', ":Clone(" } do
+	expectEqual(
+		string.find(stageGridRendererSource, forbiddenGridRendererMarker, 1, true),
+		nil,
+		`six-grid renderer avoids runtime GUI cloning: {forbiddenGridRendererMarker}`
+	)
+end
+local stageOwnerControllerSource = fs.readFile("src/client/Controllers/StagePlatformOwnerController.luau")
+local stageOwnerControllerCompiles = pcall(function()
+	luau.load(stageOwnerControllerSource)
+end)
+expectEqual(stageOwnerControllerCompiles, true, "platform owner marker controller compiles as Luau")
+for _, ownerMarker in
+	{
+		"OwnerUserId",
+		"OwnerDisplayName",
+		"GetUserThumbnailAsync",
+		"Enum.ThumbnailType.HeadShot",
+		"rbxthumb://type=AvatarHeadShot",
+		'card:IsA("CanvasGroup")',
+		"YOUR PLATFORM",
+		"WAITING FOR PLAYER",
+		"platformOwnerMarkerHeight",
+		"Players:GetPlayers",
+		'GetAttributeChangedSignal("TowerDefensePlatformSlot")',
+		"owner.DisplayName",
+	}
+do
+	expectEqual(
+		string.find(stageOwnerControllerSource, ownerMarker, 1, true) ~= nil,
+		true,
+		`platform owner display includes {ownerMarker}`
+	)
+end
+for _, forbiddenOwnerMarker in { 'Instance.new("BillboardGui")', 'Instance.new("Frame")', ":Clone(" } do
+	expectEqual(
+		string.find(stageOwnerControllerSource, forbiddenOwnerMarker, 1, true),
+		nil,
+		`platform owner display uses authored GUI for {forbiddenOwnerMarker}`
+	)
+end
+local ownerMarkersModel = fs.readFile("src/ui/StagePlatformOwners.model.json")
+expectEqual(
+	string.find(ownerMarkersModel, '"ClassName": "CanvasGroup"', 1, true) ~= nil,
+	true,
+	"platform owner cards support authored whole-card fading"
+)
+for slot = 1, 6 do
+	expectEqual(
+		string.find(ownerMarkersModel, `"Name": "Slot_{string.format("%02d", slot)}"`, 1, true) ~= nil,
+		true,
+		`platform owner UI authors slot {slot}`
+	)
+end
+expectEqual(
+	string.find(gridPatchProject, '"TemplateClient"', 1, true) ~= nil,
+	true,
+	"shared-place patch delivers the client grid renderer"
+)
+expectEqual(
+	string.find(gridPatchProject, '"StagePlatformOwners"', 1, true) ~= nil,
+	true,
+	"shared-place patch delivers authored platform owner markers"
+)
+expectEqual(
+	string.find(stagePlatformSource, "OnServerEvent", 1, true),
+	nil,
+	"platform allocation has no client-controlled remote"
+)
 expectEqual(
 	string.find(towerDefenseServiceSource, "OnServerEvent", 1, true),
 	nil,
 	"tower defense service does not listen directly to client remotes"
+)
+expectEqual(
+	string.find(towerDefenseServiceSource, "createEnemyPart", 1, true),
+	nil,
+	"server simulates scalar route state without enemy visual parts"
 )
 local remoteServiceSource = fs.readFile("src/server/Services/RemoteService.luau")
 for _, towerDefenseRemoteMarker in
@@ -1308,6 +1783,8 @@ for _, towerDefenseRemoteMarker in
 		"AutoPlaceBestUnits",
 		"StartTowerWave",
 		"ResetTowerDefense",
+		"ActivateTowerStage",
+		"TowerEnemies",
 		"TowerDefenseService.snapshotFor",
 	}
 do

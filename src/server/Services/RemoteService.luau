@@ -44,6 +44,7 @@ local requestFeatures: { [string]: string } = {
 	AutoPlaceBestUnits = "towerDefense",
 	StartTowerWave = "towerDefense",
 	ResetTowerDefense = "towerDefense",
+	ActivateTowerStage = "towerDefense",
 }
 
 local function getOrCreate(className: string, name: string, parent: Instance): Instance
@@ -112,6 +113,15 @@ end
 function RemoteService.publish(player: Player)
 	if stateRemote and player.Parent then
 		stateRemote:FireClient(player, { kind = "Snapshot", data = RemoteService.snapshot(player) })
+	end
+end
+
+function RemoteService.publishTowerEnemies(player: Player)
+	if stateRemote and player.Parent then
+		stateRemote:FireClient(
+			player,
+			{ kind = "TowerEnemies", data = TowerDefenseService.snapshotFor(player) }
+		)
 	end
 end
 
@@ -197,6 +207,9 @@ local function handleRequest(player: Player, packet: any)
 		result(player, TowerDefenseService.startWave(player))
 	elseif action == "ResetTowerDefense" then
 		result(player, TowerDefenseService.resetMatch(player))
+	elseif action == "ActivateTowerStage" then
+		local stageId = if type(payload) == "table" then payload.stageId else nil
+		result(player, TowerDefenseService.activateStage(player, stageId))
 	elseif action == "AfkRollover" then
 		local profile = ProfileService.get(player)
 		if profile == nil or not profile.settings.afKRollOver then

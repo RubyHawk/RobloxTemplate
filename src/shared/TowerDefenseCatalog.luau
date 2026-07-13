@@ -24,6 +24,7 @@ export type UnitDefinition = {
 export type EnemyDefinition = {
 	id: string,
 	name: string,
+	tags: { string },
 	health: number,
 	speed: number,
 	reward: number,
@@ -107,6 +108,7 @@ local enemies: { [string]: EnemyDefinition } = {
 	forest_grunt = {
 		id = "forest_grunt",
 		name = "Forest Grunt",
+		tags = { "Ground" },
 		health = 45,
 		speed = 7,
 		reward = 12,
