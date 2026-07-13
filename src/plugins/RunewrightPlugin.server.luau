@@ -714,7 +714,10 @@ local function applyToPlace()
 	if recording ~= nil then
 		ChangeHistoryService:FinishRecording(recording, Enum.FinishRecordingOperation.Commit)
 	end
-	setStatus("Applied. Playtest to feel it; Print Sources to copy into the repo.", GOOD)
+	setStatus(
+		"Applied. Playtest to feel it; with Rojo serve, Print Sources and paste into the repo so sync keeps it.",
+		GOOD
+	)
 end
 
 local function printSources()
@@ -1495,7 +1498,7 @@ local function buildPanel()
 		scroll,
 		"Workflow",
 		"How Applying Works",
-		"Apply rewrites this place's DesignerConfig (runes overrides) and RuneCatalog ModuleScripts — undo-safe, playtest-ready, nothing publishes. Print Sources emits both files to Output so you can paste them into the repo. Changing a rune id orphans saved copies: they stay in player data but stop counting until the id returns."
+		"Apply rewrites this place's DesignerConfig (runes overrides) and RuneCatalog ModuleScripts — undo-safe, playtest-ready, nothing publishes. Rojo serve overwrites those modules from the repo on sync, so make edits stick with Print Sources: paste the output into src/shared/DesignerConfig.luau and src/shared/RuneCatalog.luau. Changing a rune id orphans saved copies: they stay in player data but stop counting until the id returns."
 	)
 
 	applyButton.MouseButton1Click:Connect(applyToPlace)
