@@ -37,3 +37,15 @@ Legacy-source characterization result (superseded by the production layout below
 - Each client renders six local world-space grid surfaces, route strips, and role markers from the generated Stagewright catalog. It creates Parts only; it does not clone or construct runtime GuiObjects.
 - The legacy slot-1 SurfaceGui, path controls, and path tiles are hidden locally during play so the authored test preview does not overlap the production renderer.
 - The generated production checksum is `fnv1a32-377191d3`.
+
+## Authoring-area separation update — 2026-07-13
+
+- The measured slot-1 transform is now represented only by
+  `firstPlatformOffsetFromCenter`; runtime no longer reads the movable
+  `GamePlatform.PlatformOrigin` when `center_grass` is available.
+- The canonical editable `GamePlatform` is moved intact into
+  `Workspace.StagewrightAdminArea`, 240 studs below the center, inside an
+  open-front white room.
+- The admin platform is editor state, not a seventh player slot. Each player
+  island continues to receive a generated playable grid from the exported
+  stage catalog.

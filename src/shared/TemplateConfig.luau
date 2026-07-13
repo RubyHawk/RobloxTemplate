@@ -194,6 +194,13 @@ local Config = {
 		platformOwnerMarkersFolderName = "StagePlatformOwners",
 		platformOwnerAnchorsFolderName = "StagewrightOwnerAnchors",
 		platformOwnerMarkerHeight = 16,
+		authoringArea = {
+			enabled = true,
+			areaName = "StagewrightAdminArea",
+			offsetFromCenter = { 0, -240, 0 },
+			roomSize = { 168, 44, 148 },
+			wallThickness = 2,
+		},
 		gridVisuals = {
 			enabled = true,
 			folderName = "StagewrightClientGrids",

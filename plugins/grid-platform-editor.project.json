@@ -2,6 +2,9 @@
   "name": "StagewrightPlugin",
   "tree": {
     "$path": "../src/plugins/GridPlatformEditPlugin.server.luau",
+    "AuthoringArea": {
+      "$path": "../src/plugins/Stagewright/AuthoringArea.luau"
+    },
     "ProjectStore": {
       "$path": "../src/plugins/Stagewright/ProjectStore.luau"
     },

@@ -13,6 +13,8 @@ local StagePlatformService = {}
 local slotsByPlayer: { [Player]: number } = {}
 local playersBySlot: { [number]: Player } = {}
 local warnedMissingCenter = false
+local cachedCenter: CFrame? = nil
+local cachedFirstRelative: CFrame? = nil
 local started = false
 
 local function publishedOrigin(slot: number): CFrameValue?
@@ -67,20 +69,27 @@ local function configuredRelativeFrame(): CFrame
 end
 
 local function layout(): (CFrame?, CFrame?)
+	if cachedCenter ~= nil and cachedFirstRelative ~= nil then
+		return cachedCenter, cachedFirstRelative
+	end
+	local center = descendantNamed(Config.towerDefense.centerPartNames)
+	if center ~= nil then
+		cachedCenter = center.CFrame
+		cachedFirstRelative = configuredRelativeFrame()
+		return cachedCenter, cachedFirstRelative
+	end
 	local firstOrigin = firstPlatformOrigin()
 	if firstOrigin == nil then
 		return nil, nil
 	end
-	local center = descendantNamed(Config.towerDefense.centerPartNames)
-	if center ~= nil then
-		return center.CFrame, center.CFrame:ToObjectSpace(firstOrigin.CFrame)
-	end
 	if not warnedMissingCenter then
-		warn("Stage platform center is missing; using the configured six-island layout offset")
+		warn("Stage platform center is missing; using the legacy slot-one GamePlatform origin")
 		warnedMissingCenter = true
 	end
 	local relative = configuredRelativeFrame()
-	return firstOrigin.CFrame * relative:Inverse(), relative
+	cachedCenter = firstOrigin.CFrame * relative:Inverse()
+	cachedFirstRelative = relative
+	return cachedCenter, cachedFirstRelative
 end
 
 local function claimSlot(player: Player): number?

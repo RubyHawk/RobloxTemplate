@@ -3,8 +3,8 @@
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local HttpService = game:GetService("HttpService")
 local ServerStorage = game:GetService("ServerStorage")
-local Workspace = game:GetService("Workspace")
 
+local AuthoringArea = require(script.Parent.AuthoringArea)
 local Shared = script.Parent.Shared
 local StageExport = require(Shared.StageExport)
 local StageLegacy = require(Shared.StageLegacy)
@@ -112,9 +112,8 @@ local function legacyControlPositions(platform: Instance?): { any }
 	return result
 end
 
-local function defaultProject(): any
-	local island = Workspace:FindFirstChild("FirstPrivateIsland")
-	local platform = if island ~= nil then island:FindFirstChild("GamePlatform") else nil
+local function defaultProject(platformOverride: Instance?): any
+	local platform = platformOverride or AuthoringArea.findPlatform()
 	local rows, columns, rowCount, cellSize = legacyRows(platform)
 	local controls = legacyControlPositions(platform)
 	local hasAuthoredCells = false
@@ -138,7 +137,7 @@ local function defaultProject(): any
 	return imported
 end
 
-function ProjectStore.load(): any
+function ProjectStore.load(platformOverride: Instance?): any
 	local folder, payload = container()
 	if payload.Value ~= "" then
 		local success, decoded = pcall(function()
@@ -151,7 +150,7 @@ function ProjectStore.load(): any
 		end
 		folder:SetAttribute("LoadError", "Payload JSON is invalid; preserved for manual recovery")
 	end
-	project = defaultProject()
+	project = defaultProject(platformOverride)
 	ProjectStore.save()
 	return project
 end

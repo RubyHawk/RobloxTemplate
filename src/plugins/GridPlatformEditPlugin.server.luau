@@ -6,6 +6,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
+local AuthoringArea = require(script.AuthoringArea)
 local ProjectStore = require(script.ProjectStore)
 local StageTrace = require(script.Shared.StageTrace)
 
@@ -35,7 +36,8 @@ type Brush = {
 	apply: (cell: any) -> (),
 }
 
-local project = ProjectStore.load()
+local authoringPlatform = AuthoringArea.ensure()
+local project = ProjectStore.load(authoringPlatform)
 local stageIds = ProjectStore.stageIds()
 local selectedStageId = project.startingStageId or stageIds[1]
 local selectedGraphId: string? = nil
@@ -272,14 +274,7 @@ local function activeBrush(): Brush
 end
 
 local function localOrigin(): CFrame
-	local island = Workspace:FindFirstChild("FirstPrivateIsland")
-	local platform = if island ~= nil then island:FindFirstChild("GamePlatform") else nil
-	local origin = if platform ~= nil then platform:FindFirstChild("PlatformOrigin") else nil
-	if origin ~= nil and origin:IsA("BasePart") then
-		return origin.CFrame
-	end
-	local base = if platform ~= nil then platform:FindFirstChild("PlatformBase") else nil
-	return if base ~= nil and base:IsA("BasePart") then base.CFrame else CFrame.new()
+	return AuthoringArea.origin()
 end
 
 local function clearPreview()
@@ -311,7 +306,7 @@ local function rebuildPreview()
 	end
 	local folder = Instance.new("Folder")
 	folder.Name = "StagewrightPreview"
-	folder.Parent = Workspace
+	folder.Parent = AuthoringArea.container() or Workspace
 	CollectionService:AddTag(folder, PREVIEW_TAG)
 	previewFolder = folder
 	local origin = localOrigin()
@@ -730,6 +725,10 @@ for _, move in { { "↑", -1 }, { "↓", 1 } } do
 		renderAll()
 	end)
 end
+button(stageActions, "Focus Admin", 88, function()
+	AuthoringArea.focus()
+	setStatus("Focused the separate Stagewright admin authoring area.")
+end)
 
 local function renderStageList()
 	for _, child in stageList:GetChildren() do
@@ -1363,6 +1362,16 @@ local focusAction = plugin:CreatePluginAction(
 )
 focusAction.Triggered:Connect(function()
 	widget.Enabled = true
+end)
+local focusAdminAction = plugin:CreatePluginAction(
+	"StagewrightFocusAdminArea",
+	"Focus Stagewright Admin Area",
+	"Focus the separate Stagewright authoring platform below the map",
+	"",
+	true
+)
+focusAdminAction.Triggered:Connect(function()
+	AuthoringArea.focus()
 end)
 local duplicateAction = plugin:CreatePluginAction(
 	"StagewrightDuplicateStage",

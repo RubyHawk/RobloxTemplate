@@ -778,6 +778,14 @@ expectEqual(
 local gridPluginProject = fs.readFile("plugins/grid-platform-editor.project.json")
 local gridPluginSource = fs.readFile("src/plugins/GridPlatformEditPlugin.server.luau")
 local stagewrightStoreSource = fs.readFile("src/plugins/Stagewright/ProjectStore.luau")
+local stagewrightAuthoringAreaSource = fs.readFile("src/plugins/Stagewright/AuthoringArea.luau")
+expectEqual(
+	pcall(function()
+		luau.load(stagewrightAuthoringAreaSource)
+	end),
+	true,
+	"Stagewright admin authoring area compiles as Luau"
+)
 for _, pluginObject in
 	{
 		"StagewrightPlugin",
@@ -818,11 +826,25 @@ for _, pluginObject in
 		"Export hash matched",
 		"CanvasPosition",
 		"AbsoluteWindowSize",
+		"AuthoringArea",
+		"StagewrightAdminArea",
+		"WhiteRoom",
+		"Focus Admin",
+		"StagewrightFocusAdminArea",
+		"RunService:IsRunning()",
 	}
 do
 	expectEqual(
-		string.find(gridPluginProject .. gridPluginSource .. stagewrightStoreSource, pluginObject, 1, true)
-			~= nil,
+		string.find(
+			gridPluginProject
+				.. gridPluginSource
+				.. stagewrightStoreSource
+				.. stagewrightAuthoringAreaSource
+				.. templateConfigSource,
+			pluginObject,
+			1,
+			true
+		) ~= nil,
 		true,
 		`edit-mode grid plugin includes {pluginObject}`
 	)
@@ -2156,7 +2178,7 @@ for _, platformMarker in
 		"platformSlotCount",
 		"centerPartNames",
 		"firstPlatformOffsetFromCenter",
-		"center.CFrame:ToObjectSpace(firstOrigin.CFrame)",
+		"cachedFirstRelative = configuredRelativeFrame()",
 		"CFrame.Angles(0, yaw, 0)",
 		"TowerDefensePlatformSlot",
 		"StagePlatformService.originForSlot",
@@ -2176,6 +2198,11 @@ do
 		`six-platform allocator includes {platformMarker}`
 	)
 end
+expectEqual(
+	string.find(stagePlatformSource, "center.CFrame:ToObjectSpace(firstOrigin.CFrame)", 1, true),
+	nil,
+	"runtime island origins no longer depend on the movable authoring platform"
+)
 local serverBootstrapSource = fs.readFile("src/server/init.server.luau")
 expectEqual(
 	string.find(serverBootstrapSource, "not StagePlatformService.hasPlatform(player)", 1, true) ~= nil,

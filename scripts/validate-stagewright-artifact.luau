@@ -38,6 +38,7 @@ local pluginRoots = roblox.deserializeModel(fs.readFile(pluginPath))
 local pluginSource, pluginNames = sourceAndNames(descendantsWithRoots(pluginRoots))
 for _, requiredName in
 	{
+		"AuthoringArea",
 		"ProjectStore",
 		"Shared",
 		"StageGraph",
@@ -50,7 +51,16 @@ for _, requiredName in
 do
 	assert(pluginNames[requiredName], `Stagewright plugin artifact is missing {requiredName}`)
 end
-for _, marker in { "PromptSaveSelectionAsync", "PluginAction", "StagewrightPayload", "Trace Route" } do
+for _, marker in
+	{
+		"PromptSaveSelectionAsync",
+		"PluginAction",
+		"StagewrightPayload",
+		"Trace Route",
+		"StagewrightLayoutVersion",
+		"Focus Admin",
+	}
+do
 	assert(
 		string.find(pluginSource, marker, 1, true),
 		`Stagewright plugin artifact is missing source marker {marker}`

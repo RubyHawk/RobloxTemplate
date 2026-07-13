@@ -6,7 +6,7 @@ Stagewright uses three intentionally different surfaces:
 - Repository artifact: `stage-data/stagewright-project.json` plus `StageCatalog.generated.luau`. This is the deployable source of truth after export/import.
 - Runtime sandbox: the permanent `playerTest` experience. Use the `tower-defense` recipe so live QA never mutates the shared authoring place accidentally.
 
-The production world uses `center_grass` as its center. The one authored `PlatformOrigin` defines slot 1; slots 2–6 are the same local stage rotated around that center in 60-degree steps.
+The production world uses `center_grass` as its center. The configured slot-1 offset defines the first playable island; slots 2–6 rotate that local frame around the center in 60-degree steps. The movable authoring `GamePlatform` is deliberately not a runtime anchor.
 
 No workflow below creates a Roblox experience.
 
@@ -16,8 +16,10 @@ No workflow below creates a Roblox experience.
 2. Optionally use Studio's **File → Download a Copy** before the first migration.
 3. Run `7_STAGEWRIGHT_SHARED.cmd`.
 4. The launcher installs the local Stagewright plugin and opens the existing shared place without starting Rojo.
-5. Open **Plugins → Stagewright**. If the place has no `ServerStorage.StagewrightProject`, Stagewright imports `FirstPrivateIsland.GamePlatform` once.
+5. Open **Plugins → Stagewright**. The plugin moves the existing `FirstPrivateIsland.GamePlatform` intact into the open-front white `Workspace.StagewrightAdminArea` below the map. If the place has no `ServerStorage.StagewrightProject`, Stagewright imports that admin platform once.
 6. Confirm before editing:
+   - **Stage → Focus Admin** frames the white authoring room and the main `GamePlatform` remains visible inside it.
+   - `FirstPrivateIsland` no longer owns the editable `GamePlatform`; the six island origins remain unchanged because they come from `center_grass` plus configuration.
    - Every legacy `#` remains an authored `Blocked` cell.
    - `P`, `G`, and `A` appear as independent roles.
    - If `P` is absent but path controls exist, `Control_001` becomes the explicit inferred spawn and the validation panel reports that migration decision.
@@ -30,6 +32,7 @@ Do not connect the legacy `rng-defender-grid-demo` Rojo patch during this import
 ## 2. Studio interaction checklist
 
 - Create a blank stage; verify the original stage is unchanged.
+- Use **Focus Admin** and verify all 3D graph handles appear inside `Workspace.StagewrightAdminArea`, not on a player island.
 - Duplicate a stage; verify stage, graph, node, and edge IDs change while copied references still work.
 - Reorder stages; verify IDs do not change.
 - Paint terrain, build policy, traversal policy, and roles across one drag; undo and redo the entire gesture.
@@ -74,10 +77,10 @@ In Studio:
 1. Connect Rojo and use **Test → Start** with six players, one for each island platform.
    - Confirm every island has a visible ownership card. Occupied cards show the avatar, display name, username, and platform number; the local player's card says `YOUR PLATFORM`.
    - Confirm unoccupied islands say `AVAILABLE`.
-   - In each client, confirm that client's grid, route, and ownership card remain fully visible while the other five platforms are faded.
+   - In each client, confirm that client's grid, route, and ownership card remain fully visible while the other five playable island platforms are faded.
    - Published or real multi-account tests show each account's Roblox display name, username, and headshot. Studio's synthetic multi-client players use negative test IDs, so they show their Studio test name and a `TEST` avatar instead of impersonating a real account.
    - Confirm `ReplicatedStorage.Template.StagePlatformOrigins` reports `SlotCount = 6`, `LayoutAvailable = true`, `ServerMaxPlayers = 6`, and `CapacityMatchesSlotCount = true`.
-2. Confirm `Workspace.StagewrightClientGrids` contains `Platform_01` through `Platform_06` in every client. These runtime grids appear only after Play starts.
+2. Confirm `Workspace.StagewrightClientGrids` contains `Platform_01` through `Platform_06` in every client. These runtime grids appear only after Play starts and remain on the six islands even though the editor platform lives in the admin room below the map.
 3. Confirm each island shows the same centerbound S-curve with green spawn, red goal, blue auto-place markers, and no overlapping legacy slot-1 grid.
 4. Activate stages independently for different players.
 5. Start waves with different currencies/upgrades/flags and confirm server-selected branches.
