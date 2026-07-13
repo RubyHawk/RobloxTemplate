@@ -34,6 +34,40 @@ local function expectEqual(actual: any, expected: any, label: string)
 	passed += 1
 end
 
+do
+	local StagePayload = require("../src/shared/StagePayload")
+	local largePayload = string.rep("a", StagePayload.CHUNK_SIZE)
+		.. string.rep("b", StagePayload.CHUNK_SIZE)
+		.. string.rep("c", 121_372)
+	local payloadChunks = StagePayload.split(largePayload)
+	expectEqual(#payloadChunks, 3, "large Stagewright payload splits below the StringValue limit")
+	expectEqual(#payloadChunks[1], 180_000, "Stagewright payload chunk uses the safe byte limit")
+	local payloadManifest = StagePayload.manifest("fnv1a32-deadbeef", #payloadChunks, #largePayload)
+	local parsedPayloadManifest = StagePayload.parseManifest(payloadManifest)
+	expectEqual(parsedPayloadManifest ~= nil, true, "Stagewright chunk manifest parses")
+	expectEqual(
+		parsedPayloadManifest and parsedPayloadManifest.chunkCount,
+		3,
+		"chunk manifest preserves count"
+	)
+	local joinedPayload, joinedPayloadError = StagePayload.join(payloadChunks, #payloadChunks, #largePayload)
+	expectEqual(joinedPayloadError, nil, "complete Stagewright payload joins without an error")
+	expectEqual(joinedPayload, largePayload, "chunked Stagewright payload round trips byte-for-byte")
+	local missingPayload, missingPayloadError =
+		StagePayload.join({ payloadChunks[1] }, #payloadChunks, #largePayload)
+	expectEqual(missingPayload, nil, "missing Stagewright chunk is rejected")
+	expectEqual(type(missingPayloadError), "string", "missing Stagewright chunk reports a diagnostic")
+	local shortPayload, shortPayloadError =
+		StagePayload.join(payloadChunks, #payloadChunks, #largePayload - 1)
+	expectEqual(shortPayload, nil, "Stagewright payload length mismatch is rejected")
+	expectEqual(type(shortPayloadError), "string", "Stagewright payload length mismatch reports a diagnostic")
+	expectEqual(
+		StagePayload.parseManifest("StagewrightChunked:v1:999999999:1:fnv1a32-deadbeef"),
+		nil,
+		"impossible Stagewright chunk count is rejected before allocation"
+	)
+end
+
 local normalizedCurrencies = CurrencyConfig.normalize({
 	{
 		id = "coins",
@@ -780,6 +814,7 @@ expectEqual(
 local gridPluginProject = fs.readFile("plugins/grid-platform-editor.project.json")
 local gridPluginSource = fs.readFile("src/plugins/GridPlatformEditPlugin.server.luau")
 local stagewrightStoreSource = fs.readFile("src/plugins/Stagewright/ProjectStore.luau")
+	.. fs.readFile("src/shared/StagePayload.luau")
 local stagewrightAuthoringAreaSource = fs.readFile("src/plugins/Stagewright/AuthoringArea.luau")
 expectEqual(
 	pcall(function()
@@ -798,6 +833,7 @@ for _, pluginObject in
 		"Versioned Stage Editor",
 		"StagewrightProject",
 		"StagewrightPayload",
+		"StagewrightPayloadChunks",
 		"StagewrightRuntime",
 		"PromptSaveSelectionAsync",
 		"PluginAction",

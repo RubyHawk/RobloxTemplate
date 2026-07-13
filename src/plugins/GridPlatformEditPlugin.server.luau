@@ -15,6 +15,7 @@ local AuthoringArea = require(script.AuthoringArea)
 local ProjectStore = require(script.ProjectStore)
 local StageHierarchy = require(script.Shared.StageHierarchy)
 local StageLanes = require(script.Shared.StageLanes)
+local StagePayload = require(script.Shared.StagePayload)
 local StageTrace = require(script.Shared.StageTrace)
 
 local PLUGIN_NAME = "Stagewright"
@@ -1313,15 +1314,16 @@ local function exportBundle()
 	end
 	local model = Instance.new("Model")
 	model.Name = "StagewrightBundle"
-	local payload = Instance.new("StringValue")
-	payload.Name = "StagewrightPayload"
-	payload.Parent = model
-	local runtime = Instance.new("StringValue")
-	runtime.Name = "StagewrightRuntime"
 	local schema = require(script.Shared.StageSchema)
-	payload.Value = schema.encodeCanonical(ProjectStore.get())
-	runtime.Value = schema.encodeCanonical(result.bundle)
-	runtime.Parent = model
+	local authoring = schema.encodeCanonical(ProjectStore.get())
+	local runtime = schema.encodeCanonical(result.bundle)
+	ProjectStore.writePayload(
+		model,
+		StagePayload.AUTHORING_VALUE_NAME,
+		authoring,
+		schema.checksum(ProjectStore.get())
+	)
+	ProjectStore.writePayload(model, StagePayload.RUNTIME_VALUE_NAME, runtime, schema.checksum(result.bundle))
 	model:SetAttribute("SchemaVersion", result.bundle.schemaVersion)
 	model:SetAttribute("Checksum", result.bundle.checksum)
 	model.Parent = ServerStorage
@@ -1350,14 +1352,24 @@ end)
 button(exportActions, "Export Bundle", 110, exportBundle)
 button(exportActions, "Import Selected", 110, function()
 	local selected = Selection:Get()[1]
-	local payload = if selected ~= nil then selected:FindFirstChild("StagewrightPayload", true) else nil
-	if payload == nil or not payload:IsA("StringValue") then
+	local bundle = if selected ~= nil and selected.Name == StagePayload.AUTHORING_VALUE_NAME
+		then selected.Parent
+		else selected
+	local encoded: string? = nil
+	local readError: string? = "No bundle selected"
+	if bundle ~= nil then
+		encoded, readError = ProjectStore.readPayload(bundle, StagePayload.AUTHORING_VALUE_NAME)
+	end
+	if encoded == nil then
 		setStatus("Select a StagewrightBundle model first.", true)
+		if readError ~= nil and readError ~= `{StagePayload.AUTHORING_VALUE_NAME} is missing` then
+			setStatus(`Import failed: {readError}`, true)
+		end
 		return
 	end
 	local ok, message = false, "Import failed"
 	ProjectStore.mutate("Import Stagewright bundle", function()
-		ok, message = ProjectStore.importPayload(payload.Value)
+		ok, message = ProjectStore.importPayload(encoded)
 	end)
 	if ok then
 		project = ProjectStore.get()

@@ -34,6 +34,9 @@
       "StageSchema": {
         "$path": "../src/shared/StageSchema.luau"
       },
+      "StagePayload": {
+        "$path": "../src/shared/StagePayload.luau"
+      },
       "StageExport": {
         "$path": "../src/shared/StageExport.luau"
       }

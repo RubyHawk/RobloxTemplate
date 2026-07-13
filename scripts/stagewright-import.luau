@@ -7,6 +7,7 @@ local serde = require("@lune/serde")
 
 local StageExport = require("../src/shared/StageExport")
 local StageLegacy = require("../src/shared/StageLegacy")
+local StagePayload = require("../src/shared/StagePayload")
 local StageSchema = require("../src/shared/StageSchema")
 
 local inputPath = process.args[1] or "stage-data/stagewright-project.json"
@@ -14,14 +15,39 @@ local checkOnly = process.args[2] == "--check"
 local projectPath = "stage-data/stagewright-project.json"
 local generatedPath = "src/shared/StageCatalog.generated.luau"
 
+local function readPayload(payload: StringValue): string
+	local manifest = StagePayload.parseManifest(payload.Value)
+	if manifest == nil then
+		return payload.Value
+	end
+	local parent = payload.Parent
+	assert(parent ~= nil, "Chunked Stagewright payload has no parent")
+	local folder = parent:FindFirstChild(StagePayload.chunksName(payload.Name))
+	assert(folder ~= nil and folder:IsA("Folder"), "Chunked Stagewright payload folder is missing")
+	local chunks: { string } = {}
+	for index = 1, manifest.chunkCount do
+		local child = folder:FindFirstChild(StagePayload.chunkName(index))
+		assert(child ~= nil and child:IsA("StringValue"), `Stagewright payload chunk {index} is missing`)
+		chunks[index] = child.Value
+	end
+	local encoded, message = StagePayload.join(chunks, manifest.chunkCount, manifest.length)
+	assert(encoded ~= nil, message)
+	local decoded = serde.decode("json", encoded)
+	assert(
+		StageSchema.checksum(decoded) == manifest.checksum,
+		"Stagewright payload checksum does not match its chunk manifest"
+	)
+	return encoded
+end
+
 local function payloadFromRoots(roots: { Instance }): string?
 	for _, root in roots do
-		if root.Name == "StagewrightPayload" and root:IsA("StringValue") then
-			return root.Value
+		if root.Name == StagePayload.AUTHORING_VALUE_NAME and root:IsA("StringValue") then
+			return readPayload(root)
 		end
 		for _, descendant in root:GetDescendants() do
-			if descendant.Name == "StagewrightPayload" and descendant:IsA("StringValue") then
-				return descendant.Value
+			if descendant.Name == StagePayload.AUTHORING_VALUE_NAME and descendant:IsA("StringValue") then
+				return readPayload(descendant)
 			end
 		end
 	end

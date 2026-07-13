@@ -11,6 +11,7 @@ local StageExport = require(Shared.StageExport)
 local StageHierarchy = require(Shared.StageHierarchy)
 local StageLegacy = require(Shared.StageLegacy)
 local StageLanes = require(Shared.StageLanes)
+local StagePayload = require(Shared.StagePayload)
 local StageSchema = require(Shared.StageSchema)
 
 local ProjectStore = {}
@@ -77,6 +78,122 @@ local function container(): (Folder, StringValue)
 		payload.Parent = folder
 	end
 	return folder, payload
+end
+
+local function ensureFolder(parent: Instance, name: string): Folder
+	local folder = parent:FindFirstChild(name)
+	if folder == nil or not folder:IsA("Folder") then
+		if folder ~= nil then
+			folder:Destroy()
+		end
+		folder = Instance.new("Folder")
+		folder.Name = name
+		folder.Parent = parent
+	end
+	return folder
+end
+
+function ProjectStore.writePayload(
+	parent: Instance,
+	valueName: string,
+	encoded: string,
+	checksum: string
+): StringValue
+	local value = parent:FindFirstChild(valueName)
+	if value == nil or not value:IsA("StringValue") then
+		if value ~= nil then
+			value:Destroy()
+		end
+		value = Instance.new("StringValue")
+		value.Name = valueName
+		value.Parent = parent
+	end
+	local chunksName = StagePayload.chunksName(valueName)
+	local existingChunks = parent:FindFirstChild(chunksName)
+	if #encoded <= StagePayload.CHUNK_SIZE then
+		value.Value = encoded
+		if existingChunks ~= nil then
+			existingChunks:Destroy()
+		end
+		return value
+	end
+
+	local chunksFolder = ensureFolder(parent, chunksName)
+	local chunks = StagePayload.split(encoded)
+	for index, chunk in chunks do
+		local chunkName = StagePayload.chunkName(index)
+		local child = chunksFolder:FindFirstChild(chunkName)
+		if child == nil or not child:IsA("StringValue") then
+			if child ~= nil then
+				child:Destroy()
+			end
+			child = Instance.new("StringValue")
+			child.Name = chunkName
+			child.Parent = chunksFolder
+		end
+		child.Value = chunk
+	end
+	for _, child in chunksFolder:GetChildren() do
+		local indexText = string.match(child.Name, "^Chunk_(%d+)$")
+		local index = if indexText ~= nil then tonumber(indexText) else nil
+		if index == nil or index < 1 or index > #chunks or not child:IsA("StringValue") then
+			child:Destroy()
+		end
+	end
+	chunksFolder:SetAttribute("ChunkCount", #chunks)
+	chunksFolder:SetAttribute("PayloadLength", #encoded)
+	chunksFolder:SetAttribute("PayloadChecksum", checksum)
+	value.Value = StagePayload.manifest(checksum, #chunks, #encoded)
+	return value
+end
+
+function ProjectStore.readPayload(
+	parent: Instance,
+	valueName: string
+): (string?, string?, StagePayload.Manifest?)
+	local value = parent:FindFirstChild(valueName)
+	if value == nil or not value:IsA("StringValue") then
+		return nil, `{valueName} is missing`, nil
+	end
+	local manifest = StagePayload.parseManifest(value.Value)
+	if manifest == nil then
+		return value.Value, nil, nil
+	end
+	local chunksFolder = parent:FindFirstChild(StagePayload.chunksName(valueName))
+	if chunksFolder == nil or not chunksFolder:IsA("Folder") then
+		return nil, `{StagePayload.chunksName(valueName)} is missing`, manifest
+	end
+	local chunks: { string } = {}
+	for index = 1, manifest.chunkCount do
+		local child = chunksFolder:FindFirstChild(StagePayload.chunkName(index))
+		if child ~= nil and child:IsA("StringValue") then
+			chunks[index] = child.Value
+		end
+	end
+	local encoded, message = StagePayload.join(chunks, manifest.chunkCount, manifest.length)
+	if encoded ~= nil then
+		local success, decoded = pcall(function()
+			return HttpService:JSONDecode(encoded)
+		end)
+		if success and type(decoded) == "table" and StageSchema.checksum(decoded) ~= manifest.checksum then
+			return nil, "Payload checksum does not match its chunk manifest", manifest
+		end
+	end
+	return encoded, message, manifest
+end
+
+local function storedProject(folder: Folder): (any?, string?)
+	local encoded, readError = ProjectStore.readPayload(folder, PAYLOAD_NAME)
+	if encoded == nil or encoded == "" then
+		return nil, readError
+	end
+	local success, decoded = pcall(function()
+		return HttpService:JSONDecode(encoded)
+	end)
+	if not success or type(decoded) ~= "table" or type(decoded.stages) ~= "table" then
+		return nil, "Payload JSON is invalid; preserved for manual recovery"
+	end
+	return decoded, nil
 end
 
 local function intValue(parent: Instance?, name: string, fallback: number): number
@@ -159,16 +276,14 @@ end
 function ProjectStore.load(platformOverride: Instance?): any
 	local folder, payload = container()
 	if payload.Value ~= "" then
-		local success, decoded = pcall(function()
-			return HttpService:JSONDecode(payload.Value)
-		end)
-		if success and type(decoded) == "table" and type(decoded.stages) == "table" then
+		local decoded, loadError = storedProject(folder)
+		if decoded ~= nil then
 			project = StageSchema.migrateProject(decoded)
 			ProjectStore.ensureStarterLevels(configuredStarterLevelCount())
 			ProjectStore.save()
 			return project
 		end
-		folder:SetAttribute("LoadError", "Payload JSON is invalid; preserved for manual recovery")
+		folder:SetAttribute("LoadError", loadError)
 	end
 	project = StageSchema.migrateProject(defaultProject(platformOverride))
 	ProjectStore.ensureStarterLevels(configuredStarterLevelCount())
@@ -181,12 +296,17 @@ function ProjectStore.get(): any
 end
 
 function ProjectStore.save(): string
-	local folder, payload = container()
+	local folder = container()
 	local encoded = StageSchema.encodeCanonical(ProjectStore.get())
-	writingPayload = true
-	payload.Value = encoded
-	writingPayload = false
 	local checksum = StageSchema.checksum(ProjectStore.get())
+	writingPayload = true
+	local success, message = pcall(function()
+		ProjectStore.writePayload(folder, PAYLOAD_NAME, encoded, checksum)
+	end)
+	writingPayload = false
+	if not success then
+		error(message)
+	end
 	folder:SetAttribute("SchemaVersion", StageSchema.AUTHORING_VERSION)
 	folder:SetAttribute("WorkingChecksum", checksum)
 	return checksum
@@ -199,18 +319,27 @@ function ProjectStore.workingChecksum(): string
 end
 
 function ProjectStore.observe(callback: () -> ()): RBXScriptConnection
-	local _, payload = container()
+	local folder, payload = container()
+	local revision = 0
 	return payload:GetPropertyChangedSignal("Value"):Connect(function()
 		if writingPayload then
 			return
 		end
-		local success, decoded = pcall(function()
-			return HttpService:JSONDecode(payload.Value)
+		revision += 1
+		local requestedRevision = revision
+		task.defer(function()
+			if requestedRevision ~= revision then
+				return
+			end
+			local decoded, loadError = storedProject(folder)
+			if decoded ~= nil then
+				project = StageSchema.migrateProject(decoded)
+				folder:SetAttribute("LoadError", nil)
+				callback()
+			else
+				folder:SetAttribute("LoadError", loadError)
+			end
 		end)
-		if success and type(decoded) == "table" and type(decoded.stages) == "table" then
-			project = StageSchema.migrateProject(decoded)
-			callback()
-		end
 	end)
 end
 
