@@ -8,6 +8,9 @@
     "ProjectStore": {
       "$path": "../src/plugins/Stagewright/ProjectStore.luau"
     },
+    "RouteOverview": {
+      "$path": "../src/plugins/Stagewright/RouteOverview.luau"
+    },
     "Shared": {
       "$className": "Folder",
       "StagePath": {

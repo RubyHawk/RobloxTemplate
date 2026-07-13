@@ -40,6 +40,7 @@ for _, requiredName in
 	{
 		"AuthoringArea",
 		"ProjectStore",
+		"RouteOverview",
 		"Shared",
 		"StageGraph",
 		"StageHierarchy",
@@ -76,6 +77,13 @@ for _, marker in
 		"buildControls",
 		"Delete edge",
 		"Select an issue to jump",
+		"StagewrightPanelV2",
+		"ROUTE OVERVIEW",
+		"STAGES & LEVELS",
+		"BRUSH SIZE",
+		"applyResponsiveShell",
+		"selectedCellKey",
+		"Apply node",
 	}
 do
 	assert(

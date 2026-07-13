@@ -815,6 +815,7 @@ local gridPluginProject = fs.readFile("plugins/grid-platform-editor.project.json
 local gridPluginSource = fs.readFile("src/plugins/GridPlatformEditPlugin.server.luau")
 local stagewrightStoreSource = fs.readFile("src/plugins/Stagewright/ProjectStore.luau")
 	.. fs.readFile("src/shared/StagePayload.luau")
+	.. fs.readFile("src/plugins/Stagewright/RouteOverview.luau")
 local stagewrightAuthoringAreaSource = fs.readFile("src/plugins/Stagewright/AuthoringArea.luau")
 expectEqual(
 	pcall(function()
@@ -823,6 +824,16 @@ expectEqual(
 	true,
 	"modern Stagewright plugin shell compiles as Luau"
 )
+do
+	local routeOverviewSource = fs.readFile("src/plugins/Stagewright/RouteOverview.luau")
+	expectEqual(
+		pcall(function()
+			luau.load(routeOverviewSource)
+		end),
+		true,
+		"Stagewright 2D route overview compiles as Luau"
+	)
+end
 expectEqual(
 	pcall(function()
 		luau.load(stagewrightAuthoringAreaSource)
@@ -837,7 +848,8 @@ for _, pluginObject in
 		"plugin:CreateToolbar",
 		"CreateDockWidgetPluginGuiAsync",
 		"StagewrightPanel",
-		"Stagewright · Stage Editor",
+		"Stagewright · Tower Defense Stage Editor",
+		"StagewrightPanelV2",
 		"StagewrightProject",
 		"StagewrightPayload",
 		"StagewrightPayloadChunks",
@@ -878,6 +890,21 @@ for _, pluginObject in
 		"rulesControls",
 		"testControls",
 		"Delete edge",
+		"RouteOverview.new",
+		"ROUTE OVERVIEW",
+		"Flow + Graph",
+		"STAGES & LEVELS",
+		"BRUSH INSPECTOR",
+		"ROUTE PROPERTIES",
+		"Search levels",
+		"BRUSH SIZE",
+		"Reset to default",
+		"Center in graph",
+		"fullDelta.Magnitude",
+		"applyResponsiveShell",
+		"paintBrushSize",
+		"selectedCellKey",
+		"Apply node",
 		"Select an issue to jump",
 		"AutomaticCanvasSize",
 		"setButtonSelected",
