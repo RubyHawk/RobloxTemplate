@@ -30,7 +30,7 @@ jobs:
           mkdir -p build
           rojo build plugins/grid-platform-editor.project.json --output build/GridPlatformEditPlugin.rbxm
           rojo build plugins/rune-config-editor.project.json --output build/RunewrightPlugin.rbxm
-      - run: rojo build patches/rng-defender-grid-demo.project.json --output RNGDefenderSafePatch.rbxlx
+      - run: rojo build patches/rng-defender-grid-demo.project.json --output build/RNGDefenderSafePatch.rbxlx
       - name: Figma bridge checks
         run: |
           node --check figma/roblox-ui-bridge/code.js

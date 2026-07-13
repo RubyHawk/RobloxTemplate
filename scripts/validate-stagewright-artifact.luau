@@ -5,9 +5,11 @@ local roblox = require("@lune/roblox")
 
 local pluginPath = "build/GridPlatformEditPlugin.rbxm"
 local placePath = "exports/Playable_TowerDefense.rbxlx"
+local safePatchPath = "build/RNGDefenderSafePatch.rbxlx"
 
 assert(fs.isFile(pluginPath), `Missing Stagewright plugin artifact: {pluginPath}`)
 assert(fs.isFile(placePath), `Missing tower-defense player-test artifact: {placePath}`)
+assert(fs.isFile(safePatchPath), `Missing shared-place safe patch artifact: {safePatchPath}`)
 
 local function descendantsWithRoots(roots: { Instance }): { Instance }
 	local result: { Instance } = {}
@@ -90,4 +92,17 @@ for _, retiredMarker in { "catmullRomPosition", "createEnemyPart", "SPLINE_SAMPL
 	)
 end
 
-print("Stagewright plugin and player-test artifacts passed structural validation.")
+local safePatch = roblox.deserializePlace(fs.readFile(safePatchPath))
+local _, safePatchNames = sourceAndNames(descendantsWithRoots({ safePatch }))
+for _, requiredName in
+	{
+		"TemplateConfig",
+		"RuneModeConfig",
+		"StagePlatformService",
+		"StagePlatformOwnerController",
+	}
+do
+	assert(safePatchNames[requiredName], `Shared-place safe patch is missing {requiredName}`)
+end
+
+print("Stagewright plugin, player-test, and shared-place artifacts passed structural validation.")

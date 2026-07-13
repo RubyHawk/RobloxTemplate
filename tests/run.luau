@@ -688,6 +688,7 @@ for _, patchObject in
 		'"$path": "rng-defender/DesignerConfig.luau"',
 		'"TowerDefenseCatalog"',
 		'"TowerDefenseLogic"',
+		'"RuneModeConfig"',
 	}
 do
 	expectEqual(

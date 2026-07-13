@@ -60,6 +60,9 @@
           "RuneLogic": {
             "$path": "../src/shared/RuneLogic.luau"
           },
+          "RuneModeConfig": {
+            "$path": "../src/shared/RuneModeConfig.luau"
+          },
           "StageCatalog": {
             "$path": "../src/shared/StageCatalog.luau"
           },
