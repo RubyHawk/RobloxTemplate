@@ -71,6 +71,9 @@ Invoke-Checked "RPG preset package build" {
 Invoke-Checked "Grid platform plugin build" {
     rojo build plugins\grid-platform-editor.project.json --output build\GridPlatformEditPlugin.rbxm
 }
+Invoke-Checked "Runewright plugin build" {
+    rojo build plugins\rune-config-editor.project.json --output build\RunewrightPlugin.rbxm
+}
 Invoke-Checked "Game Designer UI smoke test" {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\game-designer.ps1 -SmokeTest
 }
