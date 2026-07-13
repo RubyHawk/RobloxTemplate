@@ -578,10 +578,7 @@ function Gen.designerSource(): string?
 	if not ok or type(existing) ~= "table" then
 		return nil
 	end
-	local merged: { [string]: any } = {}
-	for key, value in existing do
-		merged[key] = value
-	end
+	local merged: { [string]: any } = table.clone(existing)
 	merged.runes = Gen.runesOverride()
 	return "--!strict\n\n"
 		.. "-- Written by Runewright. The runes table overrides TemplateConfig's rune\n"
@@ -821,7 +818,7 @@ local function buildPanel()
 			subtitleLabel.TextSize = 12
 			subtitleLabel.TextWrapped = true
 			subtitleLabel.AutomaticSize = Enum.AutomaticSize.Y
-			subtitleLabel.Size = UDim2.new(1, 0, 0, 0)
+			subtitleLabel.Size = UDim2.fromScale(1, 0)
 		end
 		return section
 	end
