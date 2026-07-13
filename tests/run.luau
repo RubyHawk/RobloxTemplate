@@ -856,6 +856,67 @@ for _, removedPluginObject in { "BoxHandleAdornment", "paintCellAt" } do
 		`edit-mode grid plugin no longer uses separate {removedPluginObject} targeting`
 	)
 end
+local runePluginProject = fs.readFile("plugins/rune-config-editor.project.json")
+local runePluginSource = fs.readFile("src/plugins/RunewrightPlugin.server.luau")
+for _, runePluginObject in
+	{
+		"RunewrightPlugin",
+		"RunewrightPlugin.server.luau",
+		"Runewright",
+		"RunewrightPanel",
+		"Rune altar workbench",
+		"plugin:CreateToolbar",
+		"CreateDockWidgetPluginGuiAsync",
+		"DockWidgetPluginGuiInfo",
+		"TryBeginRecording",
+		"FinishRecording",
+		"Apply to Place",
+		"Print Sources",
+		"Normalize Weights to 10000",
+		"must equal exactly 10000",
+		"needs at least one rune",
+		"DesignerConfig",
+		"RuneCatalog",
+		"TemplateConfig",
+		"channelModes",
+		"copyMilestones",
+		"defaultChannelMode",
+		"pityMinimumRarity",
+		"rareAudioMinimumRarity",
+		"baseCost",
+		"tickSeconds",
+		"minCommonWeight",
+		"unlockKind",
+		"tiers",
+		"bonusPercent",
+		"glyph",
+		"flavor",
+		"Fix first:",
+		"Add Rune Card",
+		"Remove Card",
+	}
+do
+	expectEqual(
+		string.find(runePluginProject .. runePluginSource, runePluginObject, 1, true) ~= nil,
+		true,
+		`rune workbench plugin includes {runePluginObject}`
+	)
+end
+-- The workbench edits the open place only; it must never touch live services
+-- or publish anything.
+for _, forbiddenPluginCall in { "PolicyService", "DataStoreService", "HttpService", "PublishAsync" } do
+	expectEqual(
+		string.find(runePluginSource, forbiddenPluginCall, 1, true),
+		nil,
+		`rune workbench plugin never references {forbiddenPluginCall}`
+	)
+end
+local runePluginCheck = fs.readFile("scripts/check.ps1")
+expectEqual(
+	string.find(runePluginCheck, "rune-config-editor.project.json", 1, true) ~= nil,
+	true,
+	"check.ps1 builds the Runewright plugin package"
+)
 local gridNpcBinder = fs.readFile("src/starter/GridNpcDemo.server.luau")
 for _, splineMarker in
 	{
