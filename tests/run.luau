@@ -4,6 +4,7 @@ local Calculations = require("../src/shared/Calculations")
 local CurrencyConfig = require("../src/shared/CurrencyConfig")
 local RuneCatalog = require("../src/shared/RuneCatalog")
 local RuneLogic = require("../src/shared/RuneLogic")
+local RuneModeConfig = require("../src/shared/RuneModeConfig")
 local TowerDefenseCatalog = require("../src/shared/TowerDefenseCatalog")
 local TowerDefenseLogic = require("../src/shared/TowerDefenseLogic")
 local DataStoreNames = require("../src/shared/DataStoreNames")
@@ -133,14 +134,19 @@ end)
 expectEqual(futureOk, false, "future profile schemas are refused instead of overwritten")
 local migrationsSource = fs.readFile("src/shared/Migrations.luau")
 expectEqual(
-	string.find(migrationsSource, "Migrations.CURRENT_VERSION = 6", 1, true) ~= nil,
+	string.find(migrationsSource, "Migrations.CURRENT_VERSION = 7", 1, true) ~= nil,
 	true,
-	"tower defense profile schema version is current"
+	"profile schema version is current"
 )
 expectEqual(
 	string.find(migrationsSource, "previousVersion < 6", 1, true) ~= nil,
 	true,
 	"schema 5 profiles gain tower defense state"
+)
+expectEqual(
+	string.find(migrationsSource, "previousVersion < 7", 1, true) ~= nil,
+	true,
+	"schema 6 profiles gain the rune channel mode selection"
 )
 expectEqual(
 	string.find(migrationsSource, "ownedUnits = {}", 1, true) ~= nil,
@@ -1204,12 +1210,12 @@ expectEqual(
 	"Studio mock testing starts with 100B coins"
 )
 expectEqual(
-	string.find(runeConfigSource, "costGrowth = 1", 1, true) ~= nil,
+	string.find(runeConfigSource, '"costGrowth", 1', 1, true) ~= nil,
 	true,
 	"configured rune price does not grow after each roll"
 )
 expectEqual(
-	string.find(runeConfigSource, "maxCost = 75", 1, true) ~= nil,
+	string.find(runeConfigSource, '"maxCost", 75', 1, true) ~= nil,
 	true,
 	"configured rune price cap matches the flat base price"
 )
@@ -1234,6 +1240,11 @@ for _, authoredRuneObject in
 		'"Name": "RarityRow6"',
 		'"Name": "TotalChip"',
 		'"Name": "RestrictedNote"',
+		'"Name": "ModePanel"',
+		'"Name": "ModeButton4"',
+		'"Name": "MomentumMeter"',
+		'"Name": "ModeHint"',
+		'"Name": "MilestoneLine"',
 		"rbxassetid://125907024425133",
 		"rbxassetid://111977708425543",
 	}
@@ -1260,6 +1271,422 @@ do
 		string.find(runeSign, authoredSignObject, 1, true) ~= nil,
 		true,
 		`rune sign pre-authors {authoredSignObject}`
+	)
+end
+
+-- Rune channel modes: momentum tiers, luck-adjusted odds, copy milestones,
+-- and the strongest-temporary-boost rule for surge channeling.
+local sampleTiers = {
+	{ atSeconds = 10, value = 1.25 },
+	{ atSeconds = 30, value = 1.75 },
+	{ atSeconds = 60, value = 2.5 },
+}
+local tierIndexBelow, tierValueBelow = RuneLogic.momentumTier(sampleTiers, 9.9)
+expectEqual(tierIndexBelow, 0, "momentum below the first threshold reaches no tier")
+expectEqual(tierValueBelow, 1, "momentum below the first threshold keeps a neutral value")
+local tierIndexExact, tierValueExact = RuneLogic.momentumTier(sampleTiers, 10)
+expectEqual(tierIndexExact, 1, "momentum reaches a tier exactly at its threshold")
+expectEqual(tierValueExact, 1.25, "tier value follows the reached tier")
+local tierIndexTop, tierValueTop = RuneLogic.momentumTier(sampleTiers, 500)
+expectEqual(tierIndexTop, 3, "long channels reach the top tier")
+expectEqual(tierValueTop, 2.5, "top tier keeps the configured value")
+local tierIndexNaN, tierValueNaN = RuneLogic.momentumTier(sampleTiers, 0 / 0)
+expectEqual(tierIndexNaN, 0, "corrupt momentum reaches no tier")
+expectEqual(tierValueNaN, 1, "corrupt momentum keeps a neutral value")
+local tierIndexEmpty = RuneLogic.momentumTier({}, 100)
+expectEqual(tierIndexEmpty, 0, "empty tier lists never promote")
+expectEqual(RuneLogic.nextTierAt(sampleTiers, 5), 10, "next tier threshold is reported for meters")
+expectEqual(RuneLogic.nextTierAt(sampleTiers, 30), 60, "reached tiers advance the next threshold")
+expectEqual(RuneLogic.nextTierAt(sampleTiers, 60), nil, "the top tier has no next threshold")
+
+for _, luckFactor in { 1.25, 1.75, 2.5 } do
+	local adjusted = RuneLogic.luckAdjustedRarities(RuneCatalog.rarities, luckFactor, 500)
+	expectEqual(
+		RuneLogic.weightTotal(adjusted),
+		10000,
+		`luck factor {luckFactor} keeps rarity weights summing to exactly 10000`
+	)
+	local adjustedOdds = 0
+	for index, rarity in adjusted do
+		adjustedOdds += RuneLogic.oddsPercent(rarity)
+		expectEqual(rarity.id, RuneCatalog.rarities[index].id, "luck keeps rarity order and ids")
+		if index >= 2 then
+			expectEqual(
+				rarity.weight >= RuneCatalog.rarities[index].weight,
+				true,
+				`luck never lowers the {rarity.id} weight`
+			)
+		end
+	end
+	expectEqual(
+		math.abs(adjustedOdds - 100) < 1e-9,
+		true,
+		`luck factor {luckFactor} still discloses odds totaling exactly 100 percent`
+	)
+end
+local neutralLuck = RuneLogic.luckAdjustedRarities(RuneCatalog.rarities, 1, 500)
+expectEqual(neutralLuck[1].weight, RuneCatalog.rarities[1].weight, "luck factor 1 leaves weights untouched")
+local weakLuck = RuneLogic.luckAdjustedRarities(RuneCatalog.rarities, 0.5, 500)
+expectEqual(weakLuck[2].weight, RuneCatalog.rarities[2].weight, "luck below 1 never nerfs odds")
+local nanLuck = RuneLogic.luckAdjustedRarities(RuneCatalog.rarities, 0 / 0, 500)
+expectEqual(
+	nanLuck[#nanLuck].weight,
+	RuneCatalog.rarities[#RuneCatalog.rarities].weight,
+	"corrupt luck factors leave weights untouched"
+)
+local extremeLuck = RuneLogic.luckAdjustedRarities(RuneCatalog.rarities, 1000, 500)
+expectEqual(RuneLogic.weightTotal(extremeLuck), 10000, "extreme luck keeps the weight invariant")
+expectEqual(extremeLuck[1].weight >= 500, true, "extreme luck respects the common weight floor")
+local luckyCommon = RuneLogic.pickRarityIndex(extremeLuck, 0, 0, 40, 4)
+expectEqual(luckyCommon, 1, "the lowest roll still lands on the first rarity under luck")
+local luckyTop = RuneLogic.pickRarityIndex(extremeLuck, 0.9999, 0, 40, 4)
+expectEqual(luckyTop, #extremeLuck, "the highest roll still lands on the rarest rarity under luck")
+local luckyPity, luckyPityTriggered = RuneLogic.pickRarityIndex(extremeLuck, 0, 39, 40, 4)
+expectEqual(luckyPityTriggered, true, "pity still triggers over luck-adjusted odds")
+expectEqual(luckyPity >= 4, true, "pity still promotes over luck-adjusted odds")
+
+local sampleMilestones = {
+	{ copies = 5, multiplier = 1.25 },
+	{ copies = 10, multiplier = 1.5 },
+	{ copies = 25, multiplier = 2 },
+}
+expectEqual(
+	RuneLogic.milestoneMultiplier(sampleMilestones, 4),
+	1,
+	"below the first milestone nothing changes"
+)
+expectEqual(
+	RuneLogic.milestoneMultiplier(sampleMilestones, 5),
+	1.25,
+	"reaching a milestone applies its multiplier"
+)
+expectEqual(RuneLogic.milestoneMultiplier(sampleMilestones, 26), 2, "the highest reached milestone wins")
+expectEqual(RuneLogic.milestoneMultiplier(nil, 5), 1, "missing milestones stay neutral")
+expectEqual(
+	RuneLogic.milestoneMultiplier({ { copies = 2, multiplier = 0 / 0 }, { copies = 3, multiplier = 0.1 } }, 5),
+	1,
+	"corrupt milestone entries are ignored"
+)
+local upcomingMilestone = RuneLogic.nextMilestone(sampleMilestones, 5)
+expectEqual(
+	if upcomingMilestone ~= nil then upcomingMilestone.copies else 0,
+	10,
+	"the next milestone reports the closest target"
+)
+expectEqual(RuneLogic.nextMilestone(sampleMilestones, 25), nil, "maxed milestones report no next target")
+local milestoneOwned = {
+	ember_rune = { count = 5 },
+	celestial_rune = { count = 1 },
+	forgotten_rune = { count = 25 },
+	corrupt_rune = { count = 0 / 0 },
+}
+expectEqual(
+	RuneLogic.totalBonusPercent(milestoneOwned, RuneCatalog),
+	110,
+	"without milestones duplicates still stack linearly"
+)
+expectEqual(
+	RuneLogic.totalBonusPercent(milestoneOwned, RuneCatalog, sampleMilestones),
+	112.5,
+	"copy milestones scale known runes while unknown and corrupt entries still contribute nothing"
+)
+expectEqual(
+	RuneLogic.totalBonusPercent(milestoneOwned, RuneCatalog, sampleMilestones, 50),
+	50,
+	"an explicit bonus cap clamps the milestone-scaled total"
+)
+
+local sampleModes = {
+	{
+		id = "luck",
+		name = "Lucky",
+		kind = "luck",
+		unlock = { kind = "always", value = 0 },
+		tiers = sampleTiers,
+	},
+	{
+		id = "surge",
+		name = "Surge",
+		kind = "surge",
+		unlock = { kind = "totalRolls", value = 25 },
+		tiers = sampleTiers,
+	},
+	{
+		id = "stage",
+		name = "Stage",
+		kind = "surge",
+		unlock = { kind = "provider", value = 0 },
+		tiers = sampleTiers,
+	},
+}
+expectEqual(RuneLogic.resolveModeId("surge", sampleModes, "luck"), "surge", "a saved known mode is respected")
+expectEqual(
+	RuneLogic.resolveModeId("ghost_mode", sampleModes, "luck"),
+	"luck",
+	"an unknown saved mode resolves to the default without being overwritten"
+)
+expectEqual(
+	RuneLogic.isModeUnlocked(sampleModes[1], { totalRolls = 0, runesOwned = 0 }),
+	true,
+	"always modes unlock immediately"
+)
+expectEqual(
+	RuneLogic.isModeUnlocked(sampleModes[2], { totalRolls = 24, runesOwned = 0 }),
+	false,
+	"threshold modes stay locked below the requirement"
+)
+expectEqual(
+	RuneLogic.isModeUnlocked(sampleModes[2], { totalRolls = 25, runesOwned = 0 }),
+	true,
+	"threshold modes unlock at the requirement"
+)
+expectEqual(
+	RuneLogic.isModeUnlocked(sampleModes[3], { totalRolls = 100, runesOwned = 100 }),
+	false,
+	"provider modes fail closed without an answer"
+)
+expectEqual(
+	RuneLogic.isModeUnlocked(sampleModes[3], { totalRolls = 0, runesOwned = 0 }, true),
+	true,
+	"provider modes unlock only on an explicit yes"
+)
+expectEqual(
+	RuneLogic.isModeUnlocked({ id = "x", unlock = { kind = "mystery" } }, { totalRolls = 0, runesOwned = 0 }),
+	false,
+	"unknown unlock kinds fail closed"
+)
+
+local fallbackModes = {
+	{
+		id = "luck",
+		name = "Lucky",
+		kind = "luck",
+		unlock = { kind = "always", value = 0 },
+		tiers = { { atSeconds = 10, value = 1.25 } },
+	},
+}
+local normalizedModes = RuneModeConfig.normalize({
+	{ id = "luck", name = "Custom Luck", kind = "luck", tiers = { { atSeconds = 5, value = 1.5 } } },
+	{
+		id = "surge",
+		name = "Surge",
+		kind = "surge",
+		unlock = { kind = "totalRolls", value = 10 },
+		tiers = { { atSeconds = 5, value = 1.2 }, { atSeconds = 15, value = 1.4 } },
+	},
+}, fallbackModes)
+expectEqual(#normalizedModes, 2, "valid channel mode overrides pass through")
+expectEqual(normalizedModes[1].unlock.kind, "always", "a missing unlock defaults to always")
+local duplicateModes = RuneModeConfig.normalize({
+	{ id = "luck", kind = "luck", tiers = { { atSeconds = 5, value = 1.5 } } },
+	{ id = "luck", kind = "surge", tiers = { { atSeconds = 5, value = 1.5 } } },
+}, fallbackModes)
+expectEqual(#duplicateModes, 1, "duplicate mode ids fall back to the authored defaults")
+expectEqual(duplicateModes[1].name, "Lucky", "the wholesale fallback keeps the authored mode")
+local badKindModes = RuneModeConfig.normalize(
+	{ { id = "warp", kind = "teleport", tiers = { { atSeconds = 5, value = 1.5 } } } },
+	fallbackModes
+)
+expectEqual(badKindModes[1].id, "luck", "unknown mode kinds fall back wholesale")
+local descendingModes = RuneModeConfig.normalize({
+	{
+		id = "luck",
+		kind = "luck",
+		tiers = { { atSeconds = 30, value = 1.5 }, { atSeconds = 10, value = 2 } },
+	},
+}, fallbackModes)
+expectEqual(descendingModes[1].tiers[1].atSeconds, 10, "descending tier thresholds fall back wholesale")
+local weakTierModes = RuneModeConfig.normalize(
+	{ { id = "luck", kind = "luck", tiers = { { atSeconds = 10, value = 0.5 } } } },
+	fallbackModes
+)
+expectEqual(weakTierModes[1].tiers[1].value, 1.25, "tier values below 1 fall back wholesale")
+local crowdedModes = {}
+for index = 1, 6 do
+	table.insert(crowdedModes, {
+		id = `mode{index}`,
+		kind = "luck",
+		tiers = { { atSeconds = 10, value = 1.25 } },
+	})
+end
+expectEqual(
+	#RuneModeConfig.normalize(crowdedModes, fallbackModes),
+	4,
+	"channel modes cap at the four authored buttons"
+)
+expectEqual(
+	#RuneModeConfig.normalizeMilestones(
+		{ { copies = 5, multiplier = 1.25 }, { copies = 10, multiplier = 1.5 } },
+		{}
+	),
+	2,
+	"valid milestone overrides pass through"
+)
+local weakeningMilestones = RuneModeConfig.normalizeMilestones(
+	{ { copies = 5, multiplier = 1.5 }, { copies = 10, multiplier = 1.2 } },
+	{ { copies = 3, multiplier = 1.1 } }
+)
+expectEqual(weakeningMilestones[1].copies, 3, "weakening milestone curves fall back wholesale")
+expectEqual(
+	#RuneModeConfig.normalizeMilestones({}, { { copies = 3, multiplier = 1.1 } }),
+	0,
+	"an explicit empty list disables milestones"
+)
+
+local potionBoosts = { { id = "p", expiresAt = 1000, multiplier = 2 } }
+expectEqual(
+	Calculations.temporaryMultiplier(potionBoosts, 0, 1.2),
+	2,
+	"the strongest potion beats a weaker channel surge; they never stack"
+)
+expectEqual(
+	Calculations.temporaryMultiplier(potionBoosts, 0, 3),
+	3,
+	"a stronger channel surge beats the potion; they never stack"
+)
+expectEqual(
+	Calculations.temporaryMultiplier(potionBoosts, 0),
+	2,
+	"temporary multiplier works without a channel value"
+)
+expectEqual(
+	Calculations.temporaryMultiplier(potionBoosts, 0, 0 / 0),
+	2,
+	"corrupt channel values stay neutral"
+)
+expectEqual(Calculations.temporaryMultiplier({}, 0, 0.25), 1, "channel surges below 1 never punish earnings")
+expectEqual(
+	Calculations.compositeMultiplier(0.5, 0.1, 2, 1.5),
+	(1 + 0.5 + 0.1) * 2 * 1.5,
+	"composite multiplier composes additive bonuses with temporary and permanent buckets"
+)
+expectEqual(
+	Calculations.permanentMultiplier(0.1, true, 2),
+	1.1 * 2,
+	"offline multiplier keeps premium and runes"
+)
+expectEqual(
+	Calculations.permanentMultiplier(0.1, false, 2),
+	2,
+	"offline multiplier drops premium for free players"
+)
+expectEqual(
+	Calculations.earningsMultiplier(3, true, potionBoosts, 0, 0.1, 0.5, 0.1),
+	(1 + 0.3 + 0.1) * 2,
+	"earnings multiplier still composes social, premium, and the strongest potion"
+)
+
+local modeMigrated = MigrationCore.migrate({
+	schemaVersion = 6,
+	coins = 5,
+	runes = { owned = { mystery_rune = { count = 3 } }, totalRolls = 7, rollsSincePity = 2 },
+}, {
+	schemaVersion = 7,
+	coins = 0,
+	runes = { owned = {}, totalRolls = 0, rollsSincePity = 0, selectedMode = "luck" },
+}, 7)
+expectEqual(modeMigrated.runes.selectedMode, "luck", "older profiles gain the default channel mode")
+expectEqual(modeMigrated.runes.owned.mystery_rune.count, 3, "unknown saved runes survive the v7 migration")
+expectEqual(modeMigrated.runes.totalRolls, 7, "roll history survives the v7 migration")
+local modePreserved = MigrationCore.migrate({
+	schemaVersion = 7,
+	coins = 5,
+	runes = { owned = {}, totalRolls = 0, rollsSincePity = 0, selectedMode = "surge" },
+}, {
+	schemaVersion = 7,
+	coins = 0,
+	runes = { owned = {}, totalRolls = 0, rollsSincePity = 0, selectedMode = "luck" },
+}, 7)
+expectEqual(modePreserved.runes.selectedMode, "surge", "a saved mode selection survives migration")
+
+expectEqual(
+	string.find(runeServiceSource, "luckAdjustedRarities", 1, true) ~= nil,
+	true,
+	"rune rolls apply luck-adjusted odds server-side"
+)
+expectEqual(
+	string.find(runeServiceSource, "RuneService.setMode", 1, true) ~= nil,
+	true,
+	"channel mode swaps are validated in RuneService"
+)
+expectEqual(
+	string.find(runeServiceSource, "channelEarningsMultiplier", 1, true) ~= nil,
+	true,
+	"surge channeling exposes a live multiplier"
+)
+expectEqual(
+	string.find(runeServiceSource, "Config.runes.tickSeconds", 1, true) ~= nil,
+	true,
+	"rune tick cadence comes from TemplateConfig"
+)
+expectEqual(
+	string.find(runeServiceSource, "TICK_SECONDS", 1, true),
+	nil,
+	"the hardcoded rune tick constant is gone"
+)
+local runeRemoteSource = fs.readFile("src/server/Services/RemoteService.luau")
+expectEqual(
+	string.find(runeRemoteSource, 'SetRuneMode = "runes"', 1, true) ~= nil,
+	true,
+	"mode swaps are feature-gated behind the runes flag"
+)
+expectEqual(
+	string.find(runeRemoteSource, "temporaryMultiplier", 1, true) ~= nil,
+	true,
+	"snapshots publish the strongest temporary multiplier"
+)
+local economyServiceSource = fs.readFile("src/server/Services/EconomyService.luau")
+expectEqual(
+	string.find(economyServiceSource, "setChannelBoostProvider", 1, true) ~= nil,
+	true,
+	"economy exposes the channel boost provider hook"
+)
+expectEqual(
+	string.find(economyServiceSource, "compositeMultiplier", 1, true) ~= nil,
+	true,
+	"economy composes active earnings through Calculations"
+)
+expectEqual(
+	string.find(economyServiceSource, "permanentMultiplier", 1, true) ~= nil,
+	true,
+	"economy composes offline earnings through Calculations"
+)
+for _, configMarker in
+	{
+		"defaultChannelMode",
+		"channelModes",
+		"copyMilestones",
+		"tickSeconds",
+		"maxTotalBonusPercent",
+		"maxOwnedPerRune",
+		"revealSeconds",
+		"rareAudioMinimumRarity",
+		"minCommonWeight",
+	}
+do
+	expectEqual(
+		string.find(runeConfigSource, configMarker, 1, true) ~= nil,
+		true,
+		`rune channel tunable {configMarker} lives in TemplateConfig`
+	)
+end
+local runeClientSource = fs.readFile("src/starter-client/RuneCircle.client.luau")
+expectEqual(
+	string.find(runeClientSource, "SetRuneMode", 1, true) ~= nil,
+	true,
+	"mode buttons send the SetRuneMode intent"
+)
+expectEqual(
+	string.find(runeClientSource, "effectiveWeights", 1, true) ~= nil,
+	true,
+	"the odds panel renders the server-sent effective odds"
+)
+local incrementalUi = fs.readFile("src/ui/presets/incremental/TemplateUI.model.json")
+for _, authoredHudObject in { '"Name": "RunesValue"', '"Name": "ChannelValue"' } do
+	expectEqual(
+		string.find(incrementalUi, authoredHudObject, 1, true) ~= nil,
+		true,
+		`incremental HUD pre-authors {authoredHudObject}`
 	)
 end
 

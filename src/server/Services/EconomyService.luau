@@ -16,7 +16,30 @@ local function runeMultiplier(profile: any): number
 	if Config.features.runes ~= true then
 		return 1
 	end
-	return RuneLogic.multiplier(profile.runes, RuneCatalog)
+	return RuneLogic.multiplier(
+		profile.runes,
+		RuneCatalog,
+		Config.runes.copyMilestones,
+		Config.runes.maxTotalBonusPercent
+	)
+end
+
+-- A feature (the rune altar's surge channel today) can register a live boost
+-- for the strongest-temporary-boost bucket. The provider keeps this service
+-- feature-agnostic and avoids a require cycle with RuneService; its value is
+-- never persisted and never stacks with potions.
+local channelBoostProvider: ((player: Player) -> number)? = nil
+
+function EconomyService.setChannelBoostProvider(provider: (player: Player) -> number)
+	channelBoostProvider = provider
+end
+
+local function channelMultiplier(player: Player): number
+	local provider = channelBoostProvider
+	if provider == nil then
+		return 1
+	end
+	return provider(player)
 end
 
 local function isConfiguredCurrency(currencyId: string): boolean
@@ -39,15 +62,14 @@ function EconomyService.getMultiplier(player: Player): number
 	if profile == nil then
 		return 1
 	end
-	return Calculations.earningsMultiplier(
+	local social = Calculations.friendBonus(
 		profile.social.friendCountInServer,
-		profile.entitlements.premium,
-		profile.boosts,
-		os.time(),
 		Config.economy.friendBonusPerFriend,
-		Config.economy.friendBonusCap,
-		Config.economy.premiumBonus
-	) * runeMultiplier(profile)
+		Config.economy.friendBonusCap
+	)
+	local premium = if profile.entitlements.premium then Config.economy.premiumBonus else 0
+	local temporary = Calculations.temporaryMultiplier(profile.boosts, os.time(), channelMultiplier(player))
+	return Calculations.compositeMultiplier(social, premium, temporary, runeMultiplier(profile))
 end
 
 function EconomyService.getRuneMultiplier(player: Player): number
@@ -142,10 +164,13 @@ function EconomyService.permanentOfflineMultiplier(player: Player): number
 	if profile == nil then
 		return 1
 	end
-	-- Rune bonuses are permanent, so unlike potions they also raise the
-	-- offline generation rate.
-	return (1 + (if profile.entitlements.premium then Config.economy.premiumBonus else 0))
-		* runeMultiplier(profile)
+	-- Rune bonuses are permanent, so unlike potions and channel surges they
+	-- also raise the offline generation rate.
+	return Calculations.permanentMultiplier(
+		Config.economy.premiumBonus,
+		profile.entitlements.premium,
+		runeMultiplier(profile)
+	)
 end
 
 return EconomyService

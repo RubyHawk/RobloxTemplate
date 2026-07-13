@@ -34,6 +34,25 @@ export type RuneSaveState = {
 	owned: { [string]: RuneOwnedEntry },
 	totalRolls: number,
 	rollsSincePity: number,
+	selectedMode: string,
+}
+
+-- Live channeling state pushed by the server while a player stands in the
+-- circle; nil in snapshots when the player is not channeling.
+export type RuneChannelState = {
+	active: boolean,
+	modeId: string,
+	kind: string,
+	momentumSeconds: number,
+	tierIndex: number,
+	tierValue: number,
+	nextTierAtSeconds: number?,
+	effectiveWeights: { number }?,
+}
+
+export type RuneModeAvailability = {
+	id: string,
+	unlocked: boolean,
 }
 
 export type TowerDefenseUnitEntry = {
@@ -111,6 +130,8 @@ export type ClientSnapshot = {
 	premiumBonus: number,
 	potionMultiplier: number,
 	runeMultiplier: number,
+	channelMultiplier: number,
+	temporaryMultiplier: number,
 	runes: RuneClientState?,
 	towerDefense: TowerDefenseClientState?,
 	serverTime: number,
@@ -127,6 +148,9 @@ export type RuneClientState = {
 	totalBonusPercent: number,
 	multiplier: number,
 	restricted: boolean,
+	selectedMode: string,
+	modes: { RuneModeAvailability },
+	channel: RuneChannelState?,
 }
 
 export type TowerDefensePlacementState = {

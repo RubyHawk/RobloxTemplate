@@ -36,6 +36,39 @@ function Calculations.friendBonus(friendCount: number, perFriend: number, cap: n
 	return math.min(math.max(friendCount, 0) * perFriend, cap)
 end
 
+-- Temporary boosts never stack: the strongest of the active potions and the
+-- live channel surge wins (template hard boundary). channelMultiplier is
+-- optional so callers without a channel surge keep working unchanged.
+function Calculations.temporaryMultiplier(boosts: { any }, now: number, channelMultiplier: number?): number
+	local channel = if type(channelMultiplier) == "number"
+			and channelMultiplier == channelMultiplier
+			and channelMultiplier ~= math.huge
+		then math.max(channelMultiplier, 1)
+		else 1
+	return math.max(Calculations.potionMultiplier(boosts, now), channel)
+end
+
+-- Full active-earnings composition: additive social and premium bonuses, one
+-- strongest temporary boost, and the permanent (rune) multiplier bucket.
+function Calculations.compositeMultiplier(
+	friendBonus: number,
+	premiumBonus: number,
+	temporary: number,
+	permanent: number
+): number
+	return (1 + friendBonus + premiumBonus) * temporary * permanent
+end
+
+-- Offline earnings keep only permanent bonuses: premium membership and runes.
+function Calculations.permanentMultiplier(
+	premiumBonus: number,
+	isPremium: boolean,
+	runeMultiplier: number
+): number
+	local premium = if isPremium then premiumBonus else 0
+	return (1 + premium) * runeMultiplier
+end
+
 function Calculations.earningsMultiplier(
 	friendCount: number,
 	isPremium: boolean,
@@ -47,7 +80,7 @@ function Calculations.earningsMultiplier(
 ): number
 	local social = Calculations.friendBonus(friendCount, perFriend, friendCap)
 	local premium = if isPremium then premiumBonus else 0
-	return (1 + social + premium) * Calculations.potionMultiplier(boosts, now)
+	return Calculations.compositeMultiplier(social, premium, Calculations.potionMultiplier(boosts, now), 1)
 end
 
 function Calculations.offlineEarnings(

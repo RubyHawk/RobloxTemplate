@@ -6,7 +6,7 @@ local MigrationCore = require(script.Parent.MigrationCore)
 local Config = require(script.Parent.TemplateConfig)
 
 local Migrations = {}
-Migrations.CURRENT_VERSION = 6
+Migrations.CURRENT_VERSION = 7
 
 function Migrations.migrate(raw: any, now: number): any
 	local previousVersion = if type(raw) == "table" and type(raw.schemaVersion) == "number"
@@ -38,6 +38,16 @@ function Migrations.migrate(raw: any, now: number): any
 				bestWave = 0,
 			},
 		}
+	end
+	-- v7: channel-mode selection. An unknown saved mode id is kept on disk (a
+	-- recipe may re-add the mode later); runtime resolution falls back to the
+	-- configured default without overwriting the player's choice.
+	if
+		previousVersion < 7
+		and type(profile.runes) == "table"
+		and type(profile.runes.selectedMode) ~= "string"
+	then
+		profile.runes.selectedMode = Config.runes.defaultChannelMode
 	end
 	return profile
 end
