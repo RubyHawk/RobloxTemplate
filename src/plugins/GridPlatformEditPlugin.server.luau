@@ -22,13 +22,20 @@ local PLUGIN_NAME = "Stagewright"
 local PREVIEW_TAG = "StagewrightTransientPreview"
 local CELL_PIXELS = 22
 local COLORS = {
-	background = Color3.fromRGB(17, 18, 20),
-	panel = Color3.fromRGB(23, 25, 29),
-	field = Color3.fromRGB(31, 34, 40),
-	border = Color3.fromRGB(54, 59, 68),
-	text = Color3.fromRGB(232, 235, 240),
-	muted = Color3.fromRGB(152, 160, 172),
-	accent = Color3.fromRGB(76, 132, 203),
+	background = Color3.fromRGB(15, 17, 21),
+	panel = Color3.fromRGB(22, 25, 31),
+	surface = Color3.fromRGB(27, 31, 38),
+	field = Color3.fromRGB(32, 37, 45),
+	hover = Color3.fromRGB(40, 47, 58),
+	border = Color3.fromRGB(55, 64, 77),
+	borderStrong = Color3.fromRGB(76, 89, 106),
+	text = Color3.fromRGB(239, 242, 247),
+	muted = Color3.fromRGB(157, 168, 184),
+	accent = Color3.fromRGB(77, 139, 230),
+	accentMuted = Color3.fromRGB(38, 67, 105),
+	success = Color3.fromRGB(87, 196, 128),
+	warning = Color3.fromRGB(238, 181, 72),
+	danger = Color3.fromRGB(239, 103, 112),
 	ground = Color3.fromRGB(75, 132, 91),
 	void = Color3.fromRGB(28, 30, 35),
 	blocked = Color3.fromRGB(157, 76, 76),
@@ -38,9 +45,12 @@ local COLORS = {
 }
 
 type Mode = "Paint" | "Graph" | "Stage" | "Validate"
+type GraphToolMode = "Build" | "Rules" | "Test"
 type Brush = {
 	id: string,
 	label: string,
+	category: string,
+	help: string,
 	apply: (cell: any) -> (),
 }
 
@@ -54,6 +64,7 @@ local selectedEdgeId: string? = nil
 local tracedEdgeIds: { [string]: boolean } = {}
 local connectFromNodeId: string? = nil
 local activeMode: Mode = "Paint"
+local graphToolMode: GraphToolMode = "Build"
 local activeBrushId = "build_blocked"
 local predicateKindIndex = 1
 local painting = false
@@ -62,6 +73,8 @@ local previewFolder: Folder? = nil
 local previewMoveRevision = 0
 local pendingConfirmation: { id: string, expires: number }? = nil
 local islandOutlinesEnabled = true
+local hoveredCellKey: string? = nil
+local validationIssues: { any } = {}
 
 local toolbar = plugin:CreateToolbar(PLUGIN_NAME)
 local openButton = toolbar:CreateButton(
@@ -73,9 +86,9 @@ local openButton = toolbar:CreateButton(
 openButton.ClickableWhenViewportHidden = true
 local widget = plugin:CreateDockWidgetPluginGuiAsync(
 	"StagewrightPanel",
-	DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, true, false, 520, 760, 360, 480)
+	DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, true, false, 600, 780, 390, 520)
 )
-widget.Title = "Stagewright · Versioned Stage Editor"
+widget.Title = "Stagewright · Stage Editor"
 
 local function create(className: string, properties: { [string]: any }, parent: Instance?): any
 	local instance = Instance.new(className)
@@ -96,24 +109,31 @@ local header = create("Frame", {
 	Name = "ToolHeader",
 	BackgroundColor3 = COLORS.panel,
 	BorderSizePixel = 0,
-	Size = UDim2.new(1, 0, 0, 82),
+	Size = UDim2.new(1, 0, 0, 108),
 }, root) :: Frame
+create("Frame", {
+	AnchorPoint = Vector2.new(0, 1),
+	BackgroundColor3 = COLORS.border,
+	BorderSizePixel = 0,
+	Position = UDim2.fromScale(0, 1),
+	Size = UDim2.new(1, 0, 0, 1),
+}, header)
 local title = create("TextLabel", {
 	BackgroundTransparency = 1,
 	Font = Enum.Font.BuilderSansBold,
-	Position = UDim2.fromOffset(14, 8),
+	Position = UDim2.fromOffset(16, 9),
 	Size = UDim2.new(1, -28, 0, 24),
-	Text = "STAGEWRIGHT",
+	Text = "Stagewright",
 	TextColor3 = COLORS.text,
-	TextSize = 17,
+	TextSize = 18,
 	TextXAlignment = Enum.TextXAlignment.Left,
 }, header) :: TextLabel
 local status = create("TextLabel", {
 	BackgroundTransparency = 1,
 	Font = Enum.Font.BuilderSans,
-	Position = UDim2.fromOffset(14, 31),
+	Position = UDim2.fromOffset(16, 34),
 	Size = UDim2.new(1, -28, 0, 18),
-	Text = "Loading versioned project…",
+	Text = "Loading your versioned stage project…",
 	TextColor3 = COLORS.muted,
 	TextSize = 12,
 	TextTruncate = Enum.TextTruncate.AtEnd,
@@ -121,18 +141,18 @@ local status = create("TextLabel", {
 }, header) :: TextLabel
 local modes = create("Frame", {
 	BackgroundTransparency = 1,
-	Position = UDim2.fromOffset(10, 53),
-	Size = UDim2.new(1, -20, 0, 25),
+	Position = UDim2.fromOffset(12, 65),
+	Size = UDim2.new(1, -24, 0, 32),
 }, header) :: Frame
-create("UIListLayout", {
-	FillDirection = Enum.FillDirection.Horizontal,
-	Padding = UDim.new(0, 5),
+create("UIGridLayout", {
+	CellPadding = UDim2.fromOffset(6, 0),
+	CellSize = UDim2.new(0.25, -5, 1, 0),
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, modes)
 local body = create("Frame", {
 	BackgroundTransparency = 1,
-	Position = UDim2.fromOffset(0, 82),
-	Size = UDim2.new(1, 0, 1, -82),
+	Position = UDim2.fromOffset(0, 108),
+	Size = UDim2.new(1, 0, 1, -108),
 }, root) :: Frame
 
 local function button(parent: Instance, text: string, width: number?, callback: () -> ()): TextButton
@@ -141,15 +161,54 @@ local function button(parent: Instance, text: string, width: number?, callback: 
 		BackgroundColor3 = COLORS.field,
 		BorderSizePixel = 0,
 		Font = Enum.Font.BuilderSansMedium,
-		Size = UDim2.fromOffset(width or 110, 27),
+		LayoutOrder = #parent:GetChildren() + 1,
+		Size = UDim2.fromOffset(width or 110, 30),
 		Text = text,
 		TextColor3 = COLORS.text,
 		TextSize = 12,
+		TextTruncate = Enum.TextTruncate.AtEnd,
 	}, parent) :: TextButton
-	create("UICorner", { CornerRadius = UDim.new(0, 4) }, result)
-	create("UIStroke", { Color = COLORS.border, Thickness = 1 }, result)
+	create("UICorner", { CornerRadius = UDim.new(0, 6) }, result)
+	local stroke = create("UIStroke", {
+		Name = "Outline",
+		Color = COLORS.border,
+		Thickness = 1,
+	}, result) :: UIStroke
+	result.MouseEnter:Connect(function()
+		if result.Active and result.BackgroundColor3 == COLORS.field then
+			result.BackgroundColor3 = COLORS.hover
+			stroke.Color = COLORS.borderStrong
+		end
+	end)
+	result.MouseLeave:Connect(function()
+		if result.Active and result.BackgroundColor3 == COLORS.hover then
+			result.BackgroundColor3 = COLORS.field
+			stroke.Color = COLORS.border
+		end
+	end)
 	result.Activated:Connect(callback)
 	return result
+end
+
+local function setButtonSelected(result: TextButton, selected: boolean)
+	result.BackgroundColor3 = if selected then COLORS.accent else COLORS.field
+	local stroke = result:FindFirstChild("Outline")
+	if stroke ~= nil and stroke:IsA("UIStroke") then
+		stroke.Color = if selected then Color3.fromRGB(123, 174, 245) else COLORS.border
+	end
+end
+
+local function sectionLabel(parent: Instance, text: string, order: number?): TextLabel
+	return create("TextLabel", {
+		BackgroundTransparency = 1,
+		Font = Enum.Font.BuilderSansBold,
+		LayoutOrder = order or 0,
+		Size = UDim2.new(1, -8, 0, 22),
+		Text = string.upper(text),
+		TextColor3 = COLORS.muted,
+		TextSize = 10,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, parent) :: TextLabel
 end
 
 local modeButtons: { [Mode]: TextButton } = {} :: any
@@ -192,7 +251,7 @@ end
 
 local function setStatus(message: string, errorState: boolean?)
 	status.Text = message
-	status.TextColor3 = if errorState then Color3.fromRGB(239, 105, 105) else COLORS.muted
+	status.TextColor3 = if errorState then COLORS.danger else COLORS.muted
 end
 
 local function confirm(id: string, prompt: string): boolean
@@ -209,49 +268,63 @@ end
 local brushes: { Brush } = {
 	{
 		id = "terrain_ground",
-		label = "Terrain · Ground",
+		label = "Ground",
+		category = "Terrain",
+		help = "Paint normal playable ground.",
 		apply = function(cell)
 			cell.terrainId = "ground"
 		end,
 	},
 	{
 		id = "terrain_void",
-		label = "Terrain · Void",
+		label = "Void",
+		category = "Terrain",
+		help = "Paint empty terrain outside the playable surface.",
 		apply = function(cell)
 			cell.terrainId = "void"
 		end,
 	},
 	{
 		id = "build_allowed",
-		label = "Build · Allowed",
+		label = "Build allowed",
+		category = "Build policy",
+		help = "Allow players to place towers in this cell.",
 		apply = function(cell)
 			cell.buildPolicy = "Allowed"
 		end,
 	},
 	{
 		id = "build_blocked",
-		label = "Build · Blocked",
+		label = "Build blocked",
+		category = "Build policy",
+		help = "Prevent tower placement without changing terrain.",
 		apply = function(cell)
 			cell.buildPolicy = "Blocked"
 		end,
 	},
 	{
 		id = "build_auto",
-		label = "Build · Auto only",
+		label = "Auto-place only",
+		category = "Build policy",
+		help = "Reserve this cell for automatic placement systems.",
 		apply = function(cell)
 			cell.buildPolicy = "AutoOnly"
 		end,
 	},
 	{
 		id = "traversal_allowed",
-		label = "Enemy · Allowed",
+		label = "Traversal allowed",
+		category = "Enemy traversal",
+		help = "Allow route corridors to cross this cell.",
 		apply = function(cell)
 			cell.enemyTraversalPolicy = "Allowed"
 		end,
 	},
 	{
 		id = "traversal_blocked",
-		label = "Enemy · Blocked",
+		label = "Traversal blocked",
+		category = "Enemy traversal",
+		help = "Prevent route corridors from crossing this cell.",
 		apply = function(cell)
 			cell.enemyTraversalPolicy = "Blocked"
 		end,
@@ -271,7 +344,9 @@ for _, role in
 do
 	table.insert(brushes, {
 		id = `role_{role}`,
-		label = `Role · {role}`,
+		label = string.gsub(role, "(%l)(%u)", "%1 %2"),
+		category = "Cell roles",
+		help = `Toggle the {string.gsub(role, "(%l)(%u)", "%1 %2")} role on painted cells.`,
 		apply = function(cell)
 			cell.roles = cell.roles or {}
 			cell.roles[role] = not cell.roles[role]
@@ -444,9 +519,16 @@ local function rebuildPreview()
 	end
 end
 
+local MODE_LABELS: { [Mode]: string } = {
+	Paint = "Paint",
+	Graph = "Routes",
+	Stage = "Levels",
+	Validate = "Check",
+}
+
 for order, modeName in { "Paint", "Graph", "Stage", "Validate" } :: { Mode } do
 	local mode = modeName :: Mode
-	modeButtons[mode] = button(modes, mode, 88, function()
+	modeButtons[mode] = button(modes, MODE_LABELS[mode], 88, function()
 		activeMode = mode
 		rerenderAll()
 	end)
@@ -462,36 +544,100 @@ end
 
 -- Paint page: a layer-aware brush rail and a virtualized grid canvas.
 local paintPage = contentByMode.Paint
+local paintToolbar = create("Frame", {
+	BackgroundColor3 = COLORS.panel,
+	BorderSizePixel = 0,
+	Size = UDim2.new(1, 0, 0, 58),
+}, paintPage) :: Frame
+local paintBrushTitle = create("TextLabel", {
+	BackgroundTransparency = 1,
+	Font = Enum.Font.BuilderSansBold,
+	Position = UDim2.fromOffset(14, 8),
+	Size = UDim2.new(0.5, -14, 0, 20),
+	Text = "Build blocked",
+	TextColor3 = COLORS.text,
+	TextSize = 13,
+	TextXAlignment = Enum.TextXAlignment.Left,
+}, paintToolbar) :: TextLabel
+local paintHint = create("TextLabel", {
+	BackgroundTransparency = 1,
+	Font = Enum.Font.BuilderSans,
+	Position = UDim2.fromOffset(14, 29),
+	Size = UDim2.new(1, -150, 0, 18),
+	Text = "Drag across cells to paint. One drag is one undo step.",
+	TextColor3 = COLORS.muted,
+	TextSize = 11,
+	TextTruncate = Enum.TextTruncate.AtEnd,
+	TextXAlignment = Enum.TextXAlignment.Left,
+}, paintToolbar) :: TextLabel
+local paintHover = create("TextLabel", {
+	AnchorPoint = Vector2.new(1, 0),
+	BackgroundColor3 = COLORS.surface,
+	BorderSizePixel = 0,
+	Font = Enum.Font.BuilderSansMedium,
+	Position = UDim2.new(1, -12, 0, 13),
+	Size = UDim2.fromOffset(116, 28),
+	Text = "Cell —",
+	TextColor3 = COLORS.muted,
+	TextSize = 11,
+}, paintToolbar) :: TextLabel
+create("UICorner", { CornerRadius = UDim.new(0, 6) }, paintHover)
 local brushRail = create("ScrollingFrame", {
 	BackgroundColor3 = COLORS.panel,
 	BorderSizePixel = 0,
-	CanvasSize = UDim2.fromOffset(0, #brushes * 31 + 10),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	CanvasSize = UDim2.fromOffset(0, 0),
+	Position = UDim2.fromOffset(0, 62),
 	ScrollBarThickness = 5,
-	Size = UDim2.new(0, 150, 1, 0),
+	Size = UDim2.new(0, 172, 1, -62),
 }, paintPage) :: ScrollingFrame
-create("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, brushRail)
+create("UIListLayout", {
+	Padding = UDim.new(0, 4),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, brushRail)
 create("UIPadding", {
-	PaddingLeft = UDim.new(0, 5),
-	PaddingRight = UDim.new(0, 5),
-	PaddingTop = UDim.new(0, 5),
+	PaddingBottom = UDim.new(0, 8),
+	PaddingLeft = UDim.new(0, 8),
+	PaddingRight = UDim.new(0, 8),
+	PaddingTop = UDim.new(0, 8),
 }, brushRail)
 local brushButtons: { [string]: TextButton } = {}
-for order, brushDefinition in brushes do
+local renderPaintChrome: () -> ()
+local previousBrushCategory: string? = nil
+local brushLayoutOrder = 0
+for _, brushDefinition in brushes do
 	local brush = brushDefinition
-	local brushButton = button(brushRail, brush.label, 138, function()
+	if brush.category ~= previousBrushCategory then
+		brushLayoutOrder += 1
+		sectionLabel(brushRail, brush.category, brushLayoutOrder)
+		previousBrushCategory = brush.category
+	end
+	brushLayoutOrder += 1
+	local brushButton = button(brushRail, brush.label, 156, function()
 		activeBrushId = brush.id
-		rerenderAll()
+		renderPaintChrome()
 	end)
-	brushButton.LayoutOrder = order
+	brushButton.LayoutOrder = brushLayoutOrder
+	brushButton.Size = UDim2.new(1, -4, 0, 30)
+	brushButton.TextXAlignment = Enum.TextXAlignment.Left
+	create("UIPadding", { PaddingLeft = UDim.new(0, 10) }, brushButton)
 	brushButtons[brush.id] = brushButton
+end
+function renderPaintChrome()
+	for brushId, brushButton in brushButtons do
+		setButtonSelected(brushButton, brushId == activeBrushId)
+	end
+	local brush = activeBrush()
+	paintBrushTitle.Text = brush.label
+	paintHint.Text = brush.help
 end
 local gridScroll = create("ScrollingFrame", {
 	BackgroundColor3 = Color3.fromRGB(12, 13, 15),
 	BorderSizePixel = 0,
-	Position = UDim2.fromOffset(154, 0),
+	Position = UDim2.fromOffset(176, 62),
 	ScrollBarThickness = 8,
 	ScrollingDirection = Enum.ScrollingDirection.XY,
-	Size = UDim2.new(1, -154, 1, 0),
+	Size = UDim2.new(1, -176, 1, -62),
 }, paintPage) :: ScrollingFrame
 local gridCanvas = create("Frame", { BackgroundTransparency = 1 }, gridScroll) :: Frame
 local cellPool: { TextButton } = {}
@@ -560,9 +706,21 @@ local function renderCanvas()
 			renderCanvas()
 		end)
 		cellButton.MouseEnter:Connect(function()
+			local column = cellButton:GetAttribute("Column")
+			local row = cellButton:GetAttribute("Row")
+			hoveredCellKey = `{column}:{row}`
+			paintHover.Text = `Cell {column}, {row}`
+			paintHover.TextColor3 = COLORS.text
 			if painting then
-				paintCell(cellButton:GetAttribute("Column"), cellButton:GetAttribute("Row"))
+				paintCell(column, row)
 				renderCanvas()
+			end
+		end)
+		cellButton.MouseLeave:Connect(function()
+			if hoveredCellKey == `{cellButton:GetAttribute("Column")}:{cellButton:GetAttribute("Row")}` then
+				hoveredCellKey = nil
+				paintHover.Text = "Cell —"
+				paintHover.TextColor3 = COLORS.muted
 			end
 		end)
 		table.insert(cellPool, cellButton)
@@ -596,52 +754,80 @@ local stagePage = contentByMode.Stage
 local stageInspector = create("Frame", {
 	BackgroundColor3 = COLORS.panel,
 	BorderSizePixel = 0,
-	Size = UDim2.new(1, 0, 0, 138),
+	Size = UDim2.new(1, 0, 0, 218),
 }, stagePage) :: Frame
-local function textField(parent: Instance, label: string, x: number, y: number, width: number): TextBox
+local stageInspectorTitle = create("TextLabel", {
+	BackgroundTransparency = 1,
+	Font = Enum.Font.BuilderSansBold,
+	Position = UDim2.fromOffset(12, 9),
+	Size = UDim2.new(1, -150, 0, 22),
+	Text = "Level settings",
+	TextColor3 = COLORS.text,
+	TextSize = 14,
+	TextXAlignment = Enum.TextXAlignment.Left,
+}, stageInspector)
+local stageLevelLabel = create("TextLabel", {
+	AnchorPoint = Vector2.new(1, 0),
+	BackgroundColor3 = COLORS.accentMuted,
+	BorderSizePixel = 0,
+	Font = Enum.Font.BuilderSansBold,
+	Position = UDim2.new(1, -12, 0, 8),
+	Size = UDim2.fromOffset(122, 26),
+	Text = "STAGE 1 · LEVEL 1",
+	TextColor3 = Color3.fromRGB(151, 194, 255),
+	TextSize = 10,
+}, stageInspector) :: TextLabel
+create("UICorner", { CornerRadius = UDim.new(0, 6) }, stageLevelLabel)
+local stageForm = create("Frame", {
+	BackgroundTransparency = 1,
+	Position = UDim2.fromOffset(10, 42),
+	Size = UDim2.new(1, -20, 0, 126),
+}, stageInspector) :: Frame
+create("UIGridLayout", {
+	CellPadding = UDim2.fromOffset(8, 4),
+	CellSize = UDim2.new(0.5, -4, 0, 38),
+	FillDirectionMaxCells = 2,
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, stageForm)
+local function textField(parent: Instance, label: string, order: number): TextBox
+	local group = create("Frame", {
+		BackgroundTransparency = 1,
+		LayoutOrder = order,
+	}, parent) :: Frame
 	create("TextLabel", {
 		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSans,
-		Position = UDim2.fromOffset(x, y),
-		Size = UDim2.fromOffset(width, 16),
+		Font = Enum.Font.BuilderSansBold,
+		Size = UDim2.new(1, 0, 0, 13),
 		Text = label,
 		TextColor3 = COLORS.muted,
-		TextSize = 11,
+		TextSize = 9,
 		TextXAlignment = Enum.TextXAlignment.Left,
-	}, parent)
+	}, group)
 	local field = create("TextBox", {
 		BackgroundColor3 = COLORS.field,
 		BorderSizePixel = 0,
 		ClearTextOnFocus = false,
 		Font = Enum.Font.BuilderSans,
-		Position = UDim2.fromOffset(x, y + 17),
-		Size = UDim2.fromOffset(width, 26),
+		Position = UDim2.fromOffset(0, 14),
+		Size = UDim2.new(1, 0, 0, 24),
 		Text = "",
 		TextColor3 = COLORS.text,
-		TextSize = 12,
+		TextSize = 11,
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
-	}, parent) :: TextBox
+	}, group) :: TextBox
 	create("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) }, field)
-	create("UICorner", { CornerRadius = UDim.new(0, 4) }, field)
+	create("UICorner", { CornerRadius = UDim.new(0, 5) }, field)
+	create("UIStroke", { Color = COLORS.border, Thickness = 1 }, field)
 	return field
 end
-local stageNameField = textField(stageInspector, "DISPLAY NAME", 8, 7, 180)
-local columnsField = textField(stageInspector, "COLUMNS", 194, 7, 66)
-local rowsField = textField(stageInspector, "ROWS", 266, 7, 66)
-local cellSizeField = textField(stageInspector, "CELL SIZE", 338, 7, 72)
-local stageLevelLabel = create("TextLabel", {
-	BackgroundColor3 = COLORS.field,
-	BorderSizePixel = 0,
-	Position = UDim2.fromOffset(414, 23),
-	Size = UDim2.fromOffset(98, 26),
-	Text = "STAGE 1 · LEVEL 1",
-	TextColor3 = COLORS.accent,
-	TextSize = 10,
-}, stageInspector) :: TextLabel
-create("UICorner", { CornerRadius = UDim.new(0, 4) }, stageLevelLabel)
-local waveSetField = textField(stageInspector, "WAVE SET ID", 8, 59, 180)
-local themeField = textField(stageInspector, "THEME ID", 194, 59, 138)
-button(stageInspector, "Apply Level", 112, function()
+local stageNameField = textField(stageForm, "DISPLAY NAME", 1)
+local waveSetField = textField(stageForm, "WAVE SET ID", 2)
+local themeField = textField(stageForm, "THEME ID", 3)
+local columnsField = textField(stageForm, "COLUMNS", 4)
+local rowsField = textField(stageForm, "ROWS", 5)
+local cellSizeField = textField(stageForm, "CELL SIZE", 6)
+local applyStageButton = button(stageInspector, "Apply changes", 124, function()
 	local current = stage()
 	if current == nil then
 		return
@@ -695,15 +881,27 @@ button(stageInspector, "Apply Level", 112, function()
 		end
 	end)
 	renderAll()
-end).Position =
-	UDim2.fromOffset(338, 77)
+end)
+applyStageButton.AnchorPoint = Vector2.new(1, 0)
+applyStageButton.Position = UDim2.new(1, -12, 0, 178)
+create("TextLabel", {
+	BackgroundTransparency = 1,
+	Font = Enum.Font.BuilderSans,
+	Position = UDim2.fromOffset(12, 181),
+	Size = UDim2.new(1, -154, 0, 24),
+	Text = "Grid resize previews destructive changes before applying.",
+	TextColor3 = COLORS.muted,
+	TextSize = 10,
+	TextTruncate = Enum.TextTruncate.AtEnd,
+	TextXAlignment = Enum.TextXAlignment.Left,
+}, stageInspector)
 local stageList = create("ScrollingFrame", {
-	BackgroundColor3 = COLORS.panel,
+	BackgroundColor3 = COLORS.background,
 	BorderSizePixel = 0,
 	CanvasSize = UDim2.fromOffset(0, 0),
-	Position = UDim2.fromOffset(0, 142),
+	Position = UDim2.fromOffset(0, 224),
 	ScrollBarThickness = 6,
-	Size = UDim2.new(1, 0, 1, -214),
+	Size = UDim2.new(1, 0, 1, -306),
 }, stagePage) :: ScrollingFrame
 create("UIListLayout", { Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder }, stageList)
 create("UIPadding", {
@@ -714,16 +912,20 @@ create("UIPadding", {
 local stageActions = create("Frame", {
 	BackgroundColor3 = COLORS.panel,
 	BorderSizePixel = 0,
-	Position = UDim2.new(0, 0, 1, -68),
-	Size = UDim2.new(1, 0, 0, 68),
+	Position = UDim2.new(0, 0, 1, -78),
+	Size = UDim2.new(1, 0, 0, 78),
 }, stagePage) :: Frame
-create("UIListLayout", {
-	FillDirection = Enum.FillDirection.Horizontal,
-	Padding = UDim.new(0, 5),
+create("UIGridLayout", {
+	CellPadding = UDim2.fromOffset(6, 6),
+	CellSize = UDim2.new(0.25, -8, 0, 29),
+	FillDirectionMaxCells = 4,
 	SortOrder = Enum.SortOrder.LayoutOrder,
-	VerticalAlignment = Enum.VerticalAlignment.Center,
 }, stageActions)
-create("UIPadding", { PaddingLeft = UDim.new(0, 8) }, stageActions)
+create("UIPadding", {
+	PaddingLeft = UDim.new(0, 8),
+	PaddingRight = UDim.new(0, 8),
+	PaddingTop = UDim.new(0, 7),
+}, stageActions)
 
 function mutate(name: string, callback: () -> ())
 	ProjectStore.mutate(name, callback)
@@ -734,19 +936,27 @@ function mutate(name: string, callback: () -> ())
 	setStatus(`Working changes · {ProjectStore.workingChecksum()}`)
 end
 
-button(stageActions, "+ Stage", 62, function()
+local stageActionOrder = 0
+local function stageAction(text: string, callback: () -> ()): TextButton
+	stageActionOrder += 1
+	local result = button(stageActions, text, 80, callback)
+	result.LayoutOrder = stageActionOrder
+	return result
+end
+
+stageAction("New stage", function()
 	mutate("Create Stagewright stage group", function()
 		selectedStageId = ProjectStore.createStage(nil)
 	end)
 	renderAll()
 end)
-button(stageActions, "+ Level", 76, function()
+stageAction("Copy level", function()
 	mutate("Create Stagewright level", function()
 		selectedStageId = ProjectStore.createLevel(selectedStageId)
 	end)
 	renderAll()
 end)
-button(stageActions, "Delete", 62, function()
+stageAction("Delete", function()
 	if not confirm(`delete_{selectedStageId}`, "Delete this level and its graph data?") then
 		return
 	end
@@ -760,22 +970,22 @@ button(stageActions, "Delete", 62, function()
 	setStatus(message, not ok)
 	renderAll()
 end)
-for _, move in { { "↑", -1 }, { "↓", 1 } } do
-	button(stageActions, move[1] :: string, 36, function()
+for _, move in { { "Move up", -1 }, { "Move down", 1 } } do
+	stageAction(move[1] :: string, function()
 		mutate("Reorder Stagewright stages", function()
 			ProjectStore.moveStage(selectedStageId, move[2] :: number)
 		end)
 		renderAll()
 	end)
 end
-button(stageActions, "Focus Admin", 88, function()
+stageAction("Focus editor", function()
 	AuthoringArea.focus()
 	setStatus("Focused the separate Stagewright admin authoring area.")
 end)
 local islandGuideButton: TextButton
-islandGuideButton = button(stageActions, "Island Guides: On", 104, function()
+islandGuideButton = stageAction("Guides on", function()
 	islandOutlinesEnabled = not islandOutlinesEnabled
-	islandGuideButton.Text = if islandOutlinesEnabled then "Island Guides: On" else "Island Guides: Off"
+	islandGuideButton.Text = if islandOutlinesEnabled then "Guides on" else "Guides off"
 	renderIslandOutlines()
 	setStatus(if islandOutlinesEnabled then "Six island footprint guides shown." else "Island guides hidden.")
 end)
@@ -787,6 +997,12 @@ local function renderStageList()
 		end
 	end
 	stageIds = ProjectStore.stageIds()
+	local issueCounts: { [string]: number } = {}
+	for _, issue in validationIssues do
+		if issue.stageId ~= nil then
+			issueCounts[issue.stageId] = (issueCounts[issue.stageId] or 0) + 1
+		end
+	end
 	local previousGroupId: string? = nil
 	local groupCount = 0
 	for order, stageId in stageIds do
@@ -796,19 +1012,25 @@ local function renderStageList()
 			groupCount += 1
 			previousGroupId = address.groupId
 			local groupHeader = create("TextLabel", {
-				BackgroundTransparency = 1,
+				BackgroundColor3 = COLORS.background,
+				BorderSizePixel = 0,
+				Font = Enum.Font.BuilderSansBold,
 				LayoutOrder = order * 2 - 1,
-				Size = UDim2.new(1, -16, 0, 24),
-				Text = `STAGE {address.stageNumber}`,
+				Size = UDim2.new(1, -16, 0, 28),
+				Text = `STAGE {address.stageNumber}  ·  {address.groupId:sub(-8)}`,
 				TextColor3 = COLORS.muted,
-				TextSize = 11,
+				TextSize = 10,
 				TextXAlignment = Enum.TextXAlignment.Left,
 			}, stageList) :: TextLabel
-			create("UIPadding", { PaddingLeft = UDim.new(0, 4) }, groupHeader)
+			create("UIPadding", { PaddingLeft = UDim.new(0, 6) }, groupHeader)
 		end
+		local issueCount = issueCounts[stageId] or 0
+		local health = if issueCount == 0
+			then "Ready"
+			else `{issueCount} issue{if issueCount == 1 then "" else "s"}`
 		local stageButton = button(
 			stageList,
-			`Level {address.levelNumber}  ·  {definition.name}  ·  {string.sub(stageId, -8)}`,
+			`Level {address.levelNumber}  ·  {definition.name}    {health}  ·  {string.sub(stageId, -8)}`,
 			300,
 			function()
 				selectedStageId = stageId
@@ -820,21 +1042,50 @@ local function renderStageList()
 			end
 		)
 		stageButton.LayoutOrder = order * 2
-		stageButton.Size = UDim2.new(1, -16, 0, 34)
+		stageButton.Size = UDim2.new(1, -16, 0, 38)
 		stageButton.TextXAlignment = Enum.TextXAlignment.Left
-		stageButton.BackgroundColor3 = if stageId == selectedStageId then COLORS.accent else COLORS.field
+		create("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) }, stageButton)
+		setButtonSelected(stageButton, stageId == selectedStageId)
 	end
-	stageList.CanvasSize = UDim2.fromOffset(0, #stageIds * 39 + groupCount * 29 + 16)
+	stageList.CanvasSize = UDim2.fromOffset(0, #stageIds * 43 + groupCount * 33 + 16)
 end
 
 -- Graph page: stable node/edge IDs, directed connections, predicates, lanes, and priorities.
 local graphPage = contentByMode.Graph
-local graphList = create("ScrollingFrame", {
+local graphSummary = create("Frame", {
 	BackgroundColor3 = COLORS.panel,
 	BorderSizePixel = 0,
+	Size = UDim2.new(1, 0, 0, 58),
+}, graphPage) :: Frame
+local graphSelectionTitle = create("TextLabel", {
+	BackgroundTransparency = 1,
+	Font = Enum.Font.BuilderSansBold,
+	Position = UDim2.fromOffset(14, 8),
+	Size = UDim2.new(1, -28, 0, 20),
+	Text = "Route graph",
+	TextColor3 = COLORS.text,
+	TextSize = 13,
+	TextTruncate = Enum.TextTruncate.AtEnd,
+	TextXAlignment = Enum.TextXAlignment.Left,
+}, graphSummary) :: TextLabel
+local graphSelectionHint = create("TextLabel", {
+	BackgroundTransparency = 1,
+	Font = Enum.Font.BuilderSans,
+	Position = UDim2.fromOffset(14, 29),
+	Size = UDim2.new(1, -28, 0, 18),
+	Text = "Add nodes, connect them, then shape handles directly in the 3D editor.",
+	TextColor3 = COLORS.muted,
+	TextSize = 11,
+	TextTruncate = Enum.TextTruncate.AtEnd,
+	TextXAlignment = Enum.TextXAlignment.Left,
+}, graphSummary) :: TextLabel
+local graphList = create("ScrollingFrame", {
+	BackgroundColor3 = COLORS.background,
+	BorderSizePixel = 0,
 	CanvasSize = UDim2.fromOffset(0, 0),
+	Position = UDim2.fromOffset(0, 62),
 	ScrollBarThickness = 6,
-	Size = UDim2.new(1, 0, 1, -214),
+	Size = UDim2.new(1, 0, 1, -310),
 }, graphPage) :: ScrollingFrame
 create("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, graphList)
 create("UIPadding", {
@@ -845,31 +1096,96 @@ create("UIPadding", {
 local graphActions = create("Frame", {
 	BackgroundColor3 = COLORS.panel,
 	BorderSizePixel = 0,
-	Position = UDim2.new(0, 0, 1, -210),
-	Size = UDim2.new(1, 0, 0, 210),
+	Position = UDim2.new(0, 0, 1, -244),
+	Size = UDim2.new(1, 0, 0, 244),
 }, graphPage) :: Frame
+local graphToolTabs = create("Frame", {
+	BackgroundTransparency = 1,
+	Position = UDim2.fromOffset(10, 8),
+	Size = UDim2.new(1, -20, 0, 30),
+}, graphActions) :: Frame
 create("UIGridLayout", {
-	CellPadding = UDim2.fromOffset(5, 5),
-	CellSize = UDim2.new(0.25, -9, 0, 27),
+	CellPadding = UDim2.fromOffset(6, 0),
+	CellSize = UDim2.new(1 / 3, -4, 1, 0),
 	SortOrder = Enum.SortOrder.LayoutOrder,
-}, graphActions)
-create("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingTop = UDim.new(0, 8) }, graphActions)
+}, graphToolTabs)
+local graphActionPages: { [GraphToolMode]: Frame } = {} :: any
+local graphToolButtons: { [GraphToolMode]: TextButton } = {} :: any
+local renderGraphTools: () -> ()
+local graphPageHelp = {
+	Build = "Create topology and adjust the selected edge's priority, fallback, or lane count.",
+	Rules = "Conditions on one edge are combined with AND. Every branch still needs a fallback edge.",
+	Test = "Preview the exact branch choices for a server-authoritative enemy context.",
+}
+local function graphActionPage(mode: GraphToolMode, columns: number): Frame
+	local page = create("Frame", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(10, 44),
+		Size = UDim2.new(1, -20, 1, -52),
+		Visible = mode == graphToolMode,
+	}, graphActions) :: Frame
+	graphActionPages[mode] = page
+	create("TextLabel", {
+		BackgroundTransparency = 1,
+		Font = Enum.Font.BuilderSans,
+		Size = UDim2.new(1, 0, 0, 30),
+		Text = graphPageHelp[mode],
+		TextColor3 = COLORS.muted,
+		TextSize = 10,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+	}, page)
+	local controls = create("Frame", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(0, 32),
+		Size = UDim2.new(1, 0, 1, -32),
+	}, page) :: Frame
+	create("UIGridLayout", {
+		CellPadding = UDim2.fromOffset(6, 6),
+		CellSize = UDim2.new(1 / columns, -4, 0, 29),
+		FillDirectionMaxCells = columns,
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, controls)
+	return controls
+end
+local buildControls = graphActionPage("Build", 3)
+local rulesControls = graphActionPage("Rules", 2)
+local testControls = graphActionPage("Test", 2)
+for order, modeName in { "Build", "Rules", "Test" } :: { GraphToolMode } do
+	local mode = modeName :: GraphToolMode
+	local tab = button(graphToolTabs, mode, 90, function()
+		graphToolMode = mode
+		renderGraphTools()
+	end)
+	tab.LayoutOrder = order
+	graphToolButtons[mode] = tab
+end
+function renderGraphTools()
+	for mode, page in graphActionPages do
+		page.Visible = mode == graphToolMode
+		setButtonSelected(graphToolButtons[mode], mode == graphToolMode)
+	end
+end
 
-local function actionField(placeholder: string): TextBox
+local function actionField(parent: Instance, placeholder: string): TextBox
 	local field = create("TextBox", {
 		BackgroundColor3 = COLORS.field,
 		BorderSizePixel = 0,
 		ClearTextOnFocus = false,
 		Font = Enum.Font.BuilderSans,
+		LayoutOrder = #parent:GetChildren() + 1,
 		PlaceholderColor3 = COLORS.muted,
 		PlaceholderText = placeholder,
 		Text = "",
 		TextColor3 = COLORS.text,
 		TextSize = 11,
 		TextXAlignment = Enum.TextXAlignment.Left,
-	}, graphActions) :: TextBox
+		TextTruncate = Enum.TextTruncate.AtEnd,
+	}, parent) :: TextBox
 	create("UIPadding", { PaddingLeft = UDim.new(0, 5), PaddingRight = UDim.new(0, 5) }, field)
-	create("UICorner", { CornerRadius = UDim.new(0, 4) }, field)
+	create("UICorner", { CornerRadius = UDim.new(0, 5) }, field)
+	create("UIStroke", { Color = COLORS.border, Thickness = 1 }, field)
 	return field
 end
 
@@ -901,20 +1217,21 @@ local function newNode(kind: string)
 		tags = {},
 	}
 	selectedNodeId = id
+	selectedEdgeId = nil
 end
 for _, kind in { "Spawn", "Junction", "Goal" } do
-	button(graphActions, `Add {kind}`, 112, function()
+	button(buildControls, `Add {kind}`, 112, function()
 		mutate(`Add {kind} node`, function()
 			newNode(kind)
 		end)
 		renderAll()
 	end)
 end
-button(graphActions, "Connect From", 112, function()
+button(buildControls, "Connect from", 112, function()
 	connectFromNodeId = selectedNodeId
 	setStatus(if connectFromNodeId ~= nil then "Select a destination node." else "Select a node first.")
 end)
-button(graphActions, "Delete Node", 112, function()
+button(buildControls, "Delete node", 112, function()
 	local currentGraph = graph()
 	if currentGraph == nil or selectedNodeId == nil then
 		return
@@ -933,7 +1250,22 @@ button(graphActions, "Delete Node", 112, function()
 	end)
 	renderAll()
 end)
-button(graphActions, "Priority +", 112, function()
+button(buildControls, "Delete edge", 112, function()
+	local currentGraph = graph()
+	if currentGraph == nil or selectedEdgeId == nil then
+		setStatus("Select an edge before deleting it.", true)
+		return
+	end
+	if not confirm(`edge_{selectedEdgeId}`, "Delete the selected directed edge?") then
+		return
+	end
+	mutate("Delete Stagewright graph edge", function()
+		currentGraph.edges[selectedEdgeId :: string] = nil
+		selectedEdgeId = nil
+	end)
+	renderAll()
+end)
+button(buildControls, "Priority +", 112, function()
 	local currentGraph = graph()
 	if currentGraph == nil or selectedEdgeId == nil then
 		return
@@ -943,7 +1275,7 @@ button(graphActions, "Priority +", 112, function()
 	end)
 	renderAll()
 end)
-button(graphActions, "Priority −", 112, function()
+button(buildControls, "Priority −", 112, function()
 	local currentGraph = graph()
 	if currentGraph == nil or selectedEdgeId == nil then
 		return
@@ -954,7 +1286,7 @@ button(graphActions, "Priority −", 112, function()
 	end)
 	renderAll()
 end)
-button(graphActions, "Set Fallback", 112, function()
+button(buildControls, "Set fallback", 112, function()
 	local currentGraph = graph()
 	if currentGraph == nil or selectedEdgeId == nil then
 		return
@@ -966,13 +1298,13 @@ button(graphActions, "Set Fallback", 112, function()
 end)
 
 local conditionKindButton: TextButton
-conditionKindButton = button(graphActions, PREDICATE_KINDS[predicateKindIndex], 112, function()
+conditionKindButton = button(rulesControls, PREDICATE_KINDS[predicateKindIndex], 112, function()
 	predicateKindIndex = (predicateKindIndex % #PREDICATE_KINDS) + 1
 	conditionKindButton.Text = PREDICATE_KINDS[predicateKindIndex]
 end)
-local conditionKeyField = actionField("condition key / ID")
-local conditionValueField = actionField("minimum / value")
-local conditionMaximumField = actionField("maximum")
+local conditionKeyField = actionField(rulesControls, "condition key / ID")
+local conditionValueField = actionField(rulesControls, "minimum / value")
+local conditionMaximumField = actionField(rulesControls, "maximum")
 
 local function predicateFromFields(edge: any): (any?, string?)
 	local kind = PREDICATE_KINDS[predicateKindIndex]
@@ -1024,7 +1356,7 @@ local function predicateFromFields(edge: any): (any?, string?)
 	return nil, "Unknown predicate kind"
 end
 
-button(graphActions, "Add Condition", 112, function()
+button(rulesControls, "Add condition", 112, function()
 	local currentGraph = graph()
 	if currentGraph == nil or selectedEdgeId == nil then
 		setStatus("Select an edge before adding a condition.", true)
@@ -1041,7 +1373,7 @@ button(graphActions, "Add Condition", 112, function()
 	end)
 	renderAll()
 end)
-button(graphActions, "Remove Condition", 112, function()
+button(rulesControls, "Remove condition", 112, function()
 	local currentGraph = graph()
 	if currentGraph == nil or selectedEdgeId == nil then
 		return
@@ -1056,12 +1388,12 @@ button(graphActions, "Remove Condition", 112, function()
 	renderAll()
 end)
 
-local traceWaveField = actionField("trace wave (1)")
-local traceTagsField = actionField("tags: Ground,Boss")
-local traceFlagsField = actionField("flags: hard=true")
-local traceCurrenciesField = actionField("currency: coins=500")
-local traceUpgradesField = actionField("upgrades: range=4")
-local traceUnlockedField = actionField("unlocked stage IDs")
+local traceWaveField = actionField(testControls, "trace wave (1)")
+local traceTagsField = actionField(testControls, "tags: Ground,Boss")
+local traceFlagsField = actionField(testControls, "flags: hard=true")
+local traceCurrenciesField = actionField(testControls, "currency: coins=500")
+local traceUpgradesField = actionField(testControls, "upgrades: range=4")
+local traceUnlockedField = actionField(testControls, "unlocked stage IDs")
 
 local function commaSet(text: string): { [string]: boolean }
 	local result: { [string]: boolean } = {}
@@ -1089,7 +1421,7 @@ local function assignmentMap(text: string, booleanValues: boolean): { [string]: 
 	return result
 end
 
-button(graphActions, "Trace Route", 112, function()
+button(testControls, "Trace route", 112, function()
 	local currentGraph = graph()
 	if currentGraph == nil then
 		return
@@ -1131,7 +1463,7 @@ button(graphActions, "Trace Route", 112, function()
 	rebuildPreview()
 end)
 for laneCount, laneLabel in { "1 Lane", "2 Lanes", "3 Lanes" } do
-	button(graphActions, laneLabel, 112, function()
+	button(buildControls, laneLabel, 112, function()
 		local currentGraph = graph()
 		if currentGraph == nil or selectedEdgeId == nil then
 			setStatus("Select an edge before changing its lane profile.", true)
@@ -1176,6 +1508,7 @@ local function connectNodes(fromId: string, toId: string)
 		predicates = {},
 	}
 	selectedEdgeId = id
+	selectedNodeId = nil
 end
 
 local function renderGraphList()
@@ -1186,14 +1519,75 @@ local function renderGraphList()
 	end
 	local currentGraph = graph()
 	if currentGraph == nil then
+		graphSelectionTitle.Text = "No route graph"
+		graphSelectionHint.Text = "Create or import a graph before editing routes."
 		return
 	end
 	local order = 0
-	for nodeId, node in currentGraph.nodes do
+	local nodeIds: { string } = {}
+	for nodeId in currentGraph.nodes do
+		table.insert(nodeIds, nodeId)
+	end
+	local kindOrder = { Spawn = 1, Junction = 2, Goal = 3 }
+	table.sort(nodeIds, function(left, right)
+		local leftNode = currentGraph.nodes[left]
+		local rightNode = currentGraph.nodes[right]
+		local leftKind = kindOrder[leftNode.kind] or 99
+		local rightKind = kindOrder[rightNode.kind] or 99
+		if leftKind ~= rightKind then
+			return leftKind < rightKind
+		end
+		if leftNode.name ~= rightNode.name then
+			return leftNode.name < rightNode.name
+		end
+		return left < right
+	end)
+	local edgeIds: { string } = {}
+	for edgeId in currentGraph.edges do
+		table.insert(edgeIds, edgeId)
+	end
+	table.sort(edgeIds, function(left, right)
+		local leftEdge = currentGraph.edges[left]
+		local rightEdge = currentGraph.edges[right]
+		if leftEdge.priority ~= rightEdge.priority then
+			return leftEdge.priority < rightEdge.priority
+		end
+		return left < right
+	end)
+
+	local selectedNode = if selectedNodeId ~= nil then currentGraph.nodes[selectedNodeId] else nil
+	local selectedEdge = if selectedEdgeId ~= nil then currentGraph.edges[selectedEdgeId] else nil
+	if selectedNode ~= nil then
+		graphSelectionTitle.Text = `{selectedNode.kind} · {selectedNode.name}`
+		graphSelectionHint.Text =
+			`Drag its 3D control to reposition it · ID {string.sub(selectedNode.id, -8)}`
+	elseif selectedEdge ~= nil then
+		local from = currentGraph.nodes[selectedEdge.fromNodeId]
+		local to = currentGraph.nodes[selectedEdge.toNodeId]
+		local profile = currentGraph.laneProfiles[selectedEdge.laneProfileId]
+		local laneCount = if profile ~= nil and type(profile.offsets) == "table" then #profile.offsets else 0
+		local ruleNames: { string } = {}
+		for _, predicate in selectedEdge.predicates do
+			table.insert(ruleNames, predicate.kind)
+		end
+		graphSelectionTitle.Text =
+			`{if from ~= nil then from.name else "Missing"}  →  {if to ~= nil then to.name else "Missing"}`
+		graphSelectionHint.Text = `P{selectedEdge.priority} · {laneCount} lane{if laneCount == 1
+			then ""
+			else "s"} · {if #ruleNames == 0 then "unconditional fallback" else table.concat(ruleNames, " + ")}`
+	else
+		graphSelectionTitle.Text = `{#nodeIds} nodes · {#edgeIds} edges`
+		graphSelectionHint.Text = "Select an item below, or add a spawn, junction, or goal from Build tools."
+	end
+
+	order += 1
+	sectionLabel(graphList, "Nodes", order)
+	for _, nodeId in nodeIds do
+		local node = currentGraph.nodes[nodeId]
 		order += 1
 		local nodeButton = button(
 			graphList,
-			`{node.kind} · {node.name} · {string.sub(nodeId, -8)}`,
+			`{string.upper(node.kind)}  ·  {node.name}  ·  {string.sub(nodeId, -8)}`,
 			300,
 			function()
 				if connectFromNodeId ~= nil then
@@ -1202,49 +1596,94 @@ local function renderGraphList()
 					mutate("Connect Stagewright graph nodes", function()
 						connectNodes(from, nodeId)
 					end)
+					renderAll()
 				else
 					selectedNodeId = nodeId
+					selectedEdgeId = nil
 					local part = if previewFolder ~= nil
 						then previewFolder:FindFirstChild(`Node_{node.name}`)
 						else nil
 					if part ~= nil then
 						Selection:Set({ part })
 					end
+					renderGraphList()
+					rebuildPreview()
 				end
-				renderAll()
 			end
 		)
 		nodeButton.LayoutOrder = order
-		nodeButton.Size = UDim2.new(1, -16, 0, 30)
-		nodeButton.BackgroundColor3 = if selectedNodeId == nodeId then COLORS.accent else COLORS.field
+		nodeButton.Size = UDim2.new(1, -16, 0, 34)
+		nodeButton.TextXAlignment = Enum.TextXAlignment.Left
+		create("UIPadding", { PaddingLeft = UDim.new(0, 10) }, nodeButton)
+		setButtonSelected(nodeButton, selectedNodeId == nodeId)
 	end
-	for edgeId, edge in currentGraph.edges do
+	order += 1
+	sectionLabel(graphList, "Directed edges", order)
+	for _, edgeId in edgeIds do
+		local edge = currentGraph.edges[edgeId]
+		local from = currentGraph.nodes[edge.fromNodeId]
+		local to = currentGraph.nodes[edge.toNodeId]
 		order += 1
 		local edgeButton = button(
 			graphList,
-			`→ {string.sub(edge.fromNodeId, -6)} → {string.sub(edge.toNodeId, -6)} · P{edge.priority} · {#edge.predicates} condition(s)`,
+			`{if from ~= nil then from.name else "Missing"}  →  {if to ~= nil then to.name else "Missing"}  ·  P{edge.priority}  ·  {if #edge.predicates
+					== 0
+				then "Fallback"
+				else `{#edge.predicates} condition(s)`}`,
 			300,
 			function()
 				selectedEdgeId = edgeId
+				selectedNodeId = nil
 				tracedEdgeIds = {}
-				renderAll()
+				renderGraphList()
+				rebuildPreview()
 			end
 		)
 		edgeButton.LayoutOrder = order
-		edgeButton.Size = UDim2.new(1, -16, 0, 30)
-		edgeButton.BackgroundColor3 = if selectedEdgeId == edgeId then COLORS.accent else COLORS.field
+		edgeButton.Size = UDim2.new(1, -16, 0, 34)
+		edgeButton.TextXAlignment = Enum.TextXAlignment.Left
+		create("UIPadding", { PaddingLeft = UDim.new(0, 10) }, edgeButton)
+		setButtonSelected(edgeButton, selectedEdgeId == edgeId)
 	end
-	graphList.CanvasSize = UDim2.fromOffset(0, order * 34 + 16)
+	graphList.CanvasSize = UDim2.fromOffset(0, (#nodeIds + #edgeIds) * 38 + 68)
 end
 
 -- Validate/export page.
 local validatePage = contentByMode.Validate
-local issueList = create("ScrollingFrame", {
+local validateSummary = create("Frame", {
 	BackgroundColor3 = COLORS.panel,
 	BorderSizePixel = 0,
+	Size = UDim2.new(1, 0, 0, 74),
+}, validatePage) :: Frame
+local validateTitle = create("TextLabel", {
+	BackgroundTransparency = 1,
+	Font = Enum.Font.BuilderSansBold,
+	Position = UDim2.fromOffset(14, 10),
+	Size = UDim2.new(1, -28, 0, 22),
+	Text = "Checking project…",
+	TextColor3 = COLORS.text,
+	TextSize = 14,
+	TextXAlignment = Enum.TextXAlignment.Left,
+}, validateSummary) :: TextLabel
+local validateHint = create("TextLabel", {
+	BackgroundTransparency = 1,
+	Font = Enum.Font.BuilderSans,
+	Position = UDim2.fromOffset(14, 34),
+	Size = UDim2.new(1, -28, 0, 28),
+	Text = "Select an issue to jump to its level or route object.",
+	TextColor3 = COLORS.muted,
+	TextSize = 11,
+	TextWrapped = true,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextYAlignment = Enum.TextYAlignment.Top,
+}, validateSummary) :: TextLabel
+local issueList = create("ScrollingFrame", {
+	BackgroundColor3 = COLORS.background,
+	BorderSizePixel = 0,
 	CanvasSize = UDim2.fromOffset(0, 0),
+	Position = UDim2.fromOffset(0, 78),
 	ScrollBarThickness = 6,
-	Size = UDim2.new(1, 0, 1, -45),
+	Size = UDim2.new(1, 0, 1, -131),
 }, validatePage) :: ScrollingFrame
 create("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, issueList)
 create("UIPadding", {
@@ -1255,52 +1694,97 @@ create("UIPadding", {
 local exportActions = create("Frame", {
 	BackgroundColor3 = COLORS.panel,
 	BorderSizePixel = 0,
-	Position = UDim2.new(0, 0, 1, -41),
-	Size = UDim2.new(1, 0, 0, 41),
+	Position = UDim2.new(0, 0, 1, -49),
+	Size = UDim2.new(1, 0, 0, 49),
 }, validatePage) :: Frame
 create("UIListLayout", {
 	FillDirection = Enum.FillDirection.Horizontal,
-	Padding = UDim.new(0, 6),
+	Padding = UDim.new(0, 8),
 	VerticalAlignment = Enum.VerticalAlignment.Center,
 }, exportActions)
-create("UIPadding", { PaddingLeft = UDim.new(0, 8) }, exportActions)
+create("UIPadding", { PaddingLeft = UDim.new(0, 10) }, exportActions)
 
 local function renderIssues()
 	for _, child in issueList:GetChildren() do
-		if child:IsA("TextLabel") then
+		if child:IsA("GuiButton") or child:IsA("TextLabel") then
 			child:Destroy()
 		end
 	end
-	local issues = ProjectStore.validate()
-	for order, issue in issues do
-		local label = create("TextLabel", {
-			BackgroundColor3 = COLORS.field,
-			BorderSizePixel = 0,
-			Font = Enum.Font.BuilderSans,
-			LayoutOrder = order,
-			Size = UDim2.new(1, -16, 0, 42),
-			Text = `[{issue.severity}] {issue.code} · {issue.message}`,
-			TextColor3 = if issue.severity == "Error"
-				then Color3.fromRGB(239, 105, 105)
-				else Color3.fromRGB(245, 190, 78),
-			TextSize = 12,
-			TextWrapped = true,
-			TextXAlignment = Enum.TextXAlignment.Left,
-		}, issueList) :: TextLabel
-		create("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8) }, label)
+	validationIssues = ProjectStore.validate()
+	local errorCount = 0
+	local warningCount = 0
+	for _, issue in validationIssues do
+		if issue.severity == "Error" then
+			errorCount += 1
+		else
+			warningCount += 1
+		end
 	end
-	if #issues == 0 then
+	if #validationIssues == 0 then
+		validateTitle.Text = "Ready to export"
+		validateTitle.TextColor3 = COLORS.success
+		validateHint.Text = "No errors or warnings. The deployable bundle can be exported safely."
+	else
+		validateTitle.Text =
+			`{errorCount} error{if errorCount == 1 then "" else "s"} · {warningCount} warning{if warningCount
+					== 1
+				then ""
+				else "s"}`
+		validateTitle.TextColor3 = if errorCount > 0 then COLORS.danger else COLORS.warning
+		validateHint.Text = "Select an issue to jump to its level or route object. Errors block export."
+	end
+	for order, issue in validationIssues do
+		local issueButton = button(issueList, "", 300, function()
+			if issue.stageId ~= nil and project.stages[issue.stageId] ~= nil then
+				selectedStageId = issue.stageId
+			end
+			selectedGraphId = issue.graphId
+			selectedNodeId = nil
+			selectedEdgeId = nil
+			local issueGraph = graph()
+			if issueGraph ~= nil and issue.objectId ~= nil then
+				if issueGraph.nodes[issue.objectId] ~= nil then
+					selectedNodeId = issue.objectId
+				elseif issueGraph.edges[issue.objectId] ~= nil then
+					selectedEdgeId = issue.objectId
+				end
+			end
+			activeMode = if issue.graphId ~= nil or issue.objectId ~= nil then "Graph" else "Stage"
+			setStatus(`Opened {issue.code}: {issue.message}`, issue.severity == "Error")
+			renderAll()
+		end)
+		issueButton.LayoutOrder = order
+		issueButton.Size = UDim2.new(1, -16, 0, 56)
+		issueButton.Text = `{string.upper(issue.severity)}  ·  {issue.code}\n{issue.message}`
+		issueButton.TextColor3 = if issue.severity == "Error" then COLORS.danger else COLORS.warning
+		issueButton.TextSize = 11
+		issueButton.TextTruncate = Enum.TextTruncate.None
+		issueButton.TextWrapped = true
+		issueButton.TextXAlignment = Enum.TextXAlignment.Left
+		create("UIPadding", {
+			PaddingLeft = UDim.new(0, 10),
+			PaddingRight = UDim.new(0, 10),
+		}, issueButton)
+		local stroke = issueButton:FindFirstChild("Outline")
+		if stroke ~= nil and stroke:IsA("UIStroke") then
+			stroke.Color = if issue.severity == "Error"
+				then Color3.fromRGB(117, 57, 63)
+				else Color3.fromRGB(112, 87, 42)
+		end
+	end
+	if #validationIssues == 0 then
 		create("TextLabel", {
 			BackgroundTransparency = 1,
 			Font = Enum.Font.BuilderSansMedium,
-			Size = UDim2.new(1, -16, 0, 42),
-			Text = "✓ No validation issues. Bundle is ready to export.",
-			TextColor3 = Color3.fromRGB(102, 204, 132),
+			Size = UDim2.new(1, -16, 0, 64),
+			Text = "✓  Everything looks good\nYour stage hierarchy and route graphs passed validation.",
+			TextColor3 = COLORS.success,
 			TextSize = 13,
+			TextWrapped = true,
 			TextXAlignment = Enum.TextXAlignment.Left,
 		}, issueList)
 	end
-	issueList.CanvasSize = UDim2.fromOffset(0, math.max(#issues, 1) * 46 + 16)
+	issueList.CanvasSize = UDim2.fromOffset(0, math.max(#validationIssues, 1) * 62 + 16)
 end
 
 local function exportBundle()
@@ -1382,15 +1866,15 @@ end)
 function rerenderAll()
 	for mode, page in contentByMode do
 		page.Visible = mode == activeMode
-		modeButtons[mode].BackgroundColor3 = if mode == activeMode then COLORS.accent else COLORS.field
+		setButtonSelected(modeButtons[mode], mode == activeMode)
 	end
-	for brushId, brushButton in brushButtons do
-		brushButton.BackgroundColor3 = if brushId == activeBrushId then COLORS.accent else COLORS.field
-	end
+	renderGraphTools()
+	renderPaintChrome()
 	local current = stage()
 	if current ~= nil then
 		local address = StageHierarchy.address(current)
-		title.Text = `STAGEWRIGHT  ·  Stage {address.stageNumber}  ·  Level {address.levelNumber}`
+		title.Text = `Stagewright  ·  Stage {address.stageNumber} / Level {address.levelNumber}`
+		stageInspectorTitle.Text = `Level settings  ·  {current.name}`
 		stageLevelLabel.Text = `STAGE {address.stageNumber} · LEVEL {address.levelNumber}`
 		if not stageNameField:IsFocused() then
 			stageNameField.Text = current.name
@@ -1412,9 +1896,9 @@ function rerenderAll()
 		end
 	end
 	renderCanvas()
+	renderIssues()
 	renderStageList()
 	renderGraphList()
-	renderIssues()
 	renderIslandOutlines()
 	if activeMode == "Graph" then
 		rebuildPreview()
@@ -1471,7 +1955,7 @@ local outlineAction = plugin:CreatePluginAction(
 )
 outlineAction.Triggered:Connect(function()
 	islandOutlinesEnabled = not islandOutlinesEnabled
-	islandGuideButton.Text = if islandOutlinesEnabled then "Island Guides: On" else "Island Guides: Off"
+	islandGuideButton.Text = if islandOutlinesEnabled then "Guides on" else "Guides off"
 	renderIslandOutlines()
 end)
 local duplicateAction = plugin:CreatePluginAction(

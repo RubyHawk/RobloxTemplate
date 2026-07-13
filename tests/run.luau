@@ -818,6 +818,13 @@ local stagewrightStoreSource = fs.readFile("src/plugins/Stagewright/ProjectStore
 local stagewrightAuthoringAreaSource = fs.readFile("src/plugins/Stagewright/AuthoringArea.luau")
 expectEqual(
 	pcall(function()
+		luau.load(gridPluginSource)
+	end),
+	true,
+	"modern Stagewright plugin shell compiles as Luau"
+)
+expectEqual(
+	pcall(function()
 		luau.load(stagewrightAuthoringAreaSource)
 	end),
 	true,
@@ -830,7 +837,7 @@ for _, pluginObject in
 		"plugin:CreateToolbar",
 		"CreateDockWidgetPluginGuiAsync",
 		"StagewrightPanel",
-		"Versioned Stage Editor",
+		"Stagewright · Stage Editor",
 		"StagewrightProject",
 		"StagewrightPayload",
 		"StagewrightPayloadChunks",
@@ -855,15 +862,25 @@ for _, pluginObject in
 		"EnemySpawn",
 		"StageTransition",
 		"Junction",
-		"Connect From",
-		"Add Condition",
-		"Trace Route",
-		"Set Fallback",
+		"Connect from",
+		"Add condition",
+		"Trace route",
+		"Set fallback",
 		"1 Lane",
 		"2 Lanes",
 		"3 Lanes",
-		"+ Stage",
-		"+ Level",
+		"New stage",
+		"Copy level",
+		"Apply changes",
+		"GraphToolMode",
+		"graphActionPages",
+		"buildControls",
+		"rulesControls",
+		"testControls",
+		"Delete edge",
+		"Select an issue to jump",
+		"AutomaticCanvasSize",
+		"setButtonSelected",
 		"STAGE {address.stageNumber}",
 		"StageLanes.offsets",
 		"outHandleOffset",
@@ -875,10 +892,10 @@ for _, pluginObject in
 		"AuthoringArea",
 		"StagewrightAdminArea",
 		"WhiteRoom",
-		"Focus Admin",
+		"Focus Stagewright Admin Area",
 		"StagewrightFocusAdminArea",
 		"StagewrightToggleIslandOutlines",
-		"Island Guides: On",
+		"Guides on",
 		"showIslandOutlines",
 		"StagewrightIslandOutlinePreview",
 		"StagePlatformLayout",
@@ -909,6 +926,11 @@ do
 		`edit-mode grid plugin includes {pluginObject}`
 	)
 end
+expectEqual(
+	string.find(gridPluginSource, "UDim2.fromOffset(414, 23)", 1, true),
+	nil,
+	"Stagewright level settings no longer depend on the clipped fixed-width form"
+)
 for _, removedPluginObject in
 	{
 		"DEFAULT_STAGE_PROFILES",
