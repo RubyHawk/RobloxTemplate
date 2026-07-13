@@ -568,7 +568,7 @@ RunService.Heartbeat:Connect(function(deltaTime: number)
 				end
 				fraction = math.clamp((momentum - previousAt) / math.max(nextAt - previousAt, 0.01), 0, 1)
 			end
-			momentumFill.Size = UDim2.new(fraction, 0, 1, 0)
+			momentumFill.Size = UDim2.fromScale(fraction, 1)
 		end
 	end
 

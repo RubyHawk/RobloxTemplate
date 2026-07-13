@@ -1624,14 +1624,14 @@ expectEqual(
 	nil,
 	"the hardcoded rune tick constant is gone"
 )
-local remoteServiceSource = fs.readFile("src/server/Services/RemoteService.luau")
+local runeRemoteSource = fs.readFile("src/server/Services/RemoteService.luau")
 expectEqual(
-	string.find(remoteServiceSource, 'SetRuneMode = "runes"', 1, true) ~= nil,
+	string.find(runeRemoteSource, 'SetRuneMode = "runes"', 1, true) ~= nil,
 	true,
 	"mode swaps are feature-gated behind the runes flag"
 )
 expectEqual(
-	string.find(remoteServiceSource, "temporaryMultiplier", 1, true) ~= nil,
+	string.find(runeRemoteSource, "temporaryMultiplier", 1, true) ~= nil,
 	true,
 	"snapshots publish the strongest temporary multiplier"
 )
