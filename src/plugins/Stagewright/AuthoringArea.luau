@@ -351,20 +351,6 @@ function AuthoringArea.showIslandOutlines(columns: number, rows: number, cellSiz
 	local slotCount = templateConfig.towerDefense.platformSlotCount
 	local lineColor = Color3.fromRGB(outlines.lineColor[1], outlines.lineColor[2], outlines.lineColor[3])
 	local fillColor = Color3.fromRGB(outlines.fillColor[1], outlines.fillColor[2], outlines.fillColor[3])
-	local facingColor =
-		Color3.fromRGB(outlines.facingColor[1], outlines.facingColor[2], outlines.facingColor[3])
-	local configuredDirection = templateConfig.towerDefense.centerFacingLocalDirection
-	local localCenterDirection = if type(configuredDirection) == "table"
-			and type(configuredDirection[1]) == "number"
-			and type(configuredDirection[3]) == "number"
-		then Vector3.new(configuredDirection[1], 0, configuredDirection[3])
-		else Vector3.new(0, 0, -1)
-	if localCenterDirection.Magnitude <= 1e-6 then
-		localCenterDirection = Vector3.new(0, 0, -1)
-	end
-	local localCenterUnit = localCenterDirection.Unit
-	local guideStartDistance = math.min(width, depth) * 0.12
-	local guideEndDistance = math.min(width, depth) * 0.38
 	for slot = 1, slotCount do
 		local offset, yaw = StagePlatformLayout.slotOffset(firstOffset, slot, slotCount)
 		local origin = center.CFrame
@@ -421,29 +407,36 @@ function AuthoringArea.showIslandOutlines(columns: number, rows: number, cellSiz
 				Enum.Material.Neon
 			)
 		end
-		local guideStart = origin:PointToWorldSpace(
-			Vector3.new(
-				localCenterUnit.X * guideStartDistance,
-				height + lineHeight * 0.5,
-				localCenterUnit.Z * guideStartDistance
+		local gridThickness = if type(outlines.gridLineThickness) == "number"
+			then outlines.gridLineThickness
+			else thickness * 0.375
+		local gridTransparency = if type(outlines.gridLineTransparency) == "number"
+			then outlines.gridLineTransparency
+			else 0.32
+		for column = 1, columns - 1 do
+			local x = -width * 0.5 + column * cellSize
+			outlinePart(
+				model,
+				`GridColumn_{string.format("%02d", column)}`,
+				Vector3.new(gridThickness, lineHeight, depth),
+				origin * CFrame.new(x, height, 0),
+				lineColor,
+				gridTransparency,
+				Enum.Material.Neon
 			)
-		)
-		local guideFinish = origin:PointToWorldSpace(
-			Vector3.new(
-				localCenterUnit.X * guideEndDistance,
-				height + lineHeight * 0.5,
-				localCenterUnit.Z * guideEndDistance
+		end
+		for row = 1, rows - 1 do
+			local z = -depth * 0.5 + row * cellSize
+			outlinePart(
+				model,
+				`GridRow_{string.format("%02d", row)}`,
+				Vector3.new(width, lineHeight, gridThickness),
+				origin * CFrame.new(0, height, z),
+				lineColor,
+				gridTransparency,
+				Enum.Material.Neon
 			)
-		)
-		outlinePart(
-			model,
-			"CenterFacingGuide",
-			Vector3.new(thickness * 1.8, lineHeight * 1.5, (guideFinish - guideStart).Magnitude),
-			CFrame.lookAt((guideStart + guideFinish) * 0.5, guideFinish, origin.UpVector),
-			facingColor,
-			0.02,
-			Enum.Material.Neon
-		)
+		end
 	end
 	return true
 end

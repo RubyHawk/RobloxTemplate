@@ -19,7 +19,7 @@ No workflow below creates a Roblox experience.
 5. Open **Plugins → Stagewright**. The plugin moves the existing `FirstPrivateIsland.GamePlatform` intact into the open-front white `Workspace.StagewrightAdminArea`, 1,000 studs below and 3,000 studs outside the map footprint. If the place has no `ServerStorage.StagewrightProject`, Stagewright imports that admin platform once.
 6. Confirm before editing:
    - **Stage → Focus Admin** frames the white authoring room and the main `GamePlatform` remains visible inside it. From the production map, the room is too deep to show through water or island gaps.
-   - **Island Guides: On** shows cyan 32×27 footprints on all six beaches. Each orange guide follows the stage's authored goal-bearing direction and points toward `center_grass`. Toggle it off and on without changing authored stage data.
+   - **Island Guides: On** shows the complete cyan 32×27 cell grid on all six beaches. No unexplained orange orientation line should cross an island. Toggle it off and on without changing authored stage data.
    - Start a Server + Client test and confirm `StagewrightAdminArea` moves to `ServerStorage` for the running session. The white room and its legacy grid cannot appear through the world during Play; Studio restores the editor copy when the test stops.
    - `FirstPrivateIsland` no longer owns the editable `GamePlatform`; the six island origins remain unchanged because they come from `center_grass` plus configuration.
    - Every legacy `#` remains an authored `Blocked` cell.
@@ -85,7 +85,7 @@ In Studio:
    - Published or real multi-account tests show each account's Roblox display name, username, and headshot. Studio's synthetic multi-client players use negative test IDs, so they show their Studio test name and a `TEST` avatar instead of impersonating a real account.
    - Confirm `ReplicatedStorage.Template.StagePlatformOrigins` reports `SlotCount = 6`, `LayoutAvailable = true`, `ServerMaxPlayers = 6`, and `CapacityMatchesSlotCount = true`.
 2. Confirm `Workspace.StagewrightClientGrids` contains `Platform_01` through `Platform_06` in every client. These runtime grids appear only after Play starts and remain on the six islands even though the editor platform lives in the admin room below the map.
-3. Confirm each island shows the same dual-approach route with two green spawns, one red goal, blue auto-place markers, and no overlapping legacy slot-1 grid.
+3. Confirm each island shows a clearly visible cyan cell grid above the grass plus the same dual-approach route with two distinct orange lanes, two green spawns, one red goal, blue auto-place markers, and no overlapping legacy slot-1 grid.
 4. Activate stages independently for different players.
 5. Start waves with different currencies/upgrades/flags and confirm server-selected branches.
 6. Attempt malformed, locked, and disabled stage IDs; out-of-range placements; repeated requests; and client-supplied route outcomes. All must fail server-side.

@@ -63,7 +63,8 @@ for _, marker in
 		"Focus Admin",
 		"StagewrightIslandOutlinePreview",
 		"StagewrightToggleIslandOutlines",
-		"CenterFacingGuide",
+		"GridColumn_",
+		"GridRow_",
 		"AlwaysOnTop",
 	}
 do
@@ -72,6 +73,10 @@ do
 		`Stagewright plugin artifact is missing source marker {marker}`
 	)
 end
+assert(
+	not string.find(pluginSource, "CenterFacingGuide", 1, true),
+	"Stagewright plugin artifact retained the misleading center-facing line"
+)
 
 local dataModel = roblox.deserializePlace(fs.readFile(placePath))
 local runtimeSource, runtimeNames = sourceAndNames(descendantsWithRoots({ dataModel }))

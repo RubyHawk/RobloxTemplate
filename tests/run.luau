@@ -842,7 +842,11 @@ for _, pluginObject in
 		"StagePlatformLayout",
 		"developmentOutlines",
 		"centerFacingLocalDirection",
-		"CenterFacingGuide",
+		"GridColumn_",
+		"GridRow_",
+		"gridLineThickness",
+		"lineThickness = 0.16",
+		"routeWidth = 2.4",
 		"AlwaysOnTop",
 		"RunService:IsRunning()",
 	}
@@ -863,7 +867,12 @@ do
 	)
 end
 for _, removedPluginObject in
-	{ "DEFAULT_STAGE_PROFILES", "catmullRomPosition", "PATH_GRID_RADIUS", "Runtime: any" }
+	{
+		"DEFAULT_STAGE_PROFILES",
+		"catmullRomPosition",
+		"PATH_GRID_RADIUS",
+		"Runtime: any",
+	}
 do
 	expectEqual(
 		string.find(gridPluginSource, removedPluginObject, 1, true),
@@ -871,6 +880,11 @@ do
 		`edit-mode grid plugin no longer uses separate {removedPluginObject} targeting`
 	)
 end
+expectEqual(
+	string.find(stagewrightAuthoringAreaSource, "CenterFacingGuide", 1, true),
+	nil,
+	"edit-mode island guides no longer draw a misleading orientation bar"
+)
 local runePluginProject = fs.readFile("plugins/rune-config-editor.project.json")
 local runePluginSource = fs.readFile("src/plugins/RunewrightPlugin.server.luau")
 for _, runePluginObject in
