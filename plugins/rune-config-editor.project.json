@@ -1,0 +1,6 @@
+{
+  "name": "RunewrightPlugin",
+  "tree": {
+    "$path": "../src/plugins/RunewrightPlugin.server.luau"
+  }
+}

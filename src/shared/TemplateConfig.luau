@@ -4,6 +4,7 @@ local CurrencyConfig = require(script.Parent.CurrencyConfig)
 local DataStoreNames = require(script.Parent.DataStoreNames)
 local DesignerConfig = require(script.Parent.DesignerConfig)
 local IconAssets = require(script.Parent.IconAssets)
+local RuneModeConfig = require(script.Parent.RuneModeConfig)
 
 local configuredCurrencies = CurrencyConfig.normalize(DesignerConfig.currencies)
 local dataNamespace = DataStoreNames.validateNamespace(DesignerConfig.dataNamespace)
@@ -15,6 +16,70 @@ local configuredPreset = if type(DesignerConfig.preset) == "string"
 		and string.match(DesignerConfig.preset, "^[a-z][a-z0-9_-]*$") ~= nil
 	then DesignerConfig.preset
 	else "incremental"
+
+-- Optional per-recipe rune overrides. The template's own DesignerConfig has no
+-- runes table; generated recipes may add one to retune altar pacing, milestone
+-- curves, or channel-mode availability per game stage.
+local designerRunes: { [string]: any } = if type((DesignerConfig :: any).runes) == "table"
+	then (DesignerConfig :: any).runes
+	else {}
+
+local function runeNumber(key: string, fallback: number, minimum: number, maximum: number): number
+	local value = designerRunes[key]
+	if type(value) ~= "number" or value ~= value or value == math.huge or value == -math.huge then
+		return fallback
+	end
+	return math.clamp(value, minimum, maximum)
+end
+
+local function runeRarityId(key: string, fallback: string): string
+	local value = designerRunes[key]
+	return if type(value) == "string" and #value >= 1 and #value <= 24 then value else fallback
+end
+
+local runeChannelModes = RuneModeConfig.normalize(designerRunes.channelModes, {
+	{
+		id = "luck",
+		name = "Lucky Channel",
+		kind = "luck",
+		unlock = { kind = "always", value = 0 },
+		tiers = {
+			{ atSeconds = 10, value = 1.25 },
+			{ atSeconds = 30, value = 1.75 },
+			{ atSeconds = 60, value = 2.5 },
+		},
+	},
+	{
+		id = "surge",
+		name = "Coin Surge",
+		kind = "surge",
+		unlock = { kind = "totalRolls", value = 25 },
+		tiers = {
+			{ atSeconds = 10, value = 1.25 },
+			{ atSeconds = 30, value = 1.5 },
+			{ atSeconds = 60, value = 2 },
+		},
+	},
+})
+
+local runeCopyMilestones = RuneModeConfig.normalizeMilestones(designerRunes.copyMilestones, {
+	{ copies = 5, multiplier = 1.25 },
+	{ copies = 10, multiplier = 1.5 },
+	{ copies = 25, multiplier = 2 },
+})
+
+-- The persisted default must always resolve to a configured mode, even when a
+-- recipe renames or removes the template's "luck" mode.
+local function runeDefaultMode(): string
+	local candidate = designerRunes.defaultChannelMode
+	local requested = if type(candidate) == "string" then candidate else "luck"
+	for _, mode in runeChannelModes do
+		if mode.id == requested then
+			return requested
+		end
+	end
+	return runeChannelModes[1].id
+end
 
 local Config = {
 	version = "0.1.0",
@@ -81,17 +146,31 @@ local Config = {
 
 	-- Rune altar: standing in the authored circle automatically spends the
 	-- primary currency on random rune cards that permanently raise currency
-	-- generation. Odds live in RuneCatalog; tunables live here.
+	-- generation. Uninterrupted channeling builds momentum through the active
+	-- channel mode's tiers (luck shifts rarity odds, surge boosts earnings
+	-- under the strongest-temporary-boost rule), and duplicate copies unlock
+	-- milestone multipliers. Odds live in RuneCatalog; every tunable here
+	-- accepts a DesignerConfig.runes override.
 	runes = {
-		baseCost = 75,
-		costGrowth = 1,
-		maxCost = 75,
-		autoRollSeconds = 2,
-		firstRollChargeSeconds = 1.25,
-		circlePadding = 1.5,
-		circleHeightTolerance = 8,
-		pityThreshold = 40,
-		pityMinimumRarity = "epic",
+		baseCost = runeNumber("baseCost", 75, 1, 1e9),
+		costGrowth = runeNumber("costGrowth", 1, 1, 10),
+		maxCost = runeNumber("maxCost", 75, 1, 1e12),
+		autoRollSeconds = runeNumber("autoRollSeconds", 2, 0.5, 60),
+		firstRollChargeSeconds = runeNumber("firstRollChargeSeconds", 1.25, 0, 30),
+		circlePadding = runeNumber("circlePadding", 1.5, 0, 50),
+		circleHeightTolerance = runeNumber("circleHeightTolerance", 8, 1, 50),
+		pityThreshold = runeNumber("pityThreshold", 40, 0, 1000),
+		pityMinimumRarity = runeRarityId("pityMinimumRarity", "epic"),
+		tickSeconds = runeNumber("tickSeconds", 0.25, 0.05, 2),
+		maxTotalBonusPercent = runeNumber("maxTotalBonusPercent", 1_000_000, 100, 1e9),
+		maxOwnedPerRune = runeNumber("maxOwnedPerRune", 1_000_000_000, 1000, 1e12),
+		maxTotalRolls = runeNumber("maxTotalRolls", 1_000_000_000, 1000, 1e12),
+		revealSeconds = runeNumber("revealSeconds", 3, 0.5, 30),
+		rareAudioMinimumRarity = runeRarityId("rareAudioMinimumRarity", "epic"),
+		minCommonWeight = runeNumber("minCommonWeight", 500, 0, 9999),
+		copyMilestones = runeCopyMilestones,
+		defaultChannelMode = runeDefaultMode(),
+		channelModes = runeChannelModes,
 	},
 
 	towerDefense = {

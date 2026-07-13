@@ -50,6 +50,7 @@ function ProfileTemplate.create(now: number): PlayerProfileV1
 			owned = {},
 			totalRolls = 0,
 			rollsSincePity = 0,
+			selectedMode = Config.runes.defaultChannelMode,
 		},
 		towerDefense = {
 			ownedUnits = {},

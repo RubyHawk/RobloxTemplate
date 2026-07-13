@@ -15,6 +15,7 @@ local PublicProfileService = require(Services.PublicProfileService)
 local RemoteService = require(Services.RemoteService)
 local RewardService = require(Services.RewardService)
 local RuneService = require(Services.RuneService)
+local EconomyService = require(Services.EconomyService)
 local SocialService = require(Services.SocialService)
 local StoreService = require(Services.StoreService)
 local StageRuntimeService = require(Services.StageRuntimeService)
@@ -36,9 +37,15 @@ if Config.features.crossServerChat then
 	AnnouncementService.start(RemoteService.broadcastAnnouncement)
 end
 if Config.features.runes then
+	-- Surge channeling competes in the strongest-temporary-boost bucket; the
+	-- provider keeps EconomyService unaware of the rune altar.
+	EconomyService.setChannelBoostProvider(RuneService.channelEarningsMultiplier)
 	RuneService.start({
 		publish = function(player, result)
 			RemoteService.sendEvent(player, "RuneResult", result)
+		end,
+		publishChannel = function(player, channel)
+			RemoteService.sendEvent(player, "RuneChannel", channel)
 		end,
 	})
 end

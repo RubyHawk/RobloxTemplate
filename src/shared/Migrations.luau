@@ -62,6 +62,11 @@ function Migrations.migrate(raw: any, now: number): any
 		else
 			startingProgress.unlocked = true
 		end
+		-- An unknown saved mode id is kept on disk (a recipe may re-add the
+		-- mode later); runtime resolution falls back without overwriting it.
+		if type(profile.runes) == "table" and type(profile.runes.selectedMode) ~= "string" then
+			profile.runes.selectedMode = Config.runes.defaultChannelMode
+		end
 	end
 	return profile
 end

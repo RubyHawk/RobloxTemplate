@@ -75,6 +75,9 @@ Invoke-Checked "Grid platform plugin build" {
 Invoke-Checked "Shared tower-defense safe patch build" {
     rojo build patches\rng-defender-grid-demo.project.json --output build\RNGDefenderSafePatch.rbxlx
 }
+Invoke-Checked "Runewright plugin build" {
+    rojo build plugins\rune-config-editor.project.json --output build\RunewrightPlugin.rbxm
+}
 Invoke-Checked "Game Designer UI smoke test" {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\game-designer.ps1 -SmokeTest
 }
