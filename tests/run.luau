@@ -837,6 +837,9 @@ for _, pluginObject in
 		"StagewrightIslandOutlinePreview",
 		"StagePlatformLayout",
 		"developmentOutlines",
+		"centerFacingLocalDirection",
+		"CenterFacingGuide",
+		"AlwaysOnTop",
 		"RunService:IsRunning()",
 	}
 do
@@ -1179,23 +1182,52 @@ expectEqual(
 	true,
 	"stage path provides stable orientation tangent"
 )
-local firstPlatformOffset = { x = 183.524, y = 13.344, z = 94.169 }
-local slotOneOffset, slotOneYaw = StagePlatformLayout.slotOffset(firstPlatformOffset, 1, 6)
-local slotFourOffset, slotFourYaw = StagePlatformLayout.slotOffset(firstPlatformOffset, 4, 6)
-expectEqual(
-	math.abs(slotOneOffset.x - firstPlatformOffset.x) < 1e-9,
-	true,
-	"platform slot one preserves authored X"
-)
-expectEqual(
-	math.abs(slotOneOffset.z - firstPlatformOffset.z) < 1e-9,
-	true,
-	"platform slot one preserves authored Z"
-)
-expectEqual(slotOneYaw, 0, "platform slot one preserves authored orientation")
-expectEqual(math.abs(slotFourOffset.x + firstPlatformOffset.x) < 1e-9, true, "opposite platform mirrors X")
-expectEqual(math.abs(slotFourOffset.z + firstPlatformOffset.z) < 1e-9, true, "opposite platform mirrors Z")
-expectEqual(math.abs(slotFourYaw - math.pi) < 1e-9, true, "six platform slots rotate in 60-degree steps")
+do
+	local firstPlatformOffset = { x = 183.524, y = 13.344, z = 94.169 }
+	local centerFacingLocalDirection = { x = -54, y = 0, z = -32 }
+	local alignmentYaw =
+		StagePlatformLayout.alignDirectionYaw(firstPlatformOffset, centerFacingLocalDirection)
+	expectEqual(
+		math.abs(math.deg(alignmentYaw) - 3.4876078885171) < 1e-9,
+		true,
+		"platform yaw aligns the stage's authored center-facing direction"
+	)
+	local alignedX = math.cos(alignmentYaw) * centerFacingLocalDirection.x
+		+ math.sin(alignmentYaw) * centerFacingLocalDirection.z
+	local alignedZ = -math.sin(alignmentYaw) * centerFacingLocalDirection.x
+		+ math.cos(alignmentYaw) * centerFacingLocalDirection.z
+	local alignedMagnitude = math.sqrt(alignedX * alignedX + alignedZ * alignedZ)
+	local centerMagnitude = math.sqrt(
+		firstPlatformOffset.x * firstPlatformOffset.x + firstPlatformOffset.z * firstPlatformOffset.z
+	)
+	local centerAlignment = (alignedX * -firstPlatformOffset.x + alignedZ * -firstPlatformOffset.z)
+		/ (alignedMagnitude * centerMagnitude)
+	expectEqual(centerAlignment > 0.999999999, true, "aligned stage direction points at the world center")
+	local slotOneOffset, slotOneYaw = StagePlatformLayout.slotOffset(firstPlatformOffset, 1, 6)
+	local slotFourOffset, slotFourYaw = StagePlatformLayout.slotOffset(firstPlatformOffset, 4, 6)
+	expectEqual(
+		math.abs(slotOneOffset.x - firstPlatformOffset.x) < 1e-9,
+		true,
+		"platform slot one preserves authored X"
+	)
+	expectEqual(
+		math.abs(slotOneOffset.z - firstPlatformOffset.z) < 1e-9,
+		true,
+		"platform slot one preserves authored Z"
+	)
+	expectEqual(slotOneYaw, 0, "platform slot one preserves authored orientation")
+	expectEqual(
+		math.abs(slotFourOffset.x + firstPlatformOffset.x) < 1e-9,
+		true,
+		"opposite platform mirrors X"
+	)
+	expectEqual(
+		math.abs(slotFourOffset.z + firstPlatformOffset.z) < 1e-9,
+		true,
+		"opposite platform mirrors Z"
+	)
+	expectEqual(math.abs(slotFourYaw - math.pi) < 1e-9, true, "six platform slots rotate in 60-degree steps")
+end
 
 local branchGraph = {
 	nodes = {
@@ -2196,6 +2228,8 @@ for _, platformMarker in
 		"CapacityMatchesSlotCount",
 		"Players.PlayerAdded:Connect",
 		"publishOwner(existing, player)",
+		"StagewrightRuntimeStowed",
+		"area.Parent = ServerStorage",
 	}
 do
 	expectEqual(
@@ -2233,6 +2267,8 @@ for _, gridRendererMarker in
 		"LocalOwner",
 		"VisualFade",
 		"StagewrightEditorOnly",
+		"authoring.areaName",
+		"outlines.folderName",
 		"hideLegacyEditGridUi",
 		'"edit grid"',
 		"gridplatformeditor",

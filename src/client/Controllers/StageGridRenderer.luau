@@ -54,14 +54,23 @@ local function hideEditorRoot(root: Instance)
 	end
 end
 
+local function isEditorOnlyWorldRoot(root: Instance): boolean
+	if root:GetAttribute("StagewrightEditorOnly") == true then
+		return true
+	end
+	local authoring = Config.towerDefense.authoringArea
+	local outlines = Config.towerDefense.developmentOutlines
+	return root.Name == authoring.areaName or root.Name == outlines.folderName
+end
+
 local function hideEditorOnlyWorldContent()
 	for _, child in Workspace:GetChildren() do
-		if child:GetAttribute("StagewrightEditorOnly") == true then
+		if isEditorOnlyWorldRoot(child) then
 			hideEditorRoot(child)
 		end
 	end
 	Workspace.ChildAdded:Connect(function(child)
-		if child:GetAttribute("StagewrightEditorOnly") == true then
+		if isEditorOnlyWorldRoot(child) then
 			hideEditorRoot(child)
 		end
 	end)

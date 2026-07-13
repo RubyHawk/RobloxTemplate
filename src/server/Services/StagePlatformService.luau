@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 
 local Template = ReplicatedStorage:WaitForChild("Template")
@@ -188,12 +189,26 @@ local function publishOrigins()
 	end
 end
 
+local function stowAuthoringArea()
+	local authoring = Config.towerDefense.authoringArea
+	if type(authoring) ~= "table" or type(authoring.areaName) ~= "string" then
+		return
+	end
+	local area = Workspace:FindFirstChild(authoring.areaName)
+	if area == nil then
+		return
+	end
+	area:SetAttribute("StagewrightRuntimeStowed", true)
+	area.Parent = ServerStorage
+end
+
 function StagePlatformService.start()
 	if started then
 		return
 	end
 	started = true
 	publishOrigins()
+	stowAuthoringArea()
 	if Players.MaxPlayers ~= Config.towerDefense.platformSlotCount then
 		warn(
 			`This place allows {Players.MaxPlayers} players but has {Config.towerDefense.platformSlotCount} Stagewright platforms. Set Configure Place > Maximum Players to {Config.towerDefense.platformSlotCount}.`

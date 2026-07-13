@@ -10,7 +10,7 @@ local Workspace = game:GetService("Workspace")
 local AuthoringArea = {}
 local StagePlatformLayout = require(script.Parent.Shared.StagePlatformLayout)
 
-local LAYOUT_VERSION = 2
+local LAYOUT_VERSION = 3
 local AUTHORING_ATTRIBUTE = "StagewrightAuthoringPlatform"
 local MANAGED_ATTRIBUTE = "StagewrightManaged"
 local OUTLINE_TAG = "StagewrightIslandOutlinePreview"
@@ -246,6 +246,14 @@ local function alignPlatform(platform: Model, desiredOrigin: CFrame, originName:
 	end
 end
 
+local function disableXrayAuthoringGuis(platform: Model)
+	for _, descendant in platform:GetDescendants() do
+		if descendant:IsA("SurfaceGui") or descendant:IsA("BillboardGui") then
+			descendant.AlwaysOnTop = false
+		end
+	end
+end
+
 function AuthoringArea.findPlatform(): Model?
 	local templateConfig, authoring = config()
 	if templateConfig == nil then
@@ -345,6 +353,18 @@ function AuthoringArea.showIslandOutlines(columns: number, rows: number, cellSiz
 	local fillColor = Color3.fromRGB(outlines.fillColor[1], outlines.fillColor[2], outlines.fillColor[3])
 	local facingColor =
 		Color3.fromRGB(outlines.facingColor[1], outlines.facingColor[2], outlines.facingColor[3])
+	local configuredDirection = templateConfig.towerDefense.centerFacingLocalDirection
+	local localCenterDirection = if type(configuredDirection) == "table"
+			and type(configuredDirection[1]) == "number"
+			and type(configuredDirection[3]) == "number"
+		then Vector3.new(configuredDirection[1], 0, configuredDirection[3])
+		else Vector3.new(0, 0, -1)
+	if localCenterDirection.Magnitude <= 1e-6 then
+		localCenterDirection = Vector3.new(0, 0, -1)
+	end
+	local localCenterUnit = localCenterDirection.Unit
+	local guideStartDistance = math.min(width, depth) * 0.12
+	local guideEndDistance = math.min(width, depth) * 0.38
 	for slot = 1, slotCount do
 		local offset, yaw = StagePlatformLayout.slotOffset(firstOffset, slot, slotCount)
 		local origin = center.CFrame
@@ -401,11 +421,25 @@ function AuthoringArea.showIslandOutlines(columns: number, rows: number, cellSiz
 				Enum.Material.Neon
 			)
 		end
+		local guideStart = origin:PointToWorldSpace(
+			Vector3.new(
+				localCenterUnit.X * guideStartDistance,
+				height + lineHeight * 0.5,
+				localCenterUnit.Z * guideStartDistance
+			)
+		)
+		local guideFinish = origin:PointToWorldSpace(
+			Vector3.new(
+				localCenterUnit.X * guideEndDistance,
+				height + lineHeight * 0.5,
+				localCenterUnit.Z * guideEndDistance
+			)
+		)
 		outlinePart(
 			model,
-			"FacingGuide",
-			Vector3.new(thickness * 1.8, lineHeight * 1.5, depth * 0.22),
-			origin * CFrame.new(0, height + lineHeight * 0.5, -depth * 0.36),
+			"CenterFacingGuide",
+			Vector3.new(thickness * 1.8, lineHeight * 1.5, (guideFinish - guideStart).Magnitude),
+			CFrame.lookAt((guideStart + guideFinish) * 0.5, guideFinish, origin.UpVector),
 			facingColor,
 			0.02,
 			Enum.Material.Neon
@@ -482,6 +516,7 @@ function AuthoringArea.ensure(): Model?
 		platform.Parent = area
 		platform:SetAttribute(AUTHORING_ATTRIBUTE, true)
 		alignPlatform(platform, desiredOrigin, templateConfig.towerDefense.platformOriginName)
+		disableXrayAuthoringGuis(platform)
 		area:SetAttribute("StagewrightLayoutVersion", LAYOUT_VERSION)
 		area:SetAttribute("EditorOnly", true)
 		area:SetAttribute("StagewrightEditorOnly", true)

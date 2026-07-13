@@ -62,6 +62,8 @@ for _, marker in
 		"Focus Admin",
 		"StagewrightIslandOutlinePreview",
 		"StagewrightToggleIslandOutlines",
+		"CenterFacingGuide",
+		"AlwaysOnTop",
 	}
 do
 	assert(
@@ -97,6 +99,7 @@ for _, marker in
 		"maximum travel distance exceeded",
 		"StagewrightClientGrids",
 		"StagewrightEditorOnly",
+		"StagewrightRuntimeStowed",
 		"hideLegacyEditGridUi",
 	}
 do

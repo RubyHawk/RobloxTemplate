@@ -4,8 +4,9 @@
 
 The editable `GamePlatform` is no longer the runtime anchor for player slot 1.
 Stagewright keeps one canonical authoring platform under
-`Workspace.StagewrightAdminArea`, 1,000 studs below `center_grass`, inside an
-open-front white room. The plugin preserves the existing model and moves it as
+`Workspace.StagewrightAdminArea`, 1,000 studs below and 3,000 studs outside the
+`center_grass` world footprint, inside an open-front white room. The plugin
+preserves the existing model and moves it as
 one pivot operation, so `CellMap`, path controls, surface previews, unknown
 children, and metadata stay intact.
 
@@ -29,12 +30,17 @@ move a player's gameplay route, towers, or ownership marker.
   inside it carry the transient Stagewright preview tag.
 - The **Focus Admin** button and `StagewrightFocusAdminArea` PluginAction select
   the main platform and move the Studio camera to the open side of the room.
-- The deeper offset keeps the white room out of sight through water and gaps in
-  the production world. During Play, the client also hides every descendant of
-  `StagewrightEditorOnly` roots, so the room cannot leak into gameplay.
+- The offset keeps the white room away from transparent water and gaps in the
+  production world. Legacy authoring `SurfaceGui` and `BillboardGui` instances
+  have `AlwaysOnTop` disabled so they obey normal world occlusion.
+- During Play, `StagePlatformService` first publishes all six gameplay origins,
+  then moves `StagewrightAdminArea` from `Workspace` to `ServerStorage` for the
+  running session. A client-side name/attribute fallback also hides editor-only
+  roots, so stale Team Create copies cannot leak into gameplay.
 - **Island Guides** creates a non-archivable, Edit-mode-only footprint at each
   of the six authoritative slot transforms. Cyan edges show the exact grid
-  bounds and the orange bar shows orientation.
+  bounds. The orange bar follows the configured local spawn-to-goal direction;
+  the shared yaw calculation aligns that direction exactly toward the center.
 - Legacy `Edit Grid` controls are hidden if they remain in Team Create data,
   and the Stagewright plugin exits before constructing editor controls in Play
   Server or Play Client data models.

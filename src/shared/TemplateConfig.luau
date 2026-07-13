@@ -5,6 +5,7 @@ local DataStoreNames = require(script.Parent.DataStoreNames)
 local DesignerConfig = require(script.Parent.DesignerConfig)
 local IconAssets = require(script.Parent.IconAssets)
 local RuneModeConfig = require(script.Parent.RuneModeConfig)
+local StagePlatformLayout = require(script.Parent.StagePlatformLayout)
 
 local configuredCurrencies = CurrencyConfig.normalize(DesignerConfig.currencies)
 local dataNamespace = DataStoreNames.validateNamespace(DesignerConfig.dataNamespace)
@@ -80,6 +81,18 @@ local function runeDefaultMode(): string
 	end
 	return runeChannelModes[1].id
 end
+
+local firstPlatformOffsetFromCenter = { 183.524, 13.344, 94.169 }
+local centerFacingLocalDirection = { -54, 0, -32 }
+local firstPlatformYawDegrees = math.deg(StagePlatformLayout.alignDirectionYaw({
+	x = firstPlatformOffsetFromCenter[1],
+	y = firstPlatformOffsetFromCenter[2],
+	z = firstPlatformOffsetFromCenter[3],
+}, {
+	x = centerFacingLocalDirection[1],
+	y = centerFacingLocalDirection[2],
+	z = centerFacingLocalDirection[3],
+}))
 
 local Config = {
 	version = "0.1.0",
@@ -188,8 +201,9 @@ local Config = {
 		firstPlatformIslandName = "FirstPrivateIsland",
 		platformModelName = "GamePlatform",
 		platformOriginName = "PlatformOrigin",
-		firstPlatformOffsetFromCenter = { 183.524, 13.344, 94.169 },
-		firstPlatformYawDegrees = 0,
+		firstPlatformOffsetFromCenter = firstPlatformOffsetFromCenter,
+		centerFacingLocalDirection = centerFacingLocalDirection,
+		firstPlatformYawDegrees = firstPlatformYawDegrees,
 		platformOriginsFolderName = "StagePlatformOrigins",
 		platformOwnerMarkersFolderName = "StagePlatformOwners",
 		platformOwnerAnchorsFolderName = "StagewrightOwnerAnchors",
@@ -197,7 +211,7 @@ local Config = {
 		authoringArea = {
 			enabled = true,
 			areaName = "StagewrightAdminArea",
-			offsetFromCenter = { 0, -1000, 0 },
+			offsetFromCenter = { 0, -1000, 3000 },
 			roomSize = { 168, 44, 148 },
 			wallThickness = 2,
 		},

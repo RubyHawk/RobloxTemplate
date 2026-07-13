@@ -16,10 +16,11 @@ No workflow below creates a Roblox experience.
 2. Optionally use Studio's **File → Download a Copy** before the first migration.
 3. Run `7_STAGEWRIGHT_SHARED.cmd`.
 4. The launcher installs the local Stagewright plugin and opens the existing shared place without starting Rojo.
-5. Open **Plugins → Stagewright**. The plugin moves the existing `FirstPrivateIsland.GamePlatform` intact into the open-front white `Workspace.StagewrightAdminArea` below the map. If the place has no `ServerStorage.StagewrightProject`, Stagewright imports that admin platform once.
+5. Open **Plugins → Stagewright**. The plugin moves the existing `FirstPrivateIsland.GamePlatform` intact into the open-front white `Workspace.StagewrightAdminArea`, 1,000 studs below and 3,000 studs outside the map footprint. If the place has no `ServerStorage.StagewrightProject`, Stagewright imports that admin platform once.
 6. Confirm before editing:
    - **Stage → Focus Admin** frames the white authoring room and the main `GamePlatform` remains visible inside it. From the production map, the room is too deep to show through water or island gaps.
-   - **Island Guides: On** shows cyan 32×27 footprints on all six beaches and an orange orientation guide on each one. Toggle it off and on without changing authored stage data.
+   - **Island Guides: On** shows cyan 32×27 footprints on all six beaches. Each orange guide follows the stage's authored spawn-to-goal direction and points toward `center_grass`. Toggle it off and on without changing authored stage data.
+   - Start a Server + Client test and confirm `StagewrightAdminArea` moves to `ServerStorage` for the running session. The white room and its legacy grid cannot appear through the world during Play; Studio restores the editor copy when the test stops.
    - `FirstPrivateIsland` no longer owns the editable `GamePlatform`; the six island origins remain unchanged because they come from `center_grass` plus configuration.
    - Every legacy `#` remains an authored `Blocked` cell.
    - `P`, `G`, and `A` appear as independent roles.
