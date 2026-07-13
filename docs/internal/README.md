@@ -2,6 +2,7 @@
 
 Add a short dated note here whenever the team researches or changes a reusable system. Include official sources, security decisions, imported-asset provenance, tests performed, and anything the next person must not assume.
 
+- [2026-07-13: Stagewright lanes and merged spawns](2026-07-13-stagewright-lanes-and-merged-spawns.md)
 - [2026-07-04: Rojo 7.7.0 upgrade](2026-07-04-rojo-7.7.0.md)
 - [2026-07-04: experience recreation settings](2026-07-04-experience-recreation-settings.md)
 - [2026-07-03: two permanent experiences](2026-07-03-two-permanent-experiences.md)

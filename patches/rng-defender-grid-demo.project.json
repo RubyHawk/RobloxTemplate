@@ -75,6 +75,9 @@
           "StageLegacy": {
             "$path": "../src/shared/StageLegacy.luau"
           },
+          "StageLanes": {
+            "$path": "../src/shared/StageLanes.luau"
+          },
           "StagePath": {
             "$path": "../src/shared/StagePath.luau"
           },

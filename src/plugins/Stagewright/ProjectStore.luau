@@ -8,6 +8,7 @@ local AuthoringArea = require(script.Parent.AuthoringArea)
 local Shared = script.Parent.Shared
 local StageExport = require(Shared.StageExport)
 local StageLegacy = require(Shared.StageLegacy)
+local StageLanes = require(Shared.StageLanes)
 local StageSchema = require(Shared.StageSchema)
 
 local ProjectStore = {}
@@ -242,6 +243,7 @@ function ProjectStore.createStage(copyFromId: string?): string
 	local stage = if source ~= nil then clone(source) else clone(project.stages[ProjectStore.stageIds()[1]])
 	if source == nil then
 		local graphId = guid("graph")
+		local laneOffsets = StageLanes.offsets(StageLanes.DEFAULT_COUNT)
 		stage.grid.cells = {}
 		stage.pathGraphs = {
 			[graphId] = {
@@ -250,7 +252,11 @@ function ProjectStore.createStage(copyFromId: string?): string
 				nodes = {},
 				edges = {},
 				laneProfiles = {
-					lane_default = { id = "lane_default", offsets = { 0 }, clearanceRadius = 2 },
+					lane_default = {
+						id = "lane_default",
+						offsets = laneOffsets,
+						clearanceRadius = StageLanes.clearanceRadius(laneOffsets),
+					},
 				},
 				maxNodeVisitsPerEnemy = 64,
 				maxTravelDistance = 10_000,

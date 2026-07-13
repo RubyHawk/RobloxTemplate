@@ -42,6 +42,7 @@ for _, requiredName in
 		"ProjectStore",
 		"Shared",
 		"StageGraph",
+		"StageLanes",
 		"StageLegacy",
 		"StagePath",
 		"StagePlatformLayout",
@@ -82,6 +83,7 @@ for _, requiredName in
 		"StageCatalog",
 		"StageCatalog.generated",
 		"StageGraph",
+		"StageLanes",
 		"StagePath",
 		"StagePlatformLayout",
 		"StagePlatformService",
@@ -100,6 +102,8 @@ for _, marker in
 		"StagewrightClientGrids",
 		"StagewrightEditorOnly",
 		"StagewrightRuntimeStowed",
+		"StageRuntimeService.spawnNodes",
+		"laneSequence",
 		"hideLegacyEditGridUi",
 	}
 do

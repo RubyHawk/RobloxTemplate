@@ -8,6 +8,7 @@ local RuneModeConfig = require("../src/shared/RuneModeConfig")
 local TowerDefenseCatalog = require("../src/shared/TowerDefenseCatalog")
 local TowerDefenseLogic = require("../src/shared/TowerDefenseLogic")
 local StageGraph = require("../src/shared/StageGraph")
+local StageLanes = require("../src/shared/StageLanes")
 local StageLegacy = require("../src/shared/StageLegacy")
 local StagePath = require("../src/shared/StagePath")
 local StagePlatformLayout = require("../src/shared/StagePlatformLayout")
@@ -819,7 +820,10 @@ for _, pluginObject in
 		"Add Condition",
 		"Trace Route",
 		"Set Fallback",
-		"Add Lane",
+		"1 Lane",
+		"2 Lanes",
+		"3 Lanes",
+		"StageLanes.offsets",
 		"outHandleOffset",
 		"inHandleOffset",
 		"Working changes",
@@ -1183,6 +1187,31 @@ expectEqual(
 	"stage path provides stable orientation tangent"
 )
 do
+	local single = StageLanes.offsets(1)
+	local double = StageLanes.offsets(2)
+	local triple = StageLanes.offsets(3)
+	expectEqual(#single == 1 and single[1] == 0, true, "single lane stays on the spline centerline")
+	expectEqual(
+		#double == 2 and double[1] == -2 and double[2] == 2,
+		true,
+		"two lanes split evenly across the spline"
+	)
+	expectEqual(
+		#triple == 3 and triple[1] == -4 and triple[2] == 0 and triple[3] == 4,
+		true,
+		"three lanes remain centered around the spline"
+	)
+	expectEqual(StageLanes.index(4, 3), 1, "lane assignment cycles deterministically")
+	expectEqual(
+		StageLanes.sequenceForSpawn(1, 2) == 1
+			and StageLanes.sequenceForSpawn(2, 2) == 1
+			and StageLanes.sequenceForSpawn(3, 2) == 2,
+		true,
+		"lane sequence advances independently after distributing across spawns"
+	)
+	expectEqual(StageLanes.clearanceRadius(triple), 6, "lane clearance covers the full corridor")
+end
+do
 	local firstPlatformOffset = { x = 183.524, y = 13.344, z = 94.169 }
 	local centerFacingLocalDirection = { x = -54, y = 0, z = -32 }
 	local alignmentYaw =
@@ -1434,16 +1463,25 @@ expectEqual(
 )
 local authoringProject = serde.decode("json", fs.readFile("stage-data/stagewright-project.json"))
 local authoredProductionStage = authoringProject.stages.stage_default
-expectEqual(authoredProductionStage.name, "Centerbound S-Curve", "repository uses the clean production stage")
+expectEqual(
+	authoredProductionStage.name,
+	"Centerbound Dual Approach",
+	"repository uses the dual-spawn production stage"
+)
 expectEqual(
 	authoredProductionStage.metadata["stagewright.layoutVersion"],
-	1,
+	2,
 	"repository records the intentional production layout version"
 )
 expectEqual(
 	authoredProductionStage.grid.cells["30:22"].roles.EnemySpawn,
 	true,
 	"production spawn is at the island rim"
+)
+expectEqual(
+	authoredProductionStage.grid.cells["30:6"].roles.EnemySpawn,
+	true,
+	"production stage provides a second outer spawn"
 )
 expectEqual(
 	authoredProductionStage.grid.cells["3:6"].roles.EnemyGoal,
@@ -1453,8 +1491,30 @@ expectEqual(
 expectEqual(
 	authoredProductionStage.pathGraphs.graph_main.edges.edge_006.toNodeId,
 	"node_goal",
-	"production S-curve reaches the goal through six Bezier edges"
+	"merged production route reaches the center goal"
 )
+expectEqual(
+	authoredProductionStage.pathGraphs.graph_main.edges.edge_002.toNodeId == "node_bend_02"
+		and authoredProductionStage.pathGraphs.graph_main.edges.edge_008.toNodeId == "node_bend_02",
+	true,
+	"upper and lower spawn splines merge at one stable junction"
+)
+expectEqual(
+	#authoredProductionStage.pathGraphs.graph_main.laneProfiles.lane_default.offsets,
+	2,
+	"production route defaults to two enemy lanes"
+)
+do
+	local invalidLaneStage = serde.decode("json", serde.encode("json", authoredProductionStage))
+	invalidLaneStage.pathGraphs.graph_main.laneProfiles.lane_default.offsets = { -6, -2, 2, 6 }
+	local foundLaneCountError = false
+	for _, issue in StageSchema.validateStage(invalidLaneStage) do
+		if issue.code == "LaneCount" then
+			foundLaneCountError = true
+		end
+	end
+	expectEqual(foundLaneCountError, true, "stage validation rejects profiles beyond three lanes")
+end
 local firstExport = StageExport.bake(authoringProject)
 local secondExport = StageExport.bake(authoringProject)
 expectEqual(firstExport.bundle ~= nil, true, "valid Stagewright project bakes a runtime bundle")
@@ -2238,6 +2298,19 @@ do
 		`six-platform allocator includes {platformMarker}`
 	)
 end
+for _, multiRouteMarker in
+	{
+		"StageRuntimeService.spawnNodes",
+		"StageLanes.index",
+		"laneSequence",
+	}
+do
+	expectEqual(
+		string.find(stageRuntimeSource .. towerDefenseServiceSource, multiRouteMarker, 1, true) ~= nil,
+		true,
+		`server route runtime includes {multiRouteMarker}`
+	)
+end
 expectEqual(
 	string.find(stagePlatformSource, "center.CFrame:ToObjectSpace(firstOrigin.CFrame)", 1, true),
 	nil,
@@ -2259,6 +2332,8 @@ for _, gridRendererMarker in
 		"StageCatalog.defaultStageId",
 		"platformOriginsFolderName",
 		"StagePath.sample",
+		"laneProfile.offsets",
+		"routePoint",
 		"gridVisuals",
 		"LocalTransparencyModifier",
 		"Platform_",

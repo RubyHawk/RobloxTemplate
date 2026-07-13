@@ -13,6 +13,7 @@ end
 
 local AuthoringArea = require(script.AuthoringArea)
 local ProjectStore = require(script.ProjectStore)
+local StageLanes = require(script.Shared.StageLanes)
 local StageTrace = require(script.Shared.StageTrace)
 
 local PLUGIN_NAME = "Stagewright"
@@ -327,6 +328,15 @@ local function rebuildPreview()
 	CollectionService:AddTag(folder, PREVIEW_TAG)
 	previewFolder = folder
 	local origin = localOrigin()
+	local function previewPoint(sample: any, laneOffset: number): Vector3
+		local position =
+			origin:PointToWorldSpace(Vector3.new(sample.position.x, sample.position.y, sample.position.z))
+		local tangent =
+			origin:VectorToWorldSpace(Vector3.new(sample.tangent.x, sample.tangent.y, sample.tangent.z))
+		local up = origin:VectorToWorldSpace(Vector3.new(sample.up.x, sample.up.y, sample.up.z))
+		local frame = CFrame.lookAt(position, position + tangent, up)
+		return frame.Position + frame.RightVector * laneOffset
+	end
 	local function bindPosition(part: BasePart, applyPosition: (Vector3) -> ())
 		part:GetPropertyChangedSignal("CFrame"):Connect(function()
 			if part.Parent == nil then
@@ -364,25 +374,29 @@ local function rebuildPreview()
 		end)
 	end
 	for edgeId, edge in bakedGraph.edges do
-		for index = 2, #edge.samples do
-			local before = edge.samples[index - 1].position
-			local after = edge.samples[index].position
-			local a = origin:PointToWorldSpace(Vector3.new(before.x, before.y, before.z))
-			local b = origin:PointToWorldSpace(Vector3.new(after.x, after.y, after.z))
-			local segment = Instance.new("Part")
-			segment.Name = `Edge_{edgeId}_{index}`
-			segment.Anchored = true
-			segment.CanCollide = false
-			segment.CanQuery = false
-			segment.CanTouch = false
-			segment.Color = if selectedEdgeId == edgeId
-				then Color3.fromRGB(255, 202, 72)
-				elseif tracedEdgeIds[edgeId] then Color3.fromRGB(96, 220, 132)
-				else COLORS.accent
-			segment.Material = Enum.Material.Neon
-			segment.Size = Vector3.new(0.18, 0.18, (b - a).Magnitude)
-			segment.CFrame = CFrame.lookAt((a + b) * 0.5, b)
-			segment.Parent = folder
+		local laneProfile = bakedGraph.laneProfiles[edge.laneProfileId]
+		local laneOffsets = if laneProfile ~= nil and #laneProfile.offsets > 0
+			then laneProfile.offsets
+			else { 0 }
+		for laneIndex, laneOffset in laneOffsets do
+			for index = 2, #edge.samples do
+				local a = previewPoint(edge.samples[index - 1], laneOffset)
+				local b = previewPoint(edge.samples[index], laneOffset)
+				local segment = Instance.new("Part")
+				segment.Name = `Edge_{edgeId}_Lane_{laneIndex}_{index}`
+				segment.Anchored = true
+				segment.CanCollide = false
+				segment.CanQuery = false
+				segment.CanTouch = false
+				segment.Color = if selectedEdgeId == edgeId
+					then Color3.fromRGB(255, 202, 72)
+					elseif tracedEdgeIds[edgeId] then Color3.fromRGB(96, 220, 132)
+					else COLORS.accent
+				segment.Material = Enum.Material.Neon
+				segment.Size = Vector3.new(0.18, 0.18, (b - a).Magnitude)
+				segment.CFrame = CFrame.lookAt((a + b) * 0.5, b)
+				segment.Parent = folder
+			end
 		end
 	end
 	local selectedEdge = if selectedEdgeId ~= nil then currentGraph.edges[selectedEdgeId] else nil
@@ -1062,7 +1076,11 @@ button(graphActions, "Trace Route", 112, function()
 		setStatus("Trace needs a spawn node.", true)
 		return
 	end
-	local trace = StageTrace.trace(currentGraph, spawnIds[1], {
+	local selectedTraceNode = if selectedNodeId ~= nil then currentGraph.nodes[selectedNodeId] else nil
+	local traceSpawnId = if selectedTraceNode ~= nil and selectedTraceNode.kind == "Spawn"
+		then selectedNodeId :: string
+		else spawnIds[1]
+	local trace = StageTrace.trace(currentGraph, traceSpawnId, {
 		wave = tonumber(traceWaveField.Text) or 1,
 		stageFlags = assignmentMap(traceFlagsField.Text, true),
 		enemyTags = commaSet(traceTagsField.Text),
@@ -1083,20 +1101,24 @@ button(graphActions, "Trace Route", 112, function()
 	setStatus(`Trace {table.concat(path, " > ")} · {trace.stoppedReason}`, not trace.reachedGoal)
 	rebuildPreview()
 end)
-button(graphActions, "Add Lane", 112, function()
-	local currentGraph = graph()
-	if currentGraph == nil or selectedEdgeId == nil then
-		return
-	end
-	mutate("Add route lane", function()
-		local profile = currentGraph.laneProfiles[currentGraph.edges[selectedEdgeId :: string].laneProfileId]
-		table.insert(
-			profile.offsets,
-			(#profile.offsets % 2 == 1 and 1 or -1) * math.ceil(#profile.offsets / 2) * 3
-		)
+for laneCount, laneLabel in { "1 Lane", "2 Lanes", "3 Lanes" } do
+	button(graphActions, laneLabel, 112, function()
+		local currentGraph = graph()
+		if currentGraph == nil or selectedEdgeId == nil then
+			setStatus("Select an edge before changing its lane profile.", true)
+			return
+		end
+		mutate(`Set route to {laneCount} lanes`, function()
+			local edge = currentGraph.edges[selectedEdgeId :: string]
+			local profile = currentGraph.laneProfiles[edge.laneProfileId]
+			local offsets = StageLanes.offsets(laneCount)
+			profile.offsets = offsets
+			profile.clearanceRadius = StageLanes.clearanceRadius(offsets)
+		end)
+		setStatus(`Route profile uses {laneCount} {if laneCount == 1 then "lane" else "lanes"}.`)
+		renderAll()
 	end)
-	renderAll()
-end)
+end
 
 local function connectNodes(fromId: string, toId: string)
 	local currentGraph = graph()

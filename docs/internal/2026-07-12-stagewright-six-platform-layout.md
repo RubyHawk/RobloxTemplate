@@ -33,11 +33,12 @@ Legacy-source characterization result (superseded by the production layout below
 
 ## Production rendering update — 2026-07-13
 
-- The random legacy cells and route are no longer deployed. The default stage is a clean 32×27 `Centerbound S-Curve` with an outer-rim spawn, a center-facing goal, six cubic Bezier edges, and six safe auto-place cells.
+- The random legacy cells and route are no longer deployed. The default stage is a clean 32×27 `Centerbound Dual Approach` with two outer-rim spawns, two spline branches that merge at one junction, a center-facing goal, and six safe auto-place cells.
 - The server publishes six authoritative slot CFrames as `CFrameValue` instances under `ReplicatedStorage.Template.StagePlatformOrigins`.
 - Each client renders six local world-space grid surfaces, route strips, and role markers from the generated Stagewright catalog. It creates Parts only; it does not clone or construct runtime GuiObjects.
 - The legacy slot-1 SurfaceGui, path controls, and path tiles are hidden locally during play so the authored test preview does not overlap the production renderer.
-- The generated production checksum is `fnv1a32-377191d3`.
+- The production lane profile defaults to two four-stud lanes (`-2`, `+2`). Stagewright can change the selected profile to one centered lane or three centered lanes without rebuilding graph topology.
+- The generated production checksum is `fnv1a32-f59f06e5`.
 
 ## Authoring-area separation update — 2026-07-13
 

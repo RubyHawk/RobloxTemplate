@@ -155,7 +155,7 @@ function StageRuntimeService.firstGraph(stage: any): any?
 	return if ids[1] ~= nil then stage.pathGraphs[ids[1]] else nil
 end
 
-function StageRuntimeService.firstSpawnNode(graph: any): any?
+function StageRuntimeService.spawnNodes(graph: any): { any }
 	local ids: { string } = {}
 	for nodeId, node in graph.nodes do
 		if node.kind == "Spawn" then
@@ -163,7 +163,15 @@ function StageRuntimeService.firstSpawnNode(graph: any): any?
 		end
 	end
 	table.sort(ids)
-	return if ids[1] ~= nil then graph.nodes[ids[1]] else nil
+	local nodes: { any } = {}
+	for _, nodeId in ids do
+		table.insert(nodes, graph.nodes[nodeId])
+	end
+	return nodes
+end
+
+function StageRuntimeService.firstSpawnNode(graph: any): any?
+	return StageRuntimeService.spawnNodes(graph)[1]
 end
 
 function StageRuntimeService.context(

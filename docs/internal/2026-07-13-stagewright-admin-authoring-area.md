@@ -39,7 +39,7 @@ move a player's gameplay route, towers, or ownership marker.
   roots, so stale Team Create copies cannot leak into gameplay.
 - **Island Guides** creates a non-archivable, Edit-mode-only footprint at each
   of the six authoritative slot transforms. Cyan edges show the exact grid
-  bounds. The orange bar follows the configured local spawn-to-goal direction;
+  bounds. The orange bar follows the configured local goal-bearing direction;
   the shared yaw calculation aligns that direction exactly toward the center.
 - Legacy `Edit Grid` controls are hidden if they remain in Team Create data,
   and the Stagewright plugin exits before constructing editor controls in Play

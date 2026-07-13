@@ -1,6 +1,7 @@
 --!strict
 
 local StageGraph = if script ~= nil then require(script.Parent.StageGraph) else require("./StageGraph")
+local StageLanes = if script ~= nil then require(script.Parent.StageLanes) else require("./StageLanes")
 
 local StageSchema = {}
 
@@ -309,6 +310,86 @@ function StageSchema.validateStage(stage: any): { Issue }
 		end
 	end
 	for graphId, graph in stage.pathGraphs or {} do
+		if type(graph.laneProfiles) ~= "table" then
+			table.insert(issues, {
+				severity = "Error",
+				code = "MissingLaneProfiles",
+				message = `Graph {graphId} has no lane profiles`,
+				stageId = stageId,
+				graphId = graphId,
+			})
+		else
+			for profileId, profile in graph.laneProfiles do
+				local offsets = if type(profile) == "table" then profile.offsets else nil
+				if type(profile) ~= "table" or profile.id ~= profileId then
+					table.insert(issues, {
+						severity = "Error",
+						code = "LaneProfileIdMismatch",
+						message = `Lane profile {profileId} has an invalid stable ID`,
+						stageId = stageId,
+						graphId = graphId,
+						objectId = profileId,
+					})
+				end
+				if
+					type(offsets) ~= "table"
+					or #offsets < StageLanes.MIN_COUNT
+					or #offsets > StageLanes.MAX_COUNT
+				then
+					table.insert(issues, {
+						severity = "Error",
+						code = "LaneCount",
+						message = `Lane profile {profileId} must define 1, 2, or 3 lanes`,
+						stageId = stageId,
+						graphId = graphId,
+						objectId = profileId,
+					})
+				else
+					local furthestOffset = 0
+					for _, offset in offsets do
+						if type(offset) ~= "number" or offset ~= offset or math.abs(offset) == math.huge then
+							table.insert(issues, {
+								severity = "Error",
+								code = "LaneOffset",
+								message = `Lane profile {profileId} has a non-finite offset`,
+								stageId = stageId,
+								graphId = graphId,
+								objectId = profileId,
+							})
+						else
+							furthestOffset = math.max(furthestOffset, math.abs(offset))
+						end
+					end
+					if
+						type(profile.clearanceRadius) ~= "number"
+						or profile.clearanceRadius ~= profile.clearanceRadius
+						or profile.clearanceRadius < furthestOffset
+						or profile.clearanceRadius == math.huge
+					then
+						table.insert(issues, {
+							severity = "Error",
+							code = "LaneClearance",
+							message = `Lane profile {profileId} clearance must cover every lane offset`,
+							stageId = stageId,
+							graphId = graphId,
+							objectId = profileId,
+						})
+					end
+				end
+			end
+			for edgeId, edge in graph.edges or {} do
+				if graph.laneProfiles[edge.laneProfileId] == nil then
+					table.insert(issues, {
+						severity = "Error",
+						code = "MissingLaneProfile",
+						message = `Edge {edgeId} references a missing lane profile`,
+						stageId = stageId,
+						graphId = graphId,
+						objectId = edgeId,
+					})
+				end
+			end
+		end
 		for _, issue in StageGraph.validate(graph) do
 			table.insert(issues, {
 				severity = issue.severity,

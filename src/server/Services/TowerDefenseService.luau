@@ -6,6 +6,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
 local Config = require(Shared.TemplateConfig)
+local StageLanes = require(Shared.StageLanes)
 local TowerDefenseCatalog = require(Shared.TowerDefenseCatalog)
 local TowerDefenseLogic = require(Shared.TowerDefenseLogic)
 local Types = require(Shared.Types)
@@ -44,6 +45,7 @@ type Enemy = {
 	edgeId: string,
 	edgeDistance: number,
 	laneIndex: number,
+	laneSequence: number,
 	nodeVisits: { [string]: number },
 	tags: { string },
 }
@@ -592,13 +594,16 @@ local function spawnEnemy(player: Player, match: MatchState)
 		match.pendingSpawns = 0
 		return
 	end
-	local spawnNode = StageRuntimeService.firstSpawnNode(graph)
-	if spawnNode == nil then
+	local spawnNodes = StageRuntimeService.spawnNodes(graph)
+	if #spawnNodes == 0 then
 		warn(`Tower defense graph {match.graphId} has no spawn node`)
 		match.waveRunning = false
 		match.pendingSpawns = 0
 		return
 	end
+	local enemySequence = match.nextEnemyId + 1
+	local spawnNode = spawnNodes[StageLanes.index(enemySequence, #spawnNodes)]
+	local laneSequence = StageLanes.sequenceForSpawn(enemySequence, #spawnNodes)
 	local nodeVisits = { [spawnNode.id] = 1 }
 	local tags = table.clone(enemyDefinition.tags)
 	local context = StageRuntimeService.context(player, match.wave, tags, nodeVisits, match.stageFlags)
@@ -609,6 +614,8 @@ local function spawnEnemy(player: Player, match: MatchState)
 		match.pendingSpawns = 0
 		return
 	end
+	local laneProfile = graph.laneProfiles[firstEdge.laneProfileId]
+	local laneCount = if laneProfile ~= nil and #laneProfile.offsets > 0 then #laneProfile.offsets else 1
 	match.nextEnemyId += 1
 	local maxHealth = math.floor(enemyDefinition.health * match.enemyHealthScale)
 	local enemy: Enemy = {
@@ -622,7 +629,8 @@ local function spawnEnemy(player: Player, match: MatchState)
 		distance = 0,
 		edgeId = firstEdge.id,
 		edgeDistance = 0,
-		laneIndex = 1,
+		laneIndex = StageLanes.index(laneSequence, laneCount),
+		laneSequence = laneSequence,
 		nodeVisits = nodeVisits,
 		tags = tags,
 	}
@@ -649,7 +657,7 @@ function TowerDefenseService.startWave(player: Player): (boolean, string)
 		return false, "Grid is unavailable"
 	end
 	local graph = StageRuntimeService.firstGraph(grid.stage)
-	if graph == nil or StageRuntimeService.firstSpawnNode(graph) == nil then
+	if graph == nil or #StageRuntimeService.spawnNodes(graph) == 0 then
 		return false, "The active stage needs a valid route graph"
 	end
 
@@ -812,6 +820,11 @@ local function tickEnemies(player: Player, match: MatchState, deltaTime: number)
 			end
 			enemy.edgeId = nextEdge.id
 			enemy.edgeDistance = 0
+			local laneProfile = graph.laneProfiles[nextEdge.laneProfileId]
+			local laneCount = if laneProfile ~= nil and #laneProfile.offsets > 0
+				then #laneProfile.offsets
+				else 1
+			enemy.laneIndex = StageLanes.index(enemy.laneSequence, laneCount)
 		end
 	end
 end

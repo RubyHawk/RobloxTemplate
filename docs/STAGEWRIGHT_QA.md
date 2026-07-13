@@ -19,7 +19,7 @@ No workflow below creates a Roblox experience.
 5. Open **Plugins → Stagewright**. The plugin moves the existing `FirstPrivateIsland.GamePlatform` intact into the open-front white `Workspace.StagewrightAdminArea`, 1,000 studs below and 3,000 studs outside the map footprint. If the place has no `ServerStorage.StagewrightProject`, Stagewright imports that admin platform once.
 6. Confirm before editing:
    - **Stage → Focus Admin** frames the white authoring room and the main `GamePlatform` remains visible inside it. From the production map, the room is too deep to show through water or island gaps.
-   - **Island Guides: On** shows cyan 32×27 footprints on all six beaches. Each orange guide follows the stage's authored spawn-to-goal direction and points toward `center_grass`. Toggle it off and on without changing authored stage data.
+   - **Island Guides: On** shows cyan 32×27 footprints on all six beaches. Each orange guide follows the stage's authored goal-bearing direction and points toward `center_grass`. Toggle it off and on without changing authored stage data.
    - Start a Server + Client test and confirm `StagewrightAdminArea` moves to `ServerStorage` for the running session. The white room and its legacy grid cannot appear through the world during Play; Studio restores the editor copy when the test stops.
    - `FirstPrivateIsland` no longer owns the editable `GamePlatform`; the six island origins remain unchanged because they come from `center_grass` plus configuration.
    - Every legacy `#` remains an authored `Blocked` cell.
@@ -40,7 +40,8 @@ Do not connect the legacy `rng-defender-grid-demo` Rojo patch during this import
 - Paint terrain, build policy, traversal policy, and roles across one drag; undo and redo the entire gesture.
 - Resize smaller; verify the truncation count and second-click confirmation, then undo.
 - Try deleting a referenced stage; verify the inbound-reference diagnostic blocks deletion.
-- Add spawn, junction, and goal nodes; connect and shape routes.
+- Add one or two spawn nodes, connect both branches into the same junction, and continue that merged route to a goal.
+- Select any edge using a lane profile and switch between **1 Lane**, **2 Lanes**, and **3 Lanes**. Confirm the 3D preview immediately shows the same number of parallel splines.
 - Move nodes and gold Bézier handles in 3D; undo and redo each movement.
 - Create branches with conditions plus exactly one fallback.
 - Exercise every predicate using Graph context fields: wave, flags, tags, currency, upgrades, and unlocked stages.
@@ -84,14 +85,15 @@ In Studio:
    - Published or real multi-account tests show each account's Roblox display name, username, and headshot. Studio's synthetic multi-client players use negative test IDs, so they show their Studio test name and a `TEST` avatar instead of impersonating a real account.
    - Confirm `ReplicatedStorage.Template.StagePlatformOrigins` reports `SlotCount = 6`, `LayoutAvailable = true`, `ServerMaxPlayers = 6`, and `CapacityMatchesSlotCount = true`.
 2. Confirm `Workspace.StagewrightClientGrids` contains `Platform_01` through `Platform_06` in every client. These runtime grids appear only after Play starts and remain on the six islands even though the editor platform lives in the admin room below the map.
-3. Confirm each island shows the same centerbound S-curve with green spawn, red goal, blue auto-place markers, and no overlapping legacy slot-1 grid.
+3. Confirm each island shows the same dual-approach route with two green spawns, one red goal, blue auto-place markers, and no overlapping legacy slot-1 grid.
 4. Activate stages independently for different players.
 5. Start waves with different currencies/upgrades/flags and confirm server-selected branches.
 6. Attempt malformed, locked, and disabled stage IDs; out-of-range placements; repeated requests; and client-supplied route outcomes. All must fail server-side.
-7. Confirm pooled enemies orient through elevation, remain in lanes, and correct smoothly after network delay.
-8. Stream the platform out and back; authoritative wave state must continue and visuals must recover because slot CFrames live in ReplicatedStorage.
-9. Rejoin with a schema 6 profile fixture and confirm schema 7 migration preserves unit/loadout/stat data.
-10. Confirm one player's stage, towers, enemies, currencies, unlocks, and flags never affect another player.
+7. Confirm enemies alternate deterministically across every authored spawn. With the production fixture, both outer spawns feed their own branch and merge at `Spawn Merge`.
+8. Confirm pooled enemies alternate across the configured 1–3 lanes, keep their lateral lane through each edge profile, orient through elevation, and correct smoothly after network delay.
+9. Stream the platform out and back; authoritative wave state must continue and visuals must recover because slot CFrames live in ReplicatedStorage.
+10. Rejoin with a schema 6 profile fixture and confirm schema 7 migration preserves unit/loadout/stat data.
+11. Confirm one player's stage, towers, enemies, currencies, unlocks, and flags never affect another player.
 
 Before live testing, open **File > Game Settings > Places > ... > Configure Place** and set **Maximum Players** to `6`. Roblox then admits at most six players to each server and creates additional servers for further players. The server also rejects a player before profile loading if no authoritative platform is available, so nobody can remain in gameplay without an island.
 

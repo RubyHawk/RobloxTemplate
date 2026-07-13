@@ -247,6 +247,16 @@ local function renderRouteSegment(
 	)
 end
 
+local function routePoint(origin: CFrame, sample: any, laneOffset: number, verticalOffset: number): Vector3
+	local position =
+		origin:PointToWorldSpace(Vector3.new(sample.position.x, sample.position.y, sample.position.z))
+	local tangent =
+		origin:VectorToWorldSpace(Vector3.new(sample.tangent.x, sample.tangent.y, sample.tangent.z))
+	local up = origin:VectorToWorldSpace(Vector3.new(sample.up.x, sample.up.y, sample.up.z))
+	local frame = CFrame.lookAt(position, position + tangent, up)
+	return position + frame.RightVector * laneOffset + origin.UpVector * verticalOffset
+end
+
 local function renderRoutes(model: Model, stage: any, origin: CFrame, fade: number)
 	local visuals = Config.towerDefense.gridVisuals
 	local segmentIndex = 0
@@ -264,37 +274,32 @@ local function renderRoutes(model: Model, stage: any, origin: CFrame, fade: numb
 		table.sort(edgeIds)
 		for _, edgeId in edgeIds do
 			local edge = graph.edges[edgeId]
-			local previous: Vector3? = nil
-			local distance = 0
-			while distance < edge.length do
-				local sample = StagePath.sample(edge.samples, edge.length, distance)
-				if sample ~= nil then
-					local current = origin:PointToWorldSpace(
-						Vector3.new(
-							sample.position.x,
-							sample.position.y + visuals.routeVerticalOffset,
-							sample.position.z
-						)
-					)
-					if previous ~= nil then
-						segmentIndex += 1
-						renderRouteSegment(model, segmentIndex, previous, current, origin.UpVector, fade)
+			local laneProfile = graph.laneProfiles[edge.laneProfileId]
+			local laneOffsets = if laneProfile ~= nil and #laneProfile.offsets > 0
+				then laneProfile.offsets
+				else { 0 }
+			for _, laneOffset in laneOffsets do
+				local previous: Vector3? = nil
+				local distance = 0
+				while distance < edge.length do
+					local sample = StagePath.sample(edge.samples, edge.length, distance)
+					if sample ~= nil then
+						local current = routePoint(origin, sample, laneOffset, visuals.routeVerticalOffset)
+						if previous ~= nil then
+							segmentIndex += 1
+							renderRouteSegment(model, segmentIndex, previous, current, origin.UpVector, fade)
+						end
+						previous = current
 					end
-					previous = current
+					distance += visuals.routeSampleSpacing
 				end
-				distance += visuals.routeSampleSpacing
-			end
-			local finalSample = StagePath.sample(edge.samples, edge.length, edge.length)
-			if finalSample ~= nil and previous ~= nil then
-				local finalPosition = origin:PointToWorldSpace(
-					Vector3.new(
-						finalSample.position.x,
-						finalSample.position.y + visuals.routeVerticalOffset,
-						finalSample.position.z
-					)
-				)
-				segmentIndex += 1
-				renderRouteSegment(model, segmentIndex, previous, finalPosition, origin.UpVector, fade)
+				local finalSample = StagePath.sample(edge.samples, edge.length, edge.length)
+				if finalSample ~= nil and previous ~= nil then
+					local finalPosition =
+						routePoint(origin, finalSample, laneOffset, visuals.routeVerticalOffset)
+					segmentIndex += 1
+					renderRouteSegment(model, segmentIndex, previous, finalPosition, origin.UpVector, fade)
+				end
 			end
 		end
 	end
