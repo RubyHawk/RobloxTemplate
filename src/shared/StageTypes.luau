@@ -120,6 +120,9 @@ export type StageUnlockPredicate = StageUnlockedPredicate | UpgradeLevelPredicat
 export type StageDefinition = {
 	schemaVersion: number,
 	id: string,
+	stageGroupId: string,
+	stageNumber: number,
+	levelNumber: number,
 	name: string,
 	displayOrder: number,
 	grid: GridDefinition,
@@ -163,6 +166,9 @@ export type RuntimePathGraph = {
 export type RuntimeStageDefinition = {
 	schemaVersion: number,
 	id: string,
+	stageGroupId: string,
+	stageNumber: number,
+	levelNumber: number,
 	name: string,
 	displayOrder: number,
 	grid: GridDefinition,

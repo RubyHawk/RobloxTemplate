@@ -420,8 +420,8 @@ function StageGridRenderer.initialize()
 			warn("Stage grid renderer received an unavailable platform layout")
 			return
 		end
-		local stage = StageCatalog.get(StageCatalog.defaultStageId())
-		if stage == nil then
+		local fallbackStage = StageCatalog.get(StageCatalog.defaultStageId())
+		if fallbackStage == nil then
 			warn("Stage grid renderer could not find the default stage")
 			return
 		end
@@ -433,14 +433,29 @@ function StageGridRenderer.initialize()
 		for slot = 1, Config.towerDefense.platformSlotCount do
 			local value = origins:FindFirstChild(`Slot_{string.format("%02d", slot)}`)
 			if value ~= nil and value:IsA("CFrameValue") then
-				local rawOwnerUserId = value:GetAttribute("OwnerUserId")
-				local ownerUserId = if type(rawOwnerUserId) == "number" then rawOwnerUserId else 0
-				local model =
-					renderStage(renderFolder, slot, stage, value.Value, slot == ownedSlot, ownerUserId)
+				local model: Model? = nil
+				local function renderActiveLevel()
+					local activeStageId = value:GetAttribute("ActiveStageId")
+					local activeStage = if type(activeStageId) == "string"
+						then StageCatalog.get(activeStageId)
+						else nil
+					local stage = activeStage or fallbackStage
+					local rawOwnerUserId = value:GetAttribute("OwnerUserId")
+					local ownerUserId = if type(rawOwnerUserId) == "number" then rawOwnerUserId else 0
+					if model ~= nil then
+						model:Destroy()
+					end
+					model =
+						renderStage(renderFolder, slot, stage, value.Value, slot == ownedSlot, ownerUserId)
+				end
+				renderActiveLevel()
 				value:GetAttributeChangedSignal("OwnerUserId"):Connect(function()
 					local updated = value:GetAttribute("OwnerUserId")
-					model:SetAttribute("OwnerUserId", if type(updated) == "number" then updated else 0)
+					if model ~= nil then
+						model:SetAttribute("OwnerUserId", if type(updated) == "number" then updated else 0)
+					end
 				end)
+				value:GetAttributeChangedSignal("ActiveStageId"):Connect(renderActiveLevel)
 			else
 				warn(`Stage grid renderer is missing platform origin {slot}`)
 			end

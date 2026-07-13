@@ -196,6 +196,7 @@ local Config = {
 		simulationHz = 20,
 		networkSnapshotHz = 4,
 		maximumEnemiesPerPlayer = 500,
+		starterLevelsPerStage = 10,
 		platformSlotCount = 6,
 		centerPartNames = { "center_grass", "ccenter_grass" },
 		firstPlatformIslandName = "FirstPrivateIsland",

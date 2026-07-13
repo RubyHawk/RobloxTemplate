@@ -6,6 +6,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
 local Config = require(Shared.TemplateConfig)
+local StageCatalog = require(Shared.StageCatalog)
 local StageLanes = require(Shared.StageLanes)
 local TowerDefenseCatalog = require(Shared.TowerDefenseCatalog)
 local TowerDefenseLogic = require(Shared.TowerDefenseLogic)
@@ -955,6 +956,16 @@ local function tickWaveCompletion(player: Player, match: MatchState)
 			stageProgress.unlocked = true
 			stageProgress.clears += 1
 			stageProgress.bestWave = math.max(stageProgress.bestWave, match.wave)
+			local nextLevelId = StageCatalog.nextLevelId(match.stageId)
+			if nextLevelId ~= nil then
+				local nextProgress = profile.towerDefense.stageProgress[nextLevelId]
+				if type(nextProgress) ~= "table" then
+					nextProgress = { unlocked = true, clears = 0, bestWave = 0 }
+					profile.towerDefense.stageProgress[nextLevelId] = nextProgress
+				else
+					nextProgress.unlocked = true
+				end
+			end
 			ProfileService.markDirty(player, "towerDefense:waveClear")
 		end
 		publish(player)

@@ -25,6 +25,9 @@ for row = 1, 256 do
 end
 local denseStage = {
 	id = "benchmark_dense",
+	stageGroupId = "benchmark_group",
+	stageNumber = 1,
+	levelNumber = 1,
 	grid = {
 		columns = 256,
 		rows = 256,
@@ -96,7 +99,10 @@ local enemyBatchElapsed = timed(function()
 	for _ = 1, updateCount do
 		for index = 1, 500 do
 			distances[index] = (distances[index] + 7 / 20) % length
-			assert(StagePath.sample(samples, length, distances[index]) ~= nil)
+			assert(
+				StagePath.sample(samples, length, distances[index]) ~= nil,
+				"500-enemy benchmark sample must resolve"
+			)
 		end
 	end
 end)
@@ -110,7 +116,10 @@ local sixPlatformElapsed = timed(function()
 	for _ = 1, updateCount do
 		for index = 1, 3_000 do
 			sixPlatformDistances[index] = (sixPlatformDistances[index] + 7 / 20) % length
-			assert(StagePath.sample(samples, length, sixPlatformDistances[index]) ~= nil)
+			assert(
+				StagePath.sample(samples, length, sixPlatformDistances[index]) ~= nil,
+				"six-platform benchmark sample must resolve"
+			)
 		end
 	end
 end)

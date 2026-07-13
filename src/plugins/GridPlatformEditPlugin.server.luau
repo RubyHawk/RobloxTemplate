@@ -13,6 +13,7 @@ end
 
 local AuthoringArea = require(script.AuthoringArea)
 local ProjectStore = require(script.ProjectStore)
+local StageHierarchy = require(script.Shared.StageHierarchy)
 local StageLanes = require(script.Shared.StageLanes)
 local StageTrace = require(script.Shared.StageTrace)
 
@@ -627,9 +628,19 @@ local stageNameField = textField(stageInspector, "DISPLAY NAME", 8, 7, 180)
 local columnsField = textField(stageInspector, "COLUMNS", 194, 7, 66)
 local rowsField = textField(stageInspector, "ROWS", 266, 7, 66)
 local cellSizeField = textField(stageInspector, "CELL SIZE", 338, 7, 72)
+local stageLevelLabel = create("TextLabel", {
+	BackgroundColor3 = COLORS.field,
+	BorderSizePixel = 0,
+	Position = UDim2.fromOffset(414, 23),
+	Size = UDim2.fromOffset(98, 26),
+	Text = "STAGE 1 · LEVEL 1",
+	TextColor3 = COLORS.accent,
+	TextSize = 10,
+}, stageInspector) :: TextLabel
+create("UICorner", { CornerRadius = UDim.new(0, 4) }, stageLevelLabel)
 local waveSetField = textField(stageInspector, "WAVE SET ID", 8, 59, 180)
 local themeField = textField(stageInspector, "THEME ID", 194, 59, 138)
-button(stageInspector, "Apply Stage", 112, function()
+button(stageInspector, "Apply Level", 112, function()
 	local current = stage()
 	if current == nil then
 		return
@@ -667,7 +678,7 @@ button(stageInspector, "Apply Stage", 112, function()
 	then
 		return
 	end
-	mutate("Update Stagewright stage settings", function()
+	mutate("Update Stagewright level settings", function()
 		current.name = if stageNameField.Text ~= "" then stageNameField.Text else current.name
 		current.waveSetId = waveSetField.Text
 		current.themeId = themeField.Text
@@ -722,20 +733,20 @@ function mutate(name: string, callback: () -> ())
 	setStatus(`Working changes · {ProjectStore.workingChecksum()}`)
 end
 
-button(stageActions, "New", 62, function()
-	mutate("Create Stagewright stage", function()
+button(stageActions, "+ Stage", 62, function()
+	mutate("Create Stagewright stage group", function()
 		selectedStageId = ProjectStore.createStage(nil)
 	end)
 	renderAll()
 end)
-button(stageActions, "Duplicate", 76, function()
-	mutate("Duplicate Stagewright stage", function()
-		selectedStageId = ProjectStore.createStage(selectedStageId)
+button(stageActions, "+ Level", 76, function()
+	mutate("Create Stagewright level", function()
+		selectedStageId = ProjectStore.createLevel(selectedStageId)
 	end)
 	renderAll()
 end)
 button(stageActions, "Delete", 62, function()
-	if not confirm(`delete_{selectedStageId}`, "Delete this stage and its graph data?") then
+	if not confirm(`delete_{selectedStageId}`, "Delete this level and its graph data?") then
 		return
 	end
 	local ok, message = false, ""
@@ -770,16 +781,33 @@ end)
 
 local function renderStageList()
 	for _, child in stageList:GetChildren() do
-		if child:IsA("GuiButton") then
+		if child:IsA("GuiObject") then
 			child:Destroy()
 		end
 	end
 	stageIds = ProjectStore.stageIds()
+	local previousGroupId: string? = nil
+	local groupCount = 0
 	for order, stageId in stageIds do
 		local definition = project.stages[stageId]
+		local address = StageHierarchy.address(definition)
+		if address.groupId ~= previousGroupId then
+			groupCount += 1
+			previousGroupId = address.groupId
+			local groupHeader = create("TextLabel", {
+				BackgroundTransparency = 1,
+				LayoutOrder = order * 2 - 1,
+				Size = UDim2.new(1, -16, 0, 24),
+				Text = `STAGE {address.stageNumber}`,
+				TextColor3 = COLORS.muted,
+				TextSize = 11,
+				TextXAlignment = Enum.TextXAlignment.Left,
+			}, stageList) :: TextLabel
+			create("UIPadding", { PaddingLeft = UDim.new(0, 4) }, groupHeader)
+		end
 		local stageButton = button(
 			stageList,
-			`{definition.name}  ·  {string.sub(stageId, -8)}`,
+			`Level {address.levelNumber}  ·  {definition.name}  ·  {string.sub(stageId, -8)}`,
 			300,
 			function()
 				selectedStageId = stageId
@@ -790,12 +818,12 @@ local function renderStageList()
 				renderAll()
 			end
 		)
-		stageButton.LayoutOrder = order
+		stageButton.LayoutOrder = order * 2
 		stageButton.Size = UDim2.new(1, -16, 0, 34)
 		stageButton.TextXAlignment = Enum.TextXAlignment.Left
 		stageButton.BackgroundColor3 = if stageId == selectedStageId then COLORS.accent else COLORS.field
 	end
-	stageList.CanvasSize = UDim2.fromOffset(0, #stageIds * 39 + 16)
+	stageList.CanvasSize = UDim2.fromOffset(0, #stageIds * 39 + groupCount * 29 + 16)
 end
 
 -- Graph page: stable node/edge IDs, directed connections, predicates, lanes, and priorities.
@@ -1349,7 +1377,9 @@ function rerenderAll()
 	end
 	local current = stage()
 	if current ~= nil then
-		title.Text = `STAGEWRIGHT  ·  {current.name}  ·  {string.sub(current.id, -8)}`
+		local address = StageHierarchy.address(current)
+		title.Text = `STAGEWRIGHT  ·  Stage {address.stageNumber}  ·  Level {address.levelNumber}`
+		stageLevelLabel.Text = `STAGE {address.stageNumber} · LEVEL {address.levelNumber}`
 		if not stageNameField:IsFocused() then
 			stageNameField.Text = current.name
 		end
@@ -1434,14 +1464,27 @@ outlineAction.Triggered:Connect(function()
 end)
 local duplicateAction = plugin:CreatePluginAction(
 	"StagewrightDuplicateStage",
-	"Duplicate Stage",
-	"Duplicate the selected stage",
+	"Create Stagewright Level",
+	"Copy the selected level into its stage",
 	"",
 	true
 )
 duplicateAction.Triggered:Connect(function()
-	mutate("Duplicate Stagewright stage", function()
-		selectedStageId = ProjectStore.createStage(selectedStageId)
+	mutate("Create Stagewright level", function()
+		selectedStageId = ProjectStore.createLevel(selectedStageId)
+	end)
+	renderAll()
+end)
+local createStageAction = plugin:CreatePluginAction(
+	"StagewrightCreateStage",
+	"Create Stagewright Stage",
+	"Create a new stage group with Level 1",
+	"",
+	true
+)
+createStageAction.Triggered:Connect(function()
+	mutate("Create Stagewright stage group", function()
+		selectedStageId = ProjectStore.createStage(nil)
 	end)
 	renderAll()
 end)

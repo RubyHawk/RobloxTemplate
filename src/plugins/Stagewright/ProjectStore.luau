@@ -2,11 +2,13 @@
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
 local AuthoringArea = require(script.Parent.AuthoringArea)
 local Shared = script.Parent.Shared
 local StageExport = require(Shared.StageExport)
+local StageHierarchy = require(Shared.StageHierarchy)
 local StageLegacy = require(Shared.StageLegacy)
 local StageLanes = require(Shared.StageLanes)
 local StageSchema = require(Shared.StageSchema)
@@ -18,6 +20,22 @@ local PAYLOAD_NAME = "Payload"
 local project: any = nil
 local recording: any = nil
 local writingPayload = false
+
+local function configuredStarterLevelCount(): number
+	local template = ReplicatedStorage:FindFirstChild("Template")
+	local shared = if template ~= nil then template:FindFirstChild("Shared") else nil
+	local module = if shared ~= nil then shared:FindFirstChild("TemplateConfig") else nil
+	if module == nil or not module:IsA("ModuleScript") then
+		return 1
+	end
+	local success, config = pcall(require, module)
+	local value = if success
+			and type(config) == "table"
+			and type(config.towerDefense) == "table"
+		then config.towerDefense.starterLevelsPerStage
+		else nil
+	return if type(value) == "number" then math.clamp(math.floor(value), 1, 100) else 1
+end
 
 local function guid(prefix: string): string
 	return `{prefix}_{string.lower(HttpService:GenerateGUID(false))}`
@@ -132,7 +150,7 @@ local function defaultProject(platformOverride: Instance?): any
 		controlPositions = controls,
 		stageId = "stage_default",
 		graphId = "graph_main",
-		stageName = if hasAuthoredCells or #controls > 0 then "First Island Stage" else "Default Stage",
+		stageName = "Level 1",
 		blankFallback = not hasAuthoredCells and #controls == 0,
 	})
 	return imported
@@ -146,12 +164,14 @@ function ProjectStore.load(platformOverride: Instance?): any
 		end)
 		if success and type(decoded) == "table" and type(decoded.stages) == "table" then
 			project = StageSchema.migrateProject(decoded)
+			ProjectStore.ensureStarterLevels(configuredStarterLevelCount())
 			ProjectStore.save()
 			return project
 		end
 		folder:SetAttribute("LoadError", "Payload JSON is invalid; preserved for manual recovery")
 	end
-	project = defaultProject(platformOverride)
+	project = StageSchema.migrateProject(defaultProject(platformOverride))
+	ProjectStore.ensureStarterLevels(configuredStarterLevelCount())
 	ProjectStore.save()
 	return project
 end
@@ -224,24 +244,29 @@ function ProjectStore.mutate(name: string, callback: () -> ())
 end
 
 function ProjectStore.stageIds(): { string }
-	local ids: { string } = {}
-	for id in ProjectStore.get().stages do
-		table.insert(ids, id)
-	end
-	table.sort(ids, function(left, right)
-		local leftStage = project.stages[left]
-		local rightStage = project.stages[right]
-		return if leftStage.displayOrder == rightStage.displayOrder
-			then left < right
-			else leftStage.displayOrder < rightStage.displayOrder
-	end)
-	return ids
+	return StageHierarchy.sortedIds(ProjectStore.get().stages)
 end
 
-function ProjectStore.createStage(copyFromId: string?): string
-	local source = if copyFromId ~= nil then project.stages[copyFromId] else nil
-	local stage = if source ~= nil then clone(source) else clone(project.stages[ProjectStore.stageIds()[1]])
-	if source == nil then
+function ProjectStore.address(stageId: string): StageHierarchy.Address?
+	local definition = ProjectStore.get().stages[stageId]
+	return if definition ~= nil then StageHierarchy.address(definition) else nil
+end
+
+local function refreshDisplayOrder()
+	for order, id in ProjectStore.stageIds() do
+		project.stages[id].displayOrder = order
+	end
+end
+
+local function copiedDefinition(
+	source: any,
+	blank: boolean,
+	groupId: string,
+	stageNumber: number,
+	levelNumber: number
+): any
+	local stage = clone(source)
+	if blank then
 		local graphId = guid("graph")
 		local laneOffsets = StageLanes.offsets(StageLanes.DEFAULT_COUNT)
 		stage.grid.cells = {}
@@ -265,7 +290,9 @@ function ProjectStore.createStage(copyFromId: string?): string
 	end
 	local stageId = guid("stage")
 	stage.id = stageId
-	stage.name = if source ~= nil then `{source.name} Copy` else "New Stage"
+	stage.schemaVersion = StageSchema.AUTHORING_VERSION
+	StageHierarchy.assign(stage, groupId, stageNumber, levelNumber)
+	stage.name = `Level {levelNumber}`
 	stage.displayOrder = #ProjectStore.stageIds() + 1
 	local rewrittenGraphs: { [string]: any } = {}
 	for _, oldGraph in stage.pathGraphs do
@@ -301,8 +328,70 @@ function ProjectStore.createStage(copyFromId: string?): string
 		rewrittenGraphs[graphId] = graph
 	end
 	stage.pathGraphs = rewrittenGraphs
+	return stage
+end
+
+function ProjectStore.createStage(copyFromId: string?): string
+	local source = if copyFromId ~= nil then project.stages[copyFromId] else nil
+	source = source or project.stages[ProjectStore.stageIds()[1]]
+	assert(source ~= nil, "A Stagewright project needs a source definition")
+	local stage = copiedDefinition(
+		source,
+		copyFromId == nil,
+		guid("stage_group"),
+		StageHierarchy.nextStageNumber(project.stages),
+		1
+	)
+	stage.unlockRequirements = {}
+	local stageId = stage.id
 	project.stages[stageId] = stage
+	refreshDisplayOrder()
 	return stageId
+end
+
+function ProjectStore.createLevel(copyFromId: string): string
+	local source = project.stages[copyFromId]
+	assert(source ~= nil, "Select a level to copy first")
+	local sourceAddress = StageHierarchy.address(source)
+	local levelNumber = StageHierarchy.nextLevelNumber(project.stages, sourceAddress.groupId)
+	local previousId = copyFromId
+	for id, definition in project.stages do
+		local address = StageHierarchy.address(definition)
+		if address.groupId == sourceAddress.groupId and address.levelNumber == levelNumber - 1 then
+			previousId = id
+			break
+		end
+	end
+	local stage =
+		copiedDefinition(source, false, sourceAddress.groupId, sourceAddress.stageNumber, levelNumber)
+	stage.unlockRequirements = { { kind = "StageUnlocked", stageId = previousId } }
+	project.stages[stage.id] = stage
+	refreshDisplayOrder()
+	return stage.id
+end
+
+function ProjectStore.ensureStarterLevels(levelCount: any): boolean
+	local requested = if type(levelCount) == "number" then math.clamp(math.floor(levelCount), 1, 100) else 1
+	local ids = ProjectStore.stageIds()
+	if #ids ~= 1 or requested <= 1 then
+		return false
+	end
+	project.metadata = project.metadata or {}
+	local alreadySeeded = project.metadata["stagewright.starterLevelCount"]
+	if type(alreadySeeded) == "number" and alreadySeeded >= requested then
+		return false
+	end
+	local firstId = ids[1]
+	local first = project.stages[firstId]
+	local firstAddress = StageHierarchy.address(first)
+	first.name = "Level 1"
+	for _ = 2, requested do
+		ProjectStore.createLevel(firstId)
+	end
+	project.metadata["stagewright.starterLevelCount"] = requested
+	project.metadata["stagewright.starterStageGroupId"] = firstAddress.groupId
+	refreshDisplayOrder()
+	return true
 end
 
 function ProjectStore.inboundReferences(stageId: string): { string }
@@ -334,23 +423,31 @@ function ProjectStore.deleteStage(stageId: string): (boolean, string)
 	if project.startingStageId == stageId then
 		project.startingStageId = ProjectStore.stageIds()[1]
 	end
-	for order, id in ProjectStore.stageIds() do
-		project.stages[id].displayOrder = order
-	end
+	refreshDisplayOrder()
 	return true, "Stage deleted"
 end
 
 function ProjectStore.moveStage(stageId: string, offset: number)
-	local ids = ProjectStore.stageIds()
+	local selected = project.stages[stageId]
+	if selected == nil then
+		return
+	end
+	local selectedAddress = StageHierarchy.address(selected)
+	local ids: { string } = {}
+	for _, id in ProjectStore.stageIds() do
+		if StageHierarchy.address(project.stages[id]).groupId == selectedAddress.groupId then
+			table.insert(ids, id)
+		end
+	end
 	local current = table.find(ids, stageId)
 	if current == nil then
 		return
 	end
 	local destination = math.clamp(current + offset, 1, #ids)
-	ids[current], ids[destination] = ids[destination], ids[current]
-	for order, id in ids do
-		project.stages[id].displayOrder = order
-	end
+	local destinationAddress = StageHierarchy.address(project.stages[ids[destination]])
+	selected.levelNumber = destinationAddress.levelNumber
+	project.stages[ids[destination]].levelNumber = selectedAddress.levelNumber
+	refreshDisplayOrder()
 end
 
 function ProjectStore.validate(): { StageSchema.Issue }

@@ -203,6 +203,9 @@ function StageLegacy.project(input: LegacyInput): (any, { string })
 	local stage = {
 		schemaVersion = StageSchema.AUTHORING_VERSION,
 		id = stageId,
+		stageGroupId = "stage_group_legacy_1",
+		stageNumber = 1,
+		levelNumber = 1,
 		name = input.stageName or "Imported Stage",
 		displayOrder = 1,
 		grid = {

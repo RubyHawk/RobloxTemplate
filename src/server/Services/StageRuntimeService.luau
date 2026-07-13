@@ -18,6 +18,7 @@ export type RouteContext = StageGraph.Context
 type UpgradeLevelProvider = (player: Player, upgradeId: string) -> number
 type StageOriginProvider = (player: Player, stageId: string) -> CFrame
 type StageAvailabilityProvider = (player: Player) -> boolean
+type StageActivationPublisher = (player: Player, stageId: string) -> boolean
 
 local activeStageIds: { [Player]: string } = {}
 local upgradeLevelProvider: UpgradeLevelProvider = function(_player: Player, _upgradeId: string): number
@@ -25,6 +26,9 @@ local upgradeLevelProvider: UpgradeLevelProvider = function(_player: Player, _up
 end
 local originProvider: StageOriginProvider? = nil
 local availabilityProvider: StageAvailabilityProvider = function(_player: Player): boolean
+	return true
+end
+local activationPublisher: StageActivationPublisher = function(_player: Player, _stageId: string): boolean
 	return true
 end
 
@@ -122,6 +126,7 @@ function StageRuntimeService.activate(player: Player, stageId: any): (boolean, s
 		return false, "Profile is not loaded"
 	end
 	activeStageIds[player] = stageId
+	activationPublisher(player, stageId)
 	profile.towerDefense.selectedStageId = stageId
 	ProfileService.markDirty(player, "towerDefense:activateStage")
 	return true, `Activated {stageById(stageId).name}`
@@ -130,15 +135,18 @@ end
 function StageRuntimeService.activeStageId(player: Player): string
 	local active = activeStageIds[player]
 	if active ~= nil and stageById(active) ~= nil and StageRuntimeService.isUnlocked(player, active) then
+		activationPublisher(player, active)
 		return active
 	end
 	local profile = ProfileService.get(player)
 	local selected = if profile ~= nil then profile.towerDefense.selectedStageId else ""
 	if selected ~= "" and stageById(selected) ~= nil and StageRuntimeService.isUnlocked(player, selected) then
 		activeStageIds[player] = selected
+		activationPublisher(player, selected)
 		return selected
 	end
 	activeStageIds[player] = Config.towerDefense.startingStageId
+	activationPublisher(player, Config.towerDefense.startingStageId)
 	return Config.towerDefense.startingStageId
 end
 
@@ -297,6 +305,7 @@ function StageRuntimeService.start(options: {
 	upgradeLevel: UpgradeLevelProvider?,
 	origin: StageOriginProvider?,
 	available: StageAvailabilityProvider?,
+	publishActiveStage: StageActivationPublisher?,
 }?)
 	if options ~= nil and options.upgradeLevel ~= nil then
 		upgradeLevelProvider = options.upgradeLevel
@@ -306,6 +315,9 @@ function StageRuntimeService.start(options: {
 	end
 	if options ~= nil and options.available ~= nil then
 		availabilityProvider = options.available
+	end
+	if options ~= nil and options.publishActiveStage ~= nil then
+		activationPublisher = options.publishActiveStage
 	end
 end
 

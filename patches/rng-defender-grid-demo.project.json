@@ -72,6 +72,9 @@
           "StageGraph": {
             "$path": "../src/shared/StageGraph.luau"
           },
+          "StageHierarchy": {
+            "$path": "../src/shared/StageHierarchy.luau"
+          },
           "StageLegacy": {
             "$path": "../src/shared/StageLegacy.luau"
           },

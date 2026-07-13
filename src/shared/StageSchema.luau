@@ -1,11 +1,14 @@
 --!strict
 
 local StageGraph = if script ~= nil then require(script.Parent.StageGraph) else require("./StageGraph")
+local StageHierarchy = if script ~= nil
+	then require(script.Parent.StageHierarchy)
+	else require("./StageHierarchy")
 local StageLanes = if script ~= nil then require(script.Parent.StageLanes) else require("./StageLanes")
 
 local StageSchema = {}
 
-StageSchema.AUTHORING_VERSION = 2
+StageSchema.AUTHORING_VERSION = 3
 StageSchema.RUNTIME_VERSION = 1
 
 export type JsonValue = string | number | boolean | { JsonValue } | { [string]: JsonValue }
@@ -132,7 +135,7 @@ function StageSchema.migrateProject(project: any): any
 	end
 	if version == 1 then
 		for _, stage in project.stages do
-			stage.schemaVersion = StageSchema.AUTHORING_VERSION
+			stage.schemaVersion = 2
 			stage.metadata = stage.metadata or {}
 			stage.modifierIds = stage.modifierIds or {}
 			stage.unlockRequirements = stage.unlockRequirements or {}
@@ -157,6 +160,26 @@ function StageSchema.migrateProject(project: any): any
 					edge.predicates = edge.predicates or {}
 				end
 			end
+		end
+		project.schemaVersion = 2
+		version = 2
+	end
+	if version == 2 then
+		local legacyIds: { string } = {}
+		for id in project.stages do
+			table.insert(legacyIds, id)
+		end
+		table.sort(legacyIds, function(left, right)
+			local leftStage = project.stages[left]
+			local rightStage = project.stages[right]
+			return if leftStage.displayOrder == rightStage.displayOrder
+				then left < right
+				else leftStage.displayOrder < rightStage.displayOrder
+		end)
+		for stageNumber, id in legacyIds do
+			local stage = project.stages[id]
+			StageHierarchy.assign(stage, `stage_group_legacy_{stageNumber}`, stageNumber, 1)
+			stage.schemaVersion = StageSchema.AUTHORING_VERSION
 		end
 		project.schemaVersion = StageSchema.AUTHORING_VERSION
 	end
@@ -194,6 +217,39 @@ function StageSchema.validateStage(stage: any): { Issue }
 		return { { severity = "Error", code = "InvalidStage", message = "Stage has no stable ID" } }
 	end
 	local stageId = stage.id
+	local address = StageHierarchy.address(stage)
+	if type(stage.stageGroupId) ~= "string" or stage.stageGroupId == "" or #stage.stageGroupId > 80 then
+		table.insert(issues, {
+			severity = "Error",
+			code = "InvalidStageGroupId",
+			message = "Level has no valid stable stage-group ID",
+			stageId = stageId,
+		})
+	end
+	if
+		type(stage.stageNumber) ~= "number"
+		or stage.stageNumber ~= address.stageNumber
+		or address.stageNumber > 999
+	then
+		table.insert(issues, {
+			severity = "Error",
+			code = "InvalidStageNumber",
+			message = "Stage number must be an integer between 1 and 999",
+			stageId = stageId,
+		})
+	end
+	if
+		type(stage.levelNumber) ~= "number"
+		or stage.levelNumber ~= address.levelNumber
+		or address.levelNumber > 999
+	then
+		table.insert(issues, {
+			severity = "Error",
+			code = "InvalidLevelNumber",
+			message = "Level number must be an integer between 1 and 999",
+			stageId = stageId,
+		})
+	end
 	local grid = stage.grid
 	if type(grid) ~= "table" or type(grid.columns) ~= "number" or type(grid.rows) ~= "number" then
 		table.insert(issues, {

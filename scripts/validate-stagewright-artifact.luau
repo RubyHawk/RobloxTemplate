@@ -42,6 +42,7 @@ for _, requiredName in
 		"ProjectStore",
 		"Shared",
 		"StageGraph",
+		"StageHierarchy",
 		"StageLanes",
 		"StageLegacy",
 		"StagePath",
@@ -66,6 +67,9 @@ for _, marker in
 		"GridColumn_",
 		"GridRow_",
 		"AlwaysOnTop",
+		"ProjectStore.createLevel",
+		"+ Stage",
+		"+ Level",
 	}
 do
 	assert(
@@ -88,6 +92,7 @@ for _, requiredName in
 		"StageCatalog",
 		"StageCatalog.generated",
 		"StageGraph",
+		"StageHierarchy",
 		"StageLanes",
 		"StagePath",
 		"StagePlatformLayout",
@@ -110,6 +115,9 @@ for _, marker in
 		"StageRuntimeService.spawnNodes",
 		"laneSequence",
 		"hideLegacyEditGridUi",
+		"ActiveStageId",
+		"StageCatalog.nextLevelId",
+		"stage_1_level_10",
 	}
 do
 	assert(

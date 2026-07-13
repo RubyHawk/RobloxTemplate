@@ -33,10 +33,12 @@ Do not connect the legacy `rng-defender-grid-demo` Rojo patch during this import
 
 ## 2. Studio interaction checklist
 
-- Create a blank stage; verify the original stage is unchanged.
+- Confirm the browser starts with **Stage 1** containing **Level 1** through **Level 10**. All ten begin as independent copies of the same playable grid and graph.
+- Select **+ Stage**; verify a new stage group appears with its own Level 1 and stable group ID.
+- Select **+ Level**; verify the selected level is copied into the next number inside the same stage group.
 - Use **Focus Admin** and verify all 3D graph handles appear inside `Workspace.StagewrightAdminArea`, not on a player island.
-- Duplicate a stage; verify stage, graph, node, and edge IDs change while copied references still work.
-- Reorder stages; verify IDs do not change.
+- Copy a level; verify level, graph, node, and edge IDs change while copied references still work.
+- Reorder levels; verify IDs do not change.
 - Paint terrain, build policy, traversal policy, and roles across one drag; undo and redo the entire gesture.
 - Resize smaller; verify the truncation count and second-click confirmation, then undo.
 - Try deleting a referenced stage; verify the inbound-reference diagnostic blocks deletion.
@@ -86,14 +88,14 @@ In Studio:
    - Confirm `ReplicatedStorage.Template.StagePlatformOrigins` reports `SlotCount = 6`, `LayoutAvailable = true`, `ServerMaxPlayers = 6`, and `CapacityMatchesSlotCount = true`.
 2. Confirm `Workspace.StagewrightClientGrids` contains `Platform_01` through `Platform_06` in every client. These runtime grids appear only after Play starts and remain on the six islands even though the editor platform lives in the admin room below the map.
 3. Confirm each island shows a clearly visible cyan cell grid above the grass plus the same dual-approach route with two distinct orange lanes, two green spawns, one red goal, blue auto-place markers, and no overlapping legacy slot-1 grid.
-4. Activate stages independently for different players.
+4. Activate different Stage 1 levels for different players. Confirm each slot's replicated `ActiveStageId` changes only for its owner and every client redraws that one island from the matching level definition.
 5. Start waves with different currencies/upgrades/flags and confirm server-selected branches.
 6. Attempt malformed, locked, and disabled stage IDs; out-of-range placements; repeated requests; and client-supplied route outcomes. All must fail server-side.
 7. Confirm enemies alternate deterministically across every authored spawn. With the production fixture, both outer spawns feed their own branch and merge at `Spawn Merge`.
 8. Confirm pooled enemies alternate across the configured 1–3 lanes, keep their lateral lane through each edge profile, orient through elevation, and correct smoothly after network delay.
 9. Stream the platform out and back; authoritative wave state must continue and visuals must recover because slot CFrames live in ReplicatedStorage.
 10. Rejoin with a schema 6 profile fixture and confirm schema 7 migration preserves unit/loadout/stat data.
-11. Confirm one player's stage, towers, enemies, currencies, unlocks, and flags never affect another player.
+11. Clear Level 1 for one player and confirm only that profile unlocks Level 2. Confirm one player's level, towers, enemies, currencies, unlocks, and flags never affect another player.
 
 Before live testing, open **File > Game Settings > Places > ... > Configure Place** and set **Maximum Players** to `6`. Roblox then admits at most six players to each server and creates additional servers for further players. The server also rejects a player before profile loading if no authoritative platform is available, so nobody can remain in gameplay without an island.
 

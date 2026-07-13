@@ -8,6 +8,7 @@ local RuneModeConfig = require("../src/shared/RuneModeConfig")
 local TowerDefenseCatalog = require("../src/shared/TowerDefenseCatalog")
 local TowerDefenseLogic = require("../src/shared/TowerDefenseLogic")
 local StageGraph = require("../src/shared/StageGraph")
+local StageHierarchy = require("../src/shared/StageHierarchy")
 local StageLanes = require("../src/shared/StageLanes")
 local StageLegacy = require("../src/shared/StageLegacy")
 local StagePath = require("../src/shared/StagePath")
@@ -804,6 +805,8 @@ for _, pluginObject in
 		"TryBeginRecording",
 		"FinishRecording",
 		"ProjectStore.createStage",
+		"ProjectStore.createLevel",
+		"ensureStarterLevels",
 		"ProjectStore.deleteStage",
 		"ProjectStore.inboundReferences",
 		"GenerateGUID",
@@ -823,6 +826,9 @@ for _, pluginObject in
 		"1 Lane",
 		"2 Lanes",
 		"3 Lanes",
+		"+ Stage",
+		"+ Level",
+		"STAGE {address.stageNumber}",
 		"StageLanes.offsets",
 		"outHandleOffset",
 		"inHandleOffset",
@@ -847,6 +853,7 @@ for _, pluginObject in
 		"gridLineThickness",
 		"lineThickness = 0.16",
 		"routeWidth = 2.4",
+		"starterLevelsPerStage = 10",
 		"AlwaysOnTop",
 		"RunService:IsRunning()",
 	}
@@ -1359,6 +1366,9 @@ end)
 expectEqual(finiteJsonOk, false, "Stagewright serialization rejects NaN payloads")
 local invalidCellIssues = StageSchema.validateStage({
 	id = "invalid_cell_stage",
+	stageGroupId = "invalid_cell_group",
+	stageNumber = 1,
+	levelNumber = 1,
 	grid = {
 		columns = 2,
 		rows = 2,
@@ -1464,7 +1474,13 @@ local schemaOneProject = {
 	},
 }
 local migratedStageProject = StageSchema.migrateProject(schemaOneProject)
-expectEqual(migratedStageProject.schemaVersion, 2, "Stagewright authoring schemas migrate sequentially")
+expectEqual(migratedStageProject.schemaVersion, 3, "Stagewright authoring schemas migrate sequentially")
+expectEqual(
+	migratedStageProject.stages.legacy.stageNumber == 1
+		and migratedStageProject.stages.legacy.levelNumber == 1,
+	true,
+	"legacy flat stages migrate into stable Stage 1 / Level 1 hierarchy fields"
+)
 expectEqual(
 	migratedStageProject.stages.legacy.unknownFutureField.preserved,
 	true,
@@ -1472,16 +1488,57 @@ expectEqual(
 )
 expectEqual(
 	StageSchema.migrateProject(migratedStageProject).schemaVersion,
-	2,
+	3,
 	"Stagewright migration is idempotent"
 )
 local authoringProject = serde.decode("json", fs.readFile("stage-data/stagewright-project.json"))
 local authoredProductionStage = authoringProject.stages.stage_default
-expectEqual(
-	authoredProductionStage.name,
-	"Centerbound Dual Approach",
-	"repository uses the dual-spawn production stage"
-)
+expectEqual(authoredProductionStage.name, "Level 1", "repository names the starting definition Level 1")
+local authoredLevelIds = StageHierarchy.sortedIds(authoringProject.stages)
+expectEqual(#authoredLevelIds, 10, "repository seeds Stage 1 with the first ten levels")
+local copiedStarterLayoutsMatch = true
+for levelNumber, levelId in authoredLevelIds do
+	local level = authoringProject.stages[levelId]
+	local address = StageHierarchy.address(level)
+	if
+		StageSchema.encodeCanonical(level.grid)
+			~= StageSchema.encodeCanonical(authoredProductionStage.grid)
+		or StageSchema.encodeCanonical(level.pathGraphs)
+			~= StageSchema.encodeCanonical(authoredProductionStage.pathGraphs)
+	then
+		copiedStarterLayoutsMatch = false
+	end
+	expectEqual(
+		address.stageNumber == 1 and address.levelNumber == levelNumber,
+		true,
+		`authored Stage 1 level order includes Level {levelNumber}`
+	)
+	if levelNumber > 1 then
+		expectEqual(
+			level.unlockRequirements[1].stageId,
+			authoredLevelIds[levelNumber - 1],
+			`Level {levelNumber} preserves sequential progression`
+		)
+	end
+end
+expectEqual(copiedStarterLayoutsMatch, true, "all ten starter levels copy the same editable map and graph")
+do
+	local duplicateHierarchy = serde.decode("json", serde.encode("json", authoringProject))
+	duplicateHierarchy.stages[authoredLevelIds[2]].levelNumber = 1
+	local duplicateResult = StageExport.bake(duplicateHierarchy)
+	local foundDuplicateLevel = false
+	for _, issue in duplicateResult.issues do
+		if issue.code == "DuplicateLevelNumber" then
+			foundDuplicateLevel = true
+			break
+		end
+	end
+	expectEqual(
+		duplicateResult.bundle == nil and foundDuplicateLevel,
+		true,
+		"duplicate level numbers block deterministic export"
+	)
+end
 expectEqual(
 	authoredProductionStage.metadata["stagewright.layoutVersion"],
 	2,
@@ -1532,6 +1589,11 @@ end
 local firstExport = StageExport.bake(authoringProject)
 local secondExport = StageExport.bake(authoringProject)
 expectEqual(firstExport.bundle ~= nil, true, "valid Stagewright project bakes a runtime bundle")
+expectEqual(
+	firstExport.bundle ~= nil and #firstExport.bundle.stageOrder,
+	10,
+	"runtime bundle exports all ten Stage 1 levels"
+)
 expectEqual(
 	firstExport.bundle ~= nil and secondExport.bundle ~= nil and firstExport.bundle.checksum,
 	secondExport.bundle ~= nil and secondExport.bundle.checksum,
@@ -2248,6 +2310,7 @@ for _, towerDefenseMarker in
 		"Workspace:GetServerTimeNow",
 		"buildEnemySpatialIndex",
 		"simulationAccumulator",
+		"StageCatalog.nextLevelId",
 		"publishEnemies",
 		"BillboardGui",
 		"DebugNameplate",
@@ -2272,6 +2335,7 @@ for _, authorityMarker in
 		"upgradeLevelProvider(player",
 		"profile.currencies",
 		"availabilityProvider(player)",
+		"activationPublisher(player",
 	}
 do
 	expectEqual(
@@ -2298,6 +2362,8 @@ for _, platformMarker in
 		"CFrameValue",
 		"OwnerUserId",
 		"OwnerDisplayName",
+		"ActiveStageId",
+		"StagePlatformService.publishActiveStage",
 		"Players.MaxPlayers",
 		"CapacityMatchesSlotCount",
 		"Players.PlayerAdded:Connect",
@@ -2348,6 +2414,8 @@ for _, gridRendererMarker in
 		"StagePath.sample",
 		"laneProfile.offsets",
 		"routePoint",
+		"ActiveStageId",
+		"StageCatalog.get(activeStageId)",
 		"gridVisuals",
 		"LocalTransparencyModifier",
 		"Platform_",

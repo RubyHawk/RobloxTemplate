@@ -1,6 +1,9 @@
 --!strict
 
 local StagePath = if script ~= nil then require(script.Parent.StagePath) else require("./StagePath")
+local StageHierarchy = if script ~= nil
+	then require(script.Parent.StageHierarchy)
+	else require("./StageHierarchy")
 local StageSchema = if script ~= nil then require(script.Parent.StageSchema) else require("./StageSchema")
 
 local StageExport = {}
@@ -113,6 +116,9 @@ function StageExport.bake(project: any): ExportResult
 		}
 	end
 	local stageIds: { string } = {}
+	local groupByNumber: { [number]: string } = {}
+	local numberByGroup: { [string]: number } = {}
+	local levelKeys: { [string]: string } = {}
 	for stageId, stage in project.stages do
 		if stage.id ~= stageId then
 			table.insert(issues, {
@@ -125,17 +131,42 @@ function StageExport.bake(project: any): ExportResult
 		for _, issue in StageSchema.validateStage(stage) do
 			table.insert(issues, issue)
 		end
+		local address = StageHierarchy.address(stage)
+		local existingGroup = groupByNumber[address.stageNumber]
+		local existingNumber = numberByGroup[address.groupId]
+		local levelKey = `{address.groupId}:{address.levelNumber}`
+		if existingGroup ~= nil and existingGroup ~= address.groupId then
+			table.insert(issues, {
+				severity = "Error",
+				code = "DuplicateStageNumber",
+				message = `Stage number {address.stageNumber} belongs to more than one stable group`,
+				stageId = stageId,
+			})
+		elseif existingNumber ~= nil and existingNumber ~= address.stageNumber then
+			table.insert(issues, {
+				severity = "Error",
+				code = "StageGroupNumberMismatch",
+				message = `Stage group {address.groupId} uses more than one display number`,
+				stageId = stageId,
+			})
+		elseif levelKeys[levelKey] ~= nil then
+			table.insert(issues, {
+				severity = "Error",
+				code = "DuplicateLevelNumber",
+				message = `Stage {address.stageNumber} has more than one Level {address.levelNumber}`,
+				stageId = stageId,
+			})
+		end
+		groupByNumber[address.stageNumber] = address.groupId
+		numberByGroup[address.groupId] = address.stageNumber
+		levelKeys[levelKey] = stageId
 		table.insert(stageIds, stageId)
 	end
 	if StageSchema.hasErrors(issues) then
 		return { bundle = nil, issues = issues }
 	end
 	table.sort(stageIds, function(left, right)
-		local leftStage = project.stages[left]
-		local rightStage = project.stages[right]
-		return if leftStage.displayOrder == rightStage.displayOrder
-			then left < right
-			else leftStage.displayOrder < rightStage.displayOrder
+		return StageHierarchy.less(project.stages[left], project.stages[right])
 	end)
 	local stages: { [string]: any } = {}
 	for _, stageId in stageIds do

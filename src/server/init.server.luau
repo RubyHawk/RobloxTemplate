@@ -54,6 +54,7 @@ if Config.features.towerDefense then
 	StageRuntimeService.start({
 		origin = StagePlatformService.originFor,
 		available = StagePlatformService.hasPlatform,
+		publishActiveStage = StagePlatformService.publishActiveStage,
 	})
 	TowerDefenseService.start({
 		publish = RemoteService.publish,

@@ -32,10 +32,16 @@ local function publishOwner(slot: number, player: Player?)
 	if value == nil then
 		return
 	end
+	local previousOwnerUserId = value:GetAttribute("OwnerUserId")
 	-- OwnerUserId is written last so clients can treat its attribute signal as
 	-- one atomic ownership refresh after the public display fields are ready.
 	value:SetAttribute("OwnerName", if player ~= nil then player.Name else "")
 	value:SetAttribute("OwnerDisplayName", if player ~= nil then player.DisplayName else "")
+	if player == nil then
+		value:SetAttribute("ActiveStageId", "")
+	elseif previousOwnerUserId ~= player.UserId then
+		value:SetAttribute("ActiveStageId", Config.towerDefense.startingStageId)
+	end
 	value:SetAttribute("OwnerUserId", if player ~= nil then player.UserId else 0)
 end
 
@@ -137,6 +143,19 @@ function StagePlatformService.originFor(player: Player, _stageId: string): CFram
 	local slot = claimSlot(player)
 	local origin = if slot ~= nil then StagePlatformService.originForSlot(slot) else nil
 	return origin or CFrame.new(0, -10_000, 0)
+end
+
+function StagePlatformService.publishActiveStage(player: Player, stageId: string): boolean
+	if type(stageId) ~= "string" or stageId == "" or #stageId > 80 then
+		return false
+	end
+	local slot = claimSlot(player)
+	local value = if slot ~= nil then publishedOrigin(slot) else nil
+	if value == nil then
+		return false
+	end
+	value:SetAttribute("ActiveStageId", stageId)
+	return true
 end
 
 local function originsFolder(): Folder
