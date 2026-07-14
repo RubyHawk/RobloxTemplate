@@ -55,6 +55,10 @@ try {
         rojo build $projectFile --output $pluginOutput
     }
 
+    if (Get-Process -Name "RobloxStudioBeta" -ErrorAction SilentlyContinue) {
+        throw "Roblox Studio is open. Save your work, close every Studio window, then run this installer again. Replacing a loaded RBXM can leave its toolbar or dock widget unavailable until another restart."
+    }
+
     Write-Step "Installing into your local Roblox Studio Plugins folder"
     New-Item -ItemType Directory -Path $pluginDirectory -Force | Out-Null
     Copy-Item -LiteralPath $pluginOutput -Destination $pluginDestination -Force
@@ -68,12 +72,6 @@ try {
     $installed = Get-Item -LiteralPath $pluginDestination
     Write-Host "[OK] Installed: $($installed.FullName)" -ForegroundColor Green
     Write-Host "[OK] Size: $($installed.Length) bytes"
-
-    if (Get-Process -Name "RobloxStudioBeta" -ErrorAction SilentlyContinue) {
-        Write-Host ""
-        Write-Host "[ACTION NEEDED] Roblox Studio is currently open." -ForegroundColor Yellow
-        Write-Host "Close and reopen Studio so it loads the updated local plugin."
-    }
 
     Write-Host ""
     Write-Host "DONE" -ForegroundColor Green

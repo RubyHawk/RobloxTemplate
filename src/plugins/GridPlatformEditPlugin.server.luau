@@ -721,93 +721,6 @@ local paintHover = create("TextLabel", {
 	TextSize = 11,
 }, paintToolbar) :: TextLabel
 create("UICorner", { CornerRadius = UDim.new(0, 6) }, paintHover)
-local paintInspector = create("Frame", {
-	BackgroundColor3 = COLORS.panel,
-	BorderSizePixel = 0,
-	Position = UDim2.fromOffset(0, 38),
-	Size = UDim2.new(1, 0, 1, -38),
-}, rightSidebar) :: Frame
-local paintInspectorName = create("TextLabel", {
-	BackgroundColor3 = COLORS.surface,
-	BorderSizePixel = 0,
-	Font = Enum.Font.BuilderSansBold,
-	Position = UDim2.fromOffset(10, 4),
-	Size = UDim2.new(1, -20, 0, 48),
-	Text = "Build blocked",
-	TextColor3 = COLORS.text,
-	TextSize = 14,
-}, paintInspector) :: TextLabel
-create("UICorner", { CornerRadius = UDim.new(0, 7) }, paintInspectorName)
-local paintInspectorCategory = create("TextLabel", {
-	BackgroundTransparency = 1,
-	Font = Enum.Font.BuilderSansBold,
-	Position = UDim2.fromOffset(12, 68),
-	Size = UDim2.new(1, -24, 0, 20),
-	Text = "BUILD POLICY",
-	TextColor3 = COLORS.accent,
-	TextSize = 10,
-	TextXAlignment = Enum.TextXAlignment.Left,
-}, paintInspector) :: TextLabel
-local paintInspectorHelp = create("TextLabel", {
-	BackgroundTransparency = 1,
-	Font = Enum.Font.BuilderSans,
-	Position = UDim2.fromOffset(12, 94),
-	Size = UDim2.new(1, -24, 0, 70),
-	Text = "Prevent tower placement without changing terrain.",
-	TextColor3 = COLORS.text,
-	TextSize = 12,
-	TextWrapped = true,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	TextYAlignment = Enum.TextYAlignment.Top,
-}, paintInspector) :: TextLabel
-create("TextLabel", {
-	BackgroundTransparency = 1,
-	Font = Enum.Font.BuilderSansBold,
-	Position = UDim2.fromOffset(12, 178),
-	Size = UDim2.new(1, -24, 0, 20),
-	Text = "FAST WORKFLOW",
-	TextColor3 = COLORS.muted,
-	TextSize = 10,
-	TextXAlignment = Enum.TextXAlignment.Left,
-}, paintInspector)
-create("TextLabel", {
-	BackgroundTransparency = 1,
-	Font = Enum.Font.BuilderSans,
-	Position = UDim2.fromOffset(12, 204),
-	Size = UDim2.new(1, -24, 0, 118),
-	Text = "1. Choose one brush\n2. Drag across the grid\n3. Release to create one undo step\n4. Use Check to find incompatible cells",
-	TextColor3 = COLORS.muted,
-	TextSize = 11,
-	TextWrapped = true,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	TextYAlignment = Enum.TextYAlignment.Top,
-}, paintInspector)
-local paintFocusButton = button(paintInspector, "Focus 3D editor", 132, function()
-	AuthoringArea.focus()
-	setStatus("Focused the Stagewright admin authoring area.")
-end)
-paintFocusButton.Position = UDim2.fromOffset(12, 332)
-create("TextLabel", {
-	BackgroundTransparency = 1,
-	Font = Enum.Font.BuilderSansBold,
-	Position = UDim2.fromOffset(12, 382),
-	Size = UDim2.new(1, -24, 0, 20),
-	Text = "BRUSH SIZE",
-	TextColor3 = COLORS.muted,
-	TextSize = 10,
-	TextXAlignment = Enum.TextXAlignment.Left,
-}, paintInspector)
-local paintSizeButtons: { [number]: TextButton } = {}
-for index, size in { 1, 3, 5 } do
-	local sizeButton = button(paintInspector, `{size} × {size}`, 74, function()
-		paintBrushSize = size
-		for candidateSize, candidate in paintSizeButtons do
-			setButtonSelected(candidate, candidateSize == paintBrushSize)
-		end
-	end)
-	sizeButton.Position = UDim2.fromOffset(12 + (index - 1) * 82, 408)
-	paintSizeButtons[size] = sizeButton
-end
 local brushRail = create("ScrollingFrame", {
 	BackgroundColor3 = COLORS.panel,
 	BorderSizePixel = 0,
@@ -858,12 +771,6 @@ function renderPaintChrome()
 	local brush = activeBrush()
 	paintBrushTitle.Text = brush.label
 	paintHint.Text = `Hold Shift and drag to paint · {brush.help}`
-	paintInspectorName.Text = brush.label
-	paintInspectorCategory.Text = string.upper(brush.category)
-	paintInspectorHelp.Text = brush.help
-	for size, sizeButton in paintSizeButtons do
-		setButtonSelected(sizeButton, size == paintBrushSize)
-	end
 	paintSizeButton.Text = `Brush {paintBrushSize} × {paintBrushSize}`
 end
 local gridScroll = create("ScrollingFrame", {
@@ -879,9 +786,6 @@ local cellPool: { TextButton } = {}
 
 paintSizeButton = button(paintToolbar, "Brush 1 × 1", 92, function()
 	paintBrushSize = if paintBrushSize == 1 then 3 elseif paintBrushSize == 3 then 5 else 1
-	for size, sizeButton in paintSizeButtons do
-		setButtonSelected(sizeButton, size == paintBrushSize)
-	end
 	paintSizeButton.Text = `Brush {paintBrushSize} × {paintBrushSize}`
 end)
 paintSizeButton.AnchorPoint = Vector2.new(1, 0)
@@ -1882,81 +1786,93 @@ for _, kind in { "Spawn", "Junction", "Goal" } do
 	end)
 	table.insert(buildCreationButtons, addButton)
 end
-local connectButton = button(buildControls, "Connect from", 112, function()
-	connectFromNodeId = selectedNodeId
-	setStatus(if connectFromNodeId ~= nil then "Select a destination node." else "Select a node first.")
-end)
-table.insert(nodeBuildButtons, connectButton)
-local deleteNodeButton = button(buildControls, "Delete node", 112, function()
-	local currentGraph = graph()
-	if currentGraph == nil or selectedNodeId == nil then
-		return
-	end
-	if not confirm(`node_{selectedNodeId}`, "Delete node and all incident edges?") then
-		return
-	end
-	mutate("Delete Stagewright graph node", function()
-		currentGraph.nodes[selectedNodeId :: string] = nil
-		for edgeId, edge in currentGraph.edges do
-			if edge.fromNodeId == selectedNodeId or edge.toNodeId == selectedNodeId then
-				currentGraph.edges[edgeId] = nil
-			end
+table.insert(
+	nodeBuildButtons,
+	button(buildControls, "Connect from", 112, function()
+		connectFromNodeId = selectedNodeId
+		setStatus(if connectFromNodeId ~= nil then "Select a destination node." else "Select a node first.")
+	end)
+)
+table.insert(
+	nodeBuildButtons,
+	button(buildControls, "Delete node", 112, function()
+		local currentGraph = graph()
+		if currentGraph == nil or selectedNodeId == nil then
+			return
 		end
-		selectedNodeId = nil
+		if not confirm(`node_{selectedNodeId}`, "Delete node and all incident edges?") then
+			return
+		end
+		mutate("Delete Stagewright graph node", function()
+			currentGraph.nodes[selectedNodeId :: string] = nil
+			for edgeId, edge in currentGraph.edges do
+				if edge.fromNodeId == selectedNodeId or edge.toNodeId == selectedNodeId then
+					currentGraph.edges[edgeId] = nil
+				end
+			end
+			selectedNodeId = nil
+		end)
+		renderAll()
 	end)
-	renderAll()
-end)
-table.insert(nodeBuildButtons, deleteNodeButton)
-local deleteEdgeButton = button(buildControls, "Delete edge", 112, function()
-	local currentGraph = graph()
-	if currentGraph == nil or selectedEdgeId == nil then
-		setStatus("Select an edge before deleting it.", true)
-		return
-	end
-	if not confirm(`edge_{selectedEdgeId}`, "Delete the selected directed edge?") then
-		return
-	end
-	mutate("Delete Stagewright graph edge", function()
-		currentGraph.edges[selectedEdgeId :: string] = nil
-		selectedEdgeId = nil
+)
+table.insert(
+	edgeBuildButtons,
+	button(buildControls, "Delete edge", 112, function()
+		local currentGraph = graph()
+		if currentGraph == nil or selectedEdgeId == nil then
+			setStatus("Select an edge before deleting it.", true)
+			return
+		end
+		if not confirm(`edge_{selectedEdgeId}`, "Delete the selected directed edge?") then
+			return
+		end
+		mutate("Delete Stagewright graph edge", function()
+			currentGraph.edges[selectedEdgeId :: string] = nil
+			selectedEdgeId = nil
+		end)
+		renderAll()
 	end)
-	renderAll()
-end)
-table.insert(edgeBuildButtons, deleteEdgeButton)
-local increasePriorityButton = button(buildControls, "Priority +", 112, function()
-	local currentGraph = graph()
-	if currentGraph == nil or selectedEdgeId == nil then
-		return
-	end
-	mutate("Change edge priority", function()
-		currentGraph.edges[selectedEdgeId :: string].priority += 1
+)
+table.insert(
+	edgeBuildButtons,
+	button(buildControls, "Priority +", 112, function()
+		local currentGraph = graph()
+		if currentGraph == nil or selectedEdgeId == nil then
+			return
+		end
+		mutate("Change edge priority", function()
+			currentGraph.edges[selectedEdgeId :: string].priority += 1
+		end)
+		renderAll()
 	end)
-	renderAll()
-end)
-table.insert(edgeBuildButtons, increasePriorityButton)
-local decreasePriorityButton = button(buildControls, "Priority −", 112, function()
-	local currentGraph = graph()
-	if currentGraph == nil or selectedEdgeId == nil then
-		return
-	end
-	mutate("Change edge priority", function()
-		currentGraph.edges[selectedEdgeId :: string].priority =
-			math.max(currentGraph.edges[selectedEdgeId :: string].priority - 1, 0)
+)
+table.insert(
+	edgeBuildButtons,
+	button(buildControls, "Priority −", 112, function()
+		local currentGraph = graph()
+		if currentGraph == nil or selectedEdgeId == nil then
+			return
+		end
+		mutate("Change edge priority", function()
+			currentGraph.edges[selectedEdgeId :: string].priority =
+				math.max(currentGraph.edges[selectedEdgeId :: string].priority - 1, 0)
+		end)
+		renderAll()
 	end)
-	renderAll()
-end)
-table.insert(edgeBuildButtons, decreasePriorityButton)
-local fallbackButton = button(buildControls, "Set fallback", 112, function()
-	local currentGraph = graph()
-	if currentGraph == nil or selectedEdgeId == nil then
-		return
-	end
-	mutate("Set route fallback", function()
-		currentGraph.edges[selectedEdgeId :: string].predicates = {}
+)
+table.insert(
+	edgeBuildButtons,
+	button(buildControls, "Set fallback", 112, function()
+		local currentGraph = graph()
+		if currentGraph == nil or selectedEdgeId == nil then
+			return
+		end
+		mutate("Set route fallback", function()
+			currentGraph.edges[selectedEdgeId :: string].predicates = {}
+		end)
+		renderAll()
 	end)
-	renderAll()
-end)
-table.insert(edgeBuildButtons, fallbackButton)
+)
 
 local conditionKindButton: TextButton
 conditionKindButton = button(rulesControls, PREDICATE_KINDS[predicateKindIndex], 112, function()
@@ -2336,45 +2252,6 @@ end
 
 -- Validate/export page.
 local validatePage = contentByMode.Validate
-local validateInspector = create("Frame", {
-	BackgroundColor3 = COLORS.panel,
-	BorderSizePixel = 0,
-	Position = UDim2.fromOffset(0, 38),
-	Size = UDim2.new(1, 0, 1, -38),
-}, rightSidebar) :: Frame
-create("TextLabel", {
-	BackgroundColor3 = COLORS.surface,
-	BorderSizePixel = 0,
-	Font = Enum.Font.BuilderSansBold,
-	Position = UDim2.fromOffset(10, 4),
-	Size = UDim2.new(1, -20, 0, 52),
-	Text = "DEPLOYMENT CHECKLIST",
-	TextColor3 = COLORS.text,
-	TextSize = 12,
-}, validateInspector)
-create("TextLabel", {
-	BackgroundTransparency = 1,
-	Font = Enum.Font.BuilderSans,
-	Position = UDim2.fromOffset(12, 76),
-	Size = UDim2.new(1, -24, 0, 190),
-	Text = "1. Resolve every red error\n\n2. Review yellow warnings\n\n3. Trace conditional branches\n\n4. Confirm stage and level references\n\n5. Export the deterministic bundle",
-	TextColor3 = COLORS.muted,
-	TextSize = 11,
-	TextWrapped = true,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	TextYAlignment = Enum.TextYAlignment.Top,
-}, validateInspector)
-create("TextLabel", {
-	BackgroundColor3 = COLORS.accentMuted,
-	BorderSizePixel = 0,
-	Font = Enum.Font.BuilderSans,
-	Position = UDim2.fromOffset(10, 290),
-	Size = UDim2.new(1, -20, 0, 82),
-	Text = "Working changes are already saved to the place. Export creates the deployable repository artifact.",
-	TextColor3 = COLORS.text,
-	TextSize = 11,
-	TextWrapped = true,
-}, validateInspector)
 local validateSummary = create("Frame", {
 	BackgroundColor3 = COLORS.panel,
 	BorderSizePixel = 0,
@@ -2617,11 +2494,9 @@ function rerenderAll()
 	stageActions.Visible = activeMode == "Stage"
 	brushRail.Visible = activeMode == "Paint"
 	stageInspector.Visible = activeMode == "Stage"
-	paintInspector.Visible = false
 	graphSummary.Visible = activeMode == "Graph"
 	graphProperties.Visible = activeMode == "Graph"
 	graphList.Visible = false
-	validateInspector.Visible = false
 	inspectorTitle.Text = if activeMode == "Graph"
 		then "ROUTE PROPERTIES"
 		elseif activeMode == "Stage" then "LEVEL PROPERTIES"
@@ -2716,76 +2591,88 @@ UserInputService.InputEnded:Connect(function(input)
 	end
 end)
 
-local validateAction = plugin:CreatePluginAction(
-	"StagewrightValidate",
-	"Validate Stagewright",
-	"Validate the current Stagewright project",
-	"",
-	true
-)
-validateAction.Triggered:Connect(function()
-	activeMode = "Validate"
-	widget.Enabled = true
-	renderAll()
-end)
-local focusAction = plugin:CreatePluginAction(
-	"StagewrightFocus",
-	"Focus Stagewright",
-	"Open the Stagewright editor",
-	"",
-	true
-)
-focusAction.Triggered:Connect(function()
-	widget.Enabled = true
-end)
-local focusAdminAction = plugin:CreatePluginAction(
-	"StagewrightFocusAdminArea",
-	"Focus Stagewright Admin Area",
-	"Focus the separate Stagewright authoring platform below the map",
-	"",
-	true
-)
-focusAdminAction.Triggered:Connect(function()
-	AuthoringArea.focus()
-end)
-local outlineAction = plugin:CreatePluginAction(
-	"StagewrightToggleIslandOutlines",
-	"Toggle Island Footprints",
-	"Show or hide all six playable island footprints in Edit mode",
-	"",
-	true
-)
-outlineAction.Triggered:Connect(function()
-	islandOutlinesEnabled = not islandOutlinesEnabled
-	islandGuideButton.Text = if islandOutlinesEnabled then "Guides on" else "Guides off"
-	renderIslandOutlines()
-end)
-local duplicateAction = plugin:CreatePluginAction(
-	"StagewrightDuplicateStage",
-	"Create Stagewright Level",
-	"Copy the selected level into its stage",
-	"",
-	true
-)
-duplicateAction.Triggered:Connect(function()
-	mutate("Create Stagewright level", function()
-		selectedStageId = ProjectStore.createLevel(selectedStageId)
+do
+	local action = plugin:CreatePluginAction(
+		"StagewrightValidate",
+		"Validate Stagewright",
+		"Validate the current Stagewright project",
+		"",
+		true
+	)
+	action.Triggered:Connect(function()
+		activeMode = "Validate"
+		widget.Enabled = true
+		renderAll()
 	end)
-	renderAll()
-end)
-local createStageAction = plugin:CreatePluginAction(
-	"StagewrightCreateStage",
-	"Create Stagewright Stage",
-	"Create a new stage group with Level 1",
-	"",
-	true
-)
-createStageAction.Triggered:Connect(function()
-	mutate("Create Stagewright stage group", function()
-		selectedStageId = ProjectStore.createStage(nil)
+end
+do
+	local action = plugin:CreatePluginAction(
+		"StagewrightFocus",
+		"Focus Stagewright",
+		"Open the Stagewright editor",
+		"",
+		true
+	)
+	action.Triggered:Connect(function()
+		widget.Enabled = true
 	end)
-	renderAll()
-end)
+end
+do
+	local action = plugin:CreatePluginAction(
+		"StagewrightFocusAdminArea",
+		"Focus Stagewright Admin Area",
+		"Focus the separate Stagewright authoring platform below the map",
+		"",
+		true
+	)
+	action.Triggered:Connect(function()
+		AuthoringArea.focus()
+	end)
+end
+do
+	local action = plugin:CreatePluginAction(
+		"StagewrightToggleIslandOutlines",
+		"Toggle Island Footprints",
+		"Show or hide all six playable island footprints in Edit mode",
+		"",
+		true
+	)
+	action.Triggered:Connect(function()
+		islandOutlinesEnabled = not islandOutlinesEnabled
+		islandGuideButton.Text = if islandOutlinesEnabled then "Guides on" else "Guides off"
+		renderIslandOutlines()
+	end)
+end
+do
+	local action = plugin:CreatePluginAction(
+		"StagewrightDuplicateStage",
+		"Create Stagewright Level",
+		"Copy the selected level into its stage",
+		"",
+		true
+	)
+	action.Triggered:Connect(function()
+		mutate("Create Stagewright level", function()
+			selectedStageId = ProjectStore.createLevel(selectedStageId)
+		end)
+		renderAll()
+	end)
+end
+do
+	local action = plugin:CreatePluginAction(
+		"StagewrightCreateStage",
+		"Create Stagewright Stage",
+		"Create a new stage group with Level 1",
+		"",
+		true
+	)
+	action.Triggered:Connect(function()
+		mutate("Create Stagewright stage group", function()
+			selectedStageId = ProjectStore.createStage(nil)
+		end)
+		renderAll()
+	end)
+end
 
 openButton.Click:Connect(function()
 	widget.Enabled = not widget.Enabled

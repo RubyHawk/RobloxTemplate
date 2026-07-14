@@ -47,7 +47,12 @@ level's validation count remains in the header; project-wide details remain in C
 
 - StyLua and Selene validate the strict Luau source.
 - Pure/source tests compile the plugin shell and guard the responsive form and task-specific route panels.
+- The bootstrap keeps top-level locals below a guarded danger threshold. Studio's Luau compiler has a
+  200-register ceiling and rejected an earlier build before its toolbar was created even though the pure Luau
+  parser accepted the source.
 - The built RBXM validator requires the new route panels, edge deletion, and issue-navigation markers.
+- The local installer refuses to replace Stagewright while Studio is open; overwriting a loaded plugin can
+  strand its toolbar or dock-widget registration until a full restart.
 - Manual Studio QA should cover wide/medium/compact resizing, stage search, brush size and reset undo, 2D/3D
   node selection parity, exact XYZ editing, edge selection, route tabs, cell issue navigation, and plugin
   reload while the widget is open.

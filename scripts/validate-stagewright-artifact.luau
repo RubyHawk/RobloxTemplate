@@ -80,7 +80,7 @@ for _, marker in
 		"StagewrightPanelV2",
 		"ROUTE OVERVIEW",
 		"STAGES & LEVELS",
-		"BRUSH SIZE",
+		"Brush 1 × 1",
 		"applyResponsiveShell",
 		"selectedCellKey",
 		"Apply node",

@@ -813,6 +813,17 @@ expectEqual(
 )
 local gridPluginProject = fs.readFile("plugins/grid-platform-editor.project.json")
 local gridPluginSource = fs.readFile("src/plugins/GridPlatformEditPlugin.server.luau")
+local gridPluginTopLevelLocals = 0
+for line in string.gmatch(gridPluginSource, "[^\r\n]+") do
+	if string.match(line, "^local%s+") ~= nil then
+		gridPluginTopLevelLocals += 1
+	end
+end
+expectEqual(
+	gridPluginTopLevelLocals <= 185,
+	true,
+	"Stagewright bootstrap stays below Studio's top-level local-register danger zone"
+)
 local stagewrightStoreSource = fs.readFile("src/plugins/Stagewright/ProjectStore.luau")
 	.. fs.readFile("src/shared/StagePayload.luau")
 	.. fs.readFile("src/plugins/Stagewright/RouteOverview.luau")
@@ -897,7 +908,7 @@ for _, pluginObject in
 		"PAINT TOOLS",
 		"ROUTE PROPERTIES",
 		"Search levels",
-		"BRUSH SIZE",
+		"Brush 1 × 1",
 		"Reset to default",
 		"Center in graph",
 		"fullDelta.Magnitude",
