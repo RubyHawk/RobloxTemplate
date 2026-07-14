@@ -101,10 +101,88 @@ local function nodeColor(kind: string): Color3
 	return Color3.fromRGB(42, 78, 115)
 end
 
+local function topologyLayout(graph: any, nodeIds: { string }): { [string]: Vector2 }
+	local outgoing: { [string]: { string } } = {}
+	local depthByNode: { [string]: number } = {}
+	local queue: { string } = {}
+	for _, nodeId in nodeIds do
+		outgoing[nodeId] = {}
+		if graph.nodes[nodeId].kind == "Spawn" then
+			depthByNode[nodeId] = 0
+			table.insert(queue, nodeId)
+		end
+	end
+	for _, edge in graph.edges do
+		if outgoing[edge.fromNodeId] ~= nil and graph.nodes[edge.toNodeId] ~= nil then
+			table.insert(outgoing[edge.fromNodeId], edge.toNodeId)
+		end
+	end
+	for _, destinations in outgoing do
+		table.sort(destinations)
+	end
+	local head = 1
+	while queue[head] ~= nil do
+		local nodeId = queue[head]
+		head += 1
+		local nextDepth = (depthByNode[nodeId] or 0) + 1
+		for _, destinationId in outgoing[nodeId] do
+			if depthByNode[destinationId] == nil then
+				depthByNode[destinationId] = nextDepth
+				table.insert(queue, destinationId)
+			end
+		end
+	end
+	local maximumDepth = 0
+	for _, depth in depthByNode do
+		maximumDepth = math.max(maximumDepth, depth)
+	end
+	for _, nodeId in nodeIds do
+		if depthByNode[nodeId] == nil then
+			maximumDepth += 1
+			depthByNode[nodeId] = maximumDepth
+		end
+	end
+	local columns: { [number]: { string } } = {}
+	for _, nodeId in nodeIds do
+		local depth = depthByNode[nodeId]
+		columns[depth] = columns[depth] or {}
+		table.insert(columns[depth], nodeId)
+	end
+	for _, column in columns do
+		table.sort(column, function(leftId, rightId)
+			local left = graph.nodes[leftId]
+			local right = graph.nodes[rightId]
+			if left.position.z ~= right.position.z then
+				return left.position.z < right.position.z
+			end
+			if left.name ~= right.name then
+				return left.name < right.name
+			end
+			return leftId < rightId
+		end)
+	end
+	local result: { [string]: Vector2 } = {}
+	local horizontalPadding = 92
+	local verticalPadding = 76
+	local usableWidth = BASE_SIZE.X - horizontalPadding * 2
+	local usableHeight = BASE_SIZE.Y - verticalPadding * 2
+	for depth, column in columns do
+		local x = if maximumDepth == 0
+			then BASE_SIZE.X / 2
+			else horizontalPadding + usableWidth * (depth / maximumDepth)
+		for index, nodeId in column do
+			local y = verticalPadding + usableHeight * (index / (#column + 1))
+			result[nodeId] = Vector2.new(x, y)
+		end
+	end
+	return result
+end
+
 function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks): Controller
 	local root = create("Frame", {
 		BackgroundColor3 = theme.panel,
 		BorderSizePixel = 0,
+		ClipsDescendants = true,
 		Size = UDim2.fromScale(1, 1),
 	}, parent) :: Frame
 	local toolbar = create("Frame", {
@@ -139,6 +217,7 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		BackgroundColor3 = theme.background,
 		BorderSizePixel = 0,
 		CanvasSize = UDim2.fromOffset(BASE_SIZE.X, BASE_SIZE.Y),
+		ClipsDescendants = true,
 		Position = UDim2.fromOffset(0, 42),
 		ScrollBarImageColor3 = theme.border,
 		ScrollBarThickness = 7,
@@ -148,6 +227,7 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 	local canvas = create("Frame", {
 		BackgroundColor3 = theme.background,
 		BorderSizePixel = 0,
+		ClipsDescendants = true,
 		Size = UDim2.fromOffset(BASE_SIZE.X, BASE_SIZE.Y),
 	}, viewport) :: Frame
 	local controller: Controller = setmetatable({
@@ -248,28 +328,17 @@ function RouteOverview.rerender(self: Controller)
 		return
 	end
 	local nodeIds: { string } = {}
-	local minimum = Vector2.new(math.huge, math.huge)
-	local maximum = Vector2.new(-math.huge, -math.huge)
-	for nodeId, node in graph.nodes do
+	for nodeId in graph.nodes do
 		table.insert(nodeIds, nodeId)
-		local point = Vector2.new(node.position.x, node.position.z)
-		minimum = Vector2.new(math.min(minimum.X, point.X), math.min(minimum.Y, point.Y))
-		maximum = Vector2.new(math.max(maximum.X, point.X), math.max(maximum.Y, point.Y))
 	end
 	table.sort(nodeIds)
 	if #nodeIds == 0 then
 		return
 	end
-	local span = maximum - minimum
-	local usable = BASE_SIZE - Vector2.new(220, 170)
-	local mapScale = math.min(usable.X / math.max(span.X, 1), usable.Y / math.max(span.Y, 1))
-	local mappedSpan = Vector2.new(span.X * mapScale, span.Y * mapScale)
-	local offset = (BASE_SIZE - mappedSpan) / 2
+	local layout = topologyLayout(graph, nodeIds)
 	self.nodePositions = {}
 	for _, nodeId in nodeIds do
-		local node = graph.nodes[nodeId]
-		local raw = Vector2.new(node.position.x, node.position.z)
-		self.nodePositions[nodeId] = (offset + (raw - minimum) * mapScale) * zoom
+		self.nodePositions[nodeId] = layout[nodeId] * zoom
 	end
 	local edgeIds: { string } = {}
 	for edgeId in graph.edges do
