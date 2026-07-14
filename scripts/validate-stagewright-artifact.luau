@@ -80,7 +80,7 @@ for _, marker in
 		"StagewrightPanelV2",
 		"minimapCanvas",
 		"STAGES & LEVELS",
-		"Brush 1 × 1",
+		"Brush 1 x 1",
 		"Shift + drag to paint",
 		"LevelPreviewCanvas",
 		"ValidationErrorValue",

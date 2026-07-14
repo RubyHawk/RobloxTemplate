@@ -38,12 +38,13 @@ export type Controller = typeof(setmetatable(
 		nodePositions: { [string]: Vector2 },
 		layoutSize: Vector2,
 		minimapCanvas: Frame,
+		lastWindowSize: Vector2,
 	},
 	RouteOverview
 ))
 
-local BASE_SIZE = Vector2.new(980, 560)
-local NODE_SIZE = Vector2.new(116, 62)
+local BASE_SIZE = Vector2.new(920, 620)
+local NODE_SIZE = Vector2.new(132, 72)
 
 local function create(className: string, properties: { [string]: any }, parent: Instance?): any
 	local instance = Instance.new(className)
@@ -165,24 +166,42 @@ local function topologyLayout(graph: any, nodeIds: { string }): ({ [string]: Vec
 		end)
 	end
 	local result: { [string]: Vector2 } = {}
-	local horizontalPadding = 110
-	local verticalPadding = 84
+	local horizontalPadding = 76
+	local horizontalSpacing = 142
+	local verticalPadding = 96
 	local maximumRows = 1
 	for _, column in columns do
 		maximumRows = math.max(maximumRows, #column)
 	end
 	local layoutSize = Vector2.new(
-		math.max(BASE_SIZE.X, horizontalPadding * 2 + maximumDepth * 196),
-		math.max(BASE_SIZE.Y, verticalPadding * 2 + (maximumRows - 1) * 112)
+		math.max(BASE_SIZE.X, horizontalPadding * 2 + maximumDepth * horizontalSpacing),
+		math.max(BASE_SIZE.Y, verticalPadding * 2 + (maximumRows - 1) * 116)
 	)
 	local usableWidth = layoutSize.X - horizontalPadding * 2
 	local usableHeight = layoutSize.Y - verticalPadding * 2
+	local minimumZ = math.huge
+	local maximumZ = -math.huge
+	for _, nodeId in nodeIds do
+		local z = graph.nodes[nodeId].position.z
+		minimumZ = math.min(minimumZ, z)
+		maximumZ = math.max(maximumZ, z)
+	end
+	local zRange = maximumZ - minimumZ
 	for depth, column in columns do
 		local x = if maximumDepth == 0
 			then layoutSize.X / 2
 			else horizontalPadding + usableWidth * (depth / maximumDepth)
+		local previousY = -math.huge
 		for index, nodeId in column do
-			local y = verticalPadding + usableHeight * (index / (#column + 1))
+			local node = graph.nodes[nodeId]
+			local y = if zRange > 0.5
+				then verticalPadding + usableHeight * (0.12 + 0.76 * ((node.position.z - minimumZ) / zRange))
+				else verticalPadding + usableHeight * (index / (#column + 1))
+			if previousY > -math.huge then
+				y = math.max(y, previousY + NODE_SIZE.Y + 28)
+			end
+			y = math.min(y, layoutSize.Y - verticalPadding)
+			previousY = y
 			result[nodeId] = Vector2.new(x, y)
 		end
 	end
@@ -334,8 +353,9 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		nodePositions = {},
 		layoutSize = BASE_SIZE,
 		minimapCanvas = minimapCanvas,
+		lastWindowSize = Vector2.zero,
 	}, RouteOverview)
-	controlButton(controls, "−", theme, function()
+	controlButton(controls, "-", theme, function()
 		controller.zoom = math.max(0.65, controller.zoom - 0.15)
 		controller:rerender()
 	end)
@@ -365,13 +385,31 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 			controller.zoom = math.clamp(
 				math.min(available.X / controller.layoutSize.X, available.Y / controller.layoutSize.Y),
 				0.55,
-				1.3
+				1.35
 			)
 		end
 		controller:rerender()
 		controller.viewport.CanvasPosition = Vector2.zero
 	end)
 	fitButton.Size = UDim2.fromOffset(50, 28)
+	viewport:GetPropertyChangedSignal("AbsoluteWindowSize"):Connect(function()
+		local available = viewport.AbsoluteWindowSize
+		if
+			available.X < 200
+			or available.Y < 160
+			or (available - controller.lastWindowSize).Magnitude < 2
+		then
+			return
+		end
+		controller.lastWindowSize = available
+		controller.zoom = math.clamp(
+			math.min(available.X / controller.layoutSize.X, available.Y / controller.layoutSize.Y),
+			0.65,
+			1.35
+		)
+		controller:rerender()
+		controller.viewport.CanvasPosition = Vector2.zero
+	end)
 	return controller
 end
 
@@ -394,7 +432,7 @@ function RouteOverview.render(
 			self.zoom = math.clamp(
 				math.min(available.X / self.layoutSize.X, available.Y / self.layoutSize.Y),
 				0.55,
-				1.15
+				1.35
 			)
 			self:rerender()
 			self.viewport.CanvasPosition = Vector2.zero
@@ -425,8 +463,17 @@ function RouteOverview.rerender(self: Controller)
 	end
 	local zoom = self.zoom
 	local canvasSize = self.layoutSize * zoom
+	local window = self.viewport.AbsoluteWindowSize
+	local canvasOffset = Vector2.new(
+		math.max((window.X - canvasSize.X) * 0.5, 0),
+		math.max((window.Y - canvasSize.Y) * 0.5, 0)
+	)
+	self.canvas.Position = UDim2.fromOffset(canvasOffset.X, canvasOffset.Y)
 	self.canvas.Size = UDim2.fromOffset(canvasSize.X, canvasSize.Y)
-	self.viewport.CanvasSize = UDim2.fromOffset(canvasSize.X, canvasSize.Y)
+	self.viewport.CanvasSize = UDim2.fromOffset(
+		math.max(canvasSize.X + canvasOffset.X * 2, window.X),
+		math.max(canvasSize.Y + canvasOffset.Y * 2, window.Y)
+	)
 	self.zoomLabel.Text = `{math.round(zoom * 100)}%`
 	for x = 12, canvasSize.X, 32 * zoom do
 		for y = 12, canvasSize.Y, 32 * zoom do
@@ -483,8 +530,11 @@ function RouteOverview.rerender(self: Controller)
 				BorderSizePixel = 0,
 				Font = Enum.Font.BuilderSansMedium,
 				Position = UDim2.fromOffset(midpoint.X, midpoint.Y - 16),
-				Size = UDim2.fromOffset(82, 22),
-				Text = `P{edge.priority}  ·  {lanes}L{if #edge.predicates > 0 then "  ◆" else ""}`,
+				Size = UDim2.fromOffset(112, 22),
+				Text = `P{edge.priority} / {lanes} lane{if lanes == 1 then "" else "s"}{if #edge.predicates
+						> 0
+					then " / Rule"
+					else ""}`,
 				TextColor3 = color,
 				TextSize = 9,
 				ZIndex = 4,
@@ -509,10 +559,7 @@ function RouteOverview.rerender(self: Controller)
 			Font = Enum.Font.BuilderSansBold,
 			Position = UDim2.fromOffset(point.X, point.Y),
 			Size = UDim2.fromOffset(size.X, size.Y),
-			Text = `{node.name}\n{if node.kind == "Spawn"
-				then "Lane 1"
-				elseif node.kind == "Goal" then "All lanes"
-				else "1    2    3"}`,
+			Text = "",
 			TextColor3 = self.theme.text,
 			TextSize = math.clamp(11 * zoom, 9, 14),
 			TextWrapped = true,
@@ -522,6 +569,46 @@ function RouteOverview.rerender(self: Controller)
 		create("UIStroke", {
 			Color = if selected then self.theme.accent else self.theme.border,
 			Thickness = if selected then 2 else 1,
+		}, nodeButton)
+		create("TextLabel", {
+			BackgroundTransparency = 1,
+			Font = Enum.Font.BuilderSansBold,
+			Position = UDim2.fromOffset(12 * zoom, 7 * zoom),
+			Size = UDim2.new(1, -24 * zoom, 0, 16 * zoom),
+			Text = string.upper(node.kind),
+			TextColor3 = if node.kind == "Spawn"
+				then self.theme.success
+				elseif node.kind == "Goal" then Color3.fromRGB(215, 171, 255)
+				else Color3.fromRGB(143, 194, 255),
+			TextSize = math.clamp(9 * zoom, 8, 11),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 6,
+		}, nodeButton)
+		create("TextLabel", {
+			BackgroundTransparency = 1,
+			Font = Enum.Font.BuilderSansBold,
+			Position = UDim2.fromOffset(12 * zoom, 25 * zoom),
+			Size = UDim2.new(1, -24 * zoom, 0, 19 * zoom),
+			Text = node.name,
+			TextColor3 = self.theme.text,
+			TextSize = math.clamp(11 * zoom, 9, 14),
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 6,
+		}, nodeButton)
+		create("TextLabel", {
+			BackgroundTransparency = 1,
+			Font = Enum.Font.BuilderSans,
+			Position = UDim2.fromOffset(12 * zoom, 47 * zoom),
+			Size = UDim2.new(1, -24 * zoom, 0, 15 * zoom),
+			Text = `{string.sub(node.id, -8)} / {if node.kind == "Spawn"
+				then "Entry"
+				elseif node.kind == "Goal" then "Destination"
+				else "Junction"}`,
+			TextColor3 = self.theme.muted,
+			TextSize = math.clamp(8 * zoom, 7, 10),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 6,
 		}, nodeButton)
 		nodeButton.Activated:Connect(function()
 			self.callbacks.selectNode(nodeId)
