@@ -37,12 +37,13 @@ export type Controller = typeof(setmetatable(
 		tracedEdgeIds: { [string]: boolean },
 		nodePositions: { [string]: Vector2 },
 		layoutSize: Vector2,
+		minimapCanvas: Frame,
 	},
 	RouteOverview
 ))
 
-local BASE_SIZE = Vector2.new(1_120, 640)
-local NODE_SIZE = Vector2.new(142, 72)
+local BASE_SIZE = Vector2.new(980, 560)
+local NODE_SIZE = Vector2.new(116, 62)
 
 local function create(className: string, properties: { [string]: any }, parent: Instance?): any
 	local instance = Instance.new(className)
@@ -63,6 +64,7 @@ local function controlButton(parent: Instance, text: string, theme: Theme, callb
 		Text = text,
 		TextColor3 = theme.text,
 		TextSize = 12,
+		ZIndex = 21,
 	}, parent) :: TextButton
 	create("UICorner", { CornerRadius = UDim.new(0, 5) }, result)
 	create("UIStroke", { Color = theme.border, Thickness = 1 }, result)
@@ -243,7 +245,7 @@ local function drawEdge(
 		Font = Enum.Font.BuilderSansBold,
 		Position = UDim2.fromOffset(finish.X - 8 * direction, finish.Y),
 		Size = UDim2.fromOffset(18, 18),
-		Text = if direction > 0 then "▶" else "◀",
+		Text = if direction > 0 then ">" else "<",
 		TextColor3 = color,
 		TextSize = 12,
 		ZIndex = 4,
@@ -259,43 +261,39 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		Size = UDim2.fromScale(1, 1),
 	}, parent) :: Frame
 	local toolbar = create("Frame", {
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+		ZIndex = 20,
+	}, root) :: Frame
+	local controls = create("Frame", {
+		AnchorPoint = Vector2.new(1, 1),
 		BackgroundColor3 = theme.panel,
 		BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 0, 42),
-	}, root) :: Frame
-	create("TextLabel", {
-		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSansBold,
-		Position = UDim2.fromOffset(12, 0),
-		Size = UDim2.new(1, -220, 1, 0),
-		Text = "ROUTE OVERVIEW",
-		TextColor3 = theme.muted,
-		TextSize = 10,
-		TextXAlignment = Enum.TextXAlignment.Left,
-	}, toolbar)
-	local controls = create("Frame", {
-		AnchorPoint = Vector2.new(1, 0.5),
-		BackgroundTransparency = 1,
-		Position = UDim2.new(1, -10, 0.5, 0),
-		Size = UDim2.fromOffset(250, 30),
+		Position = UDim2.new(1, -12, 1, -12),
+		Size = UDim2.fromOffset(64, 158),
+		ZIndex = 20,
 	}, toolbar) :: Frame
+	create("UICorner", { CornerRadius = UDim.new(0, 7) }, controls)
+	create("UIStroke", { Color = theme.border, Thickness = 1 }, controls)
 	create("UIListLayout", {
-		FillDirection = Enum.FillDirection.Horizontal,
-		HorizontalAlignment = Enum.HorizontalAlignment.Right,
+		FillDirection = Enum.FillDirection.Vertical,
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
 		Padding = UDim.new(0, 5),
 		SortOrder = Enum.SortOrder.LayoutOrder,
-		VerticalAlignment = Enum.VerticalAlignment.Center,
+		VerticalAlignment = Enum.VerticalAlignment.Top,
 	}, controls)
+	create("UIPadding", { PaddingTop = UDim.new(0, 7) }, controls)
 	local viewport = create("ScrollingFrame", {
 		BackgroundColor3 = theme.background,
 		BorderSizePixel = 0,
 		CanvasSize = UDim2.fromOffset(BASE_SIZE.X, BASE_SIZE.Y),
 		ClipsDescendants = true,
-		Position = UDim2.fromOffset(0, 42),
+		Position = UDim2.fromOffset(0, 0),
 		ScrollBarImageColor3 = theme.border,
 		ScrollBarThickness = 7,
 		ScrollingDirection = Enum.ScrollingDirection.XY,
-		Size = UDim2.new(1, 0, 1, -42),
+		Size = UDim2.fromScale(1, 1),
 	}, root) :: ScrollingFrame
 	local canvas = create("Frame", {
 		BackgroundColor3 = theme.background,
@@ -303,6 +301,24 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		ClipsDescendants = true,
 		Size = UDim2.fromOffset(BASE_SIZE.X, BASE_SIZE.Y),
 	}, viewport) :: Frame
+	local minimap = create("Frame", {
+		AnchorPoint = Vector2.new(0, 1),
+		BackgroundColor3 = theme.panel,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 12, 1, -12),
+		Size = UDim2.fromOffset(154, 92),
+		ZIndex = 20,
+	}, root) :: Frame
+	create("UICorner", { CornerRadius = UDim.new(0, 7) }, minimap)
+	create("UIStroke", { Color = theme.border, Thickness = 1 }, minimap)
+	local minimapCanvas = create("Frame", {
+		BackgroundColor3 = theme.background,
+		BorderSizePixel = 0,
+		ClipsDescendants = true,
+		Position = UDim2.fromOffset(7, 7),
+		Size = UDim2.new(1, -14, 1, -14),
+		ZIndex = 21,
+	}, minimap) :: Frame
 	local controller: Controller = setmetatable({
 		root = root,
 		viewport = viewport,
@@ -317,6 +333,7 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		tracedEdgeIds = {},
 		nodePositions = {},
 		layoutSize = BASE_SIZE,
+		minimapCanvas = minimapCanvas,
 	}, RouteOverview)
 	controlButton(controls, "−", theme, function()
 		controller.zoom = math.max(0.65, controller.zoom - 0.15)
@@ -330,6 +347,7 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		Text = "100%",
 		TextColor3 = theme.text,
 		TextSize = 11,
+		ZIndex = 21,
 	}, controls) :: TextLabel
 	create("UICorner", { CornerRadius = UDim.new(0, 5) }, zoomLabel)
 	controller.zoomLabel = zoomLabel
@@ -340,7 +358,7 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 	local centerButton = controlButton(controls, "Center", theme, function()
 		controller:focusSelection()
 	end)
-	centerButton.Size = UDim2.fromOffset(54, 28)
+	centerButton.Size = UDim2.fromOffset(50, 28)
 	local fitButton = controlButton(controls, "Fit", theme, function()
 		local available = viewport.AbsoluteWindowSize
 		if available.X > 0 and available.Y > 0 then
@@ -353,7 +371,7 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		controller:rerender()
 		controller.viewport.CanvasPosition = Vector2.zero
 	end)
-	fitButton.Size = UDim2.fromOffset(42, 28)
+	fitButton.Size = UDim2.fromOffset(50, 28)
 	return controller
 end
 
@@ -388,6 +406,9 @@ function RouteOverview.rerender(self: Controller)
 	for _, child in self.canvas:GetChildren() do
 		child:Destroy()
 	end
+	for _, child in self.minimapCanvas:GetChildren() do
+		child:Destroy()
+	end
 	local graph = self.graph
 	local nodeIds: { string } = {}
 	if graph ~= nil then
@@ -407,25 +428,17 @@ function RouteOverview.rerender(self: Controller)
 	self.canvas.Size = UDim2.fromOffset(canvasSize.X, canvasSize.Y)
 	self.viewport.CanvasSize = UDim2.fromOffset(canvasSize.X, canvasSize.Y)
 	self.zoomLabel.Text = `{math.round(zoom * 100)}%`
-	for x = 0, canvasSize.X, 40 * zoom do
-		create("Frame", {
-			BackgroundColor3 = self.theme.border,
-			BackgroundTransparency = 0.82,
-			BorderSizePixel = 0,
-			Position = UDim2.fromOffset(x, 0),
-			Size = UDim2.fromOffset(1, canvasSize.Y),
-			ZIndex = 0,
-		}, self.canvas)
-	end
-	for y = 0, canvasSize.Y, 40 * zoom do
-		create("Frame", {
-			BackgroundColor3 = self.theme.border,
-			BackgroundTransparency = 0.82,
-			BorderSizePixel = 0,
-			Position = UDim2.fromOffset(0, y),
-			Size = UDim2.fromOffset(canvasSize.X, 1),
-			ZIndex = 0,
-		}, self.canvas)
+	for x = 12, canvasSize.X, 32 * zoom do
+		for y = 12, canvasSize.Y, 32 * zoom do
+			create("Frame", {
+				BackgroundColor3 = self.theme.border,
+				BackgroundTransparency = 0.62,
+				BorderSizePixel = 0,
+				Position = UDim2.fromOffset(x, y),
+				Size = UDim2.fromOffset(2, 2),
+				ZIndex = 0,
+			}, self.canvas)
+		end
 	end
 	if graph == nil then
 		return
@@ -462,6 +475,7 @@ function RouteOverview.rerender(self: Controller)
 			end)
 			local profile = graph.laneProfiles[edge.laneProfileId]
 			local lanes = if profile ~= nil and type(profile.offsets) == "table" then #profile.offsets else 1
+			local showBadge = selected or #edge.predicates > 0 or edge.priority > 1 or lanes > 1
 			local label = create("TextButton", {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				AutoButtonColor = false,
@@ -474,6 +488,7 @@ function RouteOverview.rerender(self: Controller)
 				TextColor3 = color,
 				TextSize = 9,
 				ZIndex = 4,
+				Visible = showBadge,
 			}, self.canvas) :: TextButton
 			create("UICorner", { CornerRadius = UDim.new(0, 4) }, label)
 			label.Activated:Connect(function()
@@ -494,7 +509,10 @@ function RouteOverview.rerender(self: Controller)
 			Font = Enum.Font.BuilderSansBold,
 			Position = UDim2.fromOffset(point.X, point.Y),
 			Size = UDim2.fromOffset(size.X, size.Y),
-			Text = `{if node.kind == "Spawn" then "●" elseif node.kind == "Goal" then "◆" else "●"}  {node.name}\n{node.kind}`,
+			Text = `{node.name}\n{if node.kind == "Spawn"
+				then "Lane 1"
+				elseif node.kind == "Goal" then "All lanes"
+				else "1    2    3"}`,
 			TextColor3 = self.theme.text,
 			TextSize = math.clamp(11 * zoom, 9, 14),
 			TextWrapped = true,
@@ -508,6 +526,34 @@ function RouteOverview.rerender(self: Controller)
 		nodeButton.Activated:Connect(function()
 			self.callbacks.selectNode(nodeId)
 		end)
+	end
+	local minimapScale = math.min(132 / math.max(self.layoutSize.X, 1), 70 / math.max(self.layoutSize.Y, 1))
+	for _, edgeId in edgeIds do
+		local edge = graph.edges[edgeId]
+		local from = layout[edge.fromNodeId]
+		local to = layout[edge.toNodeId]
+		if from ~= nil and to ~= nil then
+			edgeLine(
+				self.minimapCanvas,
+				from * minimapScale + Vector2.new(4, 4),
+				to * minimapScale + Vector2.new(4, 4),
+				self.theme.muted,
+				1,
+				22
+			)
+		end
+	end
+	for _, nodeId in nodeIds do
+		local node = graph.nodes[nodeId]
+		local point = layout[nodeId] * minimapScale + Vector2.new(4, 4)
+		create("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundColor3 = nodeColor(node.kind),
+			BorderSizePixel = 0,
+			Position = UDim2.fromOffset(point.X, point.Y),
+			Size = UDim2.fromOffset(7, 5),
+			ZIndex = 23,
+		}, self.minimapCanvas)
 	end
 end
 

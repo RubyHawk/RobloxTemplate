@@ -45,19 +45,22 @@ level's validation count remains in the header; project-wide details remain in C
 
 ## Stagewright 2.3 approved workspace
 
-The approved concept was implemented as a task-first workspace rather than another visual reskin:
+The first 2.3 pass retained too much of the 2.2 shell and failed visual QA against the approved concept. The
+follow-up replaces the workspace structure directly rather than treating the mockup as loose inspiration:
 
-- **Flow** uses a full-height, automatically fitted topology canvas. Directed edges are selectable curved
-  connectors with arrowheads, priority, lane count, and conditional-state badges. Build, Rules, and Test live
-  in one centered contextual palette instead of reserving a permanent command wall.
-- **Paint** centers the authored grid, adds zoom and fit controls, keeps the layer rail compact and icon-led,
-  and preserves the explicit **Shift + drag** painting safeguard. Hover remains a selection operation and
-  never mutates a cell.
-- **Levels** replaces the empty four-quadrant checklist with compact workflow shortcuts and a useful level-health
-  summary. Grid settings now say width, height, and studs per cell, and shrinking explains its confirmation
-  behavior before authors apply it.
-- **Check** presents dense, navigable issue rows and keeps bundle export disabled while blocking errors exist.
-  Refresh, export, and import use consistent directional symbols.
+- The application bar is 52 pixels high and contains the Stagewright identity, stage/level breadcrumb,
+  undo/redo, validation state, four workspaces, and menu in one row.
+- **Flow** uses a full-height dotted topology canvas with curved selectable edges, quiet default links, a live
+  minimap, bottom-right viewport controls, and the six approved primary actions: Add Node, Connect, Split Edge,
+  Lanes, Condition, and Delete. These actions mutate real graph data and disable contextually.
+- **Paint** uses the approved Layers rail, real color swatches, Select/Pencil/Rectangle/Fill/Eraser/Pan tools,
+  coordinate headers, combined layer visualization, grid legend, zoom/fit controls, and the explicit
+  **Shift + drag** safeguard. Select and Pan never mutate; rectangle and flood fill use one undo transaction.
+- **Levels** is one level-overview surface with editable settings, a live miniature of the selected layered
+  grid, route/build/issue metrics, and one primary Open Level action. Secondary lifecycle commands live behind
+  the three-dot menu instead of occupying a permanent button block.
+- **Check** has its own Validation rail, four project summary cards, a table header, navigable issue rows, and
+  disabled export while blocking errors exist.
 
 No stage payload or runtime schema changed in this UI pass. Existing stage IDs, graphs, layered cells, and
 working-copy persistence remain intact.
