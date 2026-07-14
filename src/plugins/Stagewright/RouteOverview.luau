@@ -36,12 +36,13 @@ export type Controller = typeof(setmetatable(
 		selectedEdgeId: string?,
 		tracedEdgeIds: { [string]: boolean },
 		nodePositions: { [string]: Vector2 },
+		layoutSize: Vector2,
 	},
 	RouteOverview
 ))
 
-local BASE_SIZE = Vector2.new(1_120, 720)
-local NODE_SIZE = Vector2.new(128, 68)
+local BASE_SIZE = Vector2.new(1_120, 640)
+local NODE_SIZE = Vector2.new(142, 72)
 
 local function create(className: string, properties: { [string]: any }, parent: Instance?): any
 	local instance = Instance.new(className)
@@ -101,7 +102,7 @@ local function nodeColor(kind: string): Color3
 	return Color3.fromRGB(42, 78, 115)
 end
 
-local function topologyLayout(graph: any, nodeIds: { string }): { [string]: Vector2 }
+local function topologyLayout(graph: any, nodeIds: { string }): ({ [string]: Vector2 }, Vector2)
 	local outgoing: { [string]: { string } } = {}
 	local depthByNode: { [string]: number } = {}
 	local queue: { string } = {}
@@ -162,20 +163,92 @@ local function topologyLayout(graph: any, nodeIds: { string }): { [string]: Vect
 		end)
 	end
 	local result: { [string]: Vector2 } = {}
-	local horizontalPadding = 92
-	local verticalPadding = 76
-	local usableWidth = BASE_SIZE.X - horizontalPadding * 2
-	local usableHeight = BASE_SIZE.Y - verticalPadding * 2
+	local horizontalPadding = 110
+	local verticalPadding = 84
+	local maximumRows = 1
+	for _, column in columns do
+		maximumRows = math.max(maximumRows, #column)
+	end
+	local layoutSize = Vector2.new(
+		math.max(BASE_SIZE.X, horizontalPadding * 2 + maximumDepth * 196),
+		math.max(BASE_SIZE.Y, verticalPadding * 2 + (maximumRows - 1) * 112)
+	)
+	local usableWidth = layoutSize.X - horizontalPadding * 2
+	local usableHeight = layoutSize.Y - verticalPadding * 2
 	for depth, column in columns do
 		local x = if maximumDepth == 0
-			then BASE_SIZE.X / 2
+			then layoutSize.X / 2
 			else horizontalPadding + usableWidth * (depth / maximumDepth)
 		for index, nodeId in column do
 			local y = verticalPadding + usableHeight * (index / (#column + 1))
 			result[nodeId] = Vector2.new(x, y)
 		end
 	end
-	return result
+	return result, layoutSize
+end
+
+local function cubicPoint(
+	start: Vector2,
+	first: Vector2,
+	second: Vector2,
+	finish: Vector2,
+	alpha: number
+): Vector2
+	local inverse = 1 - alpha
+	return start * (inverse ^ 3)
+		+ first * (3 * inverse ^ 2 * alpha)
+		+ second * (3 * inverse * alpha ^ 2)
+		+ finish * (alpha ^ 3)
+end
+
+local function drawEdge(
+	parent: Instance,
+	start: Vector2,
+	finish: Vector2,
+	color: Color3,
+	thickness: number,
+	selectEdge: () -> ()
+): Vector2
+	local horizontal = math.max(math.abs(finish.X - start.X) * 0.48, 42)
+	local direction = if finish.X >= start.X then 1 else -1
+	local first = start + Vector2.new(horizontal * direction, 0)
+	local second = finish - Vector2.new(horizontal * direction, 0)
+	local previous = start
+	local midpoint = start
+	for segment = 1, 14 do
+		local alpha = segment / 14
+		local point = cubicPoint(start, first, second, finish, alpha)
+		edgeLine(parent, previous, point, color, thickness, 2)
+		local delta = point - previous
+		local hit = create("TextButton", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			AutoButtonColor = false,
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset((previous.X + point.X) / 2, (previous.Y + point.Y) / 2),
+			Rotation = math.deg(math.atan2(delta.Y, delta.X)),
+			Size = UDim2.fromOffset(math.max(delta.Magnitude, 1), 16),
+			Text = "",
+			ZIndex = 3,
+		}, parent) :: TextButton
+		hit.Activated:Connect(selectEdge)
+		if segment == 7 then
+			midpoint = point
+		end
+		previous = point
+	end
+	create("TextButton", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		AutoButtonColor = false,
+		BackgroundTransparency = 1,
+		Font = Enum.Font.BuilderSansBold,
+		Position = UDim2.fromOffset(finish.X - 8 * direction, finish.Y),
+		Size = UDim2.fromOffset(18, 18),
+		Text = if direction > 0 then "▶" else "◀",
+		TextColor3 = color,
+		TextSize = 12,
+		ZIndex = 4,
+	}, parent).Activated:Connect(selectEdge)
+	return midpoint
 end
 
 function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks): Controller
@@ -243,6 +316,7 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		selectedEdgeId = nil,
 		tracedEdgeIds = {},
 		nodePositions = {},
+		layoutSize = BASE_SIZE,
 	}, RouteOverview)
 	controlButton(controls, "−", theme, function()
 		controller.zoom = math.max(0.65, controller.zoom - 0.15)
@@ -270,8 +344,11 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 	local fitButton = controlButton(controls, "Fit", theme, function()
 		local available = viewport.AbsoluteWindowSize
 		if available.X > 0 and available.Y > 0 then
-			controller.zoom =
-				math.clamp(math.min(available.X / BASE_SIZE.X, available.Y / BASE_SIZE.Y), 0.65, 1.3)
+			controller.zoom = math.clamp(
+				math.min(available.X / controller.layoutSize.X, available.Y / controller.layoutSize.Y),
+				0.55,
+				1.3
+			)
 		end
 		controller:rerender()
 		controller.viewport.CanvasPosition = Vector2.zero
@@ -287,19 +364,46 @@ function RouteOverview.render(
 	selectedEdgeId: string?,
 	tracedEdgeIds: { [string]: boolean }
 )
+	local graphChanged = self.graph ~= graph
 	self.graph = graph
 	self.selectedNodeId = selectedNodeId
 	self.selectedEdgeId = selectedEdgeId
 	self.tracedEdgeIds = tracedEdgeIds
 	self:rerender()
+	if graphChanged then
+		local available = self.viewport.AbsoluteWindowSize
+		if available.X > 0 and available.Y > 0 then
+			self.zoom = math.clamp(
+				math.min(available.X / self.layoutSize.X, available.Y / self.layoutSize.Y),
+				0.55,
+				1.15
+			)
+			self:rerender()
+			self.viewport.CanvasPosition = Vector2.zero
+		end
+	end
 end
 
 function RouteOverview.rerender(self: Controller)
 	for _, child in self.canvas:GetChildren() do
 		child:Destroy()
 	end
+	local graph = self.graph
+	local nodeIds: { string } = {}
+	if graph ~= nil then
+		for nodeId in graph.nodes do
+			table.insert(nodeIds, nodeId)
+		end
+		table.sort(nodeIds)
+	end
+	local layout = {} :: { [string]: Vector2 }
+	if graph ~= nil and #nodeIds > 0 then
+		layout, self.layoutSize = topologyLayout(graph, nodeIds)
+	else
+		self.layoutSize = BASE_SIZE
+	end
 	local zoom = self.zoom
-	local canvasSize = BASE_SIZE * zoom
+	local canvasSize = self.layoutSize * zoom
 	self.canvas.Size = UDim2.fromOffset(canvasSize.X, canvasSize.Y)
 	self.viewport.CanvasSize = UDim2.fromOffset(canvasSize.X, canvasSize.Y)
 	self.zoomLabel.Text = `{math.round(zoom * 100)}%`
@@ -323,19 +427,12 @@ function RouteOverview.rerender(self: Controller)
 			ZIndex = 0,
 		}, self.canvas)
 	end
-	local graph = self.graph
 	if graph == nil then
 		return
 	end
-	local nodeIds: { string } = {}
-	for nodeId in graph.nodes do
-		table.insert(nodeIds, nodeId)
-	end
-	table.sort(nodeIds)
 	if #nodeIds == 0 then
 		return
 	end
-	local layout = topologyLayout(graph, nodeIds)
 	self.nodePositions = {}
 	for _, nodeId in nodeIds do
 		self.nodePositions[nodeId] = layout[nodeId] * zoom
@@ -350,10 +447,9 @@ function RouteOverview.rerender(self: Controller)
 		local from = self.nodePositions[edge.fromNodeId]
 		local to = self.nodePositions[edge.toNodeId]
 		if from ~= nil and to ~= nil then
-			local fullDelta = to - from
-			local direction = if fullDelta.Magnitude > 0.001 then fullDelta.Unit else Vector2.new(1, 0)
-			local start = from + direction * (NODE_SIZE.X * zoom * 0.43)
-			local finish = to - direction * (NODE_SIZE.X * zoom * 0.43)
+			local direction = if to.X >= from.X then 1 else -1
+			local start = from + Vector2.new(NODE_SIZE.X * zoom * 0.5 * direction, 0)
+			local finish = to - Vector2.new(NODE_SIZE.X * zoom * 0.5 * direction, 0)
 			local selected = self.selectedEdgeId == edgeId
 			local traced = self.tracedEdgeIds[edgeId] == true
 			local color = if selected
@@ -361,32 +457,20 @@ function RouteOverview.rerender(self: Controller)
 				elseif traced then self.theme.success
 				elseif #edge.predicates > 0 then self.theme.warning
 				else self.theme.muted
-			edgeLine(self.canvas, start, finish, color, if selected then 5 else 3, 2)
-			local delta = finish - start
-			local hit = create("TextButton", {
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				AutoButtonColor = false,
-				BackgroundTransparency = 1,
-				Position = UDim2.fromOffset((start.X + finish.X) / 2, (start.Y + finish.Y) / 2),
-				Rotation = math.deg(math.atan2(delta.Y, delta.X)),
-				Size = UDim2.fromOffset(delta.Magnitude, 18),
-				Text = "",
-				ZIndex = 3,
-			}, self.canvas) :: TextButton
-			hit.Activated:Connect(function()
+			local midpoint = drawEdge(self.canvas, start, finish, color, if selected then 5 else 3, function()
 				self.callbacks.selectEdge(edgeId)
 			end)
+			local profile = graph.laneProfiles[edge.laneProfileId]
+			local lanes = if profile ~= nil and type(profile.offsets) == "table" then #profile.offsets else 1
 			local label = create("TextButton", {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				AutoButtonColor = false,
 				BackgroundColor3 = self.theme.surface,
 				BorderSizePixel = 0,
 				Font = Enum.Font.BuilderSansMedium,
-				Position = UDim2.fromOffset((start.X + finish.X) / 2, (start.Y + finish.Y) / 2 - 14),
-				Size = UDim2.fromOffset(76, 21),
-				Text = `P{edge.priority} · {if #edge.predicates == 0
-					then "Fallback"
-					else `{#edge.predicates} rule`}`,
+				Position = UDim2.fromOffset(midpoint.X, midpoint.Y - 16),
+				Size = UDim2.fromOffset(82, 22),
+				Text = `P{edge.priority}  ·  {lanes}L{if #edge.predicates > 0 then "  ◆" else ""}`,
 				TextColor3 = color,
 				TextSize = 9,
 				ZIndex = 4,
@@ -410,7 +494,7 @@ function RouteOverview.rerender(self: Controller)
 			Font = Enum.Font.BuilderSansBold,
 			Position = UDim2.fromOffset(point.X, point.Y),
 			Size = UDim2.fromOffset(size.X, size.Y),
-			Text = `{node.kind}\n{node.name}\n{string.sub(nodeId, -8)}`,
+			Text = `{if node.kind == "Spawn" then "●" elseif node.kind == "Goal" then "◆" else "●"}  {node.name}\n{node.kind}`,
 			TextColor3 = self.theme.text,
 			TextSize = math.clamp(11 * zoom, 9, 14),
 			TextWrapped = true,

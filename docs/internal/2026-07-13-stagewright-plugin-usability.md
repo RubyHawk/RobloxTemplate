@@ -43,6 +43,25 @@ their physical X/Z coordinates. The canvas clips every edge, the repeated node/e
 inspector, and Build controls only expose node or edge commands relevant to the current selection. The selected
 level's validation count remains in the header; project-wide details remain in Check.
 
+## Stagewright 2.3 approved workspace
+
+The approved concept was implemented as a task-first workspace rather than another visual reskin:
+
+- **Flow** uses a full-height, automatically fitted topology canvas. Directed edges are selectable curved
+  connectors with arrowheads, priority, lane count, and conditional-state badges. Build, Rules, and Test live
+  in one centered contextual palette instead of reserving a permanent command wall.
+- **Paint** centers the authored grid, adds zoom and fit controls, keeps the layer rail compact and icon-led,
+  and preserves the explicit **Shift + drag** painting safeguard. Hover remains a selection operation and
+  never mutates a cell.
+- **Levels** replaces the empty four-quadrant checklist with compact workflow shortcuts and a useful level-health
+  summary. Grid settings now say width, height, and studs per cell, and shrinking explains its confirmation
+  behavior before authors apply it.
+- **Check** presents dense, navigable issue rows and keeps bundle export disabled while blocking errors exist.
+  Refresh, export, and import use consistent directional symbols.
+
+No stage payload or runtime schema changed in this UI pass. Existing stage IDs, graphs, layered cells, and
+working-copy persistence remain intact.
+
 ## Verification
 
 - StyLua and Selene validate the strict Luau source.
