@@ -1029,6 +1029,23 @@ for _, runePluginObject in
 		"Fix first:",
 		"Add Rune Card",
 		"Remove Card",
+		-- Tabbed workbench UX contract: tab navigation, live validation with
+		-- per-tab issue tags, visible pill pickers, entry-time range hints,
+		-- reload recovery, and confirmed destructive actions.
+		"selectTab",
+		"optionPills",
+		"Refresh.validation",
+		"Ready to apply",
+		"issue.tab",
+		"rangeText",
+		"Reload from Place",
+		"Confirm remove?",
+		"Discard edits?",
+		-- Tier and milestone editors hold everything the runtime accepts
+		-- (RuneModeConfig.MAX_TIERS / MAX_MILESTONES), so loading a place
+		-- never silently truncates authored rows.
+		"local TIER_ROWS = 8",
+		"local MILESTONE_ROWS = 8",
 	}
 do
 	expectEqual(
@@ -1038,8 +1055,11 @@ do
 	)
 end
 -- The workbench edits the open place only; it must never touch live services
--- or publish anything.
-for _, forbiddenPluginCall in { "PolicyService", "DataStoreService", "HttpService", "PublishAsync" } do
+-- or publish anything. The blind cycle buttons stay retired: fixed choices
+-- render as visible pill pickers instead.
+for _, forbiddenPluginCall in
+	{ "PolicyService", "DataStoreService", "HttpService", "PublishAsync", "cycleField" }
+do
 	expectEqual(
 		string.find(runePluginSource, forbiddenPluginCall, 1, true),
 		nil,
