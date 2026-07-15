@@ -36,6 +36,7 @@
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local PLUGIN_NAME = "Runewright"
 local PLUGIN_SUBTITLE = "Rune altar workbench"
@@ -49,11 +50,14 @@ local PANEL_STATUS = Color3.fromRGB(12, 13, 15)
 local PANEL_FIELD = Color3.fromRGB(10, 12, 14)
 local BUTTON_BG = Color3.fromRGB(15, 16, 18)
 local BUTTON_ACTIVE = Color3.fromRGB(86, 128, 184)
+local BUTTON_ACTIVE_HOVER = Color3.fromRGB(102, 144, 200)
 local BUTTON_HOVER = Color3.fromRGB(30, 33, 38)
+local TRACK_ON = Color3.fromRGB(51, 80, 122)
+local KNOB_OFF = Color3.fromRGB(99, 106, 118)
+local KNOB_ON = Color3.fromRGB(219, 228, 240)
 local BORDER = Color3.fromRGB(50, 54, 60)
 local TEXT = Color3.fromRGB(229, 232, 237)
 local TEXT_ACTIVE = Color3.fromRGB(245, 247, 250)
-local TEXT_ON_TINT = Color3.fromRGB(20, 22, 26)
 local MUTED = Color3.fromRGB(151, 158, 169)
 local SUBTLE = Color3.fromRGB(99, 106, 118)
 local HEADING = Color3.fromRGB(138, 145, 156)
@@ -776,7 +780,8 @@ local function applyToPlace()
 		ChangeHistoryService:FinishRecording(recording, Enum.FinishRecordingOperation.Commit)
 	end
 	setStatus(
-		"Applied. Playtest to feel it; with Rojo serve, Print Sources and paste into the repo so sync keeps it.",
+		`Applied {os.date("%H:%M:%S")}. Playtest to feel it; with Rojo serve, Print Sources and paste`
+			.. " into the repo so sync keeps it.",
 		GOOD
 	)
 end
@@ -838,6 +843,16 @@ local function colorHex(color: Color3): string
 		math.floor(color.G * 255 + 0.5),
 		math.floor(color.B * 255 + 0.5)
 	)
+end
+
+-- Accepts "#60A5FA" or "60a5fa"; returns the three 0-255 channels.
+local function parseHexColor(text: string): (number?, number?, number?)
+	local cleaned = string.gsub(string.gsub(text, "%s", ""), "^#", "")
+	local r, g, b = string.match(cleaned, "^(%x%x)(%x%x)(%x%x)$")
+	if r == nil or g == nil or b == nil then
+		return nil, nil, nil
+	end
+	return tonumber(r, 16), tonumber(g, 16), tonumber(b, 16)
 end
 
 local KIND_EXPLAINERS: { [string]: string } = {
@@ -1066,7 +1081,8 @@ local function buildPanel()
 	end
 
 	-- Compact editable value: a slim shell exactly as tall as its text, no
-	-- label inside. Labels live beside or above as plain text.
+	-- label inside. Labels live beside or above as plain text. The shell
+	-- brightens on hover and shows a steel focus ring while editing.
 	local function inputBox(
 		parent: Instance,
 		name: string,
@@ -1080,7 +1096,7 @@ local function buildPanel()
 		shell.Size = UDim2.new(1, 0, 0, INPUT_HEIGHT)
 		shell.Parent = parent
 		round(shell, 4)
-		outline(shell, 0.7)
+		local stroke = outline(shell, 0.7)
 
 		local box = Instance.new("TextBox")
 		box.Name = "Value"
@@ -1095,8 +1111,34 @@ local function buildPanel()
 		box.Position = UDim2.fromOffset(7, 0)
 		box.Size = UDim2.new(1, -14, 1, 0)
 		box.Parent = shell
+
+		local focused = false
+		local hovered = false
+		local function repaintStroke()
+			if focused then
+				stroke.Color = BUTTON_ACTIVE
+				stroke.Transparency = 0.15
+			else
+				stroke.Color = BORDER
+				stroke.Transparency = if hovered then 0.45 else 0.7
+			end
+		end
+		box.Focused:Connect(function()
+			focused = true
+			repaintStroke()
+		end)
 		box.FocusLost:Connect(function()
+			focused = false
+			repaintStroke()
 			box.Text = commit(box.Text)
+		end)
+		shell.MouseEnter:Connect(function()
+			hovered = true
+			repaintStroke()
+		end)
+		shell.MouseLeave:Connect(function()
+			hovered = false
+			repaintStroke()
 		end)
 		return box, shell
 	end
@@ -1244,13 +1286,20 @@ local function buildPanel()
 				pill.TextTruncate = Enum.TextTruncate.AtEnd
 				pill.LayoutOrder = order
 				local selected = option.value == current
+				local idleText: Color3
 				if tint == true and option.dotColor ~= nil then
-					pill.BackgroundColor3 = option.dotColor
-					pill.BackgroundTransparency = if selected then 0 else 1
-					pill.TextColor3 = if selected then TEXT_ON_TINT else option.dotColor
+					-- Selected: a translucent wash of the rarity color with a solid
+					-- colored stroke and lightened text — a picked state, not a tag.
+					local dotColor = option.dotColor
+					idleText = dotColor
+					pill.BackgroundColor3 = dotColor
+					pill.BackgroundTransparency = if selected then 0.84 else 1
+					pill.TextColor3 = if selected then dotColor:Lerp(Color3.new(1, 1, 1), 0.4) else dotColor
 					pill.Text = option.text
 				else
-					pill.BackgroundColor3 = if selected then BUTTON_ACTIVE else BUTTON_BG
+					idleText = MUTED
+					pill.BackgroundColor3 = if selected then BUTTON_ACTIVE else PANEL_FIELD
+					pill.BackgroundTransparency = if selected then 0 else 1
 					pill.TextColor3 = if selected then TEXT_ACTIVE else MUTED
 					if option.dotColor ~= nil then
 						pill.RichText = true
@@ -1263,7 +1312,18 @@ local function buildPanel()
 				round(pill, 4)
 				local pillStroke = outline(pill, if selected then 0.35 else 0.6)
 				if tint == true and selected and option.dotColor ~= nil then
-					pillStroke.Transparency = 1
+					pillStroke.Color = option.dotColor
+					pillStroke.Transparency = 0.25
+				end
+				if not selected then
+					pill.MouseEnter:Connect(function()
+						pill.TextColor3 = if tint == true
+							then idleText:Lerp(Color3.new(1, 1, 1), 0.35)
+							else TEXT
+					end)
+					pill.MouseLeave:Connect(function()
+						pill.TextColor3 = idleText
+					end)
 				end
 				pill.MouseButton1Click:Connect(function()
 					write(option.value)
@@ -1282,21 +1342,165 @@ local function buildPanel()
 		caption.TextSize = 11
 	end
 
-	-- Label-left / pills-right line for small option sets (mode kind, unlock).
-	-- Returns the right-side host (parent the pills there) and the row itself.
+	-- Exclusive choice as one connected track of equal segments — the selected
+	-- segment fills steel blue. Distinct from pills: segments mean "exactly one
+	-- of these few", pills stay color-keyed pickers.
+	local function segmentedControl(
+		parent: Instance,
+		name: string,
+		options: () -> { PillOption },
+		read: () -> string,
+		write: (value: string) -> ()
+	): (() -> (), Frame)
+		local track = Instance.new("Frame")
+		track.Name = name
+		track.BackgroundColor3 = PANEL_FIELD
+		track.BorderSizePixel = 0
+		track.Size = UDim2.new(1, 0, 0, INPUT_HEIGHT)
+		track.Parent = parent
+		round(track, 5)
+		outline(track, 0.6)
+		local trackPadding = Instance.new("UIPadding")
+		trackPadding.PaddingTop = UDim.new(0, 2)
+		trackPadding.PaddingBottom = UDim.new(0, 2)
+		trackPadding.PaddingLeft = UDim.new(0, 2)
+		trackPadding.PaddingRight = UDim.new(0, 2)
+		trackPadding.Parent = track
+		local trackLayout = Instance.new("UIListLayout")
+		trackLayout.FillDirection = Enum.FillDirection.Horizontal
+		trackLayout.Padding = UDim.new(0, 2)
+		trackLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		trackLayout.Parent = track
+
+		local repaint: () -> ()
+		repaint = function()
+			for _, child in track:GetChildren() do
+				if child:IsA("TextButton") then
+					child:Destroy()
+				end
+			end
+			local list = options()
+			local current = read()
+			local count = math.max(#list, 1)
+			for order, option in list do
+				local segment = Instance.new("TextButton")
+				segment.Name = `Segment{option.value}`
+				segment.AutoButtonColor = false
+				segment.BorderSizePixel = 0
+				segment.Font = Enum.Font.GothamBold
+				segment.TextSize = 10
+				segment.TextTruncate = Enum.TextTruncate.AtEnd
+				segment.LayoutOrder = order
+				local selected = option.value == current
+				segment.BackgroundColor3 = BUTTON_ACTIVE
+				segment.BackgroundTransparency = if selected then 0 else 1
+				segment.TextColor3 = if selected then TEXT_ACTIVE else MUTED
+				segment.Text = option.text
+				segment.Size = UDim2.new(1 / count, if order < count then -2 else 0, 1, 0)
+				segment.Parent = track
+				round(segment, 3)
+				if not selected then
+					segment.MouseEnter:Connect(function()
+						segment.TextColor3 = TEXT
+					end)
+					segment.MouseLeave:Connect(function()
+						segment.TextColor3 = MUTED
+					end)
+				end
+				segment.MouseButton1Click:Connect(function()
+					write(option.value)
+					repaint()
+					touch()
+				end)
+			end
+		end
+		repaint()
+		return repaint, track
+	end
+
+	-- On/off as a real switch: caption plus a 30×14 track whose knob slides
+	-- across when toggled.
+	local function toggleSwitch(
+		parent: Instance,
+		name: string,
+		read: () -> boolean,
+		write: (value: boolean) -> ()
+	): (() -> (), TextButton)
+		local hit = Instance.new("TextButton")
+		hit.Name = name
+		hit.AutoButtonColor = false
+		hit.BackgroundTransparency = 1
+		hit.BorderSizePixel = 0
+		hit.Text = ""
+		hit.Size = UDim2.fromOffset(96, 20)
+		hit.Parent = parent
+
+		local caption = createLabel(hit, "Caption", "", 20, MUTED)
+		caption.Font = Enum.Font.GothamBold
+		caption.TextSize = 10
+		caption.Size = UDim2.new(1, -37, 0, 20)
+		caption.TextXAlignment = Enum.TextXAlignment.Right
+
+		local trackFrame = Instance.new("Frame")
+		trackFrame.Name = "Track"
+		trackFrame.BackgroundColor3 = PANEL_FIELD
+		trackFrame.BorderSizePixel = 0
+		trackFrame.AnchorPoint = Vector2.new(1, 0.5)
+		trackFrame.Position = UDim2.fromScale(1, 0.5)
+		trackFrame.Size = UDim2.fromOffset(30, 14)
+		trackFrame.Parent = hit
+		round(trackFrame, 7)
+		local trackStroke = outline(trackFrame, 0.35)
+
+		local knob = Instance.new("Frame")
+		knob.Name = "Knob"
+		knob.BorderSizePixel = 0
+		knob.Size = UDim2.fromOffset(10, 10)
+		knob.Position = UDim2.fromOffset(2, 2)
+		knob.Parent = trackFrame
+		round(knob, 5)
+
+		local knobTween = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		local function repaint(animate: boolean)
+			local on = read()
+			caption.Text = if on then "Enabled" else "Off"
+			caption.TextColor3 = if on then TEXT else SUBTLE
+			trackFrame.BackgroundColor3 = if on then TRACK_ON else PANEL_FIELD
+			trackStroke.Color = if on then BUTTON_ACTIVE else BORDER
+			local target = UDim2.fromOffset(if on then 18 else 2, 2)
+			knob.BackgroundColor3 = if on then KNOB_ON else KNOB_OFF
+			if animate then
+				TweenService:Create(knob, knobTween, { Position = target }):Play()
+			else
+				knob.Position = target
+			end
+		end
+		hit.MouseButton1Click:Connect(function()
+			write(not read())
+			repaint(true)
+		end)
+		repaint(false)
+		return function()
+			repaint(false)
+		end, hit
+	end
+
+	-- Label-left / control-right line for small option sets (mode kind, unlock).
+	-- Returns the right-side host (parent the segmented control there) and the
+	-- row itself.
 	local function inlineChoiceRow(parent: Instance, name: string, labelText: string): (Frame, Frame)
 		local row = Instance.new("Frame")
 		row.Name = name
 		row.BackgroundTransparency = 1
-		row.Size = UDim2.new(1, 0, 0, 20)
+		row.Size = UDim2.new(1, 0, 0, INPUT_HEIGHT)
 		row.Parent = parent
-		local label = createLabel(row, "Label", labelText, 20, TEXT)
-		label.Size = UDim2.fromOffset(48, 20)
+		local label = createLabel(row, "Label", labelText, INPUT_HEIGHT, TEXT)
+		label.Size = UDim2.fromOffset(48, INPUT_HEIGHT)
 		local host = Instance.new("Frame")
 		host.Name = "Host"
 		host.BackgroundTransparency = 1
 		host.Position = UDim2.fromOffset(56, 0)
-		host.Size = UDim2.new(1, -56, 0, 20)
+		host.Size = UDim2.new(1, -56, 0, INPUT_HEIGHT)
 		host.Parent = row
 		return host, row
 	end
@@ -1352,6 +1556,21 @@ local function buildPanel()
 		headB.Position = UDim2.fromScale(1, 0)
 		headB.Size = UDim2.fromOffset(fixedWidth, 12)
 
+		-- Only the filled rows plus one blank "next" row show; typing in the
+		-- blank row reveals the next, up to the runtime cap. No wall of dashes.
+		local rowEntries: { { frame: Frame, readWide: () -> number?, readFixed: () -> number? } } = {}
+		local function refreshTableRows()
+			local lastFilled = 0
+			for index, entry in rowEntries do
+				if entry.readWide() ~= nil or entry.readFixed() ~= nil then
+					lastFilled = index
+				end
+			end
+			for index, entry in rowEntries do
+				entry.frame.Visible = index <= math.min(lastFilled + 1, #rowEntries)
+			end
+		end
+
 		local function addRow(
 			index: number,
 			readWide: () -> number?,
@@ -1370,15 +1589,23 @@ local function buildPanel()
 			ix.TextSize = 10
 			ix.Size = UDim2.fromOffset(22, INPUT_HEIGHT)
 
-			local _, wideShell = numberInput(row, "Wide", `#{index} {headWide}`, readWide, writeWide, true)
+			local _, wideShell = numberInput(row, "Wide", `#{index} {headWide}`, readWide, function(value)
+				writeWide(value)
+				refreshTableRows()
+			end, true)
 			wideShell.Position = UDim2.fromOffset(28, 0)
 			wideShell.Size = UDim2.new(1, -(28 + fixedWidth + 6), 0, INPUT_HEIGHT)
 
-			local _, fixedShell =
-				numberInput(row, "Fixed", `#{index} {headFixed}`, readFixed, writeFixed, true)
+			local _, fixedShell = numberInput(row, "Fixed", `#{index} {headFixed}`, readFixed, function(value)
+				writeFixed(value)
+				refreshTableRows()
+			end, true)
 			fixedShell.AnchorPoint = Vector2.new(1, 0)
 			fixedShell.Position = UDim2.fromScale(1, 0)
 			fixedShell.Size = UDim2.fromOffset(fixedWidth, INPUT_HEIGHT)
+
+			table.insert(rowEntries, { frame = row, readWide = readWide, readFixed = readFixed })
+			refreshTableRows()
 		end
 		return host, addRow
 	end
@@ -1512,6 +1739,16 @@ local function buildPanel()
 	applyButton.BackgroundColor3 = BUTTON_ACTIVE
 	applyButton.TextColor3 = TEXT_ACTIVE
 	applyButton.MouseButton1Click:Connect(applyToPlace)
+	applyButton.MouseEnter:Connect(function()
+		if applyButton.BackgroundColor3 == BUTTON_ACTIVE then
+			applyButton.BackgroundColor3 = BUTTON_ACTIVE_HOVER
+		end
+	end)
+	applyButton.MouseLeave:Connect(function()
+		if applyButton.BackgroundColor3 == BUTTON_ACTIVE_HOVER then
+			applyButton.BackgroundColor3 = BUTTON_ACTIVE
+		end
+	end)
 
 	local printButton = createButton(actionRow, "Print", "Print Sources", 30)
 	printButton.Size = UDim2.new(0.33, -6, 1, 0)
@@ -1524,7 +1761,8 @@ local function buildPanel()
 	reloadButton.LayoutOrder = 3
 	armButton(reloadButton, "Discard edits?", performReload)
 
-	-- Tab bar ----------------------------------------------------------------
+	-- Tab bar: flat labels over a hairline, active tab carries a 2px steel
+	-- underline and issue counts render as amber superscripts.
 	local tabBar = Instance.new("Frame")
 	tabBar.Name = "TabBar"
 	tabBar.BackgroundColor3 = PANEL_HEADER
@@ -1532,16 +1770,24 @@ local function buildPanel()
 	tabBar.Size = UDim2.new(1, 0, 0, TAB_BAR_HEIGHT)
 	tabBar.Parent = root
 	local tabPadding = Instance.new("UIPadding")
-	tabPadding.PaddingTop = UDim.new(0, 4)
-	tabPadding.PaddingBottom = UDim.new(0, 4)
-	tabPadding.PaddingLeft = UDim.new(0, 8)
-	tabPadding.PaddingRight = UDim.new(0, 8)
+	tabPadding.PaddingLeft = UDim.new(0, 4)
+	tabPadding.PaddingRight = UDim.new(0, 4)
 	tabPadding.Parent = tabBar
 	local tabLayout = Instance.new("UIGridLayout")
-	tabLayout.CellPadding = UDim2.fromOffset(4, 0)
-	tabLayout.CellSize = UDim2.new(0.2, -4, 1, 0)
+	tabLayout.CellPadding = UDim2.fromOffset(0, 0)
+	tabLayout.CellSize = UDim2.fromScale(0.2, 1)
 	tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	tabLayout.Parent = tabBar
+
+	local tabBarRule = Instance.new("Frame")
+	tabBarRule.Name = "TabBarRule"
+	tabBarRule.BackgroundColor3 = BORDER
+	tabBarRule.BackgroundTransparency = 0.5
+	tabBarRule.BorderSizePixel = 0
+	tabBarRule.Position = UDim2.fromOffset(0, TAB_BAR_HEIGHT - 1)
+	tabBarRule.Size = UDim2.new(1, 0, 0, 1)
+	tabBarRule.ZIndex = 2
+	tabBarRule.Parent = root
 
 	local pageHost = Instance.new("Frame")
 	pageHost.Name = "Pages"
@@ -1562,7 +1808,7 @@ local function buildPanel()
 		page.Size = UDim2.fromScale(1, 1)
 		page.CanvasSize = UDim2.new()
 		page.AutomaticCanvasSize = Enum.AutomaticSize.Y
-		page.ScrollBarThickness = 6
+		page.ScrollBarThickness = 4
 		page.ScrollBarImageColor3 = BORDER
 		page.Visible = tabName == activeTabName
 		page.Parent = pageHost
@@ -1581,17 +1827,29 @@ local function buildPanel()
 		local tabButton = Instance.new("TextButton")
 		tabButton.Name = `Tab{tabName}`
 		tabButton.AutoButtonColor = false
-		tabButton.BackgroundColor3 = BUTTON_ACTIVE
 		tabButton.BackgroundTransparency = 1
 		tabButton.BorderSizePixel = 0
 		tabButton.Font = Enum.Font.GothamBold
+		tabButton.RichText = true
 		tabButton.Text = tabName
 		tabButton.TextColor3 = MUTED
 		tabButton.TextSize = 11
 		tabButton.TextTruncate = Enum.TextTruncate.AtEnd
 		tabButton.LayoutOrder = order
 		tabButton.Parent = tabBar
-		round(tabButton, 4)
+
+		local indicator = Instance.new("Frame")
+		indicator.Name = "Indicator"
+		indicator.BackgroundColor3 = BUTTON_ACTIVE
+		indicator.BorderSizePixel = 0
+		indicator.AnchorPoint = Vector2.new(0.5, 1)
+		indicator.Position = UDim2.fromScale(0.5, 1)
+		indicator.Size = UDim2.new(0.8, 0, 0, 2)
+		indicator.ZIndex = 3
+		indicator.Visible = false
+		indicator.Parent = tabButton
+		round(indicator, 1)
+
 		tabButtons[tabName] = tabButton
 	end
 
@@ -1600,9 +1858,14 @@ local function buildPanel()
 			local button = tabButtons[tabName]
 			local count = issueCountByTab[tabName] or 0
 			local selected = tabName == activeTabName
-			button.Text = if count > 0 then `{tabName} ({count})` else tabName
-			button.BackgroundTransparency = if selected then 0 else 1
+			button.Text = if count > 0
+				then `{tabName} <font color="#{colorHex(AMBER)}">{count}</font>`
+				else tabName
 			button.TextColor3 = if selected then TEXT_ACTIVE elseif count > 0 then AMBER else MUTED
+			local indicator = button:FindFirstChild("Indicator")
+			if indicator ~= nil and indicator:IsA("Frame") then
+				indicator.Visible = selected
+			end
 		end
 	end
 
@@ -1615,8 +1878,17 @@ local function buildPanel()
 	end
 
 	for _, tabName in TAB_DEFS do
-		tabButtons[tabName].MouseButton1Click:Connect(function()
+		local button = tabButtons[tabName]
+		button.MouseButton1Click:Connect(function()
 			selectTab(tabName)
+		end)
+		button.MouseEnter:Connect(function()
+			if tabName ~= activeTabName then
+				button.TextColor3 = TEXT
+			end
+		end)
+		button.MouseLeave:Connect(function()
+			repaintTabs()
 		end)
 	end
 
@@ -1669,7 +1941,7 @@ local function buildPanel()
 		"DefaultHint",
 		"What brand-new players channel with. Must be one of the enabled modes below."
 	)
-	Refresh.defaultMode = optionPills(defaultSection.frame, "DefaultMode", 4, function()
+	Refresh.defaultMode = segmentedControl(defaultSection.frame, "DefaultMode", function()
 		local options: { PillOption } = {}
 		for _, mode in Val.enabledModes() do
 			if #mode.id > 0 then
@@ -1725,11 +1997,6 @@ local function buildPanel()
 		local headTitle = createLabel(headRow, "Title", string.upper(`Mode {index}`), 20, HEADING)
 		headTitle.Font = Enum.Font.GothamBold
 		headTitle.TextSize = 10
-		local toggle = createButton(headRow, "Enabled", "", 20, false)
-		toggle.AnchorPoint = Vector2.new(1, 0)
-		toggle.Position = UDim2.fromScale(1, 0)
-		toggle.Size = UDim2.fromOffset(136, 20)
-		toggle.TextSize = 10
 
 		local body = Instance.new("Frame")
 		body.Name = "Body"
@@ -1796,7 +2063,7 @@ local function buildPanel()
 
 		local kindHost, kindRow = inlineChoiceRow(body, "KindRow", "Kind")
 		kindRow.LayoutOrder = 2
-		optionPills(kindHost, "Kind", 2, function()
+		segmentedControl(kindHost, "Kind", function()
 			return {
 				{ value = "luck", text = "luck · bends odds" },
 				{ value = "surge", text = "surge · boosts earnings" },
@@ -1823,7 +2090,7 @@ local function buildPanel()
 
 		local unlockHost, unlockRow = inlineChoiceRow(body, "UnlockRow", "Unlock")
 		unlockRow.LayoutOrder = 4
-		optionPills(unlockHost, "Unlock", 4, function()
+		segmentedControl(unlockHost, "Unlock", function()
 			return {
 				{ value = "always", text = "always" },
 				{ value = "totalRolls", text = "after N rolls" },
@@ -1863,7 +2130,7 @@ local function buildPanel()
 		local tiersHint = createLabel(
 			body,
 			"TiersHint",
-			"MOMENTUM TIERS · blank rows are skipped · times must strictly rise",
+			"MOMENTUM TIERS · rows appear as you fill them (up to 8) · times must strictly rise",
 			14,
 			SUBTLE
 		)
@@ -1888,25 +2155,25 @@ local function buildPanel()
 			end)
 		end
 
-		local function repaintToggle()
-			toggle.Text = if mode.enabled then "ENABLED" else "OFF — click to enable"
-			toggle.TextColor3 = if mode.enabled then TEXT else SUBTLE
-			local stroke = toggle:FindFirstChildOfClass("UIStroke")
-			if stroke ~= nil then
-				stroke.Color = if mode.enabled then GOOD else BORDER
-			end
+		local function repaintCard()
 			body.Visible = mode.enabled
+			local suffix = if not mode.enabled and #mode.id == 0 then " · EMPTY SLOT" else ""
+			headTitle.Text = string.upper(`Mode {index}`) .. suffix
 		end
-		toggle.MouseButton1Click:Connect(function()
-			mode.enabled = not mode.enabled
-			repaintToggle()
+		local _, switchHit = toggleSwitch(headRow, "Enabled", function()
+			return mode.enabled
+		end, function(value)
+			mode.enabled = value
+			repaintCard()
 			local repaintDefault = Refresh.defaultMode
 			if repaintDefault ~= nil then
 				repaintDefault()
 			end
 			touch()
 		end)
-		repaintToggle()
+		switchHit.AnchorPoint = Vector2.new(1, 0)
+		switchHit.Position = UDim2.fromScale(1, 0)
+		repaintCard()
 	end
 
 	-- Rarity tab --------------------------------------------------------------
@@ -1918,8 +2185,21 @@ local function buildPanel()
 		raritiesSection.frame,
 		"RaritiesHint",
 		"Weights are parts-per-10000 and must sum to exactly 10000 before Apply unlocks."
-			.. " The total and each row's odds update as you type."
+			.. " The bar and odds update as you type."
 	)
+
+	-- Live distribution: one stacked bar showing every rarity's share of the
+	-- weight budget, so the shape of the economy reads before any number does.
+	local oddsBar = Instance.new("Frame")
+	oddsBar.Name = "OddsBar"
+	oddsBar.BackgroundColor3 = PANEL_FIELD
+	oddsBar.BorderSizePixel = 0
+	oddsBar.ClipsDescendants = true
+	oddsBar.Size = UDim2.new(1, 0, 0, 14)
+	oddsBar.LayoutOrder = 5
+	oddsBar.Parent = raritiesSection.frame
+	round(oddsBar, 4)
+	outline(oddsBar, 0.5)
 
 	local oddsLabels: { TextLabel } = {}
 	local weightBoxes: { TextBox } = {}
@@ -1991,20 +2271,48 @@ local function buildPanel()
 		local rgbPad = Instance.new("UIPadding")
 		rgbPad.PaddingLeft = UDim.new(0, 18)
 		rgbPad.Parent = rgbRow
-		local rgbCaption = createLabel(rgbRow, "Caption", "RGB", INPUT_HEIGHT, SUBTLE)
+		local rgbCaption = createLabel(rgbRow, "Caption", "Color", INPUT_HEIGHT, SUBTLE)
 		rgbCaption.TextSize = 9
-		rgbCaption.Size = UDim2.fromOffset(24, INPUT_HEIGHT)
+		rgbCaption.Size = UDim2.fromOffset(28, INPUT_HEIGHT)
+
+		local function rarityColor3(): Color3
+			return Color3.fromRGB(rarity.color[1], rarity.color[2], rarity.color[3])
+		end
+		local channelBoxes: { TextBox } = {}
+
+		-- Hex and RGB edit the same color and keep each other in sync.
+		local hexBox, hexShell = inputBox(rgbRow, "Hex", `#{colorHex(rarityColor3())}`, function(text)
+			local r, g, b = parseHexColor(text)
+			if r == nil or g == nil or b == nil then
+				setStatus(`Color: "{text}" is not a hex color like #60A5FA`, AMBER)
+				return `#{colorHex(rarityColor3())}`
+			end
+			rarity.color[1] = r
+			rarity.color[2] = g
+			rarity.color[3] = b
+			swatch.BackgroundColor3 = rarityColor3()
+			for channelIndex, channelBox in channelBoxes do
+				channelBox.Text = Gen.number(rarity.color[channelIndex])
+			end
+			touch()
+			return `#{colorHex(rarityColor3())}`
+		end)
+		hexBox.TextSize = 11
+		hexShell.Size = UDim2.fromOffset(74, INPUT_HEIGHT)
+
 		for channelIndex, channelName in { "R", "G", "B" } do
-			local _, channelShell = numberInput(rgbRow, `Color{channelName}`, function()
+			local channelBox, channelShell = numberInput(rgbRow, `Color{channelName}`, channelName, function()
 				return rarity.color[channelIndex]
 			end, function(value)
 				if value ~= nil then
 					rarity.color[channelIndex] = math.clamp(math.floor(value), 0, 255)
-					swatch.BackgroundColor3 =
-						Color3.fromRGB(rarity.color[1], rarity.color[2], rarity.color[3])
+					swatch.BackgroundColor3 = rarityColor3()
+					hexBox.Text = `#{colorHex(rarityColor3())}`
 				end
 			end, false)
+			channelBox.TextSize = 11
 			channelShell.Size = UDim2.fromOffset(44, INPUT_HEIGHT)
+			channelBoxes[channelIndex] = channelBox
 		end
 
 		if index < #State.rarities then
@@ -2049,6 +2357,28 @@ local function buildPanel()
 		local ok = total == 10000
 		totalLabel.Text = if ok then "Σ 10000 ✓ discloses correctly" else `Σ {total} — must equal 10000`
 		totalLabel.TextColor3 = if ok then GOOD else AMBER
+
+		for _, child in oddsBar:GetChildren() do
+			if child:IsA("Frame") then
+				child:Destroy()
+			end
+		end
+		oddsBar.Visible = total > 0
+		if total > 0 then
+			local accumulated = 0
+			for index, rarity in State.rarities do
+				local fraction = math.max(rarity.weight, 0) / total
+				local segment = Instance.new("Frame")
+				segment.Name = `Share{rarity.id}`
+				segment.BackgroundColor3 = Color3.fromRGB(rarity.color[1], rarity.color[2], rarity.color[3])
+				segment.BorderSizePixel = 0
+				segment.Position = UDim2.fromScale(accumulated, 0)
+				segment.Size = UDim2.fromScale(fraction, 1)
+				segment.LayoutOrder = index
+				segment.Parent = oddsBar
+				accumulated += fraction
+			end
+		end
 		for index, rarity in State.rarities do
 			local label = oddsLabels[index]
 			if label ~= nil then
@@ -2266,8 +2596,8 @@ local function buildPanel()
 	createHint(
 		milestonesSection.frame,
 		"MilestonesHint",
-		"Owning N copies multiplies that rune's whole contribution. Blank rows are skipped;"
-			.. " copies must strictly rise and multipliers must never weaken."
+		"Owning N copies multiplies that rune's whole contribution. Rows appear as you fill"
+			.. " them (up to 8); copies must strictly rise and multipliers must never weaken."
 	)
 	local milestonesTable, addMilestoneRow =
 		valueTable(milestonesSection.frame, "MilestonesGrid", "copies owned", "gives ×", 110)

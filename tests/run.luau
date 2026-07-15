@@ -1041,6 +1041,13 @@ for _, runePluginObject in
 		"Reload from Place",
 		"Confirm remove?",
 		"Discard edits?",
+		-- Professional control taxonomy: segmented pickers for exclusive
+		-- choices, a real toggle switch for mode enablement, hex color entry,
+		-- and the live weight-distribution bar on the Rarity tab.
+		"segmentedControl",
+		"toggleSwitch",
+		"parseHexColor",
+		"OddsBar",
 		-- Tier and milestone editors hold everything the runtime accepts
 		-- (RuneModeConfig.MAX_TIERS / MAX_MILESTONES), so loading a place
 		-- never silently truncates authored rows.
