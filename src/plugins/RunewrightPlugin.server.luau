@@ -6,17 +6,20 @@
 -- rune cards themselves (names, glyphs, bonuses, flavor).
 --
 -- The panel is five tabs (Altar / Modes / Rarity / Runes / Review) over a
--- persistent action footer, instead of one long scroll:
+-- persistent action footer, drawn as flat form rows and tables rather than
+-- nested boxes:
+-- - Sections are hairline-ruled headers, labels sit beside compact inputs
+--   instead of inside chunky cells, and repeating data (momentum tiers, copy
+--   milestones, rarities) renders as real tables with column headers.
 -- - Validation reruns after every edit. The footer says whether Apply is
 --   ready, each tab badges its own issue count, and the Review tab lists
---   every problem with the tab it lives on — no more fixing one error per
---   Apply click.
+--   every problem with the tab it lives on.
 -- - Fixed choices (mode kind, unlock gates, rarity pickers) are visible pill
---   pickers, not blind cycle buttons.
+--   pickers; rune cards use a rarity-tinted picker row and a colored edge.
 -- - Scalar fields show their accepted range and refuse out-of-range input at
 --   entry with the range in the message.
--- - Disabled mode cards collapse to a single enable row; unlock thresholds
---   only appear for gates that use one.
+-- - Disabled mode cards collapse to their header row; unlock thresholds only
+--   appear for gates that use one.
 -- - Destructive actions (Remove Card, footer Reload) need a second confirming
 --   click, and Reload from Place re-reads the open place at any time, so the
 --   panel no longer goes stale when the plugin loads before the place does.
@@ -42,7 +45,6 @@ local PLUGIN_ICON = "rbxasset://textures/StudioSharedUI/grid@2x.png"
 
 local PANEL_BG = Color3.fromRGB(17, 18, 20)
 local PANEL_HEADER = Color3.fromRGB(23, 24, 27)
-local PANEL_SECTION = Color3.fromRGB(13, 14, 16)
 local PANEL_STATUS = Color3.fromRGB(12, 13, 15)
 local PANEL_FIELD = Color3.fromRGB(10, 12, 14)
 local BUTTON_BG = Color3.fromRGB(15, 16, 18)
@@ -51,8 +53,10 @@ local BUTTON_HOVER = Color3.fromRGB(30, 33, 38)
 local BORDER = Color3.fromRGB(50, 54, 60)
 local TEXT = Color3.fromRGB(229, 232, 237)
 local TEXT_ACTIVE = Color3.fromRGB(245, 247, 250)
+local TEXT_ON_TINT = Color3.fromRGB(20, 22, 26)
 local MUTED = Color3.fromRGB(151, 158, 169)
 local SUBTLE = Color3.fromRGB(99, 106, 118)
+local HEADING = Color3.fromRGB(138, 145, 156)
 local AMBER = Color3.fromRGB(193, 155, 62)
 local GOOD = Color3.fromRGB(74, 145, 98)
 local BAD = Color3.fromRGB(156, 74, 74)
@@ -822,7 +826,7 @@ end
 local function rangeText(spec: ScalarSpec): string
 	local text = `{compactNumber(spec.min)} – {compactNumber(spec.max)}`
 	if spec.integer then
-		text ..= " · whole number"
+		text ..= " · whole"
 	end
 	return text
 end
@@ -877,6 +881,11 @@ local function performReload()
 	end
 end
 
+local TAB_BAR_HEIGHT = 30
+local FOOTER_HEIGHT = 92
+local INPUT_HEIGHT = 22
+local ROW_HEIGHT = 26
+
 local function buildPanel()
 	Refresh.validation = nil
 	Refresh.odds = nil
@@ -904,7 +913,7 @@ local function buildPanel()
 		label.Font = Enum.Font.GothamMedium
 		label.Text = text
 		label.TextColor3 = color
-		label.TextSize = 12
+		label.TextSize = 11
 		label.TextXAlignment = Enum.TextXAlignment.Left
 		label.TextYAlignment = Enum.TextYAlignment.Center
 		label.Size = UDim2.new(1, 0, 0, height)
@@ -942,10 +951,11 @@ local function buildPanel()
 		button.Font = Enum.Font.GothamBold
 		button.Text = text
 		button.TextColor3 = TEXT
-		button.TextSize = 12
+		button.TextSize = 11
+		button.TextTruncate = Enum.TextTruncate.AtEnd
 		button.Size = UDim2.new(1, 0, 0, height)
 		button.Parent = parent
-		round(button, 7)
+		round(button, 5)
 		outline(button, 0.55)
 		if hover ~= false then
 			button.MouseEnter:Connect(function()
@@ -998,80 +1008,79 @@ local function buildPanel()
 		end)
 	end
 
-	local function createSection(parent: Instance, name: string, title: string, subtitle: string?): Frame
+	-- Flat section: uppercase title row (with an optional right-side meta
+	-- slot), a hairline rule, then content stacked directly below — no box.
+	type Section = { frame: Frame, head: Frame, title: TextLabel, meta: TextLabel }
+	local function createSection(parent: Instance, name: string, titleText: string): Section
 		local section = Instance.new("Frame")
 		section.Name = name
-		section.BackgroundColor3 = PANEL_SECTION
-		section.BorderSizePixel = 0
+		section.BackgroundTransparency = 1
 		section.Size = UDim2.fromScale(1, 0)
 		section.AutomaticSize = Enum.AutomaticSize.Y
 		section.Parent = parent
-		round(section, 7)
-		outline(section, 0.48)
-
-		local padding = Instance.new("UIPadding")
-		padding.PaddingTop = UDim.new(0, 10)
-		padding.PaddingBottom = UDim.new(0, 10)
-		padding.PaddingLeft = UDim.new(0, 10)
-		padding.PaddingRight = UDim.new(0, 10)
-		padding.Parent = section
-
 		local layout = Instance.new("UIListLayout")
-		layout.Padding = UDim.new(0, 8)
+		layout.Padding = UDim.new(0, 4)
 		layout.SortOrder = Enum.SortOrder.LayoutOrder
 		layout.Parent = section
 
-		local titleLabel = createLabel(section, `{name}Title`, title, 16, TEXT)
-		titleLabel.Font = Enum.Font.GothamBold
-		titleLabel.TextSize = 14
-		if subtitle ~= nil and subtitle ~= "" then
-			local subtitleLabel = createLabel(section, `{name}Subtitle`, subtitle, 18, MUTED)
-			subtitleLabel.TextSize = 12
-			subtitleLabel.TextWrapped = true
-			subtitleLabel.AutomaticSize = Enum.AutomaticSize.Y
-			subtitleLabel.Size = UDim2.fromScale(1, 0)
-		end
-		return section
+		-- Head and rule keep LayoutOrder 0 like plain content, so insertion
+		-- order puts them first and later explicitly-ordered children (cards,
+		-- lists) always land below them.
+		local head = Instance.new("Frame")
+		head.Name = "Head"
+		head.BackgroundTransparency = 1
+		head.Size = UDim2.new(1, 0, 0, 18)
+		head.Parent = section
+
+		local title = createLabel(head, "Title", string.upper(titleText), 18, HEADING)
+		title.Font = Enum.Font.GothamBold
+		title.TextSize = 10
+		title.Size = UDim2.new(0.5, 0, 0, 18)
+
+		local meta = createLabel(head, "Meta", "", 18, MUTED)
+		meta.Font = Enum.Font.GothamBold
+		meta.TextSize = 10
+		meta.Position = UDim2.fromScale(0.5, 0)
+		meta.Size = UDim2.new(0.5, 0, 0, 18)
+		meta.TextXAlignment = Enum.TextXAlignment.Right
+		meta.TextTruncate = Enum.TextTruncate.AtEnd
+
+		local rule = Instance.new("Frame")
+		rule.Name = "Rule"
+		rule.BackgroundColor3 = BORDER
+		rule.BackgroundTransparency = 0.45
+		rule.BorderSizePixel = 0
+		rule.Size = UDim2.new(1, 0, 0, 1)
+		rule.Parent = section
+
+		return { frame = section, head = head, title = title, meta = meta }
 	end
 
-	local function createGrid(parent: Instance, name: string, columns: number, rowHeight: number): Frame
-		local grid = Instance.new("Frame")
-		grid.Name = name
-		grid.BackgroundTransparency = 1
-		grid.Size = UDim2.fromScale(1, 0)
-		grid.AutomaticSize = Enum.AutomaticSize.Y
-		grid.Parent = parent
-		local layout = Instance.new("UIGridLayout")
-		layout.CellPadding = UDim2.fromOffset(6, 6)
-		layout.CellSize = UDim2.new(1 / columns, -6, 0, rowHeight)
-		layout.SortOrder = Enum.SortOrder.LayoutOrder
-		layout.Parent = grid
-		return grid
+	local function createHint(parent: Instance, name: string, text: string): TextLabel
+		local hint = createLabel(parent, name, text, 14, SUBTLE)
+		hint.TextSize = 10
+		hint.TextWrapped = true
+		hint.AutomaticSize = Enum.AutomaticSize.Y
+		hint.Size = UDim2.fromScale(1, 0)
+		return hint
 	end
 
-	-- A labelled editable field. commit receives the raw text and returns the
-	-- text to display (so numeric fields can reject bad input by reverting).
-	local function createField(
+	-- Compact editable value: a slim shell exactly as tall as its text, no
+	-- label inside. Labels live beside or above as plain text.
+	local function inputBox(
 		parent: Instance,
 		name: string,
-		labelText: string,
 		initial: string,
 		commit: (text: string) -> string
-	): (TextBox, Frame, TextLabel)
-		local field = Instance.new("Frame")
-		field.Name = name
-		field.BackgroundColor3 = PANEL_FIELD
-		field.BorderSizePixel = 0
-		field.Size = UDim2.new(1, 0, 0, 36)
-		field.Parent = parent
-		round(field, 7)
-		outline(field, 0.55)
-
-		local label = createLabel(field, "Label", labelText, 14, MUTED)
-		label.Position = UDim2.fromOffset(9, 4)
-		label.Size = UDim2.new(1, -18, 0, 13)
-		label.TextSize = 10
-		label.TextTruncate = Enum.TextTruncate.AtEnd
+	): (TextBox, Frame)
+		local shell = Instance.new("Frame")
+		shell.Name = name
+		shell.BackgroundColor3 = PANEL_FIELD
+		shell.BorderSizePixel = 0
+		shell.Size = UDim2.new(1, 0, 0, INPUT_HEIGHT)
+		shell.Parent = parent
+		round(shell, 4)
+		outline(shell, 0.7)
 
 		local box = Instance.new("TextBox")
 		box.Name = "Value"
@@ -1080,31 +1089,31 @@ local function buildPanel()
 		box.Font = Enum.Font.GothamBold
 		box.Text = initial
 		box.TextColor3 = TEXT_ACTIVE
-		box.TextSize = 13
+		box.TextSize = 12
 		box.TextXAlignment = Enum.TextXAlignment.Left
 		box.TextTruncate = Enum.TextTruncate.AtEnd
-		box.Position = UDim2.fromOffset(9, 18)
-		box.Size = UDim2.new(1, -18, 0, 18)
-		box.Parent = field
+		box.Position = UDim2.fromOffset(7, 0)
+		box.Size = UDim2.new(1, -14, 1, 0)
+		box.Parent = shell
 		box.FocusLost:Connect(function()
 			box.Text = commit(box.Text)
 		end)
-		return box, field, label
+		return box, shell
 	end
 
-	local function numberCell(
+	local function numberInput(
 		parent: Instance,
 		name: string,
-		labelText: string,
+		label: string,
 		read: () -> number?,
 		write: (value: number?) -> (),
 		allowBlank: boolean
-	): (Frame, TextLabel)
+	): (TextBox, Frame)
 		local function display(): string
 			local value = read()
 			return if value ~= nil then Gen.number(value) else ""
 		end
-		local box, field, label = createField(parent, name, labelText, display(), function(text)
+		local box, shell = inputBox(parent, name, display(), function(text)
 			local trimmed = string.gsub(text, "%s", "")
 			if trimmed == "" and allowBlank then
 				write(nil)
@@ -1113,7 +1122,7 @@ local function buildPanel()
 			end
 			local value = tonumber(trimmed)
 			if value == nil or not Val.isFinite(value) then
-				setStatus(`{labelText}: "{text}" is not a number`, AMBER)
+				setStatus(`{label}: "{text}" is not a number`, AMBER)
 				return display()
 			end
 			write(value)
@@ -1124,137 +1133,96 @@ local function buildPanel()
 			box.PlaceholderText = "—"
 			box.PlaceholderColor3 = SUBTLE
 		end
-		return field, label
+		return box, shell
 	end
 
-	local function textCell(
+	local function textInput(
 		parent: Instance,
 		name: string,
-		labelText: string,
 		read: () -> string,
 		write: (value: string) -> ()
-	)
-		createField(parent, name, labelText, read(), function(text)
+	): (TextBox, Frame)
+		return inputBox(parent, name, read(), function(text)
 			write(text)
 			touch()
 			return read()
 		end)
 	end
 
-	-- Full-width row for an altar scalar: name and accepted range on the
-	-- left, value box on the right. Out-of-range or non-integer input is
+	-- Full-width form line for an altar scalar: name left, accepted range in
+	-- the middle, 96px value box right. Out-of-range or non-integer input is
 	-- refused right here with the range in the message, instead of surfacing
 	-- later as an Apply failure.
 	local function scalarRow(parent: Instance, spec: ScalarSpec)
 		local row = Instance.new("Frame")
 		row.Name = spec.key
 		row.BackgroundTransparency = 1
-		row.Size = UDim2.new(1, 0, 0, 40)
+		row.Size = UDim2.new(1, 0, 0, ROW_HEIGHT)
 		row.Parent = parent
 
-		local nameLabel = createLabel(row, "Name", spec.label, 16, TEXT)
-		nameLabel.Position = UDim2.fromOffset(0, 2)
-		nameLabel.Size = UDim2.new(1, -140, 0, 16)
+		local nameLabel = createLabel(row, "Name", spec.label, ROW_HEIGHT, TEXT)
+		nameLabel.Size = UDim2.new(1, -220, 0, ROW_HEIGHT)
 		nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
 
-		local hintLabel = createLabel(row, "Range", rangeText(spec), 12, SUBTLE)
-		hintLabel.Position = UDim2.fromOffset(0, 20)
-		hintLabel.Size = UDim2.new(1, -140, 0, 12)
-		hintLabel.TextSize = 10
+		local hintLabel = createLabel(row, "Range", rangeText(spec), ROW_HEIGHT, SUBTLE)
+		hintLabel.AnchorPoint = Vector2.new(1, 0)
+		hintLabel.Position = UDim2.new(1, -104, 0, 0)
+		hintLabel.Size = UDim2.fromOffset(110, ROW_HEIGHT)
+		hintLabel.TextSize = 9
+		hintLabel.TextXAlignment = Enum.TextXAlignment.Right
 		hintLabel.TextTruncate = Enum.TextTruncate.AtEnd
 
-		local box = Instance.new("Frame")
-		box.Name = "Box"
-		box.BackgroundColor3 = PANEL_FIELD
-		box.BorderSizePixel = 0
-		box.AnchorPoint = Vector2.new(1, 0.5)
-		box.Position = UDim2.fromScale(1, 0.5)
-		box.Size = UDim2.fromOffset(132, 32)
-		box.Parent = row
-		round(box, 7)
-		outline(box, 0.55)
-
-		local value = Instance.new("TextBox")
-		value.Name = "Value"
-		value.BackgroundTransparency = 1
-		value.ClearTextOnFocus = false
-		value.Font = Enum.Font.GothamBold
-		value.Text = Gen.number(State.scalars[spec.key])
-		value.TextColor3 = TEXT_ACTIVE
-		value.TextSize = 13
-		value.TextXAlignment = Enum.TextXAlignment.Left
-		value.TextTruncate = Enum.TextTruncate.AtEnd
-		value.Position = UDim2.fromOffset(9, 0)
-		value.Size = UDim2.new(1, -18, 1, 0)
-		value.Parent = box
-
-		value.FocusLost:Connect(function()
-			local function revert()
-				value.Text = Gen.number(State.scalars[spec.key])
-			end
-			local parsed = tonumber((string.gsub(value.Text, "%s", "")))
+		local _, shell = inputBox(row, "Value", Gen.number(State.scalars[spec.key]), function(text)
+			local current = Gen.number(State.scalars[spec.key])
+			local parsed = tonumber((string.gsub(text, "%s", "")))
 			if parsed == nil or not Val.isFinite(parsed) then
-				setStatus(`{spec.label}: "{value.Text}" is not a number`, AMBER)
-				revert()
-				return
+				setStatus(`{spec.label}: "{text}" is not a number`, AMBER)
+				return current
 			end
 			if parsed < spec.min or parsed > spec.max then
 				setStatus(
 					`{spec.label} must be between {compactNumber(spec.min)} and {compactNumber(spec.max)}`,
 					AMBER
 				)
-				revert()
-				return
+				return current
 			end
 			if spec.integer and math.floor(parsed) ~= parsed then
 				setStatus(`{spec.label} must be a whole number`, AMBER)
-				revert()
-				return
+				return current
 			end
 			State.scalars[spec.key] = parsed
 			touch()
-			revert()
+			return Gen.number(parsed)
 		end)
+		shell.AnchorPoint = Vector2.new(1, 0.5)
+		shell.Position = UDim2.fromScale(1, 0.5)
+		shell.Size = UDim2.fromOffset(96, INPUT_HEIGHT)
 	end
 
 	-- Every fixed choice is a row of visible pills — one click selects any
 	-- option directly, and the whole option set is always on screen (the old
-	-- cycle buttons hid everything behind repeated clicks).
+	-- cycle buttons hid everything behind repeated clicks). Non-tinted pills
+	-- fill steel blue when selected and may carry a colored dot; tinted pills
+	-- (rune rarity) color the text when idle and fill with the rarity color
+	-- when selected.
 	local function optionPills(
 		parent: Instance,
 		name: string,
-		labelText: string,
 		columns: number,
 		options: () -> { PillOption },
 		read: () -> string,
-		write: (value: string) -> ()
+		write: (value: string) -> (),
+		tint: boolean?
 	): (() -> (), Frame)
-		local container = Instance.new("Frame")
-		container.Name = name
-		container.BackgroundTransparency = 1
-		container.Size = UDim2.fromScale(1, 0)
-		container.AutomaticSize = Enum.AutomaticSize.Y
-		container.Parent = parent
-		local layout = Instance.new("UIListLayout")
-		layout.Padding = UDim.new(0, 4)
-		layout.SortOrder = Enum.SortOrder.LayoutOrder
-		layout.Parent = container
-
-		if labelText ~= "" then
-			local hint = createLabel(container, "Hint", labelText, 12, SUBTLE)
-			hint.TextSize = 10
-		end
-
 		local pillHost = Instance.new("Frame")
-		pillHost.Name = "Pills"
+		pillHost.Name = name
 		pillHost.BackgroundTransparency = 1
 		pillHost.Size = UDim2.fromScale(1, 0)
 		pillHost.AutomaticSize = Enum.AutomaticSize.Y
-		pillHost.LayoutOrder = 2
-		pillHost.Parent = container
+		pillHost.Parent = parent
 		local pillLayout = Instance.new("UIGridLayout")
 		pillLayout.CellPadding = UDim2.fromOffset(4, 4)
-		pillLayout.CellSize = UDim2.new(1 / columns, -4, 0, 26)
+		pillLayout.CellSize = UDim2.new(1 / columns, -4, 0, 20)
 		pillLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		pillLayout.Parent = pillHost
 
@@ -1272,21 +1240,31 @@ local function buildPanel()
 				pill.AutoButtonColor = false
 				pill.BorderSizePixel = 0
 				pill.Font = Enum.Font.GothamBold
-				pill.TextSize = 10
+				pill.TextSize = if tint == true then 9 else 10
 				pill.TextTruncate = Enum.TextTruncate.AtEnd
 				pill.LayoutOrder = order
 				local selected = option.value == current
-				pill.BackgroundColor3 = if selected then BUTTON_ACTIVE else BUTTON_BG
-				pill.TextColor3 = if selected then TEXT_ACTIVE else MUTED
-				if option.dotColor ~= nil then
-					pill.RichText = true
-					pill.Text = `<font color="#{colorHex(option.dotColor)}">●</font> {option.text}`
-				else
+				if tint == true and option.dotColor ~= nil then
+					pill.BackgroundColor3 = option.dotColor
+					pill.BackgroundTransparency = if selected then 0 else 1
+					pill.TextColor3 = if selected then TEXT_ON_TINT else option.dotColor
 					pill.Text = option.text
+				else
+					pill.BackgroundColor3 = if selected then BUTTON_ACTIVE else BUTTON_BG
+					pill.TextColor3 = if selected then TEXT_ACTIVE else MUTED
+					if option.dotColor ~= nil then
+						pill.RichText = true
+						pill.Text = `<font color="#{colorHex(option.dotColor)}">●</font> {option.text}`
+					else
+						pill.Text = option.text
+					end
 				end
 				pill.Parent = pillHost
-				round(pill, 6)
-				outline(pill, if selected then 0.25 else 0.6)
+				round(pill, 4)
+				local pillStroke = outline(pill, if selected then 0.35 else 0.6)
+				if tint == true and selected and option.dotColor ~= nil then
+					pillStroke.Transparency = 1
+				end
 				pill.MouseButton1Click:Connect(function()
 					write(option.value)
 					repaint()
@@ -1295,7 +1273,114 @@ local function buildPanel()
 			end
 		end
 		repaint()
-		return repaint, container
+		return repaint, pillHost
+	end
+
+	-- 11px caption used above a pill group.
+	local function pillCaption(parent: Instance, name: string, text: string)
+		local caption = createLabel(parent, name, text, 18, TEXT)
+		caption.TextSize = 11
+	end
+
+	-- Label-left / pills-right line for small option sets (mode kind, unlock).
+	-- Returns the right-side host (parent the pills there) and the row itself.
+	local function inlineChoiceRow(parent: Instance, name: string, labelText: string): (Frame, Frame)
+		local row = Instance.new("Frame")
+		row.Name = name
+		row.BackgroundTransparency = 1
+		row.Size = UDim2.new(1, 0, 0, 20)
+		row.Parent = parent
+		local label = createLabel(row, "Label", labelText, 20, TEXT)
+		label.Size = UDim2.fromOffset(48, 20)
+		local host = Instance.new("Frame")
+		host.Name = "Host"
+		host.BackgroundTransparency = 1
+		host.Position = UDim2.fromOffset(56, 0)
+		host.Size = UDim2.new(1, -56, 0, 20)
+		host.Parent = row
+		return host, row
+	end
+
+	-- Three-column value table (index | wide input | fixed input) with one
+	-- header row — used by momentum tiers and copy milestones so labels are
+	-- written once instead of inside every cell. Returns the table plus an
+	-- addRow builder; status messages borrow the column headers ("#3 boost ×").
+	type TableRowBuilder = (
+		index: number,
+		readWide: () -> number?,
+		writeWide: (value: number?) -> (),
+		readFixed: () -> number?,
+		writeFixed: (value: number?) -> ()
+	) -> ()
+	local function valueTable(
+		parent: Instance,
+		name: string,
+		headWide: string,
+		headFixed: string,
+		fixedWidth: number
+	): (Frame, TableRowBuilder)
+		local host = Instance.new("Frame")
+		host.Name = name
+		host.BackgroundTransparency = 1
+		host.Size = UDim2.fromScale(1, 0)
+		host.AutomaticSize = Enum.AutomaticSize.Y
+		host.Parent = parent
+		local layout = Instance.new("UIListLayout")
+		layout.Padding = UDim.new(0, 4)
+		layout.SortOrder = Enum.SortOrder.LayoutOrder
+		layout.Parent = host
+
+		local head = Instance.new("Frame")
+		head.Name = "Head"
+		head.BackgroundTransparency = 1
+		head.Size = UDim2.new(1, 0, 0, 12)
+		head.LayoutOrder = 0
+		head.Parent = host
+		local headIndex = createLabel(head, "Index", "#", 12, SUBTLE)
+		headIndex.Font = Enum.Font.GothamBold
+		headIndex.TextSize = 9
+		headIndex.Size = UDim2.fromOffset(22, 12)
+		local headA = createLabel(head, "Wide", string.upper(headWide), 12, SUBTLE)
+		headA.Font = Enum.Font.GothamBold
+		headA.TextSize = 9
+		headA.Position = UDim2.fromOffset(28, 0)
+		headA.Size = UDim2.new(1, -(28 + fixedWidth + 6), 0, 12)
+		local headB = createLabel(head, "Fixed", string.upper(headFixed), 12, SUBTLE)
+		headB.Font = Enum.Font.GothamBold
+		headB.TextSize = 9
+		headB.AnchorPoint = Vector2.new(1, 0)
+		headB.Position = UDim2.fromScale(1, 0)
+		headB.Size = UDim2.fromOffset(fixedWidth, 12)
+
+		local function addRow(
+			index: number,
+			readWide: () -> number?,
+			writeWide: (value: number?) -> (),
+			readFixed: () -> number?,
+			writeFixed: (value: number?) -> ()
+		)
+			local row = Instance.new("Frame")
+			row.Name = `Row{index}`
+			row.BackgroundTransparency = 1
+			row.Size = UDim2.new(1, 0, 0, INPUT_HEIGHT)
+			row.LayoutOrder = index
+			row.Parent = host
+
+			local ix = createLabel(row, "Index", `{index}`, INPUT_HEIGHT, SUBTLE)
+			ix.TextSize = 10
+			ix.Size = UDim2.fromOffset(22, INPUT_HEIGHT)
+
+			local _, wideShell = numberInput(row, "Wide", `#{index} {headWide}`, readWide, writeWide, true)
+			wideShell.Position = UDim2.fromOffset(28, 0)
+			wideShell.Size = UDim2.new(1, -(28 + fixedWidth + 6), 0, INPUT_HEIGHT)
+
+			local _, fixedShell =
+				numberInput(row, "Fixed", `#{index} {headFixed}`, readFixed, writeFixed, true)
+			fixedShell.AnchorPoint = Vector2.new(1, 0)
+			fixedShell.Position = UDim2.fromScale(1, 0)
+			fixedShell.Size = UDim2.fromOffset(fixedWidth, INPUT_HEIGHT)
+		end
+		return host, addRow
 	end
 
 	local function rarityColor(rarityId: string): Color3
@@ -1319,32 +1404,6 @@ local function buildPanel()
 		return options
 	end
 
-	-- Header ---------------------------------------------------------------
-	local header = Instance.new("Frame")
-	header.Name = "Header"
-	header.BackgroundColor3 = PANEL_HEADER
-	header.BorderSizePixel = 0
-	header.Size = UDim2.new(1, 0, 0, 30)
-	header.Parent = root
-
-	local title = createLabel(header, "Title", string.upper(PLUGIN_NAME), 30, TEXT_ACTIVE)
-	title.Font = Enum.Font.GothamBold
-	title.TextSize = 14
-	title.Position = UDim2.fromOffset(12, 0)
-	title.Size = UDim2.new(0.5, -12, 0, 30)
-
-	local connection = createLabel(
-		header,
-		"Connection",
-		if State.loaded then PLUGIN_SUBTITLE else "not connected",
-		30,
-		if State.loaded then MUTED else AMBER
-	)
-	connection.Position = UDim2.fromScale(0.5, 0)
-	connection.Size = UDim2.new(0.5, -12, 0, 30)
-	connection.TextXAlignment = Enum.TextXAlignment.Right
-	connection.TextSize = 10
-
 	-- Footer ----------------------------------------------------------------
 	local footer = Instance.new("Frame")
 	footer.Name = "ActionDock"
@@ -1352,19 +1411,27 @@ local function buildPanel()
 	footer.BorderSizePixel = 0
 	footer.AnchorPoint = Vector2.new(0, 1)
 	footer.Position = UDim2.fromScale(0, 1)
-	footer.Size = UDim2.new(1, 0, 0, 100)
+	footer.Size = UDim2.new(1, 0, 0, FOOTER_HEIGHT)
 	footer.Parent = root
 
-	local validationLabel = createLabel(footer, "Readiness", "", 14, MUTED)
+	local footerRule = Instance.new("Frame")
+	footerRule.Name = "Rule"
+	footerRule.BackgroundColor3 = BORDER
+	footerRule.BackgroundTransparency = 0.5
+	footerRule.BorderSizePixel = 0
+	footerRule.Size = UDim2.new(1, 0, 0, 1)
+	footerRule.Parent = footer
+
+	local validationLabel = createLabel(footer, "Readiness", "", 12, MUTED)
 	validationLabel.Font = Enum.Font.GothamBold
-	validationLabel.Position = UDim2.fromOffset(12, 4)
-	validationLabel.Size = UDim2.new(1, -24, 0, 14)
+	validationLabel.Position = UDim2.fromOffset(12, 5)
+	validationLabel.Size = UDim2.new(1, -24, 0, 12)
 	validationLabel.TextSize = 10
 	validationLabel.TextTruncate = Enum.TextTruncate.AtEnd
 
-	local statusLabel = createLabel(footer, "Status", "", 28, MUTED)
-	statusLabel.Position = UDim2.fromOffset(12, 20)
-	statusLabel.Size = UDim2.new(1, -24, 0, 28)
+	local statusLabel = createLabel(footer, "Status", "", 26, MUTED)
+	statusLabel.Position = UDim2.fromOffset(12, 19)
+	statusLabel.Size = UDim2.new(1, -24, 0, 26)
 	statusLabel.TextSize = 10
 	statusLabel.TextWrapped = true
 	statusLabel.TextYAlignment = Enum.TextYAlignment.Top
@@ -1376,8 +1443,8 @@ local function buildPanel()
 	local actionRow = Instance.new("Frame")
 	actionRow.Name = "Actions"
 	actionRow.BackgroundTransparency = 1
-	actionRow.Position = UDim2.fromOffset(12, 52)
-	actionRow.Size = UDim2.new(1, -24, 0, 40)
+	actionRow.Position = UDim2.fromOffset(12, 50)
+	actionRow.Size = UDim2.new(1, -24, 0, 30)
 	actionRow.Parent = footer
 	local actionLayout = Instance.new("UIListLayout")
 	actionLayout.FillDirection = Enum.FillDirection.Horizontal
@@ -1390,18 +1457,17 @@ local function buildPanel()
 		validationLabel.Text = "Not connected to a template place."
 		validationLabel.TextColor3 = AMBER
 
-		local reloadButton = createButton(actionRow, "Reload", "Reload from Place", 40)
+		local reloadButton = createButton(actionRow, "Reload", "Reload from Place", 30)
 		reloadButton.Size = UDim2.fromScale(1, 1)
 		reloadButton.MouseButton1Click:Connect(performReload)
 
 		local notice = Instance.new("Frame")
 		notice.Name = "NotConnected"
 		notice.BackgroundTransparency = 1
-		notice.Position = UDim2.fromOffset(0, 30)
-		notice.Size = UDim2.new(1, 0, 1, -130)
+		notice.Size = UDim2.new(1, 0, 1, -FOOTER_HEIGHT)
 		notice.Parent = root
 		local noticePadding = Instance.new("UIPadding")
-		noticePadding.PaddingTop = UDim.new(0, 14)
+		noticePadding.PaddingTop = UDim.new(0, 16)
 		noticePadding.PaddingLeft = UDim.new(0, 14)
 		noticePadding.PaddingRight = UDim.new(0, 14)
 		noticePadding.Parent = notice
@@ -1412,7 +1478,7 @@ local function buildPanel()
 
 		local noticeTitle = createLabel(notice, "Title", "Not connected to a place", 18, TEXT)
 		noticeTitle.Font = Enum.Font.GothamBold
-		noticeTitle.TextSize = 14
+		noticeTitle.TextSize = 13
 
 		local problemLabel = createLabel(
 			notice,
@@ -1440,20 +1506,20 @@ local function buildPanel()
 	end
 
 	-- Loaded: actions -------------------------------------------------------
-	local applyButton = createButton(actionRow, "Apply", "Apply to Place", 40, false)
+	local applyButton = createButton(actionRow, "Apply", "Apply to Place", 30, false)
 	applyButton.Size = UDim2.new(0.4, -6, 1, 0)
 	applyButton.LayoutOrder = 1
 	applyButton.BackgroundColor3 = BUTTON_ACTIVE
 	applyButton.TextColor3 = TEXT_ACTIVE
 	applyButton.MouseButton1Click:Connect(applyToPlace)
 
-	local printButton = createButton(actionRow, "Print", "Print Sources", 40)
+	local printButton = createButton(actionRow, "Print", "Print Sources", 30)
 	printButton.Size = UDim2.new(0.33, -6, 1, 0)
 	printButton.LayoutOrder = 2
 	printButton.MouseButton1Click:Connect(printSources)
 
 	-- Reload discards unapplied edits, so it arms like Remove does.
-	local reloadButton = createButton(actionRow, "Reload", "Reload", 40, false)
+	local reloadButton = createButton(actionRow, "Reload", "Reload", 30, false)
 	reloadButton.Size = UDim2.new(0.27, -6, 1, 0)
 	reloadButton.LayoutOrder = 3
 	armButton(reloadButton, "Discard edits?", performReload)
@@ -1463,12 +1529,11 @@ local function buildPanel()
 	tabBar.Name = "TabBar"
 	tabBar.BackgroundColor3 = PANEL_HEADER
 	tabBar.BorderSizePixel = 0
-	tabBar.Position = UDim2.fromOffset(0, 30)
-	tabBar.Size = UDim2.new(1, 0, 0, 34)
+	tabBar.Size = UDim2.new(1, 0, 0, TAB_BAR_HEIGHT)
 	tabBar.Parent = root
 	local tabPadding = Instance.new("UIPadding")
 	tabPadding.PaddingTop = UDim.new(0, 4)
-	tabPadding.PaddingBottom = UDim.new(0, 6)
+	tabPadding.PaddingBottom = UDim.new(0, 4)
 	tabPadding.PaddingLeft = UDim.new(0, 8)
 	tabPadding.PaddingRight = UDim.new(0, 8)
 	tabPadding.Parent = tabBar
@@ -1481,8 +1546,8 @@ local function buildPanel()
 	local pageHost = Instance.new("Frame")
 	pageHost.Name = "Pages"
 	pageHost.BackgroundTransparency = 1
-	pageHost.Position = UDim2.fromOffset(0, 64)
-	pageHost.Size = UDim2.new(1, 0, 1, -164)
+	pageHost.Position = UDim2.fromOffset(0, TAB_BAR_HEIGHT)
+	pageHost.Size = UDim2.new(1, 0, 1, -(TAB_BAR_HEIGHT + FOOTER_HEIGHT))
 	pageHost.Parent = root
 
 	local pages: { [string]: ScrollingFrame } = {}
@@ -1502,13 +1567,13 @@ local function buildPanel()
 		page.Visible = tabName == activeTabName
 		page.Parent = pageHost
 		local pagePadding = Instance.new("UIPadding")
-		pagePadding.PaddingTop = UDim.new(0, 10)
-		pagePadding.PaddingBottom = UDim.new(0, 10)
-		pagePadding.PaddingLeft = UDim.new(0, 10)
-		pagePadding.PaddingRight = UDim.new(0, 10)
+		pagePadding.PaddingTop = UDim.new(0, 12)
+		pagePadding.PaddingBottom = UDim.new(0, 12)
+		pagePadding.PaddingLeft = UDim.new(0, 12)
+		pagePadding.PaddingRight = UDim.new(0, 12)
 		pagePadding.Parent = page
 		local pageLayout = Instance.new("UIListLayout")
-		pageLayout.Padding = UDim.new(0, 10)
+		pageLayout.Padding = UDim.new(0, 14)
 		pageLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		pageLayout.Parent = page
 		pages[tabName] = page
@@ -1526,7 +1591,7 @@ local function buildPanel()
 		tabButton.TextTruncate = Enum.TextTruncate.AtEnd
 		tabButton.LayoutOrder = order
 		tabButton.Parent = tabBar
-		round(tabButton, 6)
+		round(tabButton, 4)
 		tabButtons[tabName] = tabButton
 	end
 
@@ -1558,41 +1623,38 @@ local function buildPanel()
 	-- Altar tab ---------------------------------------------------------------
 	local altarPage = pages[TAB_ALTAR]
 
-	local pacing = createSection(
-		altarPage,
-		"Pacing",
-		"Altar Pacing",
+	local pacing = createSection(altarPage, "Pacing", "Altar Pacing")
+	createHint(
+		pacing.frame,
+		"PacingHint",
 		"How fast the altar drinks coins. Costs are in the primary currency."
 	)
 	for _, spec in PACING_SPECS do
-		scalarRow(pacing, spec)
+		scalarRow(pacing.frame, spec)
 	end
 
-	local limits = createSection(
-		altarPage,
-		"Limits",
-		"Circle & Safety Limits",
-		"Geometry forgiveness, anti-corruption caps, and reveal timing."
-	)
+	local limits = createSection(altarPage, "Limits", "Circle & Safety Limits")
 	for _, spec in LIMIT_SPECS do
-		scalarRow(limits, spec)
+		scalarRow(limits.frame, spec)
 	end
 
-	local pity = createSection(
-		altarPage,
-		"Pity",
-		"Pity & Luck Floor",
+	local pity = createSection(altarPage, "Pity", "Pity & Luck Floor")
+	createHint(
+		pity.frame,
+		"PityHint",
 		"The guarantee that rescues dry streaks, and how low luck may push Common."
 	)
 	for _, spec in PITY_SPECS do
-		scalarRow(pity, spec)
+		scalarRow(pity.frame, spec)
 	end
-	optionPills(pity, "PityRarity", "Pity guarantees at least", 3, rarityOptions, function()
+	pillCaption(pity.frame, "PityRarityCaption", "Pity guarantees at least")
+	optionPills(pity.frame, "PityRarity", 3, rarityOptions, function()
 		return State.pityMinimumRarity
 	end, function(value)
 		State.pityMinimumRarity = value
 	end)
-	optionPills(pity, "RareAudioRarity", "Rare reveal sound plays from", 3, rarityOptions, function()
+	pillCaption(pity.frame, "RareAudioCaption", "Rare reveal sound plays from")
+	optionPills(pity.frame, "RareAudioRarity", 3, rarityOptions, function()
 		return State.rareAudioMinimumRarity
 	end, function(value)
 		State.rareAudioMinimumRarity = value
@@ -1601,41 +1663,33 @@ local function buildPanel()
 	-- Modes tab ---------------------------------------------------------------
 	local modesPage = pages[TAB_MODES]
 
-	local defaultSection = createSection(
-		modesPage,
-		"Default",
-		"Default Mode",
+	local defaultSection = createSection(modesPage, "Default", "Default Mode")
+	createHint(
+		defaultSection.frame,
+		"DefaultHint",
 		"What brand-new players channel with. Must be one of the enabled modes below."
 	)
-	Refresh.defaultMode = optionPills(
-		defaultSection,
-		"DefaultMode",
-		"Applies to brand-new profiles",
-		4,
-		function()
-			local options: { PillOption } = {}
-			for _, mode in Val.enabledModes() do
-				if #mode.id > 0 then
-					table.insert(options, { value = mode.id, text = mode.id })
-				end
+	Refresh.defaultMode = optionPills(defaultSection.frame, "DefaultMode", 4, function()
+		local options: { PillOption } = {}
+		for _, mode in Val.enabledModes() do
+			if #mode.id > 0 then
+				table.insert(options, { value = mode.id, text = mode.id })
 			end
-			if #options == 0 then
-				table.insert(options, { value = State.defaultChannelMode, text = State.defaultChannelMode })
-			end
-			return options
-		end,
-		function()
-			return State.defaultChannelMode
-		end,
-		function(value)
-			State.defaultChannelMode = value
 		end
-	)
+		if #options == 0 then
+			table.insert(options, { value = State.defaultChannelMode, text = State.defaultChannelMode })
+		end
+		return options
+	end, function()
+		return State.defaultChannelMode
+	end, function(value)
+		State.defaultChannelMode = value
+	end)
 
-	local modesIntro = createSection(
-		modesPage,
-		"Modes",
-		"Channel Modes",
+	local modesSection = createSection(modesPage, "Modes", "Channel Modes")
+	createHint(
+		modesSection.frame,
+		"ModesHint",
 		"Up to four momentum strategies. LUCK bends odds; SURGE boosts earnings under the"
 			.. " strongest-boost rule. Disabled cards keep their values and collapse to one row."
 	)
@@ -1643,26 +1697,39 @@ local function buildPanel()
 	for index, mode in State.modes do
 		local card = Instance.new("Frame")
 		card.Name = `ModeCard{index}`
-		card.BackgroundColor3 = PANEL_FIELD
+		card.BackgroundTransparency = 1
 		card.BorderSizePixel = 0
 		card.Size = UDim2.fromScale(1, 0)
 		card.AutomaticSize = Enum.AutomaticSize.Y
-		card.Parent = modesIntro
-		round(card, 7)
-		outline(card, 0.6)
+		card.LayoutOrder = 10 + index
+		card.Parent = modesSection.frame
+		round(card, 6)
+		outline(card, 0.55)
 		local cardPadding = Instance.new("UIPadding")
-		cardPadding.PaddingTop = UDim.new(0, 8)
-		cardPadding.PaddingBottom = UDim.new(0, 8)
-		cardPadding.PaddingLeft = UDim.new(0, 8)
-		cardPadding.PaddingRight = UDim.new(0, 8)
+		cardPadding.PaddingTop = UDim.new(0, 10)
+		cardPadding.PaddingBottom = UDim.new(0, 10)
+		cardPadding.PaddingLeft = UDim.new(0, 10)
+		cardPadding.PaddingRight = UDim.new(0, 10)
 		cardPadding.Parent = card
 		local cardLayout = Instance.new("UIListLayout")
-		cardLayout.Padding = UDim.new(0, 6)
+		cardLayout.Padding = UDim.new(0, 8)
 		cardLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		cardLayout.Parent = card
 
-		local toggle = createButton(card, "Enabled", "", 28)
-		toggle.LayoutOrder = 1
+		local headRow = Instance.new("Frame")
+		headRow.Name = "Head"
+		headRow.BackgroundTransparency = 1
+		headRow.Size = UDim2.new(1, 0, 0, 20)
+		headRow.LayoutOrder = 1
+		headRow.Parent = card
+		local headTitle = createLabel(headRow, "Title", string.upper(`Mode {index}`), 20, HEADING)
+		headTitle.Font = Enum.Font.GothamBold
+		headTitle.TextSize = 10
+		local toggle = createButton(headRow, "Enabled", "", 20, false)
+		toggle.AnchorPoint = Vector2.new(1, 0)
+		toggle.Position = UDim2.fromScale(1, 0)
+		toggle.Size = UDim2.fromOffset(136, 20)
+		toggle.TextSize = 10
 
 		local body = Instance.new("Frame")
 		body.Name = "Body"
@@ -1672,13 +1739,40 @@ local function buildPanel()
 		body.LayoutOrder = 2
 		body.Parent = card
 		local bodyLayout = Instance.new("UIListLayout")
-		bodyLayout.Padding = UDim.new(0, 6)
+		bodyLayout.Padding = UDim.new(0, 8)
 		bodyLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		bodyLayout.Parent = body
 
-		local identityGrid = createGrid(body, "Identity", 2, 36)
+		local identityGrid = Instance.new("Frame")
+		identityGrid.Name = "Identity"
+		identityGrid.BackgroundTransparency = 1
+		identityGrid.Size = UDim2.new(1, 0, 0, 36)
 		identityGrid.LayoutOrder = 1
-		textCell(identityGrid, "Id", "Id (lowercase, save key)", function()
+		identityGrid.Parent = body
+		local identityLayout = Instance.new("UIGridLayout")
+		identityLayout.CellPadding = UDim2.fromOffset(8, 0)
+		identityLayout.CellSize = UDim2.new(0.5, -8, 0, 36)
+		identityLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		identityLayout.Parent = identityGrid
+
+		local function identityCell(
+			name: string,
+			caption: string,
+			read: () -> string,
+			write: (value: string) -> ()
+		)
+			local cell = Instance.new("Frame")
+			cell.Name = name
+			cell.BackgroundTransparency = 1
+			cell.Parent = identityGrid
+			local mini = createLabel(cell, "Caption", caption, 12, SUBTLE)
+			mini.TextSize = 9
+			mini.Size = UDim2.new(1, 0, 0, 12)
+			local _, shell = textInput(cell, "Value", read, write)
+			shell.Position = UDim2.fromOffset(0, 14)
+			shell.Size = UDim2.new(1, 0, 0, INPUT_HEIGHT)
+		end
+		identityCell("Id", "Id (lowercase, save key)", function()
 			return mode.id
 		end, function(value)
 			mode.id = string.lower(value)
@@ -1687,7 +1781,7 @@ local function buildPanel()
 				repaintDefault()
 			end
 		end)
-		textCell(identityGrid, "DisplayName", "Display name", function()
+		identityCell("DisplayName", "Display name", function()
 			return mode.name
 		end, function(value)
 			mode.name = value
@@ -1700,7 +1794,9 @@ local function buildPanel()
 		explainer.AutomaticSize = Enum.AutomaticSize.Y
 		explainer.Size = UDim2.fromScale(1, 0)
 
-		local _, kindContainer = optionPills(body, "Kind", "Kind", 2, function()
+		local kindHost, kindRow = inlineChoiceRow(body, "KindRow", "Kind")
+		kindRow.LayoutOrder = 2
+		optionPills(kindHost, "Kind", 2, function()
 			return {
 				{ value = "luck", text = "luck · bends odds" },
 				{ value = "surge", text = "surge · boosts earnings" },
@@ -1711,96 +1807,90 @@ local function buildPanel()
 			mode.kind = value
 			explainer.Text = KIND_EXPLAINERS[value] or ""
 		end)
-		kindContainer.LayoutOrder = 2
 
-		local thresholdFrame: Frame? = nil
+		local thresholdRow: Frame? = nil
 		local thresholdLabel: TextLabel? = nil
 		local function repaintThreshold()
-			local frame = thresholdFrame
+			local row = thresholdRow
 			local label = thresholdLabel
-			if frame == nil or label == nil then
+			if row == nil or label == nil then
 				return
 			end
 			local text = UNLOCK_VALUE_LABELS[mode.unlockKind]
-			frame.Visible = text ~= nil
+			row.Visible = text ~= nil
 			label.Text = text or ""
 		end
 
-		local _, unlockContainer = optionPills(
-			body,
-			"Unlock",
-			"Unlock — when players may pick this mode",
-			4,
-			function()
-				return {
-					{ value = "always", text = "always" },
-					{ value = "totalRolls", text = "after N rolls" },
-					{ value = "runesOwned", text = "at N runes" },
-					{ value = "provider", text = "provider" },
-				}
-			end,
-			function()
-				return mode.unlockKind
-			end,
-			function(value)
-				mode.unlockKind = value
-				repaintThreshold()
-			end
-		)
-		unlockContainer.LayoutOrder = 4
+		local unlockHost, unlockRow = inlineChoiceRow(body, "UnlockRow", "Unlock")
+		unlockRow.LayoutOrder = 4
+		optionPills(unlockHost, "Unlock", 4, function()
+			return {
+				{ value = "always", text = "always" },
+				{ value = "totalRolls", text = "after N rolls" },
+				{ value = "runesOwned", text = "at N runes" },
+				{ value = "provider", text = "provider" },
+			}
+		end, function()
+			return mode.unlockKind
+		end, function(value)
+			mode.unlockKind = value
+			repaintThreshold()
+		end)
 
-		local thresholdGrid = createGrid(body, "Threshold", 2, 36)
-		thresholdGrid.LayoutOrder = 5
-		thresholdFrame, thresholdLabel = numberCell(
-			thresholdGrid,
-			"UnlockValue",
-			"Unlock threshold",
-			function()
-				return mode.unlockValue
-			end,
-			function(value)
-				if value ~= nil then
-					mode.unlockValue = value
-				end
-			end,
-			false
-		)
+		local threshold = Instance.new("Frame")
+		threshold.Name = "Threshold"
+		threshold.BackgroundTransparency = 1
+		threshold.Size = UDim2.new(1, 0, 0, INPUT_HEIGHT)
+		threshold.LayoutOrder = 5
+		threshold.Parent = body
+		local thresholdCaption = createLabel(threshold, "Caption", "", INPUT_HEIGHT, TEXT)
+		thresholdCaption.Size = UDim2.new(1, -104, 0, INPUT_HEIGHT)
+		thresholdCaption.TextTruncate = Enum.TextTruncate.AtEnd
+		local _, thresholdShell = numberInput(threshold, "UnlockValue", "Unlock threshold", function()
+			return mode.unlockValue
+		end, function(value)
+			if value ~= nil then
+				mode.unlockValue = value
+			end
+		end, false)
+		thresholdShell.AnchorPoint = Vector2.new(1, 0)
+		thresholdShell.Position = UDim2.fromScale(1, 0)
+		thresholdShell.Size = UDim2.fromOffset(96, INPUT_HEIGHT)
+		thresholdRow = threshold
+		thresholdLabel = thresholdCaption
 		repaintThreshold()
 
 		local tiersHint = createLabel(
 			body,
 			"TiersHint",
-			`Momentum tiers — after channeling for "T after (s)" seconds the tier's ×value applies.`
-				.. " Fill from T1; blank rows are skipped; times must strictly rise.",
+			"MOMENTUM TIERS · blank rows are skipped · times must strictly rise",
 			14,
-			MUTED
+			SUBTLE
 		)
 		tiersHint.LayoutOrder = 6
-		tiersHint.TextSize = 10
+		tiersHint.Font = Enum.Font.GothamBold
+		tiersHint.TextSize = 9
 		tiersHint.TextWrapped = true
 		tiersHint.AutomaticSize = Enum.AutomaticSize.Y
 		tiersHint.Size = UDim2.fromScale(1, 0)
 
-		local tiersGrid = createGrid(body, "Tiers", 4, 36)
-		tiersGrid.LayoutOrder = 7
+		local tiersTable, addTierRow = valueTable(body, "Tiers", "after (s)", "boost ×", 88)
+		tiersTable.LayoutOrder = 7
 		for tierIndex, tier in mode.tiers do
-			numberCell(tiersGrid, `Tier{tierIndex}At`, `T{tierIndex} after (s)`, function()
+			addTierRow(tierIndex, function()
 				return tier.atSeconds
 			end, function(value)
 				tier.atSeconds = value
-			end, true)
-			numberCell(tiersGrid, `Tier{tierIndex}Value`, `T{tierIndex} boost ×`, function()
+			end, function()
 				return tier.value
 			end, function(value)
 				tier.value = value
-			end, true)
+			end)
 		end
 
 		local function repaintToggle()
-			toggle.Text = if mode.enabled
-				then `MODE {index} — ENABLED (click to disable)`
-				else `MODE {index} — OFF (click to enable)`
-			toggle.TextColor3 = if mode.enabled then TEXT_ACTIVE else SUBTLE
+			toggle.Text = if mode.enabled then "ENABLED" else "OFF — click to enable"
+			toggle.TextColor3 = if mode.enabled then TEXT else SUBTLE
 			local stroke = toggle:FindFirstChildOfClass("UIStroke")
 			if stroke ~= nil then
 				stroke.Color = if mode.enabled then GOOD else BORDER
@@ -1822,18 +1912,116 @@ local function buildPanel()
 	-- Rarity tab --------------------------------------------------------------
 	local rarityPage = pages[TAB_RARITY]
 
-	local raritiesSection = createSection(
-		rarityPage,
-		"Rarities",
-		"Rarities & Odds",
+	local raritiesSection = createSection(rarityPage, "Rarities", "Rarities & Odds")
+	local totalLabel = raritiesSection.meta
+	createHint(
+		raritiesSection.frame,
+		"RaritiesHint",
 		"Weights are parts-per-10000 and must sum to exactly 10000 before Apply unlocks."
 			.. " The total and each row's odds update as you type."
 	)
 
-	local totalLabel = createLabel(raritiesSection, "WeightTotal", "", 16, TEXT)
-	totalLabel.Font = Enum.Font.GothamBold
+	local oddsLabels: { TextLabel } = {}
+	local weightBoxes: { TextBox } = {}
+	for index, rarity in State.rarities do
+		local row = Instance.new("Frame")
+		row.Name = `Rarity{index}`
+		row.BackgroundTransparency = 1
+		row.Size = UDim2.new(1, 0, 0, ROW_HEIGHT)
+		row.LayoutOrder = 10 + index * 3
+		row.Parent = raritiesSection.frame
 
-	local normalizeButton = createButton(raritiesSection, "Normalize", "Normalize Weights to 10000", 30)
+		local swatch = Instance.new("Frame")
+		swatch.Name = "Swatch"
+		swatch.BackgroundColor3 = Color3.fromRGB(rarity.color[1], rarity.color[2], rarity.color[3])
+		swatch.BorderSizePixel = 0
+		swatch.AnchorPoint = Vector2.new(0, 0.5)
+		swatch.Position = UDim2.fromScale(0, 0.5)
+		swatch.Size = UDim2.fromOffset(12, 12)
+		swatch.Parent = row
+		round(swatch, 3)
+
+		local _, nameShell = textInput(row, "DisplayName", function()
+			return rarity.name
+		end, function(value)
+			rarity.name = value
+		end)
+		nameShell.Position = UDim2.new(0, 18, 0.5, -INPUT_HEIGHT // 2)
+		nameShell.Size = UDim2.new(1, -(18 + 64 + 6 + 92 + 6), 0, INPUT_HEIGHT)
+
+		local weightBox, weightShell = inputBox(row, "Weight", Gen.number(rarity.weight), function(text)
+			local value = tonumber((string.gsub(text, "%s", "")))
+			if value == nil or not Val.isFinite(value) then
+				setStatus(`Weight: "{text}" is not a number`, AMBER)
+				return Gen.number(rarity.weight)
+			end
+			rarity.weight = math.floor(value)
+			local repaint = Refresh.odds
+			if repaint ~= nil then
+				repaint()
+			end
+			touch()
+			return Gen.number(rarity.weight)
+		end)
+		weightShell.AnchorPoint = Vector2.new(1, 0.5)
+		weightShell.Position = UDim2.new(1, -98, 0.5, 0)
+		weightShell.Size = UDim2.fromOffset(64, INPUT_HEIGHT)
+		weightBoxes[index] = weightBox
+
+		local oddsLabel = createLabel(row, "Odds", "", ROW_HEIGHT, MUTED)
+		oddsLabel.AnchorPoint = Vector2.new(1, 0)
+		oddsLabel.Position = UDim2.fromScale(1, 0)
+		oddsLabel.Size = UDim2.fromOffset(92, ROW_HEIGHT)
+		oddsLabel.TextXAlignment = Enum.TextXAlignment.Right
+		oddsLabel.TextSize = 9
+		oddsLabels[index] = oddsLabel
+
+		local rgbRow = Instance.new("Frame")
+		rgbRow.Name = `Rgb{index}`
+		rgbRow.BackgroundTransparency = 1
+		rgbRow.Size = UDim2.new(1, 0, 0, INPUT_HEIGHT)
+		rgbRow.LayoutOrder = 11 + index * 3
+		rgbRow.Parent = raritiesSection.frame
+		local rgbLayout = Instance.new("UIListLayout")
+		rgbLayout.FillDirection = Enum.FillDirection.Horizontal
+		rgbLayout.Padding = UDim.new(0, 6)
+		rgbLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		rgbLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+		rgbLayout.Parent = rgbRow
+		local rgbPad = Instance.new("UIPadding")
+		rgbPad.PaddingLeft = UDim.new(0, 18)
+		rgbPad.Parent = rgbRow
+		local rgbCaption = createLabel(rgbRow, "Caption", "RGB", INPUT_HEIGHT, SUBTLE)
+		rgbCaption.TextSize = 9
+		rgbCaption.Size = UDim2.fromOffset(24, INPUT_HEIGHT)
+		for channelIndex, channelName in { "R", "G", "B" } do
+			local _, channelShell = numberInput(rgbRow, `Color{channelName}`, function()
+				return rarity.color[channelIndex]
+			end, function(value)
+				if value ~= nil then
+					rarity.color[channelIndex] = math.clamp(math.floor(value), 0, 255)
+					swatch.BackgroundColor3 =
+						Color3.fromRGB(rarity.color[1], rarity.color[2], rarity.color[3])
+				end
+			end, false)
+			channelShell.Size = UDim2.fromOffset(44, INPUT_HEIGHT)
+		end
+
+		if index < #State.rarities then
+			local rule = Instance.new("Frame")
+			rule.Name = `Rule{index}`
+			rule.BackgroundColor3 = BORDER
+			rule.BackgroundTransparency = 0.65
+			rule.BorderSizePixel = 0
+			rule.Size = UDim2.new(1, 0, 0, 1)
+			rule.LayoutOrder = 12 + index * 3
+			rule.Parent = raritiesSection.frame
+		end
+	end
+
+	local normalizeButton = createButton(raritiesSection.frame, "Normalize", "Normalize Weights to 10000", 22)
+	normalizeButton.LayoutOrder = 1000
+	normalizeButton.TextSize = 10
 	normalizeButton.MouseButton1Click:Connect(function()
 		local total = Val.weightTotal()
 		if total <= 0 then
@@ -1856,107 +2044,10 @@ local function buildPanel()
 		setStatus("Weights rescaled. Nudge individual rows, then Apply.", GOOD)
 	end)
 
-	local oddsLabels: { TextLabel } = {}
-	local weightBoxes: { TextBox } = {}
-	for index, rarity in State.rarities do
-		local row = Instance.new("Frame")
-		row.Name = `Rarity{index}`
-		row.BackgroundColor3 = PANEL_FIELD
-		row.BorderSizePixel = 0
-		row.Size = UDim2.fromScale(1, 0)
-		row.AutomaticSize = Enum.AutomaticSize.Y
-		row.Parent = raritiesSection
-		round(row, 7)
-		outline(row, 0.6)
-		local rowPadding = Instance.new("UIPadding")
-		rowPadding.PaddingTop = UDim.new(0, 8)
-		rowPadding.PaddingBottom = UDim.new(0, 8)
-		rowPadding.PaddingLeft = UDim.new(0, 8)
-		rowPadding.PaddingRight = UDim.new(0, 8)
-		rowPadding.Parent = row
-		local rowLayout = Instance.new("UIListLayout")
-		rowLayout.Padding = UDim.new(0, 6)
-		rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		rowLayout.Parent = row
-
-		local headerRow = Instance.new("Frame")
-		headerRow.Name = "Header"
-		headerRow.BackgroundTransparency = 1
-		headerRow.Size = UDim2.new(1, 0, 0, 16)
-		headerRow.LayoutOrder = 1
-		headerRow.Parent = row
-
-		local swatch = Instance.new("Frame")
-		swatch.Name = "Swatch"
-		swatch.BackgroundColor3 = Color3.fromRGB(rarity.color[1], rarity.color[2], rarity.color[3])
-		swatch.BorderSizePixel = 0
-		swatch.Position = UDim2.fromOffset(0, 2)
-		swatch.Size = UDim2.fromOffset(12, 12)
-		swatch.Parent = headerRow
-		round(swatch, 3)
-
-		local idLabel = createLabel(headerRow, "IdLabel", string.upper(rarity.id), 16, SUBTLE)
-		idLabel.Position = UDim2.fromOffset(18, 0)
-		idLabel.Size = UDim2.new(0.5, -18, 0, 16)
-		idLabel.TextSize = 10
-
-		local oddsLabel = createLabel(headerRow, "Odds", "", 16, MUTED)
-		oddsLabel.Position = UDim2.fromScale(0.5, 0)
-		oddsLabel.Size = UDim2.new(0.5, 0, 0, 16)
-		oddsLabel.TextXAlignment = Enum.TextXAlignment.Right
-		oddsLabel.TextSize = 10
-		oddsLabels[index] = oddsLabel
-
-		local nameGrid = createGrid(row, "NameWeight", 2, 36)
-		nameGrid.LayoutOrder = 2
-		textCell(nameGrid, "DisplayName", "Name", function()
-			return rarity.name
-		end, function(value)
-			rarity.name = value
-		end)
-		local weightBox = createField(
-			nameGrid,
-			"Weight",
-			"Weight /10000",
-			Gen.number(rarity.weight),
-			function(text)
-				local value = tonumber((string.gsub(text, "%s", "")))
-				if value == nil or not Val.isFinite(value) then
-					setStatus(`Weight: "{text}" is not a number`, AMBER)
-					return Gen.number(rarity.weight)
-				end
-				rarity.weight = math.floor(value)
-				local repaint = Refresh.odds
-				if repaint ~= nil then
-					repaint()
-				end
-				touch()
-				return Gen.number(rarity.weight)
-			end
-		)
-		weightBoxes[index] = weightBox
-
-		local colorGrid = createGrid(row, "Color", 3, 36)
-		colorGrid.LayoutOrder = 3
-		for channelIndex, channelName in { "R", "G", "B" } do
-			numberCell(colorGrid, `Color{channelName}`, channelName, function()
-				return rarity.color[channelIndex]
-			end, function(value)
-				if value ~= nil then
-					rarity.color[channelIndex] = math.clamp(math.floor(value), 0, 255)
-					swatch.BackgroundColor3 =
-						Color3.fromRGB(rarity.color[1], rarity.color[2], rarity.color[3])
-				end
-			end, false)
-		end
-	end
-
 	Refresh.odds = function()
 		local total = Val.weightTotal()
 		local ok = total == 10000
-		totalLabel.Text = if ok
-			then "Weight total: 10000 — odds disclose correctly"
-			else `Weight total: {total} — must equal 10000`
+		totalLabel.Text = if ok then "Σ 10000 ✓ discloses correctly" else `Σ {total} — must equal 10000`
 		totalLabel.TextColor3 = if ok then GOOD else AMBER
 		for index, rarity in State.rarities do
 			local label = oddsLabels[index]
@@ -1964,7 +2055,7 @@ local function buildPanel()
 				if total > 0 and rarity.weight > 0 then
 					local percent = math.floor(rarity.weight / total * 10000) / 100
 					local oneIn = math.floor(total / rarity.weight + 0.5)
-					label.Text = `{percent}% · about 1 in {oneIn}`
+					label.Text = `{percent}% · 1 in {oneIn}`
 				else
 					label.Text = ""
 				end
@@ -1981,72 +2072,141 @@ local function buildPanel()
 	-- Runes tab ---------------------------------------------------------------
 	local runesPage = pages[TAB_RUNES]
 
-	local runesSection = createSection(
-		runesPage,
-		"Runes",
-		"Rune Cards",
-		"The collection itself: glyph icon, display name, permanent bonus %, rarity, and flavor."
-			.. " Every rarity needs at least one card. Ids are save keys — renaming one orphans"
-			.. " existing copies until the id returns."
+	local runesSection = createSection(runesPage, "Runes", "Rune Cards")
+	local addRuneButton = createButton(runesSection.head, "AddRune", "Add Rune Card", 20)
+	addRuneButton.AnchorPoint = Vector2.new(1, 0)
+	addRuneButton.Position = UDim2.fromScale(1, 0)
+	addRuneButton.Size = UDim2.fromOffset(104, 18)
+	addRuneButton.TextSize = 10
+	runesSection.meta.Visible = false
+	createHint(
+		runesSection.frame,
+		"RunesHint",
+		"Ids are save keys — renaming one orphans existing copies until the id returns."
+			.. " Every rarity needs at least one card."
 	)
-
-	local addRuneButton = createButton(runesSection, "AddRune", "Add Rune Card", 30)
 
 	local runesList = Instance.new("Frame")
 	runesList.Name = "RunesList"
 	runesList.BackgroundTransparency = 1
 	runesList.Size = UDim2.fromScale(1, 0)
 	runesList.AutomaticSize = Enum.AutomaticSize.Y
-	runesList.Parent = runesSection
+	runesList.LayoutOrder = 10
+	runesList.Parent = runesSection.frame
 	local runesLayout = Instance.new("UIListLayout")
-	runesLayout.Padding = UDim.new(0, 6)
+	runesLayout.Padding = UDim.new(0, 8)
 	runesLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	runesLayout.Parent = runesList
 
 	local function buildRuneRow(index: number, rune: RuneRow)
-		local row = Instance.new("Frame")
-		row.Name = `Rune{index}`
-		row.BackgroundColor3 = PANEL_FIELD
-		row.BorderSizePixel = 0
-		row.Size = UDim2.fromScale(1, 0)
-		row.AutomaticSize = Enum.AutomaticSize.Y
-		row.LayoutOrder = index
-		row.Parent = runesList
-		round(row, 7)
-		local rowStroke = outline(row, 0.45)
-		rowStroke.Color = rarityColor(rune.rarityId)
-		local rowPadding = Instance.new("UIPadding")
-		rowPadding.PaddingTop = UDim.new(0, 6)
-		rowPadding.PaddingBottom = UDim.new(0, 6)
-		rowPadding.PaddingLeft = UDim.new(0, 6)
-		rowPadding.PaddingRight = UDim.new(0, 6)
-		rowPadding.Parent = row
-		local rowLayout = Instance.new("UIListLayout")
-		rowLayout.Padding = UDim.new(0, 6)
-		rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		rowLayout.Parent = row
+		local card = Instance.new("Frame")
+		card.Name = `Rune{index}`
+		card.BackgroundTransparency = 1
+		card.BorderSizePixel = 0
+		card.ClipsDescendants = true
+		card.Size = UDim2.fromScale(1, 0)
+		card.AutomaticSize = Enum.AutomaticSize.Y
+		card.LayoutOrder = index
+		card.Parent = runesList
+		round(card, 6)
+		outline(card, 0.55)
 
-		local topGrid = createGrid(row, "Top", 4, 36)
-		topGrid.LayoutOrder = 1
-		textCell(topGrid, "Glyph", "Glyph / icon", function()
+		local edge = Instance.new("Frame")
+		edge.Name = "Edge"
+		edge.BackgroundColor3 = rarityColor(rune.rarityId)
+		edge.BorderSizePixel = 0
+		edge.Size = UDim2.new(0, 3, 1, 0)
+		edge.Parent = card
+
+		local content = Instance.new("Frame")
+		content.Name = "Content"
+		content.BackgroundTransparency = 1
+		content.Size = UDim2.fromScale(1, 0)
+		content.AutomaticSize = Enum.AutomaticSize.Y
+		content.Parent = card
+		local contentPadding = Instance.new("UIPadding")
+		contentPadding.PaddingTop = UDim.new(0, 8)
+		contentPadding.PaddingBottom = UDim.new(0, 8)
+		contentPadding.PaddingLeft = UDim.new(0, 14)
+		contentPadding.PaddingRight = UDim.new(0, 8)
+		contentPadding.Parent = content
+		local contentLayout = Instance.new("UIListLayout")
+		contentLayout.Padding = UDim.new(0, 6)
+		contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		contentLayout.Parent = content
+
+		local topRow = Instance.new("Frame")
+		topRow.Name = "Top"
+		topRow.BackgroundTransparency = 1
+		topRow.Size = UDim2.new(1, 0, 0, INPUT_HEIGHT)
+		topRow.LayoutOrder = 1
+		topRow.Parent = content
+
+		local glyphBox, glyphShell = textInput(topRow, "Glyph", function()
 			return rune.glyph
 		end, function(value)
 			rune.glyph = value
 		end)
-		textCell(topGrid, "DisplayName", "Name", function()
+		glyphShell.Size = UDim2.fromOffset(36, INPUT_HEIGHT)
+		glyphBox.TextXAlignment = Enum.TextXAlignment.Center
+		glyphBox.Position = UDim2.fromOffset(0, 0)
+		glyphBox.Size = UDim2.fromScale(1, 1)
+
+		local _, nameShell = textInput(topRow, "DisplayName", function()
 			return rune.name
 		end, function(value)
 			rune.name = value
 		end)
-		numberCell(topGrid, "Bonus", "Bonus %", function()
+		nameShell.Position = UDim2.fromOffset(42, 0)
+		nameShell.Size = UDim2.new(1, -(42 + 56 + 6 + 14), 0, INPUT_HEIGHT)
+
+		local pctLabel = createLabel(topRow, "Pct", "%", INPUT_HEIGHT, SUBTLE)
+		pctLabel.AnchorPoint = Vector2.new(1, 0)
+		pctLabel.Position = UDim2.fromScale(1, 0)
+		pctLabel.Size = UDim2.fromOffset(10, INPUT_HEIGHT)
+		pctLabel.TextSize = 9
+
+		local _, bonusShell = numberInput(topRow, "Bonus", function()
 			return rune.bonusPercent
 		end, function(value)
 			if value ~= nil then
 				rune.bonusPercent = value
 			end
 		end, false)
-		local removeButton = createButton(topGrid, "Remove", "Remove Card", 36)
-		removeButton.TextColor3 = MUTED
+		bonusShell.AnchorPoint = Vector2.new(1, 0)
+		bonusShell.Position = UDim2.new(1, -14, 0, 0)
+		bonusShell.Size = UDim2.fromOffset(56, INPUT_HEIGHT)
+
+		local _, rarityPills = optionPills(content, "Rarity", 6, rarityOptions, function()
+			return rune.rarityId
+		end, function(value)
+			rune.rarityId = value
+			edge.BackgroundColor3 = rarityColor(value)
+		end, true)
+		rarityPills.LayoutOrder = 2
+
+		local bottomRow = Instance.new("Frame")
+		bottomRow.Name = "Bottom"
+		bottomRow.BackgroundTransparency = 1
+		bottomRow.Size = UDim2.new(1, 0, 0, INPUT_HEIGHT)
+		bottomRow.LayoutOrder = 3
+		bottomRow.Parent = content
+
+		local idBox, idShell = textInput(bottomRow, "Id", function()
+			return rune.id
+		end, function(value)
+			rune.id = string.lower(value)
+		end)
+		idBox.TextSize = 11
+		idShell.Size = UDim2.fromOffset(116, INPUT_HEIGHT)
+
+		local removeButton = createButton(bottomRow, "Remove", "Remove Card", 20, false)
+		removeButton.AnchorPoint = Vector2.new(1, 0.5)
+		removeButton.Position = UDim2.fromScale(1, 0.5)
+		removeButton.Size = UDim2.fromOffset(84, 20)
+		removeButton.TextSize = 9
+		removeButton.TextColor3 = BAD
+		removeButton.BackgroundTransparency = 1
 		armButton(removeButton, "Confirm remove?", function()
 			table.remove(State.runes, table.find(State.runes, rune) or index)
 			local repaint = Refresh.runesList
@@ -2060,26 +2220,16 @@ local function buildPanel()
 			)
 		end)
 
-		local _, rarityContainer = optionPills(row, "Rarity", "Rarity", 3, rarityOptions, function()
-			return rune.rarityId
-		end, function(value)
-			rune.rarityId = value
-			rowStroke.Color = rarityColor(value)
-		end)
-		rarityContainer.LayoutOrder = 2
-
-		local bottomGrid = createGrid(row, "Bottom", 2, 36)
-		bottomGrid.LayoutOrder = 3
-		textCell(bottomGrid, "Id", "Id (save key)", function()
-			return rune.id
-		end, function(value)
-			rune.id = string.lower(value)
-		end)
-		textCell(bottomGrid, "Flavor", "Flavor text", function()
+		local flavorBox, flavorShell = textInput(bottomRow, "Flavor", function()
 			return rune.flavor
 		end, function(value)
 			rune.flavor = value
 		end)
+		flavorBox.TextSize = 11
+		flavorBox.PlaceholderText = "flavor text"
+		flavorBox.PlaceholderColor3 = SUBTLE
+		flavorShell.Position = UDim2.fromOffset(122, 0)
+		flavorShell.Size = UDim2.new(1, -(122 + 84 + 6), 0, INPUT_HEIGHT)
 	end
 
 	Refresh.runesList = function()
@@ -2091,6 +2241,7 @@ local function buildPanel()
 		for index, rune in State.runes do
 			buildRuneRow(index, rune)
 		end
+		runesSection.title.Text = string.upper(`Rune Cards · {#State.runes}`)
 	end
 
 	addRuneButton.MouseButton1Click:Connect(function()
@@ -2111,34 +2262,35 @@ local function buildPanel()
 		setStatus("Card added at the bottom of the list. Give it an id, a rarity, and a bonus.", GOOD)
 	end)
 
-	local milestonesSection = createSection(
-		runesPage,
-		"Milestones",
-		"Copy Milestones",
+	local milestonesSection = createSection(runesPage, "Milestones", "Copy Milestones")
+	createHint(
+		milestonesSection.frame,
+		"MilestonesHint",
 		"Owning N copies multiplies that rune's whole contribution. Blank rows are skipped;"
 			.. " copies must strictly rise and multipliers must never weaken."
 	)
-	local milestonesGrid = createGrid(milestonesSection, "MilestonesGrid", 4, 36)
+	local milestonesTable, addMilestoneRow =
+		valueTable(milestonesSection.frame, "MilestonesGrid", "copies owned", "gives ×", 110)
+	milestonesTable.LayoutOrder = 10
 	for index, row in State.milestones do
-		numberCell(milestonesGrid, `Milestone{index}Copies`, `#{index} copies`, function()
+		addMilestoneRow(index, function()
 			return row.copies
 		end, function(value)
 			row.copies = value
-		end, true)
-		numberCell(milestonesGrid, `Milestone{index}Multiplier`, `#{index} gives ×`, function()
+		end, function()
 			return row.multiplier
 		end, function(value)
 			row.multiplier = value
-		end, true)
+		end)
 	end
 
 	-- Review tab --------------------------------------------------------------
 	local reviewPage = pages[TAB_REVIEW]
 
-	local validationSection = createSection(
-		reviewPage,
-		"Validation",
-		"Validation",
+	local validationSection = createSection(reviewPage, "Validation", "Validation")
+	createHint(
+		validationSection.frame,
+		"ValidationHint",
 		"Rechecked after every edit. Apply to Place stays blocked while anything is listed;"
 			.. " the tag on each line names the tab where it is fixed."
 	)
@@ -2147,16 +2299,17 @@ local function buildPanel()
 	issuesHost.BackgroundTransparency = 1
 	issuesHost.Size = UDim2.fromScale(1, 0)
 	issuesHost.AutomaticSize = Enum.AutomaticSize.Y
-	issuesHost.Parent = validationSection
+	issuesHost.LayoutOrder = 10
+	issuesHost.Parent = validationSection.frame
 	local issuesLayout = Instance.new("UIListLayout")
 	issuesLayout.Padding = UDim.new(0, 4)
 	issuesLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	issuesLayout.Parent = issuesHost
 
-	createSection(
-		reviewPage,
-		"Workflow",
-		"How Applying Works",
+	local workflowSection = createSection(reviewPage, "Workflow", "How Applying Works")
+	local workflowText = createHint(
+		workflowSection.frame,
+		"WorkflowText",
 		"Apply rewrites this place's DesignerConfig (runes overrides) and RuneCatalog"
 			.. " ModuleScripts — undo-safe, playtest-ready, nothing publishes. Rojo serve"
 			.. " overwrites those modules from the repo on sync, so make edits stick with Print"
@@ -2164,6 +2317,7 @@ local function buildPanel()
 			.. " src/shared/RuneCatalog.luau. Changing a rune id orphans saved copies: they stay"
 			.. " in player data but stop counting until the id returns."
 	)
+	workflowText.TextColor3 = MUTED
 
 	local function addIssueRow(order: number, text: string, color: Color3)
 		local issueLabel = createLabel(issuesHost, `Issue{order}`, text, 14, color)
