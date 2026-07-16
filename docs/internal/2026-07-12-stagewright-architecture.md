@@ -28,3 +28,12 @@ Decisions:
 - Roblox's official place-to-universe endpoint resolved it on 2026-07-12 to universe `10479279603`: `https://apis.roblox.com/universes/v1/places/128136881672145/universe`.
 - `7_STAGEWRIGHT_SHARED.cmd` opens this existing place without starting Rojo. This prevents the repository's blank legacy island model from overwriting Team Create-only authored data before the Stagewright bundle is exported and reviewed.
 - Deployable runtime QA continues through the permanent `playerTest` experience. The shared place is the migration and collaborative authoring source, not a disposable test target.
+
+## Flow editor API re-check — 2026-07-15
+
+The World Path / Route Logic implementation re-checked the exact Studio APIs used by the interactive preview:
+
+- `LayerCollector.ZIndexBehavior`: https://create.roblox.com/docs/reference/engine/classes/LayerCollector
+- `Selection.SelectionChanged`, `Selection:Get()`, and `Selection:Set()`: https://create.roblox.com/docs/reference/engine/classes/Selection
+
+The dock widget uses sibling Z-order so nested route controls remain above their opaque view surfaces. Workspace gravel and node previews expose stable ID attributes; Studio selection changes resolve those IDs back to the selected graph object. This remains edit-mode-only and does not grant runtime authority to Workspace instances.

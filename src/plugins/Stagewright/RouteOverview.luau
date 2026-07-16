@@ -1,5 +1,7 @@
 --!strict
 
+local UserInputService = game:GetService("UserInputService")
+
 local RouteOverview = {}
 RouteOverview.__index = RouteOverview
 
@@ -20,6 +22,7 @@ type Theme = {
 export type Callbacks = {
 	selectNode: (string) -> (),
 	selectEdge: (string) -> (),
+	connectNodes: (string, string) -> (),
 }
 
 export type Controller = typeof(setmetatable(
@@ -31,6 +34,8 @@ export type Controller = typeof(setmetatable(
 		theme: Theme,
 		callbacks: Callbacks,
 		zoom: number,
+		showLanes: boolean,
+		snapToGrid: boolean,
 		graph: any?,
 		selectedNodeId: string?,
 		selectedEdgeId: string?,
@@ -39,12 +44,15 @@ export type Controller = typeof(setmetatable(
 		layoutSize: Vector2,
 		minimapCanvas: Frame,
 		lastWindowSize: Vector2,
+		connectionFromNodeId: string?,
+		connectionPreview: Frame?,
+		connections: { RBXScriptConnection },
 	},
 	RouteOverview
 ))
 
-local BASE_SIZE = Vector2.new(920, 620)
-local NODE_SIZE = Vector2.new(132, 72)
+local BASE_SIZE = Vector2.new(1_120, 640)
+local NODE_SIZE = Vector2.new(150, 88)
 
 local function create(className: string, properties: { [string]: any }, parent: Instance?): any
 	local instance = Instance.new(className)
@@ -94,6 +102,13 @@ local function edgeLine(
 		Size = UDim2.fromOffset(delta.Magnitude, thickness),
 		ZIndex = zIndex,
 	}, parent) :: Frame
+end
+
+local function positionEdgeLine(segment: Frame, from: Vector2, to: Vector2)
+	local delta = to - from
+	segment.Position = UDim2.fromOffset((from.X + to.X) * 0.5, (from.Y + to.Y) * 0.5)
+	segment.Rotation = math.deg(math.atan2(delta.Y, delta.X))
+	segment.Size = UDim2.fromOffset(math.max(delta.Magnitude, 1), segment.Size.Y.Offset)
 end
 
 local function nodeColor(kind: string): Color3
@@ -167,7 +182,7 @@ local function topologyLayout(graph: any, nodeIds: { string }): ({ [string]: Vec
 	end
 	local result: { [string]: Vector2 } = {}
 	local horizontalPadding = 76
-	local horizontalSpacing = 142
+	local horizontalSpacing = 168
 	local verticalPadding = 96
 	local maximumRows = 1
 	for _, column in columns do
@@ -195,10 +210,10 @@ local function topologyLayout(graph: any, nodeIds: { string }): ({ [string]: Vec
 		for index, nodeId in column do
 			local node = graph.nodes[nodeId]
 			local y = if zRange > 0.5
-				then verticalPadding + usableHeight * (0.12 + 0.76 * ((node.position.z - minimumZ) / zRange))
+				then verticalPadding + usableHeight * (0.24 + 0.52 * ((node.position.z - minimumZ) / zRange))
 				else verticalPadding + usableHeight * (index / (#column + 1))
 			if previousY > -math.huge then
-				y = math.max(y, previousY + NODE_SIZE.Y + 28)
+				y = math.max(y, previousY + NODE_SIZE.Y + 34)
 			end
 			y = math.min(y, layoutSize.Y - verticalPadding)
 			previousY = y
@@ -291,6 +306,7 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		BorderSizePixel = 0,
 		Position = UDim2.new(1, -12, 1, -12),
 		Size = UDim2.fromOffset(64, 158),
+		Visible = false,
 		ZIndex = 20,
 	}, toolbar) :: Frame
 	create("UICorner", { CornerRadius = UDim.new(0, 7) }, controls)
@@ -325,19 +341,30 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		BackgroundColor3 = theme.panel,
 		BorderSizePixel = 0,
 		Position = UDim2.new(0, 12, 1, -12),
-		Size = UDim2.fromOffset(154, 92),
+		Size = UDim2.fromOffset(210, 126),
 		ZIndex = 20,
 	}, root) :: Frame
 	create("UICorner", { CornerRadius = UDim.new(0, 7) }, minimap)
 	create("UIStroke", { Color = theme.border, Thickness = 1 }, minimap)
 	local minimapCanvas = create("Frame", {
-		BackgroundColor3 = theme.background,
+		BackgroundColor3 = Color3.fromRGB(35, 58, 39),
 		BorderSizePixel = 0,
 		ClipsDescendants = true,
-		Position = UDim2.fromOffset(7, 7),
-		Size = UDim2.new(1, -14, 1, -14),
+		Position = UDim2.fromOffset(9, 27),
+		Size = UDim2.new(1, -18, 1, -36),
 		ZIndex = 21,
 	}, minimap) :: Frame
+	create("TextLabel", {
+		BackgroundTransparency = 1,
+		Font = Enum.Font.BuilderSansBold,
+		Position = UDim2.fromOffset(9, 5),
+		Size = UDim2.new(1, -18, 0, 18),
+		Text = "WORLD PREVIEW",
+		TextColor3 = theme.muted,
+		TextSize = 9,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 22,
+	}, minimap)
 	local controller: Controller = setmetatable({
 		root = root,
 		viewport = viewport,
@@ -346,6 +373,8 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		theme = theme,
 		callbacks = callbacks,
 		zoom = 1,
+		showLanes = true,
+		snapToGrid = true,
 		graph = nil,
 		selectedNodeId = nil,
 		selectedEdgeId = nil,
@@ -354,7 +383,65 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		layoutSize = BASE_SIZE,
 		minimapCanvas = minimapCanvas,
 		lastWindowSize = Vector2.zero,
+		connectionFromNodeId = nil,
+		connectionPreview = nil,
+		connections = {},
 	}, RouteOverview)
+	table.insert(
+		controller.connections,
+		UserInputService.InputChanged:Connect(function(input)
+			local fromNodeId = controller.connectionFromNodeId
+			local from = if fromNodeId ~= nil then controller.nodePositions[fromNodeId] else nil
+			if
+				from == nil
+				or input.UserInputType ~= Enum.UserInputType.MouseMovement
+				or not controller.root.Visible
+			then
+				return
+			end
+			local pointer = Vector2.new(input.Position.X, input.Position.Y)
+				- controller.canvas.AbsolutePosition
+			local start = from + Vector2.new(NODE_SIZE.X * controller.zoom * 0.5, 0)
+			if controller.connectionPreview == nil then
+				controller.connectionPreview =
+					edgeLine(controller.canvas, start, pointer, controller.theme.accent, 3, 4, 0.18)
+			else
+				positionEdgeLine(controller.connectionPreview, start, pointer)
+			end
+		end)
+	)
+	table.insert(
+		controller.connections,
+		UserInputService.InputEnded:Connect(function(input)
+			local fromNodeId = controller.connectionFromNodeId
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1 or fromNodeId == nil then
+				return
+			end
+			local pointer = Vector2.new(input.Position.X, input.Position.Y)
+				- controller.canvas.AbsolutePosition
+			local destinationId: string? = nil
+			for nodeId, point in controller.nodePositions do
+				if
+					nodeId ~= fromNodeId
+					and math.abs(pointer.X - point.X) <= NODE_SIZE.X * controller.zoom * 0.6
+					and math.abs(pointer.Y - point.Y) <= NODE_SIZE.Y * controller.zoom * 0.72
+				then
+					destinationId = nodeId
+					break
+				end
+			end
+			controller.connectionFromNodeId = nil
+			if controller.connectionPreview ~= nil then
+				controller.connectionPreview:Destroy()
+				controller.connectionPreview = nil
+			end
+			if destinationId ~= nil then
+				controller.callbacks.connectNodes(fromNodeId, destinationId)
+			else
+				controller:rerender()
+			end
+		end)
+	)
 	controlButton(controls, "-", theme, function()
 		controller.zoom = math.max(0.65, controller.zoom - 0.15)
 		controller:rerender()
@@ -441,6 +528,7 @@ function RouteOverview.render(
 end
 
 function RouteOverview.rerender(self: Controller)
+	self.connectionPreview = nil
 	for _, child in self.canvas:GetChildren() do
 		child:Destroy()
 	end
@@ -512,17 +600,53 @@ function RouteOverview.rerender(self: Controller)
 			local finish = to - Vector2.new(NODE_SIZE.X * zoom * 0.5 * direction, 0)
 			local selected = self.selectedEdgeId == edgeId
 			local traced = self.tracedEdgeIds[edgeId] == true
+			local profile = graph.laneProfiles[edge.laneProfileId]
+			local lanes = if profile ~= nil and type(profile.offsets) == "table" then #profile.offsets else 1
 			local color = if selected
 				then self.theme.accent
 				elseif traced then self.theme.success
 				elseif #edge.predicates > 0 then self.theme.warning
 				else self.theme.muted
+			if selected and self.showLanes and lanes > 1 then
+				local laneSpacing = math.clamp(6 * zoom, 4, 8)
+				for laneIndex = 1, lanes do
+					local offset = (laneIndex - (lanes + 1) * 0.5) * laneSpacing
+					drawEdge(
+						self.canvas,
+						start + Vector2.new(0, offset),
+						finish + Vector2.new(0, offset),
+						Color3.fromRGB(172, 235, 246),
+						1,
+						function()
+							self.callbacks.selectEdge(edgeId)
+						end
+					)
+				end
+			end
 			local midpoint = drawEdge(self.canvas, start, finish, color, if selected then 5 else 3, function()
 				self.callbacks.selectEdge(edgeId)
 			end)
-			local profile = graph.laneProfiles[edge.laneProfileId]
-			local lanes = if profile ~= nil and type(profile.offsets) == "table" then #profile.offsets else 1
+			if selected then
+				local handleStart = midpoint + Vector2.new(-24 * zoom, 34 * zoom)
+				local handleEnd = midpoint + Vector2.new(24 * zoom, -34 * zoom)
+				edgeLine(self.canvas, handleStart, handleEnd, self.theme.accent, 1, 5, 0.18)
+				for _, point in { handleStart, handleEnd } do
+					local handle = create("Frame", {
+						AnchorPoint = Vector2.new(0.5, 0.5),
+						BackgroundColor3 = self.theme.accent,
+						BorderSizePixel = 0,
+						Position = UDim2.fromOffset(point.X, point.Y),
+						Size = UDim2.fromOffset(10, 10),
+						ZIndex = 6,
+					}, self.canvas) :: Frame
+					create("UICorner", { CornerRadius = UDim.new(1, 0) }, handle)
+				end
+			end
 			local showBadge = selected or #edge.predicates > 0 or edge.priority > 1 or lanes > 1
+			local edgeLabel = if #edge.predicates > 0
+				then `{lanes} lanes  •  P{edge.priority}`
+				elseif edge.priority > 1 then "Fallback"
+				else `{lanes} lane{if lanes == 1 then "" else "s"}  •  P{edge.priority}`
 			local label = create("TextButton", {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				AutoButtonColor = false,
@@ -531,10 +655,7 @@ function RouteOverview.rerender(self: Controller)
 				Font = Enum.Font.BuilderSansMedium,
 				Position = UDim2.fromOffset(midpoint.X, midpoint.Y - 16),
 				Size = UDim2.fromOffset(112, 22),
-				Text = `P{edge.priority} / {lanes} lane{if lanes == 1 then "" else "s"}{if #edge.predicates
-						> 0
-					then " / Rule"
-					else ""}`,
+				Text = edgeLabel,
 				TextColor3 = color,
 				TextSize = 9,
 				ZIndex = 4,
@@ -544,6 +665,26 @@ function RouteOverview.rerender(self: Controller)
 			label.Activated:Connect(function()
 				self.callbacks.selectEdge(edgeId)
 			end)
+			if #edge.predicates > 0 then
+				local predicate = edge.predicates[1]
+				local ruleText = if predicate.kind == "WaveRange"
+					then `Wave ≥ {predicate.minimum or 1}`
+					else predicate.kind
+				local rule = create("TextLabel", {
+					AnchorPoint = Vector2.new(0.5, 1),
+					BackgroundColor3 = Color3.fromRGB(50, 34, 71),
+					BorderSizePixel = 0,
+					Font = Enum.Font.BuilderSansBold,
+					Position = UDim2.fromOffset(finish.X, finish.Y - NODE_SIZE.Y * zoom * 0.52 - 8),
+					Size = UDim2.fromOffset(92, 24),
+					Text = ruleText,
+					TextColor3 = Color3.fromRGB(218, 185, 255),
+					TextSize = 10,
+					ZIndex = 7,
+				}, self.canvas) :: TextLabel
+				create("UICorner", { CornerRadius = UDim.new(0, 6) }, rule)
+				create("UIStroke", { Color = Color3.fromRGB(104, 66, 148), Thickness = 1 }, rule)
+			end
 		end
 	end
 	for _, nodeId in nodeIds do
@@ -600,39 +741,100 @@ function RouteOverview.rerender(self: Controller)
 			BackgroundTransparency = 1,
 			Font = Enum.Font.BuilderSans,
 			Position = UDim2.fromOffset(12 * zoom, 47 * zoom),
-			Size = UDim2.new(1, -24 * zoom, 0, 15 * zoom),
-			Text = `{string.sub(node.id, -8)} / {if node.kind == "Spawn"
-				then "Entry"
-				elseif node.kind == "Goal" then "Destination"
-				else "Junction"}`,
+			Size = UDim2.new(1, -24 * zoom, 0, 14 * zoom),
+			Text = string.sub(node.id, -8),
 			TextColor3 = self.theme.muted,
 			TextSize = math.clamp(8 * zoom, 7, 10),
 			TextXAlignment = Enum.TextXAlignment.Left,
 			ZIndex = 6,
 		}, nodeButton)
+		local nodePriority = 1
+		local nodeLanes = 1
+		for _, edge in graph.edges do
+			if edge.fromNodeId == nodeId or edge.toNodeId == nodeId then
+				nodePriority = edge.priority
+				local profile = graph.laneProfiles[edge.laneProfileId]
+				nodeLanes = if profile ~= nil then #profile.offsets else 1
+				if edge.fromNodeId == nodeId then
+					break
+				end
+			end
+		end
+		create("TextLabel", {
+			BackgroundTransparency = 1,
+			Font = Enum.Font.BuilderSansMedium,
+			Position = UDim2.fromOffset(12 * zoom, 65 * zoom),
+			Size = UDim2.new(1, -24 * zoom, 0, 15 * zoom),
+			Text = `P{nodePriority}                              {nodeLanes} lanes`,
+			TextColor3 = self.theme.text,
+			TextSize = math.clamp(8 * zoom, 7, 10),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 6,
+		}, nodeButton)
+		local inputPort = create("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundColor3 = self.theme.background,
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0, 0.5),
+			Size = UDim2.fromOffset(math.clamp(11 * zoom, 9, 14), math.clamp(11 * zoom, 9, 14)),
+			ZIndex = 7,
+		}, nodeButton) :: Frame
+		create("UICorner", { CornerRadius = UDim.new(1, 0) }, inputPort)
+		create("UIStroke", { Color = self.theme.muted, Thickness = 2 }, inputPort)
+		local outputPort = create("TextButton", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			AutoButtonColor = false,
+			BackgroundColor3 = self.theme.background,
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(1, 0.5),
+			Size = UDim2.fromOffset(math.clamp(13 * zoom, 10, 16), math.clamp(13 * zoom, 10, 16)),
+			Text = "",
+			ZIndex = 8,
+		}, nodeButton) :: TextButton
+		create("UICorner", { CornerRadius = UDim.new(1, 0) }, outputPort)
+		create("UIStroke", { Color = self.theme.accent, Thickness = 2 }, outputPort)
+		outputPort.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				self.connectionFromNodeId = nodeId
+				self.callbacks.selectNode(nodeId)
+			end
+		end)
 		nodeButton.Activated:Connect(function()
 			self.callbacks.selectNode(nodeId)
 		end)
 	end
-	local minimapScale = math.min(132 / math.max(self.layoutSize.X, 1), 70 / math.max(self.layoutSize.Y, 1))
+	local minimumX = math.huge
+	local maximumX = -math.huge
+	local minimumZ = math.huge
+	local maximumZ = -math.huge
+	for _, nodeId in nodeIds do
+		local position = graph.nodes[nodeId].position
+		minimumX = math.min(minimumX, position.x)
+		maximumX = math.max(maximumX, position.x)
+		minimumZ = math.min(minimumZ, position.z)
+		maximumZ = math.max(maximumZ, position.z)
+	end
+	local worldRangeX = math.max(maximumX - minimumX, 1)
+	local worldRangeZ = math.max(maximumZ - minimumZ, 1)
+	local function worldPreviewPoint(node: any): Vector2
+		return Vector2.new(
+			6 + ((node.position.x - minimumX) / worldRangeX) * 180,
+			6 + ((node.position.z - minimumZ) / worldRangeZ) * 78
+		)
+	end
 	for _, edgeId in edgeIds do
 		local edge = graph.edges[edgeId]
-		local from = layout[edge.fromNodeId]
-		local to = layout[edge.toNodeId]
+		local fromNode = graph.nodes[edge.fromNodeId]
+		local toNode = graph.nodes[edge.toNodeId]
+		local from = if fromNode ~= nil then worldPreviewPoint(fromNode) else nil
+		local to = if toNode ~= nil then worldPreviewPoint(toNode) else nil
 		if from ~= nil and to ~= nil then
-			edgeLine(
-				self.minimapCanvas,
-				from * minimapScale + Vector2.new(4, 4),
-				to * minimapScale + Vector2.new(4, 4),
-				self.theme.muted,
-				1,
-				22
-			)
+			edgeLine(self.minimapCanvas, from, to, Color3.fromRGB(163, 128, 83), 4, 22)
 		end
 	end
 	for _, nodeId in nodeIds do
 		local node = graph.nodes[nodeId]
-		local point = layout[nodeId] * minimapScale + Vector2.new(4, 4)
+		local point = worldPreviewPoint(node)
 		create("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			BackgroundColor3 = nodeColor(node.kind),
@@ -642,6 +844,21 @@ function RouteOverview.rerender(self: Controller)
 			ZIndex = 23,
 		}, self.minimapCanvas)
 	end
+end
+
+function RouteOverview.zoomBy(self: Controller, amount: number)
+	self.zoom = math.clamp(self.zoom + amount, 0.55, 1.6)
+	self:rerender()
+end
+
+function RouteOverview.fitToView(self: Controller)
+	local available = self.viewport.AbsoluteWindowSize
+	if available.X > 0 and available.Y > 0 then
+		self.zoom =
+			math.clamp(math.min(available.X / self.layoutSize.X, available.Y / self.layoutSize.Y), 0.55, 1.35)
+	end
+	self:rerender()
+	self.viewport.CanvasPosition = Vector2.zero
 end
 
 function RouteOverview.focusSelection(self: Controller)
@@ -656,6 +873,14 @@ function RouteOverview.focusSelection(self: Controller)
 		self.viewport.CanvasPosition =
 			Vector2.new(math.max(point.X - window.X / 2, 0), math.max(point.Y - window.Y / 2, 0))
 	end
+end
+
+function RouteOverview.destroy(self: Controller)
+	for _, connection in self.connections do
+		connection:Disconnect()
+	end
+	table.clear(self.connections)
+	self.root:Destroy()
 end
 
 return RouteOverview

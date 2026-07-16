@@ -14,6 +14,7 @@ local StageLegacy = require("../src/shared/StageLegacy")
 local StagePath = require("../src/shared/StagePath")
 local StagePlatformLayout = require("../src/shared/StagePlatformLayout")
 local StageSchema = require("../src/shared/StageSchema")
+local StageStarterProject = require("../src/shared/StageStarterProject")
 local StageExport = require("../src/shared/StageExport")
 local StageTrace = require("../src/shared/StageTrace")
 local DataStoreNames = require("../src/shared/DataStoreNames")
@@ -32,6 +33,11 @@ local function expectEqual(actual: any, expected: any, label: string)
 		error(`{label}: expected {tostring(expected)}, got {tostring(actual)}`)
 	end
 	passed += 1
+end
+
+local function expectCompiles(source: string, label: string)
+	local chunk, compileError = luau.load(source)
+	expectEqual(chunk ~= nil, true, `{label}: {tostring(compileError)}`)
 end
 
 do
@@ -828,30 +834,55 @@ local stagewrightStoreSource = fs.readFile("src/plugins/Stagewright/ProjectStore
 	.. fs.readFile("src/shared/StagePayload.luau")
 	.. fs.readFile("src/plugins/Stagewright/RouteOverview.luau")
 local stagewrightAuthoringAreaSource = fs.readFile("src/plugins/Stagewright/AuthoringArea.luau")
-expectEqual(
-	pcall(function()
-		luau.load(gridPluginSource)
-	end),
-	true,
-	"modern Stagewright plugin shell compiles as Luau"
-)
+expectCompiles(gridPluginSource, "modern Stagewright plugin shell compiles as Luau")
 do
 	local routeOverviewSource = fs.readFile("src/plugins/Stagewright/RouteOverview.luau")
-	expectEqual(
-		pcall(function()
-			luau.load(routeOverviewSource)
-		end),
-		true,
-		"Stagewright 2D route overview compiles as Luau"
-	)
+	expectCompiles(routeOverviewSource, "Stagewright 2D route overview compiles as Luau")
+	for _, behavior in { "connectionFromNodeId", "connectNodes", "outputPort", "positionEdgeLine" } do
+		expectEqual(
+			string.find(routeOverviewSource, behavior, 1, true) ~= nil,
+			true,
+			`Stagewright route logic view includes {behavior}`
+		)
+	end
+end
+do
+	local worldPathSource = fs.readFile("src/plugins/Stagewright/WorldPathView.luau")
+	expectCompiles(worldPathSource, "Stagewright real-world path view compiles as Luau")
+	for _, behavior in
+		{
+			"GRAVEL",
+			"ViewportFrame",
+			"FirstPrivateIsland",
+			"Lane centerline",
+			"Selected spline",
+			"Test segment",
+			"Build mask derived automatically",
+			"lineButton",
+			"setLanes",
+			"IsMouseButtonPressed",
+			"dragStartScreen",
+			".Magnitude < 4",
+		}
+	do
+		expectEqual(
+			string.find(worldPathSource, behavior, 1, true) ~= nil,
+			true,
+			`Stagewright world path view includes {behavior}`
+		)
+	end
 end
 expectEqual(
-	pcall(function()
-		luau.load(stagewrightAuthoringAreaSource)
-	end),
-	true,
-	"Stagewright admin authoring area compiles as Luau"
+	string.find(gridPluginSource, "RouteCell_", 1, true),
+	nil,
+	"Stagewright no longer floods every route-reserved cell with a cyan preview part"
 )
+expectEqual(
+	string.find(gridPluginSource, "workspacePreviewEnabled = true", 1, true),
+	nil,
+	"Stagewright never enables automatic Workspace route generation"
+)
+expectCompiles(stagewrightAuthoringAreaSource, "Stagewright admin authoring area compiles as Luau")
 for _, pluginObject in
 	{
 		"StagewrightPlugin",
@@ -902,10 +933,9 @@ for _, pluginObject in
 		"testControls",
 		"Delete edge",
 		"RouteOverview.new",
-		"MODE_LABELS",
-		'Graph = "Flow + Graph"',
+		'local label = if mode == "Graph"',
 		"STAGES & LEVELS",
-		'then "LAYERS"',
+		'else "LAYERS"',
 		'then "VALIDATION"',
 		"Search levels",
 		"Brush 1 x 1",
@@ -916,6 +946,11 @@ for _, pluginObject in
 		"ValidationErrorValue",
 		"StageMoreMenu",
 		"PROJECT MENU",
+		"StageSelector",
+		"StageDropdown",
+		"VectorIcon",
+		"ToggleExtra",
+		"setNavigationSelected",
 		"Focus authoring area",
 		"Hide editor",
 		"+  Add node",
@@ -929,10 +964,37 @@ for _, pluginObject in
 		"paintBrushSize",
 		"paintModifierDown",
 		"Shift + drag to paint",
+		"EnemyRouteOverlay",
+		"Paint cells",
+		"Edit enemy route",
+		"ROUTE WORKFLOW",
+		"Connect ->",
+		"paintRuntime.beginRouteInteraction",
+		"paintRuntime.hitRoute",
+		"Move Stagewright route node",
+		"Shape Stagewright route spline",
+		"RouteAffected",
+		"RouteConflict_",
+		"World Path",
+		"Route Logic",
+		"Asset Preview",
+		"Perspective",
+		"Selected spline",
+		"Open World Path",
+		"workspacePreviewEnabled = false",
+		"Workspace remains unchanged",
+		"routeDragStartScreen",
+		"StagewrightPathAsset",
+		"Enum.Material.Pebble",
+		"ProjectStore.preview",
+		"UserInputService.InputChanged",
 		'GetAttribute("Column")',
 		"PaintValidationPanel",
 		"PaintInspectorBrushName",
 		"GraphMiniPreviewCanvas",
+		"GraphLevelStrip",
+		"GraphInspectorDock",
+		'activeMode == "Graph"',
 		"matching issues",
 		"selectedCellKey",
 		"Apply node",
@@ -982,6 +1044,13 @@ do
 		) ~= nil,
 		true,
 		`edit-mode grid plugin includes {pluginObject}`
+	)
+end
+for _, obsoleteToolbarGlyph in { "⌁", "▦", "✋", "⊕", "⌘", "↖" } do
+	expectEqual(
+		string.find(gridPluginSource, obsoleteToolbarGlyph, 1, true),
+		nil,
+		`Stagewright toolbar no longer depends on the {obsoleteToolbarGlyph} text glyph`
 	)
 end
 expectEqual(
@@ -1627,180 +1696,277 @@ expectEqual(
 	3,
 	"Stagewright migration is idempotent"
 )
-local authoringProject = serde.decode("json", fs.readFile("stage-data/stagewright-project.json"))
-local authoredProductionStage = authoringProject.stages.stage_default
-expectEqual(authoredProductionStage.name, "Level 1", "repository names the starting definition Level 1")
-local authoredLevelIds = StageHierarchy.sortedIds(authoringProject.stages)
-expectEqual(#authoredLevelIds, 10, "repository seeds Stage 1 with the first ten levels")
-local copiedStarterLayoutsMatch = true
-for levelNumber, levelId in authoredLevelIds do
-	local level = authoringProject.stages[levelId]
-	local address = StageHierarchy.address(level)
-	if
-		StageSchema.encodeCanonical(level.grid)
-			~= StageSchema.encodeCanonical(authoredProductionStage.grid)
-		or StageSchema.encodeCanonical(level.pathGraphs)
-			~= StageSchema.encodeCanonical(authoredProductionStage.pathGraphs)
-	then
-		copiedStarterLayoutsMatch = false
+do
+	local authoringProject = serde.decode("json", fs.readFile("stage-data/stagewright-project.json"))
+	local authoredProductionStage = authoringProject.stages.stage_default
+	expectEqual(authoredProductionStage.name, "Level 1", "repository names the starting definition Level 1")
+	expectEqual(
+		authoringProject.metadata["stagewright.approvedStarterRevision"],
+		StageStarterProject.REVISION,
+		"repository starter data records its approved replacement revision"
+	)
+	local authoredLevelIds = StageHierarchy.sortedIds(authoringProject.stages)
+	expectEqual(#authoredLevelIds, 10, "repository seeds Stage 1 with the first ten levels")
+	local copiedStarterLayoutsMatch = true
+	local uniqueGraphIds: { [string]: boolean } = {}
+	local function topologySignature(level: any): string
+		local graphId, graph = next(level.pathGraphs)
+		local names: { [string]: string } = {}
+		for nodeId, node in graph.nodes do
+			names[nodeId] = node.name
+		end
+		local routes: { string } = {}
+		for _, edge in graph.edges do
+			table.insert(
+				routes,
+				`{names[edge.fromNodeId]}->{names[edge.toNodeId]}:{edge.priority}:{#edge.predicates}`
+			)
+		end
+		table.sort(routes)
+		uniqueGraphIds[graphId] = true
+		return table.concat(routes, "|")
+	end
+	local authoredTopology = topologySignature(authoredProductionStage)
+	for levelNumber, levelId in authoredLevelIds do
+		local level = authoringProject.stages[levelId]
+		local address = StageHierarchy.address(level)
+		if
+			StageSchema.encodeCanonical(level.grid)
+				~= StageSchema.encodeCanonical(authoredProductionStage.grid)
+			or topologySignature(level) ~= authoredTopology
+		then
+			copiedStarterLayoutsMatch = false
+		end
+		expectEqual(
+			address.stageNumber == 1 and address.levelNumber == levelNumber,
+			true,
+			`authored Stage 1 level order includes Level {levelNumber}`
+		)
+		if levelNumber > 1 then
+			expectEqual(
+				level.unlockRequirements[1].stageId,
+				authoredLevelIds[levelNumber - 1],
+				`Level {levelNumber} preserves sequential progression`
+			)
+		end
 	end
 	expectEqual(
-		address.stageNumber == 1 and address.levelNumber == levelNumber,
+		copiedStarterLayoutsMatch,
 		true,
-		`authored Stage 1 level order includes Level {levelNumber}`
+		"all ten starter levels copy the same editable map and graph"
 	)
-	if levelNumber > 1 then
+	local uniqueGraphIdCount = 0
+	for _ in uniqueGraphIds do
+		uniqueGraphIdCount += 1
+	end
+	expectEqual(uniqueGraphIdCount, 10, "copied starter levels receive independent graph identities")
+	do
 		expectEqual(
-			level.unlockRequirements[1].stageId,
-			authoredLevelIds[levelNumber - 1],
-			`Level {levelNumber} preserves sequential progression`
+			StageStarterProject.isRecognizedLegacyTestProject(authoringProject),
+			false,
+			"approved starter content can never be mistaken for replaceable test data"
+		)
+		local recognizedLegacy = serde.decode("json", serde.encode("json", authoringProject))
+		recognizedLegacy.metadata["stagewright.approvedStarterRevision"] = nil
+		for _, legacyStage in recognizedLegacy.stages do
+			for _, legacyGraph in legacyStage.pathGraphs do
+				local legacyIndex = 1
+				for _, legacyNode in legacyGraph.nodes do
+					if legacyIndex <= 5 then
+						legacyNode.name = `Legacy Control {legacyIndex}`
+					end
+					legacyIndex += 1
+				end
+			end
+		end
+		expectEqual(
+			StageStarterProject.isRecognizedLegacyTestProject(recognizedLegacy),
+			true,
+			"only the exact ten-level random legacy signature authorizes starter replacement"
+		)
+		recognizedLegacy.stages[authoredLevelIds[10]] = nil
+		expectEqual(
+			StageStarterProject.isRecognizedLegacyTestProject(recognizedLegacy),
+			false,
+			"near-matching authored projects remain untouched"
 		)
 	end
-end
-expectEqual(copiedStarterLayoutsMatch, true, "all ten starter levels copy the same editable map and graph")
-do
-	local duplicateHierarchy = serde.decode("json", serde.encode("json", authoringProject))
-	duplicateHierarchy.stages[authoredLevelIds[2]].levelNumber = 1
-	local duplicateResult = StageExport.bake(duplicateHierarchy)
-	local foundDuplicateLevel = false
-	for _, issue in duplicateResult.issues do
-		if issue.code == "DuplicateLevelNumber" then
-			foundDuplicateLevel = true
+	do
+		local duplicateHierarchy = serde.decode("json", serde.encode("json", authoringProject))
+		duplicateHierarchy.stages[authoredLevelIds[2]].levelNumber = 1
+		local duplicateResult = StageExport.bake(duplicateHierarchy)
+		local foundDuplicateLevel = false
+		for _, issue in duplicateResult.issues do
+			if issue.code == "DuplicateLevelNumber" then
+				foundDuplicateLevel = true
+				break
+			end
+		end
+		expectEqual(
+			duplicateResult.bundle == nil and foundDuplicateLevel,
+			true,
+			"duplicate level numbers block deterministic export"
+		)
+	end
+	expectEqual(
+		authoredProductionStage.metadata["stagewright.layoutVersion"],
+		3,
+		"repository records the intentional production layout version"
+	)
+	expectEqual(
+		authoredProductionStage.grid.cells["4:6"].roles.EnemySpawn,
+		true,
+		"production stage provides a north spawn"
+	)
+	expectEqual(
+		authoredProductionStage.grid.cells["4:22"].roles.EnemySpawn,
+		true,
+		"production stage provides a south spawn"
+	)
+	expectEqual(
+		authoredProductionStage.grid.cells["31:14"].roles.EnemyGoal,
+		true,
+		"production goal sits opposite both spawns"
+	)
+	local authoredGraphId, authoringGraph = next(authoredProductionStage.pathGraphs)
+	local edgeByRoute: { [string]: any } = {}
+	for _, edge in authoringGraph.edges do
+		edgeByRoute[`{authoringGraph.nodes[edge.fromNodeId].name}->{authoringGraph.nodes[edge.toNodeId].name}`] =
+			edge
+	end
+	expectEqual(edgeByRoute["Rejoin->Goal"] ~= nil, true, "merged production route reaches the goal")
+	expectEqual(
+		edgeByRoute["North Spawn->Merge"] ~= nil and edgeByRoute["South Spawn->Merge"] ~= nil,
+		true,
+		"north and south spawn splines merge at one stable junction"
+	)
+	expectEqual(
+		edgeByRoute["Merge->Wave Gate"].predicates[1].kind == "WaveRange"
+			and edgeByRoute["Merge->Fallback Path"].priority == 2
+			and #edgeByRoute["Merge->Fallback Path"].predicates == 0,
+		true,
+		"production route has a wave-gated branch and unconditional fallback"
+	)
+	expectEqual(
+		edgeByRoute["Wave Gate->Rejoin"] ~= nil and edgeByRoute["Fallback Path->Rejoin"] ~= nil,
+		true,
+		"conditional and fallback branches rejoin before the goal"
+	)
+	expectEqual(
+		#authoringGraph.laneProfiles.lane_default.offsets,
+		2,
+		"production route defaults to two enemy lanes"
+	)
+	do
+		local invalidLaneStage = serde.decode("json", serde.encode("json", authoredProductionStage))
+		invalidLaneStage.pathGraphs[authoredGraphId].laneProfiles.lane_default.offsets = { -6, -2, 2, 6 }
+		local foundLaneCountError = false
+		for _, issue in StageSchema.validateStage(invalidLaneStage) do
+			if issue.code == "LaneCount" then
+				foundLaneCountError = true
+			end
+		end
+		expectEqual(foundLaneCountError, true, "stage validation rejects profiles beyond three lanes")
+	end
+	local firstExport = StageExport.bake(authoringProject)
+	local secondExport = StageExport.bake(authoringProject)
+	expectEqual(firstExport.bundle ~= nil, true, "valid Stagewright project bakes a runtime bundle")
+	expectEqual(
+		firstExport.bundle ~= nil and #firstExport.bundle.stageOrder,
+		10,
+		"runtime bundle exports all ten Stage 1 levels"
+	)
+	expectEqual(
+		firstExport.bundle ~= nil and secondExport.bundle ~= nil and firstExport.bundle.checksum,
+		secondExport.bundle ~= nil and secondExport.bundle.checksum,
+		"unchanged Stagewright exports are checksum deterministic"
+	)
+	local runtimeStage = firstExport.bundle ~= nil and firstExport.bundle.stages.stage_default or nil
+	local runtimeGraph = runtimeStage ~= nil and runtimeStage.pathGraphs[authoredGraphId] or nil
+	local autoPlaceCount = 0
+	for key, cell in authoredProductionStage.grid.cells do
+		if cell.roles ~= nil and cell.roles.AutoPlace == true then
+			autoPlaceCount += 1
+			expectEqual(
+				runtimeStage ~= nil and runtimeStage.routeNoBuildMask[key],
+				nil,
+				`production auto-place cell {key} stays outside the route corridor`
+			)
+		end
+	end
+	expectEqual(autoPlaceCount, 6, "production stage provides six safe auto-place cells")
+	local firstRuntimeEdgeId: string? = nil
+	if runtimeGraph ~= nil then
+		for edgeId in runtimeGraph.edges do
+			if firstRuntimeEdgeId == nil or edgeId < firstRuntimeEdgeId then
+				firstRuntimeEdgeId = edgeId
+			end
+		end
+	end
+	local firstRuntimeEdge = if firstRuntimeEdgeId ~= nil then runtimeGraph.edges[firstRuntimeEdgeId] else nil
+	expectEqual(
+		firstRuntimeEdge ~= nil and firstRuntimeEdge.length > 0,
+		true,
+		"runtime export includes baked edge arc length"
+	)
+	local routeMaskKey = if runtimeStage ~= nil then next(runtimeStage.routeNoBuildMask) else nil
+	expectEqual(
+		routeMaskKey ~= nil,
+		true,
+		"runtime export derives route reservation without rewriting authored cells"
+	)
+	expectEqual(
+		firstRuntimeEdgeId ~= nil and authoringGraph.edges[firstRuntimeEdgeId].samples,
+		nil,
+		"runtime baking does not mutate the authoring working copy"
+	)
+	local traversalConflict = serde.decode("json", serde.encode("json", authoringProject))
+	local conflictingCell = traversalConflict.stages.stage_default.grid.cells[routeMaskKey] or {}
+	conflictingCell.enemyTraversalPolicy = "Blocked"
+	traversalConflict.stages.stage_default.grid.cells[routeMaskKey] = conflictingCell
+	local conflictExport = StageExport.bake(traversalConflict)
+	expectEqual(conflictExport.bundle, nil, "enemy-blocked route corridors prevent export")
+	local foundTraversalConflict = false
+	for _, issue in conflictExport.issues do
+		if issue.code == "RouteTraversalConflict" and issue.objectId == routeMaskKey then
+			foundTraversalConflict = true
 			break
 		end
 	end
-	expectEqual(
-		duplicateResult.bundle == nil and foundDuplicateLevel,
-		true,
-		"duplicate level numbers block deterministic export"
-	)
-end
-expectEqual(
-	authoredProductionStage.metadata["stagewright.layoutVersion"],
-	2,
-	"repository records the intentional production layout version"
-)
-expectEqual(
-	authoredProductionStage.grid.cells["30:22"].roles.EnemySpawn,
-	true,
-	"production spawn is at the island rim"
-)
-expectEqual(
-	authoredProductionStage.grid.cells["30:6"].roles.EnemySpawn,
-	true,
-	"production stage provides a second outer spawn"
-)
-expectEqual(
-	authoredProductionStage.grid.cells["3:6"].roles.EnemyGoal,
-	true,
-	"production goal faces the shared center"
-)
-expectEqual(
-	authoredProductionStage.pathGraphs.graph_main.edges.edge_006.toNodeId,
-	"node_goal",
-	"merged production route reaches the center goal"
-)
-expectEqual(
-	authoredProductionStage.pathGraphs.graph_main.edges.edge_002.toNodeId == "node_bend_02"
-		and authoredProductionStage.pathGraphs.graph_main.edges.edge_008.toNodeId == "node_bend_02",
-	true,
-	"upper and lower spawn splines merge at one stable junction"
-)
-expectEqual(
-	#authoredProductionStage.pathGraphs.graph_main.laneProfiles.lane_default.offsets,
-	2,
-	"production route defaults to two enemy lanes"
-)
-do
-	local invalidLaneStage = serde.decode("json", serde.encode("json", authoredProductionStage))
-	invalidLaneStage.pathGraphs.graph_main.laneProfiles.lane_default.offsets = { -6, -2, 2, 6 }
-	local foundLaneCountError = false
-	for _, issue in StageSchema.validateStage(invalidLaneStage) do
-		if issue.code == "LaneCount" then
-			foundLaneCountError = true
-		end
-	end
-	expectEqual(foundLaneCountError, true, "stage validation rejects profiles beyond three lanes")
-end
-local firstExport = StageExport.bake(authoringProject)
-local secondExport = StageExport.bake(authoringProject)
-expectEqual(firstExport.bundle ~= nil, true, "valid Stagewright project bakes a runtime bundle")
-expectEqual(
-	firstExport.bundle ~= nil and #firstExport.bundle.stageOrder,
-	10,
-	"runtime bundle exports all ten Stage 1 levels"
-)
-expectEqual(
-	firstExport.bundle ~= nil and secondExport.bundle ~= nil and firstExport.bundle.checksum,
-	secondExport.bundle ~= nil and secondExport.bundle.checksum,
-	"unchanged Stagewright exports are checksum deterministic"
-)
-local runtimeStage = firstExport.bundle ~= nil and firstExport.bundle.stages.stage_default or nil
-local runtimeGraph = runtimeStage ~= nil and runtimeStage.pathGraphs.graph_main or nil
-local autoPlaceCount = 0
-for key, cell in authoredProductionStage.grid.cells do
-	if cell.roles ~= nil and cell.roles.AutoPlace == true then
-		autoPlaceCount += 1
+	expectEqual(foundTraversalConflict, true, "route conflict validation identifies the authored cell")
+	do
+		local preview = StageExport.preview(traversalConflict.stages.stage_default)
+		local previewGraph = if preview ~= nil then preview.pathGraphs[authoredGraphId] else nil
+		local previewEdge = if previewGraph ~= nil then previewGraph.edges[firstRuntimeEdgeId] else nil
 		expectEqual(
-			runtimeStage ~= nil and runtimeStage.routeNoBuildMask[key],
+			preview ~= nil and preview.routeNoBuildMask[routeMaskKey] == true,
+			true,
+			"invalid working stages still expose the derived route footprint to the editor"
+		)
+		expectEqual(
+			previewEdge ~= nil and #previewEdge.samples > 1,
+			true,
+			"invalid working stages still bake their visible spline preview"
+		)
+		expectEqual(
+			traversalConflict.stages.stage_default.pathGraphs[authoredGraphId].edges[firstRuntimeEdgeId].samples,
 			nil,
-			`production auto-place cell {key} stays outside the route corridor`
+			"editor route preview does not mutate authored graph data"
 		)
 	end
+	local coincidentEdge = serde.decode("json", serde.encode("json", authoringProject))
+	local coincidentGraph = coincidentEdge.stages.stage_default.pathGraphs[authoredGraphId]
+	local zeroEdge = coincidentGraph.edges[firstRuntimeEdgeId]
+	local zeroFromPosition = coincidentGraph.nodes[zeroEdge.fromNodeId].position
+	coincidentGraph.nodes[zeroEdge.toNodeId].position = {
+		x = zeroFromPosition.x,
+		y = zeroFromPosition.y,
+		z = zeroFromPosition.z,
+	}
+	zeroEdge.outHandleOffset = { x = 0, y = 0, z = 0 }
+	zeroEdge.inHandleOffset = { x = 0, y = 0, z = 0 }
+	expectEqual(StageExport.bake(coincidentEdge).bundle, nil, "zero-length Bezier edges prevent export")
 end
-expectEqual(autoPlaceCount, 6, "production stage provides six safe auto-place cells")
-local firstRuntimeEdgeId: string? = nil
-if runtimeGraph ~= nil then
-	for edgeId in runtimeGraph.edges do
-		if firstRuntimeEdgeId == nil or edgeId < firstRuntimeEdgeId then
-			firstRuntimeEdgeId = edgeId
-		end
-	end
-end
-local firstRuntimeEdge = if firstRuntimeEdgeId ~= nil then runtimeGraph.edges[firstRuntimeEdgeId] else nil
-expectEqual(
-	firstRuntimeEdge ~= nil and firstRuntimeEdge.length > 0,
-	true,
-	"runtime export includes baked edge arc length"
-)
-local routeMaskKey = if runtimeStage ~= nil then next(runtimeStage.routeNoBuildMask) else nil
-expectEqual(
-	routeMaskKey ~= nil,
-	true,
-	"runtime export derives route reservation without rewriting authored cells"
-)
-local authoringGraph = authoringProject.stages.stage_default.pathGraphs.graph_main
-expectEqual(
-	firstRuntimeEdgeId ~= nil and authoringGraph.edges[firstRuntimeEdgeId].samples,
-	nil,
-	"runtime baking does not mutate the authoring working copy"
-)
-local traversalConflict = serde.decode("json", serde.encode("json", authoringProject))
-local conflictingCell = traversalConflict.stages.stage_default.grid.cells[routeMaskKey] or {}
-conflictingCell.enemyTraversalPolicy = "Blocked"
-traversalConflict.stages.stage_default.grid.cells[routeMaskKey] = conflictingCell
-local conflictExport = StageExport.bake(traversalConflict)
-expectEqual(conflictExport.bundle, nil, "enemy-blocked route corridors prevent export")
-local foundTraversalConflict = false
-for _, issue in conflictExport.issues do
-	if issue.code == "RouteTraversalConflict" and issue.objectId == routeMaskKey then
-		foundTraversalConflict = true
-		break
-	end
-end
-expectEqual(foundTraversalConflict, true, "route conflict validation identifies the authored cell")
-local coincidentEdge = serde.decode("json", serde.encode("json", authoringProject))
-local coincidentGraph = coincidentEdge.stages.stage_default.pathGraphs.graph_main
-local zeroEdge = coincidentGraph.edges[firstRuntimeEdgeId]
-local zeroFromPosition = coincidentGraph.nodes[zeroEdge.fromNodeId].position
-coincidentGraph.nodes[zeroEdge.toNodeId].position = {
-	x = zeroFromPosition.x,
-	y = zeroFromPosition.y,
-	z = zeroFromPosition.z,
-}
-zeroEdge.outHandleOffset = { x = 0, y = 0, z = 0 }
-zeroEdge.inHandleOffset = { x = 0, y = 0, z = 0 }
-expectEqual(StageExport.bake(coincidentEdge).bundle, nil, "zero-length Bezier edges prevent export")
 
 -- Rune altar: weighted rolls, pity, flat configured cost, and permanent multiplier.
 expectEqual(

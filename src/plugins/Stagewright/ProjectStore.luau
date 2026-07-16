@@ -13,6 +13,7 @@ local StageLegacy = require(Shared.StageLegacy)
 local StageLanes = require(Shared.StageLanes)
 local StagePayload = require(Shared.StagePayload)
 local StageSchema = require(Shared.StageSchema)
+local StageStarterProject = require(Shared.StageStarterProject)
 
 local ProjectStore = {}
 
@@ -21,6 +22,7 @@ local PAYLOAD_NAME = "Payload"
 local project: any = nil
 local recording: any = nil
 local writingPayload = false
+local previewCache: { [string]: { signature: string, stage: any } } = {}
 
 local function configuredStarterLevelCount(): number
 	local template = ReplicatedStorage:FindFirstChild("Template")
@@ -279,7 +281,21 @@ function ProjectStore.load(platformOverride: Instance?): any
 		local decoded, loadError = storedProject(folder)
 		if decoded ~= nil then
 			project = StageSchema.migrateProject(decoded)
-			ProjectStore.ensureStarterLevels(configuredStarterLevelCount())
+			if StageStarterProject.isRecognizedLegacyTestProject(project) then
+				project = StageStarterProject.build(
+					configuredStarterLevelCount(),
+					guid,
+					"stage_default",
+					"stage_group_1"
+				)
+				folder:SetAttribute("AuthorizedStarterReplacementRevision", StageStarterProject.REVISION)
+				folder:SetAttribute(
+					"AuthorizedStarterReplacementStatus",
+					"Replaced recognized legacy test data"
+				)
+			else
+				ProjectStore.ensureStarterLevels(configuredStarterLevelCount())
+			end
 			ProjectStore.save()
 			return project
 		end
@@ -310,6 +326,31 @@ function ProjectStore.save(): string
 	folder:SetAttribute("SchemaVersion", StageSchema.AUTHORING_VERSION)
 	folder:SetAttribute("WorkingChecksum", checksum)
 	return checksum
+end
+
+function ProjectStore.preview(stageId: string): any?
+	local source = ProjectStore.get().stages[stageId]
+	if source == nil then
+		return nil
+	end
+	local signature = StageSchema.checksum({
+		grid = {
+			columns = source.grid.columns,
+			rows = source.grid.rows,
+			cellSize = source.grid.cellSize,
+		},
+		pathGraphs = source.pathGraphs,
+	})
+	local cached = previewCache[stageId]
+	if cached ~= nil and cached.signature == signature then
+		return cached.stage
+	end
+	local preview = StageExport.preview(source)
+	if preview ~= nil then
+		preview.routePreviewSignature = signature
+		previewCache[stageId] = { signature = signature, stage = preview }
+	end
+	return preview
 end
 
 function ProjectStore.workingChecksum(): string

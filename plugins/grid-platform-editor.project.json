@@ -11,6 +11,9 @@
     "RouteOverview": {
       "$path": "../src/plugins/Stagewright/RouteOverview.luau"
     },
+    "WorldPathView": {
+      "$path": "../src/plugins/Stagewright/WorldPathView.luau"
+    },
     "Shared": {
       "$className": "Folder",
       "StagePath": {
@@ -36,6 +39,9 @@
       },
       "StageSchema": {
         "$path": "../src/shared/StageSchema.luau"
+      },
+      "StageStarterProject": {
+        "$path": "../src/shared/StageStarterProject.luau"
       },
       "StagePayload": {
         "$path": "../src/shared/StagePayload.luau"

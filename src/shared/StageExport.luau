@@ -107,6 +107,23 @@ local function routeMask(stage: any): { [string]: boolean }
 	return mask
 end
 
+-- Builds the exact route data used by runtime export without requiring the
+-- entire project to validate. Editor previews must stay available while a
+-- designer is fixing invalid cells, predicates, or catalog references.
+function StageExport.preview(stage: any): any?
+	if type(stage) ~= "table" or type(stage.grid) ~= "table" or type(stage.pathGraphs) ~= "table" then
+		return nil
+	end
+	local preview = clone(stage)
+	for _, graph in preview.pathGraphs do
+		if type(graph) == "table" and type(graph.nodes) == "table" and type(graph.edges) == "table" then
+			pcall(bakeGraph, graph)
+		end
+	end
+	preview.routeNoBuildMask = routeMask(preview)
+	return preview
+end
+
 function StageExport.bake(project: any): ExportResult
 	local issues: { StageSchema.Issue } = {}
 	if type(project) ~= "table" or type(project.stages) ~= "table" then
