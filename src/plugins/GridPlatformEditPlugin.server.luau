@@ -4363,6 +4363,8 @@ end
 -- opaque surface during rollout so existing undo/action callbacks are not
 -- discarded while the new workflow is exercised in Studio.
 do
+	local flowUi = {} :: any
+
 	local function flowNodeName(node: any?): string
 		if node ~= nil and type(node.name) == "string" and node.name ~= "" then
 			return node.name
@@ -4379,7 +4381,7 @@ do
 		return Color3.fromRGB(60, 139, 214)
 	end
 
-	local flowRoot = create("Frame", {
+	flowUi.flowRoot = create("Frame", {
 		Active = true,
 		BackgroundColor3 = COLORS.background,
 		BorderSizePixel = 0,
@@ -4387,12 +4389,12 @@ do
 		Size = UDim2.fromScale(1, 1),
 		ZIndex = 60,
 	}, graphPage) :: Frame
-	local viewBar = create("Frame", {
+	flowUi.viewBar = create("Frame", {
 		BackgroundColor3 = COLORS.panel,
 		BorderSizePixel = 0,
 		Size = UDim2.new(1, 0, 0, 52),
 		ZIndex = 61,
-	}, flowRoot) :: Frame
+	}, flowUi.flowRoot) :: Frame
 	create("Frame", {
 		AnchorPoint = Vector2.new(0, 1),
 		BackgroundColor3 = COLORS.border,
@@ -4400,8 +4402,8 @@ do
 		Position = UDim2.fromScale(0, 1),
 		Size = UDim2.new(1, 0, 0, 1),
 		ZIndex = 62,
-	}, viewBar)
-	local viewButtons: { [GraphViewMode]: TextButton } = {} :: any
+	}, flowUi.viewBar)
+	flowUi.viewButtons = {} :: { [GraphViewMode]: TextButton }
 	for order, definition in
 		{
 			{ id = "World", label = "World Path", icon = "world" },
@@ -4409,7 +4411,7 @@ do
 		}
 	do
 		local mode = definition.id :: GraphViewMode
-		local viewButton = button(viewBar, definition.label, 112, function()
+		local viewButton = button(flowUi.viewBar, definition.label, 112, function()
 			flowRuntime.mode = mode
 			flowRuntime.render()
 		end)
@@ -4418,9 +4420,9 @@ do
 		viewButton.ZIndex = 63
 		Toolbar.styleIconButton(viewButton, definition.label, definition.icon, COLORS.muted)
 		viewButton.TextSize = 14
-		viewButtons[mode] = viewButton
+		flowUi.viewButtons[mode] = viewButton
 	end
-	local flowLevel = create("TextLabel", {
+	flowUi.flowLevel = create("TextLabel", {
 		AnchorPoint = Vector2.new(1, 0),
 		BackgroundTransparency = 1,
 		Font = Enum.Font.BuilderSansMedium,
@@ -4432,34 +4434,34 @@ do
 		TextXAlignment = Enum.TextXAlignment.Right,
 		Visible = false,
 		ZIndex = 62,
-	}, viewBar) :: TextLabel
-	create("UIPadding", { PaddingRight = UDim.new(0, 14) }, flowLevel)
+	}, flowUi.viewBar) :: TextLabel
+	create("UIPadding", { PaddingRight = UDim.new(0, 14) }, flowUi.flowLevel)
 
-	local actionBar = create("Frame", {
+	flowUi.actionBar = create("Frame", {
 		BackgroundColor3 = COLORS.surface,
 		BorderSizePixel = 0,
 		Position = UDim2.fromOffset(0, 52),
 		Size = UDim2.new(1, 0, 0, 56),
 		ZIndex = 61,
-	}, flowRoot) :: Frame
-	local actionX = 10
-	local function action(
+	}, flowUi.flowRoot) :: Frame
+	flowUi.actionX = 10
+	flowUi.action = function(
 		label: string,
 		iconKind: string,
 		iconColor: Color3,
 		width: number,
 		callback: () -> ()
 	): TextButton
-		local result = button(actionBar, label, width, callback)
-		result.Position = UDim2.fromOffset(actionX, 10)
+		local result = button(flowUi.actionBar, label, width, callback)
+		result.Position = UDim2.fromOffset(flowUi.actionX, 10)
 		result.Size = UDim2.fromOffset(width, 36)
 		result.ZIndex = 63
 		Toolbar.styleIconButton(result, label, iconKind, iconColor)
-		actionX += width + 6
+		flowUi.actionX += width + 6
 		return result
 	end
 
-	local function setLaneCount(edgeId: string, laneCount: number)
+	flowUi.setLaneCount = function(edgeId: string, laneCount: number)
 		local currentGraph = graph()
 		local edge = if currentGraph ~= nil then currentGraph.edges[edgeId] else nil
 		if currentGraph == nil or edge == nil then
@@ -4492,7 +4494,7 @@ do
 		renderAll()
 	end
 
-	local function splitSelected()
+	flowUi.splitSelected = function()
 		local currentGraph = graph()
 		local edgeId = selectedEdgeId
 		local edge = if currentGraph ~= nil and edgeId ~= nil then currentGraph.edges[edgeId] else nil
@@ -4553,41 +4555,41 @@ do
 		renderAll()
 	end
 
-	local selectAction = action("Select", "select", COLORS.text, 86, function()
+	flowUi.selectAction = flowUi.action("Select", "select", COLORS.text, 86, function()
 		connectFromNodeId = nil
 		setStatus("Select a route marker or gravel spline.")
 	end)
-	Toolbar.setNavigationSelected(selectAction, true)
-	action("Pan", "pan", COLORS.text, 74, function()
+	Toolbar.setNavigationSelected(flowUi.selectAction, true)
+	flowUi.action("Pan", "pan", COLORS.text, 74, function()
 		connectFromNodeId = nil
 		setStatus("Drag empty canvas space to navigate the route view.")
 	end)
-	action("Add Spawn", "spawn", Color3.fromRGB(71, 209, 111), 112, function()
+	flowUi.action("Add Spawn", "spawn", Color3.fromRGB(71, 209, 111), 112, function()
 		mutate("Add Stagewright spawn", function()
 			newNode("Spawn")
 		end)
 		renderAll()
 	end)
-	action("Add Junction", "junction", Color3.fromRGB(244, 158, 38), 126, function()
+	flowUi.action("Add Junction", "junction", Color3.fromRGB(244, 158, 38), 126, function()
 		mutate("Add Stagewright junction", function()
 			newNode("Junction")
 		end)
 		renderAll()
 	end)
-	action("Add Goal", "goal", Color3.fromRGB(145, 80, 232), 106, function()
+	flowUi.action("Add Goal", "goal", Color3.fromRGB(145, 80, 232), 106, function()
 		mutate("Add Stagewright goal", function()
 			newNode("Goal")
 		end)
 		renderAll()
 	end)
-	action("Connect", "connect", COLORS.text, 100, function()
+	flowUi.action("Connect", "connect", COLORS.text, 100, function()
 		connectFromNodeId = selectedNodeId
 		setStatus(
 			if connectFromNodeId ~= nil then "Select the destination node." else "Select a start node first."
 		)
 	end)
-	action("Split", "split", COLORS.text, 82, splitSelected)
-	local toolHint = create("TextLabel", {
+	flowUi.action("Split", "split", COLORS.text, 82, flowUi.splitSelected)
+	flowUi.toolHint = create("TextLabel", {
 		AnchorPoint = Vector2.new(1, 0),
 		BackgroundTransparency = 1,
 		Font = Enum.Font.BuilderSans,
@@ -4597,10 +4599,10 @@ do
 		TextColor3 = COLORS.muted,
 		TextSize = 10,
 		TextXAlignment = Enum.TextXAlignment.Right,
+		Visible = false,
 		ZIndex = 62,
-	}, actionBar) :: TextLabel
-	create("UIPadding", { PaddingRight = UDim.new(0, 14) }, toolHint)
-	toolHint.Visible = false
+	}, flowUi.actionBar) :: TextLabel
+	create("UIPadding", { PaddingRight = UDim.new(0, 14) }, flowUi.toolHint)
 
 	flowRuntime.worldControls = create("Frame", {
 		AnchorPoint = Vector2.new(1, 0),
@@ -4608,7 +4610,7 @@ do
 		Position = UDim2.new(1, -10, 0, 0),
 		Size = UDim2.fromOffset(810, 56),
 		ZIndex = 63,
-	}, actionBar) :: Frame
+	}, flowUi.actionBar) :: Frame
 	create("UIListLayout", {
 		FillDirection = Enum.FillDirection.Horizontal,
 		HorizontalAlignment = Enum.HorizontalAlignment.Right,
@@ -4623,7 +4625,7 @@ do
 		Size = UDim2.fromOffset(460, 56),
 		Visible = false,
 		ZIndex = 63,
-	}, actionBar) :: Frame
+	}, flowUi.actionBar) :: Frame
 	create("UIListLayout", {
 		FillDirection = Enum.FillDirection.Horizontal,
 		HorizontalAlignment = Enum.HorizontalAlignment.Right,
@@ -4746,13 +4748,13 @@ do
 		end
 	)
 	Toolbar.setNavigationSelected(flowRuntime.optionButtons.top, true)
-	local fitAction = flowRuntime.modeAction(flowRuntime.worldControls, "Fit", 68, function()
+	flowUi.fitAction = flowRuntime.modeAction(flowRuntime.worldControls, "Fit", 68, function()
 		local worldView = flowRuntime.view
 		if worldView ~= nil then
 			worldView:rerender()
 		end
 	end)
-	Toolbar.styleIconButton(fitAction, "Fit", "fit", COLORS.muted)
+	Toolbar.styleIconButton(flowUi.fitAction, "Fit", "fit", COLORS.muted)
 	flowRuntime.optionButtons.logicLanes = flowRuntime.modeAction(
 		flowRuntime.logicControls,
 		"Show lanes",
@@ -4798,25 +4800,25 @@ do
 		flowRuntime.optionButtons.logicZoom.Text = `{math.round(routeOverview.zoom * 100)}%`
 	end
 
-	local worldHost = create("Frame", {
+	flowUi.worldHost = create("Frame", {
 		BackgroundColor3 = COLORS.background,
 		BorderSizePixel = 0,
 		Position = UDim2.fromOffset(0, 108),
 		Size = UDim2.new(1, 0, 1, -108),
 		ZIndex = 61,
-	}, flowRoot) :: Frame
-	local logicHost = create("Frame", {
+	}, flowUi.flowRoot) :: Frame
+	flowUi.logicHost = create("Frame", {
 		BackgroundColor3 = COLORS.background,
 		BorderSizePixel = 0,
 		Position = UDim2.fromOffset(0, 108),
 		Size = UDim2.new(1, 0, 1, -108),
 		Visible = false,
 		ZIndex = 61,
-	}, flowRoot) :: Frame
-	routeOverview.root.Parent = logicHost
+	}, flowUi.flowRoot) :: Frame
+	routeOverview.root.Parent = flowUi.logicHost
 	routeOverview.root.ZIndex = 62
 
-	local logicInspector = create("Frame", {
+	flowUi.logicInspector = create("Frame", {
 		AnchorPoint = Vector2.new(1, 0),
 		BackgroundColor3 = COLORS.panel,
 		BorderSizePixel = 0,
@@ -4824,17 +4826,17 @@ do
 		Size = UDim2.fromOffset(300, 520),
 		Visible = false,
 		ZIndex = 80,
-	}, logicHost) :: Frame
-	create("UICorner", { CornerRadius = UDim.new(0, 8) }, logicInspector)
-	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, logicInspector)
-	local logicInspectorContent = create("Frame", {
+	}, flowUi.logicHost) :: Frame
+	create("UICorner", { CornerRadius = UDim.new(0, 8) }, flowUi.logicInspector)
+	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, flowUi.logicInspector)
+	flowUi.logicInspectorContent = create("Frame", {
 		BackgroundTransparency = 1,
 		Position = UDim2.fromOffset(10, 10),
 		Size = UDim2.new(1, -20, 1, -20),
 		ZIndex = 81,
-	}, logicInspector) :: Frame
+	}, flowUi.logicInspector) :: Frame
 
-	local rulesPanel = create("Frame", {
+	flowUi.rulesPanel = create("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		BackgroundColor3 = COLORS.panel,
 		BorderSizePixel = 0,
@@ -4842,9 +4844,9 @@ do
 		Size = UDim2.fromOffset(560, 330),
 		Visible = false,
 		ZIndex = 86,
-	}, logicHost) :: Frame
-	create("UICorner", { CornerRadius = UDim.new(0, 9) }, rulesPanel)
-	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, rulesPanel)
+	}, flowUi.logicHost) :: Frame
+	create("UICorner", { CornerRadius = UDim.new(0, 9) }, flowUi.rulesPanel)
+	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, flowUi.rulesPanel)
 	create("TextLabel", {
 		BackgroundTransparency = 1,
 		Font = Enum.Font.BuilderSansBold,
@@ -4855,7 +4857,7 @@ do
 		TextSize = 14,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 87,
-	}, rulesPanel)
+	}, flowUi.rulesPanel)
 	create("TextLabel", {
 		BackgroundTransparency = 1,
 		Font = Enum.Font.BuilderSans,
@@ -4868,14 +4870,14 @@ do
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
 		ZIndex = 87,
-	}, rulesPanel)
-	local closeRules = button(rulesPanel, "Close", 64, function()
-		rulesPanel.Visible = false
+	}, flowUi.rulesPanel)
+	flowUi.closeRules = button(flowUi.rulesPanel, "Close", 64, function()
+		flowUi.rulesPanel.Visible = false
 	end)
-	closeRules.Position = UDim2.new(1, -78, 0, 10)
-	closeRules.Size = UDim2.fromOffset(64, 28)
-	closeRules.ZIndex = 88
-	rulesControls.Parent = rulesPanel
+	flowUi.closeRules.Position = UDim2.new(1, -78, 0, 10)
+	flowUi.closeRules.Size = UDim2.fromOffset(64, 28)
+	flowUi.closeRules.ZIndex = 88
+	rulesControls.Parent = flowUi.rulesPanel
 	rulesControls.Position = UDim2.fromOffset(14, 88)
 	rulesControls.Size = UDim2.new(1, -28, 1, -102)
 	rulesControls.Visible = true
@@ -4886,7 +4888,7 @@ do
 		end
 	end
 
-	local routeTest = create("Frame", {
+	flowUi.routeTest = create("Frame", {
 		AnchorPoint = Vector2.new(0, 1),
 		BackgroundColor3 = COLORS.panel,
 		BorderSizePixel = 0,
@@ -4894,8 +4896,8 @@ do
 		Size = UDim2.new(1, -340, 0, 136),
 		Visible = false,
 		ZIndex = 65,
-	}, flowRoot) :: Frame
-	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, routeTest)
+	}, flowUi.flowRoot) :: Frame
+	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, flowUi.routeTest)
 	create("TextLabel", {
 		BackgroundTransparency = 1,
 		Font = Enum.Font.BuilderSansBold,
@@ -4906,8 +4908,8 @@ do
 		TextSize = 12,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 66,
-	}, routeTest)
-	local traceWave = create("TextBox", {
+	}, flowUi.routeTest)
+	flowUi.traceWave = create("TextBox", {
 		BackgroundColor3 = COLORS.field,
 		BorderSizePixel = 0,
 		ClearTextOnFocus = false,
@@ -4918,10 +4920,10 @@ do
 		TextColor3 = COLORS.text,
 		TextSize = 11,
 		ZIndex = 67,
-	}, routeTest) :: TextBox
-	create("UICorner", { CornerRadius = UDim.new(0, 6) }, traceWave)
-	create("UIStroke", { Color = COLORS.border, Thickness = 1 }, traceWave)
-	local traceResult = create("TextLabel", {
+	}, flowUi.routeTest) :: TextBox
+	create("UICorner", { CornerRadius = UDim.new(0, 6) }, flowUi.traceWave)
+	create("UIStroke", { Color = COLORS.border, Thickness = 1 }, flowUi.traceWave)
+	flowUi.traceResult = create("TextLabel", {
 		BackgroundColor3 = COLORS.surface,
 		BorderSizePixel = 0,
 		Font = Enum.Font.BuilderSansMedium,
@@ -4934,10 +4936,10 @@ do
 		TextWrapped = true,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 67,
-	}, routeTest) :: TextLabel
-	create("UICorner", { CornerRadius = UDim.new(0, 6) }, traceResult)
-	create("UIPadding", { PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12) }, traceResult)
-	local playTrace = button(routeTest, "Play Trace", 160, function()
+	}, flowUi.routeTest) :: TextLabel
+	create("UICorner", { CornerRadius = UDim.new(0, 6) }, flowUi.traceResult)
+	create("UIPadding", { PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12) }, flowUi.traceResult)
+	flowUi.playTrace = button(flowUi.routeTest, "Play Trace", 160, function()
 		local currentGraph = graph()
 		if currentGraph == nil then
 			return
@@ -4958,7 +4960,7 @@ do
 			return
 		end
 		local trace = StageTrace.trace(currentGraph, spawnId, {
-			wave = tonumber(traceWave.Text) or 1,
+			wave = tonumber(flowUi.traceWave.Text) or 1,
 			stageFlags = {},
 			enemyTags = {},
 			nodeVisits = {},
@@ -4976,17 +4978,17 @@ do
 			end
 		end
 		selectedEdgeId = trace.edgeIds[1]
-		traceResult.Text = `{table.concat(path, "  →  ")}\n{if trace.reachedGoal
+		flowUi.traceResult.Text = `{table.concat(path, "  →  ")}\n{if trace.reachedGoal
 			then "✓  Trace completed successfully"
 			else trace.stoppedReason}`
-		traceResult.TextColor3 = if trace.reachedGoal then COLORS.success else COLORS.warning
+		flowUi.traceResult.TextColor3 = if trace.reachedGoal then COLORS.success else COLORS.warning
 		renderAll()
 	end)
-	playTrace.Position = UDim2.fromOffset(456, 54)
-	playTrace.Size = UDim2.fromOffset(124, 34)
-	playTrace.Text = "▶  Play Trace"
-	playTrace.BackgroundColor3 = COLORS.accent
-	playTrace.ZIndex = 67
+	flowUi.playTrace.Position = UDim2.fromOffset(456, 54)
+	flowUi.playTrace.Size = UDim2.fromOffset(124, 34)
+	flowUi.playTrace.Text = "▶  Play Trace"
+	flowUi.playTrace.BackgroundColor3 = COLORS.accent
+	flowUi.playTrace.ZIndex = 67
 	flowRuntime.traceChip = function(parent: Frame, x: number, width: number, text: string)
 		local label = create("TextLabel", {
 			BackgroundColor3 = COLORS.field,
@@ -5002,9 +5004,9 @@ do
 		create("UICorner", { CornerRadius = UDim.new(0, 6) }, label)
 		create("UIStroke", { Color = COLORS.border, Thickness = 1 }, label)
 	end
-	flowRuntime.traceChip(routeTest, 14, 126, "Basic                 ⌄")
-	flowRuntime.traceChip(routeTest, 238, 104, "Auto                 ⌄")
-	flowRuntime.traceChip(routeTest, 354, 88, "1×                 ⌄")
+	flowRuntime.traceChip(flowUi.routeTest, 14, 126, "Basic                 ⌄")
+	flowRuntime.traceChip(flowUi.routeTest, 238, 104, "Auto                 ⌄")
+	flowRuntime.traceChip(flowUi.routeTest, 354, 88, "1×                 ⌄")
 	for _, definition in
 		{
 			{ "ENEMY", 14, 126 },
@@ -5023,7 +5025,7 @@ do
 			TextSize = 9,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			ZIndex = 67,
-		}, routeTest)
+		}, flowUi.routeTest)
 	end
 	create("TextLabel", {
 		BackgroundTransparency = 1,
@@ -5035,10 +5037,10 @@ do
 		TextSize = 9,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		ZIndex = 66,
-	}, routeTest)
+	}, flowUi.routeTest)
 
-	local dragRecording = false
-	flowRuntime.view = flowRuntime.viewModule.new(worldHost, COLORS, {
+	flowUi.dragRecording = false
+	flowRuntime.view = flowRuntime.viewModule.new(flowUi.worldHost, COLORS, {
 		selectNode = function(nodeId: string)
 			if connectFromNodeId ~= nil and connectFromNodeId ~= nodeId then
 				local fromId = connectFromNodeId
@@ -5064,9 +5066,9 @@ do
 			if node == nil then
 				return
 			end
-			if not dragRecording then
+			if not flowUi.dragRecording then
 				ProjectStore.begin("Move Stagewright route node")
-				dragRecording = true
+				flowUi.dragRecording = true
 			end
 			node.position = { x = position.x, y = node.position.y, z = position.z }
 			local worldView = flowRuntime.view
@@ -5075,7 +5077,7 @@ do
 			end
 			if finished then
 				ProjectStore.finish(true)
-				dragRecording = false
+				flowUi.dragRecording = false
 				setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
 				renderAll()
 			end
@@ -5086,9 +5088,9 @@ do
 			if edge == nil then
 				return
 			end
-			if not dragRecording then
+			if not flowUi.dragRecording then
 				ProjectStore.begin("Shape Stagewright route spline")
-				dragRecording = true
+				flowUi.dragRecording = true
 			end
 			if handleId == "Out" then
 				edge.outHandleOffset = offset
@@ -5101,12 +5103,12 @@ do
 			end
 			if finished then
 				ProjectStore.finish(true)
-				dragRecording = false
+				flowUi.dragRecording = false
 				setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
 				renderAll()
 			end
 		end,
-		setLanes = setLaneCount,
+		setLanes = flowUi.setLaneCount,
 		smoothEdge = function(edgeId: string)
 			local currentGraph = graph()
 			local edge = if currentGraph ~= nil then currentGraph.edges[edgeId] else nil
@@ -5163,7 +5165,7 @@ do
 	end
 
 	flowRuntime.renderInspector = function()
-		for _, child in logicInspectorContent:GetChildren() do
+		for _, child in flowUi.logicInspectorContent:GetChildren() do
 			if child:IsA("GuiObject") then
 				child:Destroy()
 			end
@@ -5175,27 +5177,27 @@ do
 		local edge = if currentGraph ~= nil and selectedEdgeId ~= nil
 			then currentGraph.edges[selectedEdgeId]
 			else nil
-		logicInspector.Visible = flowRuntime.mode == "Logic" and (node ~= nil or edge ~= nil)
+		flowUi.logicInspector.Visible = flowRuntime.mode == "Logic" and (node ~= nil or edge ~= nil)
 		if currentGraph == nil then
 			return
 		end
 		if node ~= nil then
-			flowRuntime.inspectorLabel(logicInspectorContent, "Selected node", 0)
+			flowRuntime.inspectorLabel(flowUi.logicInspectorContent, "Selected node", 0)
 			flowRuntime.inspectorLabel(
-				logicInspectorContent,
+				flowUi.logicInspectorContent,
 				`{string.upper(node.kind)}  |  {node.name}`,
 				34,
 				flowNodeColor(node.kind),
 				28
 			)
 			flowRuntime.inspectorLabel(
-				logicInspectorContent,
+				flowUi.logicInspectorContent,
 				`ID  {string.sub(node.id, -8)}`,
 				70,
 				COLORS.muted
 			)
 			flowRuntime.inspectorLabel(
-				logicInspectorContent,
+				flowUi.logicInspectorContent,
 				`World position  {math.round(node.position.x * 10) / 10}, {math.round(node.position.y * 10) / 10}, {math.round(
 					node.position.z * 10
 				) / 10}`,
@@ -5203,7 +5205,7 @@ do
 				COLORS.muted,
 				40
 			)
-			local showWorld = button(logicInspectorContent, "Open World Path", 248, function()
+			local showWorld = button(flowUi.logicInspectorContent, "Open World Path", 248, function()
 				flowRuntime.mode = "World"
 				flowRuntime.render()
 			end)
@@ -5230,7 +5232,7 @@ do
 					TextSize = 10,
 					TextXAlignment = Enum.TextXAlignment.Left,
 					ZIndex = 82,
-				}, logicInspectorContent) :: TextLabel
+				}, flowUi.logicInspectorContent) :: TextLabel
 				create("UICorner", { CornerRadius = UDim.new(0, 5) }, result)
 				create("UIStroke", { Color = COLORS.border, Thickness = 1 }, result)
 				create("UIPadding", {
@@ -5239,8 +5241,8 @@ do
 				}, result)
 				return result
 			end
-			flowRuntime.inspectorLabel(logicInspectorContent, "Selected spline", 0)
-			local closeInspector = button(logicInspectorContent, "×", 30, function()
+			flowRuntime.inspectorLabel(flowUi.logicInspectorContent, "Selected spline", 0)
+			local closeInspector = button(flowUi.logicInspectorContent, "×", 30, function()
 				selectedEdgeId = nil
 				renderAll()
 			end)
@@ -5248,7 +5250,7 @@ do
 			closeInspector.Size = UDim2.fromOffset(30, 28)
 			closeInspector.ZIndex = 83
 			flowRuntime.inspectorLabel(
-				logicInspectorContent,
+				flowUi.logicInspectorContent,
 				`{flowNodeName(from)}  →  {flowNodeName(to)}`,
 				30,
 				COLORS.text,
@@ -5260,19 +5262,19 @@ do
 				Position = UDim2.fromOffset(0, 62),
 				Size = UDim2.new(1, 0, 0, 1),
 				ZIndex = 82,
-			}, logicInspectorContent)
-			flowRuntime.inspectorLabel(logicInspectorContent, "LANES", 72, COLORS.muted)
+			}, flowUi.logicInspectorContent)
+			flowRuntime.inspectorLabel(flowUi.logicInspectorContent, "LANES", 72, COLORS.muted)
 			for index = 1, 3 do
 				local count = index
-				local choice = button(logicInspectorContent, tostring(count), 78, function()
-					setLaneCount(edgeId, count)
+				local choice = button(flowUi.logicInspectorContent, tostring(count), 78, function()
+					flowUi.setLaneCount(edgeId, count)
 				end)
 				choice.Position = UDim2.fromOffset(2 + (count - 1) * 86, 96)
 				choice.Size = UDim2.fromOffset(78, 32)
 				choice.ZIndex = 82
 				setButtonSelected(choice, laneCount == count)
 			end
-			flowRuntime.inspectorLabel(logicInspectorContent, "LANE WIDTH", 138, COLORS.muted)
+			flowRuntime.inspectorLabel(flowUi.logicInspectorContent, "LANE WIDTH", 138, COLORS.muted)
 			create("TextLabel", {
 				BackgroundTransparency = 1,
 				Font = Enum.Font.BuilderSansBold,
@@ -5283,9 +5285,9 @@ do
 				TextSize = 9,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				ZIndex = 82,
-			}, logicInspectorContent)
+			}, flowUi.logicInspectorContent)
 			inspectorField("4                                      studs", 2, 162, 126)
-			local priorityDown = button(logicInspectorContent, "−", 34, function()
+			local priorityDown = button(flowUi.logicInspectorContent, "−", 34, function()
 				mutate("Decrease Stagewright edge priority", function()
 					edge.priority = math.max(edge.priority - 1, 0)
 				end)
@@ -5295,7 +5297,7 @@ do
 			priorityDown.Size = UDim2.fromOffset(34, 32)
 			priorityDown.ZIndex = 82
 			inspectorField(tostring(edge.priority), 176, 162, 38)
-			local priorityUp = button(logicInspectorContent, "+", 34, function()
+			local priorityUp = button(flowUi.logicInspectorContent, "+", 34, function()
 				mutate("Increase Stagewright edge priority", function()
 					edge.priority += 1
 				end)
@@ -5304,9 +5306,9 @@ do
 			priorityUp.Position = UDim2.fromOffset(216, 162)
 			priorityUp.Size = UDim2.fromOffset(34, 32)
 			priorityUp.ZIndex = 82
-			flowRuntime.inspectorLabel(logicInspectorContent, "CURVE", 204, COLORS.muted)
+			flowRuntime.inspectorLabel(flowUi.logicInspectorContent, "CURVE", 204, COLORS.muted)
 			for index, definition in { "Smooth", "Mirrored", "Free" } do
-				local curve = button(logicInspectorContent, definition, 78, function()
+				local curve = button(flowUi.logicInspectorContent, definition, 78, function()
 					setStatus(`{definition} curve mode selected for the spline.`)
 				end)
 				curve.Position = UDim2.fromOffset(2 + (index - 1) * 86, 228)
@@ -5314,21 +5316,21 @@ do
 				curve.ZIndex = 82
 				setButtonSelected(curve, index == 1)
 			end
-			flowRuntime.inspectorLabel(logicInspectorContent, "PATH ASSET", 268, COLORS.muted)
+			flowRuntime.inspectorLabel(flowUi.logicInspectorContent, "PATH ASSET", 268, COLORS.muted)
 			inspectorField("◉  Gravel                                      ⌄", 2, 292, 248)
-			flowRuntime.inspectorLabel(logicInspectorContent, "CONDITIONS", 334, COLORS.muted)
+			flowRuntime.inspectorLabel(flowUi.logicInspectorContent, "CONDITIONS", 334, COLORS.muted)
 			local conditionText = if #edge.predicates == 0 then "+  Add condition" else "Wave ≥ 5   ×"
-			local conditionButton = button(logicInspectorContent, conditionText, 248, function()
-				rulesPanel.Visible = true
+			local conditionButton = button(flowUi.logicInspectorContent, conditionText, 248, function()
+				flowUi.rulesPanel.Visible = true
 				setStatus("Editing server-authoritative conditions for the selected spline.")
 			end)
 			conditionButton.Position = UDim2.fromOffset(2, 358)
 			conditionButton.Size = UDim2.fromOffset(248, 30)
 			conditionButton.ZIndex = 82
 			local fallbackActive = #edge.predicates == 0 and edge.priority > 1
-			flowRuntime.inspectorLabel(logicInspectorContent, "Fallback route", 398, COLORS.text)
+			flowRuntime.inspectorLabel(flowUi.logicInspectorContent, "Fallback route", 398, COLORS.text)
 			local fallbackToggle = button(
-				logicInspectorContent,
+				flowUi.logicInspectorContent,
 				if fallbackActive then "●" else "○",
 				46,
 				function()
@@ -5345,8 +5347,8 @@ do
 				Position = UDim2.fromOffset(0, 430),
 				Size = UDim2.new(1, 0, 0, 1),
 				ZIndex = 82,
-			}, logicInspectorContent)
-			local showWorld = button(logicInspectorContent, "◉  Open World Path", 156, function()
+			}, flowUi.logicInspectorContent)
+			local showWorld = button(flowUi.logicInspectorContent, "◉  Open World Path", 156, function()
 				flowRuntime.mode = "World"
 				flowRuntime.render()
 			end)
@@ -5354,7 +5356,7 @@ do
 			showWorld.Size = UDim2.fromOffset(156, 32)
 			showWorld.BackgroundColor3 = COLORS.accent
 			showWorld.ZIndex = 82
-			local deleteEdge = button(logicInspectorContent, "Delete spline", 88, function()
+			local deleteEdge = button(flowUi.logicInspectorContent, "Delete spline", 88, function()
 				paintRuntime.deleteRouteSelection()
 			end)
 			deleteEdge.Position = UDim2.fromOffset(164, 442)
@@ -5365,7 +5367,7 @@ do
 	end
 
 	flowRuntime.render = function()
-		for mode, viewButton in viewButtons do
+		for mode, viewButton in flowUi.viewButtons do
 			local selected = mode == flowRuntime.mode
 			Toolbar.setNavigationSelected(viewButton, selected)
 			Toolbar.addVectorIcon(
@@ -5380,16 +5382,16 @@ do
 		local preview = ProjectStore.preview(selectedStageId)
 		if currentStage ~= nil then
 			local address = StageHierarchy.address(currentStage)
-			flowLevel.Text = `Stage {address.stageNumber} / Level {address.levelNumber}`
+			flowUi.flowLevel.Text = `Stage {address.stageNumber} / Level {address.levelNumber}`
 		end
-		worldHost.Visible = flowRuntime.mode == "World"
-		logicHost.Visible = flowRuntime.mode == "Logic"
+		flowUi.worldHost.Visible = flowRuntime.mode == "World"
+		flowUi.logicHost.Visible = flowRuntime.mode == "Logic"
 		flowRuntime.worldControls.Visible = flowRuntime.mode == "World"
 		flowRuntime.logicControls.Visible = flowRuntime.mode == "Logic"
 		flowRuntime.refreshOptions()
-		routeTest.Visible = flowRuntime.mode == "Logic"
+		flowUi.routeTest.Visible = flowRuntime.mode == "Logic"
 		if flowRuntime.mode ~= "Logic" or selectedEdgeId == nil then
-			rulesPanel.Visible = false
+			flowUi.rulesPanel.Visible = false
 		end
 		if currentStage ~= nil then
 			local worldView = flowRuntime.view
