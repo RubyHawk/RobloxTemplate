@@ -21,7 +21,9 @@ local StagePayload = require(script.Shared.StagePayload)
 local StageTrace = require(script.Shared.StageTrace)
 local AppShell = require(script.UI.AppShell)
 local Factory = require(script.UI.Factory)
+local HeaderController = require(script.UI.HeaderController)
 local Toolbar = require(script.UI.Toolbar)
+local IssueModel = require(script.Validation.IssueModel)
 
 local PLUGIN_NAME = "Stagewright"
 local PREVIEW_TAG = "StagewrightTransientPreview"
@@ -163,11 +165,9 @@ widget.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 local shell = AppShell.new(widget)
 local root = shell.root
-local header = shell.header
 local title = shell.title
 local status = shell.status
 local modes = shell.modes
-local footerStage = shell.footerStage
 local headerValidation = shell.headerValidation
 local leftSidebar = shell.leftSidebar
 local workspace = shell.workspace
@@ -191,221 +191,51 @@ local renderGraphTools: () -> ()
 local routeOverview: RouteOverview.Controller
 local renderCanvas: () -> ()
 do
-	headerValidation.TextXAlignment = Enum.TextXAlignment.Left
-	create("UIPadding", {
-		PaddingLeft = UDim.new(0, 40),
-		PaddingRight = UDim.new(0, 12),
-	}, headerValidation)
-	Toolbar.addVectorIcon(headerValidation, "warning", COLORS.warning, 12)
-	local logo = create("Frame", {
-		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(13, 10),
-		Size = UDim2.fromOffset(32, 32),
-		ZIndex = 4,
-	}, header) :: Frame
-	for _, rotation in { 0, 45, 90, 135 } do
-		local petal = create("Frame", {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			BackgroundColor3 = COLORS.accent,
-			BorderSizePixel = 0,
-			Position = UDim2.fromScale(0.5, 0.5),
-			Rotation = rotation,
-			Size = UDim2.fromOffset(27, 8),
-			ZIndex = 4,
-		}, logo) :: Frame
-		create("UICorner", { CornerRadius = UDim.new(0, 3) }, petal)
-	end
-	local logoCore = create("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundColor3 = COLORS.text,
-		BorderSizePixel = 0,
-		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(11, 11),
-		ZIndex = 5,
-	}, logo) :: Frame
-	create("UICorner", { CornerRadius = UDim.new(0, 3) }, logoCore)
-
-	local stageSelector = create("TextButton", {
-		AutoButtonColor = false,
-		BackgroundColor3 = COLORS.surface,
-		BorderSizePixel = 0,
-		Font = Enum.Font.BuilderSansMedium,
-		Name = "StageSelector",
-		Position = UDim2.fromOffset(198, 7),
-		Size = UDim2.fromOffset(224, 38),
-		Text = "Stage 1 / Level 1",
-		TextColor3 = COLORS.text,
-		TextSize = 14,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 202,
-	}, header) :: TextButton
-	create("UICorner", { CornerRadius = UDim.new(0, 6) }, stageSelector)
-	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, stageSelector)
-	create("UIPadding", {
-		PaddingLeft = UDim.new(0, 14),
-		PaddingRight = UDim.new(0, 38),
-	}, stageSelector)
-	local stageChevron = Toolbar.addVectorIcon(stageSelector, "chevron", COLORS.muted, 0)
-	stageChevron.AnchorPoint = Vector2.new(1, 0.5)
-	stageChevron.Position = UDim2.new(1, -10, 0.5, 0)
-
-	local stageDropdown = create("Frame", {
-		BackgroundColor3 = COLORS.panel,
-		BorderSizePixel = 0,
-		Name = "StageDropdown",
-		Position = UDim2.fromOffset(198, 51),
-		Size = UDim2.fromOffset(224, 294),
-		Visible = false,
-		ZIndex = 210,
-	}, header) :: Frame
-	create("UICorner", { CornerRadius = UDim.new(0, 7) }, stageDropdown)
-	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, stageDropdown)
-	local stageDropdownList = create("ScrollingFrame", {
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		CanvasSize = UDim2.fromScale(0, 0),
-		Position = UDim2.fromOffset(7, 7),
-		ScrollBarImageColor3 = COLORS.borderStrong,
-		ScrollBarThickness = 4,
-		Size = UDim2.new(1, -14, 1, -14),
-		ZIndex = 211,
-	}, stageDropdown) :: ScrollingFrame
-	create("UIListLayout", {
-		Padding = UDim.new(0, 5),
-		SortOrder = Enum.SortOrder.LayoutOrder,
-	}, stageDropdownList)
-
+	local controller = HeaderController.new({
+		header = shell.header,
+		headerValidation = headerValidation,
+		status = status,
+		widget = widget,
+		stageOptions = function()
+			local options: { any } = {}
+			for _, stageId in ProjectStore.stageIds() do
+				local definition = project.stages[stageId]
+				if definition ~= nil then
+					local address = StageHierarchy.address(definition)
+					table.insert(options, {
+						id = stageId,
+						label = `Stage {address.stageNumber} / Level {address.levelNumber}`,
+						selected = stageId == selectedStageId,
+					})
+				end
+			end
+			return options
+		end,
+		onSelectStage = function(stageId: string)
+			selectedStageId = stageId
+			selectedGraphId = nil
+			selectedNodeId = nil
+			selectedEdgeId = nil
+			tracedEdgeIds = {}
+			renderAll()
+		end,
+		onRender = function()
+			renderAll()
+		end,
+		onSave = function()
+			return ProjectStore.save()
+		end,
+		onOpenValidation = function()
+			activeMode = "Validate"
+			renderAll()
+		end,
+		onFocusAuthoring = function()
+			AuthoringArea.focus()
+		end,
+	})
 	flowRuntime.refreshStageSelector = function()
-		local current = project.stages[selectedStageId]
-		if current ~= nil then
-			local address = StageHierarchy.address(current)
-			stageSelector.Text = `Stage {address.stageNumber} / Level {address.levelNumber}`
-		end
-		for _, child in stageDropdownList:GetChildren() do
-			if child:IsA("GuiObject") then
-				child:Destroy()
-			end
-		end
-		for order, stageId in ProjectStore.stageIds() do
-			local definition = project.stages[stageId]
-			if definition == nil then
-				continue
-			end
-			local address = StageHierarchy.address(definition)
-			local item = button(
-				stageDropdownList,
-				`Stage {address.stageNumber} / Level {address.levelNumber}`,
-				198,
-				function()
-					selectedStageId = stageId
-					selectedGraphId = nil
-					selectedNodeId = nil
-					selectedEdgeId = nil
-					tracedEdgeIds = {}
-					stageDropdown.Visible = false
-					renderAll()
-				end
-			)
-			item.LayoutOrder = order
-			item.Size = UDim2.new(1, -2, 0, 34)
-			item.TextXAlignment = Enum.TextXAlignment.Left
-			item.TextSize = 13
-			item.ZIndex = 212
-			create("UIPadding", {
-				PaddingLeft = UDim.new(0, 12),
-				PaddingRight = UDim.new(0, 12),
-			}, item)
-			if stageId == selectedStageId then
-				item.BackgroundColor3 = COLORS.accentMuted
-				item.TextColor3 = Color3.fromRGB(70, 187, 255)
-				local outline = item:FindFirstChild("Outline")
-				if outline ~= nil and outline:IsA("UIStroke") then
-					outline.Color = Color3.fromRGB(0, 100, 158)
-				end
-			end
-		end
+		controller:refreshStageSelector()
 	end
-	stageSelector.Activated:Connect(function()
-		flowRuntime.refreshStageSelector()
-		stageDropdown.Visible = not stageDropdown.Visible
-	end)
-
-	local menuPopup = create("Frame", {
-		AnchorPoint = Vector2.new(1, 0),
-		BackgroundColor3 = COLORS.panel,
-		BorderSizePixel = 0,
-		Position = UDim2.new(1, -8, 1, 6),
-		Size = UDim2.fromOffset(190, 190),
-		Visible = false,
-		ZIndex = 100,
-	}, header) :: Frame
-	create("UICorner", { CornerRadius = UDim.new(0, 8) }, menuPopup)
-	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, menuPopup)
-	create("TextLabel", {
-		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSansBold,
-		Position = UDim2.fromOffset(10, 8),
-		Size = UDim2.new(1, -20, 0, 20),
-		Text = "PROJECT MENU",
-		TextColor3 = COLORS.muted,
-		TextSize = 10,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 101,
-	}, menuPopup)
-	local function menuItem(label: string, order: number, callback: () -> ())
-		local item = button(menuPopup, label, 170, function()
-			menuPopup.Visible = false
-			callback()
-		end)
-		item.Position = UDim2.fromOffset(10, 32 + (order - 1) * 38)
-		item.Size = UDim2.new(1, -20, 0, 32)
-		item.TextXAlignment = Enum.TextXAlignment.Left
-		item.ZIndex = 101
-		create("UIPadding", { PaddingLeft = UDim.new(0, 10) }, item)
-	end
-	menuItem("Save changes", 1, function()
-		status.Text = `Saved working copy - {ProjectStore.save()}`
-		status.TextColor3 = COLORS.success
-	end)
-	menuItem("Open validation", 2, function()
-		activeMode = "Validate"
-		renderAll()
-	end)
-	menuItem("Focus authoring area", 3, function()
-		AuthoringArea.focus()
-		status.Text = "Focused the Stagewright authoring area below the shared map."
-		status.TextColor3 = COLORS.text
-	end)
-	menuItem("Hide editor", 4, function()
-		widget.Enabled = false
-	end)
-	local undo = button(header, "Undo", 82, function()
-		pcall(function()
-			game:GetService("ChangeHistoryService"):Undo()
-		end)
-		renderAll()
-	end)
-	undo.Position = UDim2.fromOffset(452, 9)
-	undo.Size = UDim2.fromOffset(82, 34)
-	Toolbar.styleIconButton(undo, "Undo", "undo", COLORS.muted)
-	local redo = button(header, "Redo", 82, function()
-		pcall(function()
-			game:GetService("ChangeHistoryService"):Redo()
-		end)
-		renderAll()
-	end)
-	redo.Position = UDim2.fromOffset(540, 9)
-	redo.Size = UDim2.fromOffset(82, 34)
-	Toolbar.styleIconButton(redo, "Redo", "redo", COLORS.muted)
-	local menu = button(header, "Menu", 76, function()
-		menuPopup.Visible = not menuPopup.Visible
-	end)
-	menu.AnchorPoint = Vector2.new(1, 0)
-	menu.Position = UDim2.new(1, -8, 0, 9)
-	menu.Size = UDim2.fromOffset(76, 34)
-	menu.ZIndex = 102
-	Toolbar.styleIconButton(menu, "Menu", "menu", COLORS.muted)
 end
 
 local function stage(): any
@@ -5198,37 +5028,13 @@ local function renderIssues()
 		end
 	end
 	validationIssues = ProjectStore.validate()
-	local errorCount = 0
-	local warningCount = 0
-	local blockedStageIds: { [string]: boolean } = {}
-	for _, issue in validationIssues do
-		if issue.severity == "Error" then
-			errorCount += 1
-			if issue.stageId ~= nil then
-				blockedStageIds[issue.stageId] = true
-			end
-		else
-			warningCount += 1
-		end
-	end
-	local blockedLevelCount = 0
-	for _, stageId in stageIds do
-		if blockedStageIds[stageId] then
-			blockedLevelCount += 1
-		end
-	end
-	local readyLevelCount = math.max(#stageIds - blockedLevelCount, 0)
-	local paintErrorCount = 0
-	local paintWarningCount = 0
-	for _, issue in validationIssues do
-		if issue.stageId == selectedStageId then
-			if issue.severity == "Error" then
-				paintErrorCount += 1
-			else
-				paintWarningCount += 1
-			end
-		end
-	end
+	local summary = IssueModel.summarize(validationIssues, stageIds, selectedStageId)
+	local errorCount = summary.errorCount
+	local warningCount = summary.warningCount
+	local blockedLevelCount = summary.blockedLevelCount
+	local readyLevelCount = summary.readyLevelCount
+	local paintErrorCount = summary.selectedErrorCount
+	local paintWarningCount = summary.selectedWarningCount
 	local paintCounts = paintPage:FindFirstChild("PaintValidationCounts", true)
 	if paintCounts ~= nil and paintCounts:IsA("TextLabel") then
 		paintCounts.Text = `{paintErrorCount} errors / {paintWarningCount} warnings`
@@ -5301,39 +5107,11 @@ local function renderIssues()
 	exportButton.Active = errorCount == 0
 	exportButton.BackgroundColor3 = if errorCount == 0 then COLORS.accent else COLORS.field
 	exportButton.TextColor3 = if errorCount == 0 then COLORS.text else COLORS.muted
-	local groupedIssues: { any } = {}
-	local groupedByKey: { [string]: any } = {}
-	for _, issue in validationIssues do
-		if
-			(validationFilter == "Error" or validationFilter == "Warning")
-			and issue.severity ~= validationFilter
-		then
-			continue
-		end
-		local key = `{issue.stageId or "project"}|{issue.severity}|{issue.code}`
-		local group = groupedByKey[key]
-		if group == nil then
-			group = { first = issue, count = 0 }
-			groupedByKey[key] = group
-			table.insert(groupedIssues, group)
-		end
-		group.count += 1
+	local stageOrderById: { [string]: number } = {}
+	for stageId, definition in project.stages do
+		stageOrderById[stageId] = definition.displayOrder
 	end
-	table.sort(groupedIssues, function(left, right)
-		local leftIssue = left.first
-		local rightIssue = right.first
-		local leftStage = if leftIssue.stageId ~= nil then project.stages[leftIssue.stageId] else nil
-		local rightStage = if rightIssue.stageId ~= nil then project.stages[rightIssue.stageId] else nil
-		local leftOrder = if leftStage ~= nil then leftStage.displayOrder else 0
-		local rightOrder = if rightStage ~= nil then rightStage.displayOrder else 0
-		if leftOrder ~= rightOrder then
-			return leftOrder < rightOrder
-		end
-		if leftIssue.severity ~= rightIssue.severity then
-			return leftIssue.severity < rightIssue.severity
-		end
-		return leftIssue.code < rightIssue.code
-	end)
+	local groupedIssues = IssueModel.group(validationIssues, validationFilter, stageOrderById)
 	for order, issueGroup in groupedIssues do
 		local issue = issueGroup.first
 		local issueButton = button(issueList, "", 300, function()
@@ -5565,7 +5343,7 @@ function rerenderAll()
 		title.Text = "Stagewright"
 		status.Text = `Stage {address.stageNumber} / Level {address.levelNumber}        ⌄`
 		status.TextColor3 = COLORS.text
-		footerStage.Text =
+		shell.footerStage.Text =
 			`Stage {address.stageNumber} / Level {address.levelNumber}    Theme: {current.themeId}    Wave set: {current.waveSetId}`
 		levelOverviewName.Text = "Level overview"
 		stageInspectorTitle.Text = "LEVEL SETTINGS"

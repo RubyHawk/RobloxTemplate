@@ -31,11 +31,20 @@
       "Factory": {
         "$path": "../src/plugins/Stagewright/UI/Factory.luau"
       },
+      "HeaderController": {
+        "$path": "../src/plugins/Stagewright/UI/HeaderController.luau"
+      },
       "Theme": {
         "$path": "../src/plugins/Stagewright/UI/Theme.luau"
       },
       "Toolbar": {
         "$path": "../src/plugins/Stagewright/UI/Toolbar.luau"
+      }
+    },
+    "Validation": {
+      "$className": "Folder",
+      "IssueModel": {
+        "$path": "../src/plugins/Stagewright/Validation/IssueModel.luau"
       }
     },
     "Shared": {

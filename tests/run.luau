@@ -837,21 +837,26 @@ local stagewrightAuthoringAreaSource = fs.readFile("src/plugins/Stagewright/Auth
 local stagewrightAppShellSource = fs.readFile("src/plugins/Stagewright/UI/AppShell.luau")
 local stagewrightThemeSource = fs.readFile("src/plugins/Stagewright/UI/Theme.luau")
 local stagewrightFactorySource = fs.readFile("src/plugins/Stagewright/UI/Factory.luau")
+local stagewrightHeaderControllerSource = fs.readFile("src/plugins/Stagewright/UI/HeaderController.luau")
 local stagewrightToolbarSource = fs.readFile("src/plugins/Stagewright/UI/Toolbar.luau")
 local stagewrightGraphOperationsSource = fs.readFile("src/plugins/Stagewright/Graph/Operations.luau")
 local stagewrightPredicateFieldsSource = fs.readFile("src/plugins/Stagewright/Graph/PredicateFields.luau")
+local stagewrightIssueModelSource = fs.readFile("src/plugins/Stagewright/Validation/IssueModel.luau")
 local stagewrightUiSource = stagewrightAppShellSource
 	.. stagewrightThemeSource
 	.. stagewrightFactorySource
+	.. stagewrightHeaderControllerSource
 	.. stagewrightToolbarSource
 local stagewrightGraphSource = stagewrightGraphOperationsSource .. stagewrightPredicateFieldsSource
 expectCompiles(gridPluginSource, "modern Stagewright plugin shell compiles as Luau")
 expectCompiles(stagewrightAppShellSource, "Stagewright app shell compiles as Luau")
 expectCompiles(stagewrightThemeSource, "Stagewright UI theme compiles as Luau")
 expectCompiles(stagewrightFactorySource, "Stagewright UI factory compiles as Luau")
+expectCompiles(stagewrightHeaderControllerSource, "Stagewright header controller compiles as Luau")
 expectCompiles(stagewrightToolbarSource, "Stagewright toolbar compiles as Luau")
 expectCompiles(stagewrightGraphOperationsSource, "Stagewright graph operations compile as Luau")
 expectCompiles(stagewrightPredicateFieldsSource, "Stagewright predicate fields compile as Luau")
+expectCompiles(stagewrightIssueModelSource, "Stagewright validation issue model compiles as Luau")
 expectEqual(
 	string.find(gridPluginSource, "require(script.UI.AppShell)", 1, true) ~= nil
 		and string.find(gridPluginSource, "require(script.UI.Theme)", 1, true) ~= nil
@@ -871,6 +876,13 @@ for _, forbiddenDependency in { "ProjectStore", "ServerStorage", "StagePayload",
 		string.find(stagewrightUiSource, forbiddenDependency, 1, true),
 		nil,
 		`Stagewright UI primitives stay independent from {forbiddenDependency}`
+	)
+end
+for _, forbiddenDependency in { "ProjectStore", "Workspace", "TextButton", "Instance.new" } do
+	expectEqual(
+		string.find(stagewrightIssueModelSource, forbiddenDependency, 1, true),
+		nil,
+		`Stagewright validation model stays independent from {forbiddenDependency}`
 	)
 end
 local gridPluginLineCount = 0
@@ -1082,6 +1094,7 @@ do
 				.. stagewrightAuthoringAreaSource
 				.. stagewrightUiSource
 				.. stagewrightGraphSource
+				.. stagewrightIssueModelSource
 				.. templateConfigSource,
 			pluginObject,
 			1,

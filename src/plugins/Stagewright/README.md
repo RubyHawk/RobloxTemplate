@@ -12,6 +12,7 @@ domain logic or reusable UI primitives should not be added to the bootstrap.
 - `WorldPathView.luau`: world-path canvas rendering and input.
 - `RouteOverview.luau`: route-logic graph rendering and input.
 - `UI/AppShell.luau`: dock-widget chrome and responsive page layout.
+- `UI/HeaderController.luau`: stage selector, project menu, and history actions.
 - `UI/Theme.luau`: shared color and sizing tokens. Change visual language here.
 - `UI/Factory.luau`: small, reusable plugin controls.
 - `UI/Toolbar.luau`: vector icons and toolbar selection styles.
@@ -19,6 +20,8 @@ domain logic or reusable UI primitives should not be added to the bootstrap.
   handle smoothing. It has no UI, persistence, or Workspace dependency.
 - `Graph/PredicateFields.luau`: predicate input parsing and trace-context
   parsing. It has no UI or persistence dependency.
+- `Validation/IssueModel.luau`: pure issue counting, filtering, grouping, and
+  ordering. It has no UI or persistence dependency.
 - `Shared/`: schema, validation, serialization, baking, migration, and runtime
   math shared with tests or gameplay code.
 
@@ -28,6 +31,7 @@ domain logic or reusable UI primitives should not be added to the bootstrap.
 bootstrap / views -> UI
 bootstrap / views -> ProjectStore
 bootstrap -> Graph
+bootstrap -> Validation
 Graph -> Shared
 ProjectStore -> Shared
 UI -> Theme
