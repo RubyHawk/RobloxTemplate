@@ -834,7 +834,44 @@ local stagewrightStoreSource = fs.readFile("src/plugins/Stagewright/ProjectStore
 	.. fs.readFile("src/shared/StagePayload.luau")
 	.. fs.readFile("src/plugins/Stagewright/RouteOverview.luau")
 local stagewrightAuthoringAreaSource = fs.readFile("src/plugins/Stagewright/AuthoringArea.luau")
+local stagewrightThemeSource = fs.readFile("src/plugins/Stagewright/UI/Theme.luau")
+local stagewrightFactorySource = fs.readFile("src/plugins/Stagewright/UI/Factory.luau")
+local stagewrightToolbarSource = fs.readFile("src/plugins/Stagewright/UI/Toolbar.luau")
+local stagewrightGraphOperationsSource = fs.readFile("src/plugins/Stagewright/Graph/Operations.luau")
+local stagewrightPredicateFieldsSource = fs.readFile("src/plugins/Stagewright/Graph/PredicateFields.luau")
+local stagewrightUiSource = stagewrightThemeSource .. stagewrightFactorySource .. stagewrightToolbarSource
+local stagewrightGraphSource = stagewrightGraphOperationsSource .. stagewrightPredicateFieldsSource
 expectCompiles(gridPluginSource, "modern Stagewright plugin shell compiles as Luau")
+expectCompiles(stagewrightThemeSource, "Stagewright UI theme compiles as Luau")
+expectCompiles(stagewrightFactorySource, "Stagewright UI factory compiles as Luau")
+expectCompiles(stagewrightToolbarSource, "Stagewright toolbar compiles as Luau")
+expectCompiles(stagewrightGraphOperationsSource, "Stagewright graph operations compile as Luau")
+expectCompiles(stagewrightPredicateFieldsSource, "Stagewright predicate fields compile as Luau")
+expectEqual(
+	string.find(gridPluginSource, "require(script.UI.Theme)", 1, true) ~= nil
+		and string.find(gridPluginSource, "require(script.Graph.Operations)", 1, true) ~= nil,
+	true,
+	"Stagewright bootstrap composes dedicated UI and graph modules"
+)
+for _, forbiddenDependency in { "ProjectStore", "Workspace", "TextButton", "GuiObject" } do
+	expectEqual(
+		string.find(stagewrightGraphSource, forbiddenDependency, 1, true),
+		nil,
+		`Stagewright graph domain stays independent from {forbiddenDependency}`
+	)
+end
+for _, forbiddenDependency in { "ProjectStore", "ServerStorage", "StagePayload", "Graph.Operations" } do
+	expectEqual(
+		string.find(stagewrightUiSource, forbiddenDependency, 1, true),
+		nil,
+		`Stagewright UI primitives stay independent from {forbiddenDependency}`
+	)
+end
+local gridPluginLineCount = 0
+for _ in string.gmatch(gridPluginSource, "[^\r\n]+") do
+	gridPluginLineCount += 1
+end
+expectEqual(gridPluginLineCount <= 6400, true, "Stagewright bootstrap does not absorb extracted module code")
 do
 	local routeOverviewSource = fs.readFile("src/plugins/Stagewright/RouteOverview.luau")
 	expectCompiles(routeOverviewSource, "Stagewright 2D route overview compiles as Luau")
@@ -1037,6 +1074,8 @@ do
 				.. gridPluginSource
 				.. stagewrightStoreSource
 				.. stagewrightAuthoringAreaSource
+				.. stagewrightUiSource
+				.. stagewrightGraphSource
 				.. templateConfigSource,
 			pluginObject,
 			1,
@@ -1048,7 +1087,7 @@ do
 end
 for _, obsoleteToolbarGlyph in { "⌁", "▦", "✋", "⊕", "⌘", "↖" } do
 	expectEqual(
-		string.find(gridPluginSource, obsoleteToolbarGlyph, 1, true),
+		string.find(gridPluginSource .. stagewrightUiSource, obsoleteToolbarGlyph, 1, true),
 		nil,
 		`Stagewright toolbar no longer depends on the {obsoleteToolbarGlyph} text glyph`
 	)

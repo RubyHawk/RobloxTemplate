@@ -5,6 +5,15 @@
     "AuthoringArea": {
       "$path": "../src/plugins/Stagewright/AuthoringArea.luau"
     },
+    "Graph": {
+      "$className": "Folder",
+      "Operations": {
+        "$path": "../src/plugins/Stagewright/Graph/Operations.luau"
+      },
+      "PredicateFields": {
+        "$path": "../src/plugins/Stagewright/Graph/PredicateFields.luau"
+      }
+    },
     "ProjectStore": {
       "$path": "../src/plugins/Stagewright/ProjectStore.luau"
     },
@@ -13,6 +22,18 @@
     },
     "WorldPathView": {
       "$path": "../src/plugins/Stagewright/WorldPathView.luau"
+    },
+    "UI": {
+      "$className": "Folder",
+      "Factory": {
+        "$path": "../src/plugins/Stagewright/UI/Factory.luau"
+      },
+      "Theme": {
+        "$path": "../src/plugins/Stagewright/UI/Theme.luau"
+      },
+      "Toolbar": {
+        "$path": "../src/plugins/Stagewright/UI/Toolbar.luau"
+      }
     },
     "Shared": {
       "$className": "Folder",

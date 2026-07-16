@@ -12,41 +12,24 @@ if RunService:IsRunning() then
 end
 
 local AuthoringArea = require(script.AuthoringArea)
+local GraphOperations = require(script.Graph.Operations)
+local PredicateFields = require(script.Graph.PredicateFields)
 local ProjectStore = require(script.ProjectStore)
 local RouteOverview = require(script.RouteOverview)
 local StageHierarchy = require(script.Shared.StageHierarchy)
-local StageLanes = require(script.Shared.StageLanes)
 local StagePayload = require(script.Shared.StagePayload)
 local StageTrace = require(script.Shared.StageTrace)
+local Factory = require(script.UI.Factory)
+local Toolbar = require(script.UI.Toolbar)
 
 local PLUGIN_NAME = "Stagewright"
 local PREVIEW_TAG = "StagewrightTransientPreview"
 local paintCellPixels = 22
-local COLORS = {
-	background = Color3.fromRGB(8, 12, 18),
-	panel = Color3.fromRGB(13, 18, 25),
-	surface = Color3.fromRGB(16, 22, 30),
-	field = Color3.fromRGB(20, 27, 36),
-	hover = Color3.fromRGB(27, 37, 49),
-	border = Color3.fromRGB(35, 45, 59),
-	borderStrong = Color3.fromRGB(52, 67, 87),
-	text = Color3.fromRGB(229, 234, 242),
-	muted = Color3.fromRGB(137, 149, 168),
-	accent = Color3.fromRGB(0, 157, 255),
-	accentMuted = Color3.fromRGB(3, 52, 83),
-	allowed = Color3.fromRGB(91, 76, 157),
-	traversal = Color3.fromRGB(47, 105, 84),
-	success = Color3.fromRGB(87, 196, 128),
-	warning = Color3.fromRGB(238, 181, 72),
-	danger = Color3.fromRGB(239, 103, 112),
-	ground = Color3.fromRGB(75, 132, 91),
-	void = Color3.fromRGB(28, 30, 35),
-	blocked = Color3.fromRGB(157, 76, 76),
-	spawn = Color3.fromRGB(116, 96, 181),
-	goal = Color3.fromRGB(195, 123, 65),
-	auto = Color3.fromRGB(60, 145, 166),
-	route = Color3.fromRGB(73, 207, 230),
-}
+local COLORS = require(script.UI.Theme).colors
+local create = Factory.create
+local button = Factory.button
+local sectionLabel = Factory.sectionLabel
+local setButtonSelected = Factory.setSelected
 
 type Mode = "Paint" | "Graph" | "Stage" | "Validate"
 type GraphToolMode = "Build" | "Rules" | "Test"
@@ -176,15 +159,6 @@ local widget = plugin:CreateDockWidgetPluginGuiAsync(
 )
 widget.Title = "Stagewright - Tower Defense Stage Editor"
 widget.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-local function create(className: string, properties: { [string]: any }, parent: Instance?): any
-	local instance = Instance.new(className)
-	for property, value in properties do
-		instance[property] = value
-	end
-	instance.Parent = parent
-	return instance
-end
 
 local root = create("Frame", {
 	Name = "Root",
@@ -373,238 +347,6 @@ local function applyResponsiveShell()
 	end
 end
 root:GetPropertyChangedSignal("AbsoluteSize"):Connect(applyResponsiveShell)
-
-local function button(parent: Instance, text: string, width: number?, callback: () -> ()): TextButton
-	local result = create("TextButton", {
-		AutoButtonColor = false,
-		BackgroundColor3 = COLORS.field,
-		BorderSizePixel = 0,
-		Font = Enum.Font.BuilderSansMedium,
-		LayoutOrder = #parent:GetChildren() + 1,
-		Size = UDim2.fromOffset(width or 110, 30),
-		Text = text,
-		TextColor3 = COLORS.text,
-		TextSize = 12,
-		TextTruncate = Enum.TextTruncate.AtEnd,
-	}, parent) :: TextButton
-	create("UICorner", { CornerRadius = UDim.new(0, 6) }, result)
-	local stroke = create("UIStroke", {
-		Name = "Outline",
-		Color = COLORS.border,
-		Thickness = 1,
-	}, result) :: UIStroke
-	result.MouseEnter:Connect(function()
-		if result.Active and result.BackgroundColor3 == COLORS.field then
-			result.BackgroundColor3 = COLORS.hover
-			stroke.Color = COLORS.borderStrong
-		end
-	end)
-	result.MouseLeave:Connect(function()
-		if result.Active and result.BackgroundColor3 == COLORS.hover then
-			result.BackgroundColor3 = COLORS.field
-			stroke.Color = COLORS.border
-		end
-	end)
-	result.Activated:Connect(callback)
-	return result
-end
-
-local Toolbar = {} :: any
-
-function Toolbar.iconLine(
-	parent: Instance,
-	x: number,
-	y: number,
-	width: number,
-	height: number,
-	rotation: number,
-	color: Color3,
-	zIndex: number
-): Frame
-	local line = create("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundColor3 = color,
-		BorderSizePixel = 0,
-		Position = UDim2.fromOffset(x, y),
-		Rotation = rotation,
-		Size = UDim2.fromOffset(width, height),
-		ZIndex = zIndex,
-	}, parent) :: Frame
-	create("UICorner", { CornerRadius = UDim.new(1, 0) }, line)
-	return line
-end
-
-function Toolbar.iconDot(
-	parent: Instance,
-	x: number,
-	y: number,
-	size: number,
-	color: Color3,
-	zIndex: number,
-	hollow: boolean?
-): Frame
-	local dot = create("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundColor3 = color,
-		BackgroundTransparency = if hollow then 1 else 0,
-		BorderSizePixel = 0,
-		Position = UDim2.fromOffset(x, y),
-		Size = UDim2.fromOffset(size, size),
-		ZIndex = zIndex,
-	}, parent) :: Frame
-	create("UICorner", { CornerRadius = UDim.new(1, 0) }, dot)
-	if hollow then
-		create("UIStroke", { Color = color, Thickness = 1.6 }, dot)
-	end
-	return dot
-end
-
-function Toolbar.addVectorIcon(parent: GuiObject, kind: string, color: Color3, offsetX: number?): Frame
-	local existing = parent:FindFirstChild("VectorIcon")
-	if existing ~= nil then
-		existing:Destroy()
-	end
-	local icon = create("Frame", {
-		AnchorPoint = Vector2.new(0, 0.5),
-		BackgroundTransparency = 1,
-		Name = "VectorIcon",
-		Position = UDim2.new(0, offsetX or 12, 0.5, 0),
-		Size = UDim2.fromOffset(20, 20),
-		ZIndex = parent.ZIndex + 1,
-	}, parent) :: Frame
-	local zIndex = icon.ZIndex + 1
-	if kind == "menu" then
-		for _, y in { 5, 10, 15 } do
-			Toolbar.iconLine(icon, 10, y, 16, 2, 0, color, zIndex)
-		end
-	elseif kind == "chevron" then
-		Toolbar.iconLine(icon, 7.5, 9, 7, 2, 45, color, zIndex)
-		Toolbar.iconLine(icon, 12.5, 9, 7, 2, -45, color, zIndex)
-	elseif kind == "undo" or kind == "redo" then
-		local mirrored = kind == "redo"
-		local direction = if mirrored then -1 else 1
-		local headX = if mirrored then 15 else 5
-		Toolbar.iconLine(icon, headX, 7, 7, 2, 45 * direction, color, zIndex)
-		Toolbar.iconLine(icon, headX, 7, 7, 2, -45 * direction, color, zIndex)
-		Toolbar.iconLine(icon, 10, 7, 10, 2, 0, color, zIndex)
-		Toolbar.iconLine(icon, if mirrored then 4 else 16, 11, 8, 2, 90, color, zIndex)
-		Toolbar.iconLine(icon, 10, 15, 10, 2, 0, color, zIndex)
-	elseif kind == "select" then
-		Toolbar.iconLine(icon, 7, 8, 15, 2, 63, color, zIndex)
-		Toolbar.iconLine(icon, 10, 5, 10, 2, 0, color, zIndex)
-		Toolbar.iconLine(icon, 5, 10, 10, 2, 90, color, zIndex)
-		Toolbar.iconLine(icon, 13, 14, 7, 2, 48, color, zIndex)
-	elseif kind == "pan" then
-		local palm = create("Frame", {
-			BackgroundColor3 = color,
-			BorderSizePixel = 0,
-			Position = UDim2.fromOffset(6, 8),
-			Size = UDim2.fromOffset(9, 9),
-			ZIndex = zIndex,
-		}, icon) :: Frame
-		create("UICorner", { CornerRadius = UDim.new(0, 3) }, palm)
-		for x = 6, 12, 2 do
-			Toolbar.iconLine(icon, x, 6, 2, 9, 0, color, zIndex)
-		end
-		Toolbar.iconLine(icon, 4, 11, 7, 2, 55, color, zIndex)
-	elseif kind == "spawn" or kind == "junction" or kind == "goal" then
-		Toolbar.iconDot(icon, 10, 10, 15, color, zIndex, true)
-		Toolbar.iconDot(icon, 10, 10, if kind == "goal" then 5 else 4, color, zIndex, false)
-		if kind == "spawn" then
-			Toolbar.iconLine(icon, 10, 2, 5, 2, 90, color, zIndex)
-			Toolbar.iconLine(icon, 18, 10, 5, 2, 0, color, zIndex)
-			Toolbar.iconLine(icon, 10, 18, 5, 2, 90, color, zIndex)
-			Toolbar.iconLine(icon, 2, 10, 5, 2, 0, color, zIndex)
-		end
-	elseif kind == "connect" then
-		Toolbar.iconLine(icon, 10, 10, 15, 2, -42, color, zIndex)
-		Toolbar.iconDot(icon, 4, 16, 4, color, zIndex, true)
-		Toolbar.iconDot(icon, 16, 4, 4, color, zIndex, true)
-	elseif kind == "split" then
-		Toolbar.iconLine(icon, 5, 15, 9, 2, -45, color, zIndex)
-		Toolbar.iconLine(icon, 12, 8, 9, 2, -45, color, zIndex)
-		Toolbar.iconLine(icon, 12, 8, 9, 2, 45, color, zIndex)
-		Toolbar.iconDot(icon, 4, 16, 3, color, zIndex, false)
-		Toolbar.iconDot(icon, 16, 4, 3, color, zIndex, false)
-		Toolbar.iconDot(icon, 16, 12, 3, color, zIndex, false)
-	elseif kind == "world" then
-		Toolbar.iconDot(icon, 10, 10, 15, color, zIndex, true)
-		Toolbar.iconLine(icon, 10, 10, 14, 1, 0, color, zIndex)
-		Toolbar.iconLine(icon, 10, 10, 14, 1, 90, color, zIndex)
-		Toolbar.iconDot(icon, 10, 10, 3, color, zIndex, false)
-	elseif kind == "logic" then
-		for _, point in { Vector2.new(4, 5), Vector2.new(15, 5), Vector2.new(10, 15) } do
-			local box = create("Frame", {
-				BackgroundTransparency = 1,
-				BorderSizePixel = 0,
-				Position = UDim2.fromOffset(point.X - 2, point.Y - 2),
-				Size = UDim2.fromOffset(5, 5),
-				ZIndex = zIndex,
-			}, icon) :: Frame
-			create("UIStroke", { Color = color, Thickness = 1.3 }, box)
-		end
-		Toolbar.iconLine(icon, 9, 6, 8, 1, 0, color, zIndex)
-		Toolbar.iconLine(icon, 7, 10, 9, 1, 55, color, zIndex)
-		Toolbar.iconLine(icon, 13, 10, 9, 1, -55, color, zIndex)
-	elseif kind == "fit" then
-		Toolbar.iconLine(icon, 4, 4, 7, 2, 0, color, zIndex)
-		Toolbar.iconLine(icon, 4, 4, 7, 2, 90, color, zIndex)
-		Toolbar.iconLine(icon, 16, 4, 7, 2, 0, color, zIndex)
-		Toolbar.iconLine(icon, 16, 4, 7, 2, 90, color, zIndex)
-		Toolbar.iconLine(icon, 4, 16, 7, 2, 0, color, zIndex)
-		Toolbar.iconLine(icon, 4, 16, 7, 2, 90, color, zIndex)
-		Toolbar.iconLine(icon, 16, 16, 7, 2, 0, color, zIndex)
-		Toolbar.iconLine(icon, 16, 16, 7, 2, 90, color, zIndex)
-	elseif kind == "warning" then
-		create("TextLabel", {
-			BackgroundTransparency = 1,
-			Font = Enum.Font.BuilderSansBold,
-			Size = UDim2.fromScale(1, 1),
-			Text = "!",
-			TextColor3 = color,
-			TextSize = 18,
-			ZIndex = zIndex,
-		}, icon)
-		create("UIStroke", { Color = color, Thickness = 1.2 }, icon)
-		create("UICorner", { CornerRadius = UDim.new(0, 5) }, icon)
-	elseif kind == "check" then
-		Toolbar.iconLine(icon, 7, 12, 7, 2, 45, color, zIndex)
-		Toolbar.iconLine(icon, 13, 9, 11, 2, -48, color, zIndex)
-	end
-	return icon
-end
-
-function Toolbar.styleIconButton(result: TextButton, label: string, iconKind: string, iconColor: Color3?)
-	result.Text = label
-	result.Font = Enum.Font.BuilderSansMedium
-	result.TextColor3 = COLORS.text
-	result.TextSize = 13
-	result.TextXAlignment = Enum.TextXAlignment.Left
-	local padding = result:FindFirstChildOfClass("UIPadding")
-	if padding == nil then
-		padding = create("UIPadding", {}, result) :: UIPadding
-	end
-	padding.PaddingLeft = UDim.new(0, 39)
-	padding.PaddingRight = UDim.new(0, 10)
-	Toolbar.addVectorIcon(result, iconKind, iconColor or COLORS.muted, 12)
-end
-
-local function setButtonSelected(result: TextButton, selected: boolean)
-	result.BackgroundColor3 = if selected then COLORS.accent else COLORS.field
-	local stroke = result:FindFirstChild("Outline")
-	if stroke ~= nil and stroke:IsA("UIStroke") then
-		stroke.Color = if selected then Color3.fromRGB(123, 174, 245) else COLORS.border
-	end
-end
-
-function Toolbar.setNavigationSelected(result: TextButton, selected: boolean)
-	result.BackgroundColor3 = if selected then COLORS.accentMuted else COLORS.panel
-	result.TextColor3 = if selected then Color3.fromRGB(45, 181, 255) else COLORS.text
-	local stroke = result:FindFirstChild("Outline")
-	if stroke ~= nil and stroke:IsA("UIStroke") then
-		stroke.Color = if selected then Color3.fromRGB(0, 91, 145) else COLORS.border
-	end
-end
 
 local modeButtons: { [Mode]: TextButton } = {} :: any
 local contentByMode: { [Mode]: Frame } = {} :: any
@@ -832,19 +574,6 @@ do
 	menu.Size = UDim2.fromOffset(76, 34)
 	menu.ZIndex = 102
 	Toolbar.styleIconButton(menu, "Menu", "menu", COLORS.muted)
-end
-
-local function sectionLabel(parent: Instance, text: string, order: number?): TextLabel
-	return create("TextLabel", {
-		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSansBold,
-		LayoutOrder = order or 0,
-		Size = UDim2.new(1, -8, 0, 22),
-		Text = string.upper(text),
-		TextColor3 = COLORS.muted,
-		TextSize = 10,
-		TextXAlignment = Enum.TextXAlignment.Left,
-	}, parent) :: TextLabel
 end
 
 local function stage(): any
@@ -1408,38 +1137,13 @@ do
 	end
 	local laneButton = button(paintRuntime.routeToolbar, "Lanes 1/2/3", 98, function()
 		local currentGraph = graph()
-		local edge = if currentGraph ~= nil and selectedEdgeId ~= nil
-			then currentGraph.edges[selectedEdgeId]
-			else nil
-		if currentGraph == nil or edge == nil then
+		local edgeId = selectedEdgeId
+		if currentGraph == nil or edgeId == nil then
 			setStatus("Select a spline before changing its lane count.", true)
 			return
 		end
-		local profile = currentGraph.laneProfiles[edge.laneProfileId]
-		if profile == nil then
-			return
-		end
 		mutate("Cycle Stagewright route lanes", function()
-			local targetProfile = profile
-			local referenceCount = 0
-			for _, candidate in currentGraph.edges do
-				if candidate.laneProfileId == edge.laneProfileId then
-					referenceCount += 1
-				end
-			end
-			if referenceCount > 1 then
-				local profileId = `lane_{string.lower(game:GetService("HttpService"):GenerateGUID(false))}`
-				targetProfile = {
-					id = profileId,
-					offsets = table.clone(profile.offsets),
-					clearanceRadius = profile.clearanceRadius,
-				}
-				currentGraph.laneProfiles[profileId] = targetProfile
-				edge.laneProfileId = profileId
-			end
-			local nextCount = (#targetProfile.offsets % StageLanes.MAX_COUNT) + 1
-			targetProfile.offsets = StageLanes.offsets(nextCount)
-			targetProfile.clearanceRadius = StageLanes.clearanceRadius(targetProfile.offsets)
+			GraphOperations.cycleLaneCount(currentGraph, edgeId)
 		end)
 		renderAll()
 	end)
@@ -3836,33 +3540,14 @@ local function actionField(parent: Instance, placeholder: string): TextBox
 	return field
 end
 
-local PREDICATE_KINDS = {
-	"WaveRange",
-	"StageFlagEquals",
-	"EnemyTag",
-	"VisitCountBelow",
-	"StageUnlocked",
-	"UpgradeLevelAtLeast",
-	"CurrencyAtLeast",
-}
+local PREDICATE_KINDS = PredicateFields.KINDS
 
 local function newNode(kind: string, requestedPosition: any?)
 	local currentGraph = graph()
 	if currentGraph == nil then
 		return
 	end
-	local id = `node_{string.lower(game:GetService("HttpService"):GenerateGUID(false))}`
-	local count = 0
-	for _ in currentGraph.nodes do
-		count += 1
-	end
-	currentGraph.nodes[id] = {
-		id = id,
-		name = `{kind} {count + 1}`,
-		kind = kind,
-		position = requestedPosition or { x = (count - 1) * 8, y = 2, z = 0 },
-		tags = {},
-	}
+	local id = GraphOperations.addNode(currentGraph, kind, requestedPosition)
 	selectedNodeId = id
 	selectedEdgeId = nil
 end
@@ -3911,61 +3596,15 @@ do
 	table.insert(buildCreationButtons, connect)
 	local split = button(buildControls, "/  Split edge", 112, function()
 		local currentGraph = graph()
-		local edge = if currentGraph ~= nil and selectedEdgeId ~= nil
-			then currentGraph.edges[selectedEdgeId]
-			else nil
-		if currentGraph == nil or edge == nil then
-			return
-		end
-		local from = currentGraph.nodes[edge.fromNodeId]
-		local to = currentGraph.nodes[edge.toNodeId]
-		if from == nil or to == nil then
+		local edgeId = selectedEdgeId
+		if currentGraph == nil or edgeId == nil then
 			return
 		end
 		mutate("Split Stagewright graph edge", function()
-			local nodeId = `node_{string.lower(game:GetService("HttpService"):GenerateGUID(false))}`
-			local firstEdgeId = `edge_{string.lower(game:GetService("HttpService"):GenerateGUID(false))}`
-			local secondEdgeId = `edge_{string.lower(game:GetService("HttpService"):GenerateGUID(false))}`
-			local midpoint = {
-				x = (from.position.x + to.position.x) * 0.5,
-				y = (from.position.y + to.position.y) * 0.5,
-				z = (from.position.z + to.position.z) * 0.5,
-			}
-			local delta = {
-				x = (to.position.x - from.position.x) / 6,
-				y = (to.position.y - from.position.y) / 6,
-				z = (to.position.z - from.position.z) / 6,
-			}
-			currentGraph.nodes[nodeId] = {
-				id = nodeId,
-				name = "Junction",
-				kind = "Junction",
-				position = midpoint,
-				tags = {},
-			}
-			currentGraph.edges[firstEdgeId] = {
-				id = firstEdgeId,
-				fromNodeId = edge.fromNodeId,
-				toNodeId = nodeId,
-				outHandleOffset = delta,
-				inHandleOffset = { x = -delta.x, y = -delta.y, z = -delta.z },
-				laneProfileId = edge.laneProfileId,
-				priority = edge.priority,
-				predicates = table.clone(edge.predicates),
-			}
-			currentGraph.edges[secondEdgeId] = {
-				id = secondEdgeId,
-				fromNodeId = nodeId,
-				toNodeId = edge.toNodeId,
-				outHandleOffset = delta,
-				inHandleOffset = { x = -delta.x, y = -delta.y, z = -delta.z },
-				laneProfileId = edge.laneProfileId,
-				priority = 1,
-				predicates = {},
-			}
-			currentGraph.edges[selectedEdgeId :: string] = nil
-			selectedNodeId = nodeId
-			selectedEdgeId = nil
+			selectedNodeId = GraphOperations.splitEdge(currentGraph, edgeId)
+			if selectedNodeId ~= nil then
+				selectedEdgeId = nil
+			end
 		end)
 		renderAll()
 	end)
@@ -3973,20 +3612,12 @@ do
 	table.insert(buildCreationButtons, split)
 	local lanes = button(buildControls, "1|2|3  Lanes", 112, function()
 		local currentGraph = graph()
-		local edge = if currentGraph ~= nil and selectedEdgeId ~= nil
-			then currentGraph.edges[selectedEdgeId]
-			else nil
-		if currentGraph == nil or edge == nil then
+		local edgeId = selectedEdgeId
+		if currentGraph == nil or edgeId == nil then
 			return
 		end
-		local profile = currentGraph.laneProfiles[edge.laneProfileId]
-		if profile == nil then
-			return
-		end
-		local nextCount = (#profile.offsets % StageLanes.MAX_COUNT) + 1
 		mutate("Cycle Stagewright edge lanes", function()
-			profile.offsets = StageLanes.offsets(nextCount)
-			profile.clearanceRadius = StageLanes.clearanceRadius(profile.offsets)
+			GraphOperations.cycleLaneCount(currentGraph, edgeId)
 		end)
 		renderAll()
 	end)
@@ -4130,53 +3761,13 @@ local conditionValueField = actionField(rulesControls, "minimum / value")
 local conditionMaximumField = actionField(rulesControls, "maximum")
 
 local function predicateFromFields(edge: any): (any?, string?)
-	local kind = PREDICATE_KINDS[predicateKindIndex]
-	local key = conditionKeyField.Text
-	local value = conditionValueField.Text
-	local maximum = conditionMaximumField.Text
-	if kind == "WaveRange" then
-		local minimumNumber = tonumber(value)
-		local maximumNumber = tonumber(maximum)
-		if minimumNumber == nil or maximumNumber == nil then
-			return nil, "WaveRange needs numeric minimum and maximum values"
-		end
-		return { kind = kind, minimum = minimumNumber, maximum = maximumNumber }, nil
-	elseif kind == "StageFlagEquals" then
-		if key == "" or (string.lower(value) ~= "true" and string.lower(value) ~= "false") then
-			return nil, "StageFlagEquals needs a key and true/false value"
-		end
-		return { kind = kind, key = key, value = string.lower(value) == "true" }, nil
-	elseif kind == "EnemyTag" then
-		return if key ~= "" then { kind = kind, tag = key } else nil,
-			if key == "" then "EnemyTag needs a tag" else nil
-	elseif kind == "VisitCountBelow" then
-		local maximumNumber = tonumber(value)
-		if maximumNumber == nil then
-			return nil, "VisitCountBelow needs a numeric maximum"
-		end
-		return {
-			kind = kind,
-			nodeId = if key ~= "" then key else edge.fromNodeId,
-			maximum = maximumNumber,
-		},
-			nil
-	elseif kind == "StageUnlocked" then
-		return if key ~= "" then { kind = kind, stageId = key } else nil,
-			if key == "" then "StageUnlocked needs a stage ID" else nil
-	elseif kind == "UpgradeLevelAtLeast" then
-		local level = tonumber(value)
-		if key == "" or level == nil then
-			return nil, "UpgradeLevelAtLeast needs an upgrade ID and numeric level"
-		end
-		return { kind = kind, upgradeId = key, level = level }, nil
-	elseif kind == "CurrencyAtLeast" then
-		local amount = tonumber(value)
-		if key == "" or amount == nil then
-			return nil, "CurrencyAtLeast needs a currency ID and numeric amount"
-		end
-		return { kind = kind, currencyId = key, amount = amount }, nil
-	end
-	return nil, "Unknown predicate kind"
+	return PredicateFields.fromText(
+		PREDICATE_KINDS[predicateKindIndex],
+		conditionKeyField.Text,
+		conditionValueField.Text,
+		conditionMaximumField.Text,
+		edge
+	)
 end
 
 button(rulesControls, "Add condition", 112, function()
@@ -4218,32 +3809,6 @@ local traceCurrenciesField = actionField(testControls, "currency: coins=500")
 local traceUpgradesField = actionField(testControls, "upgrades: range=4")
 local traceUnlockedField = actionField(testControls, "unlocked stage IDs")
 
-local function commaSet(text: string): { [string]: boolean }
-	local result: { [string]: boolean } = {}
-	for token in string.gmatch(text, "[^,%s]+") do
-		result[token] = true
-	end
-	return result
-end
-
-local function assignmentMap(text: string, booleanValues: boolean): { [string]: any }
-	local result: { [string]: any } = {}
-	for token in string.gmatch(text, "[^,]+") do
-		local key, value = string.match(token, "^%s*([^=]+)%s*=%s*([^=]+)%s*$")
-		if key ~= nil and value ~= nil then
-			if booleanValues then
-				result[key] = string.lower(value) == "true"
-			else
-				local numberValue = tonumber(value)
-				if numberValue ~= nil then
-					result[key] = numberValue
-				end
-			end
-		end
-	end
-	return result
-end
-
 button(testControls, "Trace route", 112, function()
 	local currentGraph = graph()
 	if currentGraph == nil then
@@ -4266,12 +3831,12 @@ button(testControls, "Trace route", 112, function()
 		else spawnIds[1]
 	local trace = StageTrace.trace(currentGraph, traceSpawnId, {
 		wave = tonumber(traceWaveField.Text) or 1,
-		stageFlags = assignmentMap(traceFlagsField.Text, true),
-		enemyTags = commaSet(traceTagsField.Text),
+		stageFlags = PredicateFields.assignmentMap(traceFlagsField.Text, true),
+		enemyTags = PredicateFields.commaSet(traceTagsField.Text),
 		nodeVisits = {},
-		unlockedStages = commaSet(traceUnlockedField.Text),
-		upgradeLevels = assignmentMap(traceUpgradesField.Text, false),
-		currencies = assignmentMap(traceCurrenciesField.Text, false),
+		unlockedStages = PredicateFields.commaSet(traceUnlockedField.Text),
+		upgradeLevels = PredicateFields.assignmentMap(traceUpgradesField.Text, false),
+		currencies = PredicateFields.assignmentMap(traceCurrenciesField.Text, false),
 	})
 	tracedEdgeIds = {}
 	for _, edgeId in trace.edgeIds do
@@ -4293,27 +3858,7 @@ for laneCount, laneLabel in { "1 Lane", "2 Lanes", "3 Lanes" } do
 			return
 		end
 		mutate(`Set route to {laneCount} lanes`, function()
-			local edge = currentGraph.edges[selectedEdgeId :: string]
-			local profile = currentGraph.laneProfiles[edge.laneProfileId]
-			local referenceCount = 0
-			for _, candidate in currentGraph.edges do
-				if candidate.laneProfileId == edge.laneProfileId then
-					referenceCount += 1
-				end
-			end
-			if referenceCount > 1 then
-				local profileId = `lane_{string.lower(game:GetService("HttpService"):GenerateGUID(false))}`
-				profile = {
-					id = profileId,
-					offsets = table.clone(profile.offsets),
-					clearanceRadius = profile.clearanceRadius,
-				}
-				currentGraph.laneProfiles[profileId] = profile
-				edge.laneProfileId = profileId
-			end
-			local offsets = StageLanes.offsets(laneCount)
-			profile.offsets = offsets
-			profile.clearanceRadius = StageLanes.clearanceRadius(offsets)
+			GraphOperations.setLaneCount(currentGraph, selectedEdgeId :: string, laneCount)
 		end)
 		setStatus(`Route profile uses {laneCount} {if laneCount == 1 then "lane" else "lanes"}.`)
 		renderAll()
@@ -4323,38 +3868,14 @@ end
 
 flowRuntime.connect = function(fromId: string, toId: string)
 	local currentGraph = graph()
-	if currentGraph == nil or fromId == toId then
+	if currentGraph == nil then
 		return
 	end
-	local from = currentGraph.nodes[fromId]
-	local to = currentGraph.nodes[toId]
-	if from == nil or to == nil then
+	local edgeId = GraphOperations.connect(currentGraph, fromId, toId)
+	if edgeId == nil then
 		return
 	end
-	local id = `edge_{string.lower(game:GetService("HttpService"):GenerateGUID(false))}`
-	local laneProfileId = `lane_{string.lower(game:GetService("HttpService"):GenerateGUID(false))}`
-	local delta = {
-		x = (to.position.x - from.position.x) / 3,
-		y = (to.position.y - from.position.y) / 3,
-		z = (to.position.z - from.position.z) / 3,
-	}
-	currentGraph.edges[id] = {
-		id = id,
-		fromNodeId = fromId,
-		toNodeId = toId,
-		outHandleOffset = delta,
-		inHandleOffset = { x = -delta.x, y = -delta.y, z = -delta.z },
-		laneProfileId = laneProfileId,
-		priority = 1,
-		predicates = {},
-	}
-	local offsets = StageLanes.offsets(1)
-	currentGraph.laneProfiles[laneProfileId] = {
-		id = laneProfileId,
-		offsets = offsets,
-		clearanceRadius = StageLanes.clearanceRadius(offsets),
-	}
-	selectedEdgeId = id
+	selectedEdgeId = edgeId
 	selectedNodeId = nil
 end
 
@@ -4463,33 +3984,11 @@ do
 
 	flowUi.setLaneCount = function(edgeId: string, laneCount: number)
 		local currentGraph = graph()
-		local edge = if currentGraph ~= nil then currentGraph.edges[edgeId] else nil
-		if currentGraph == nil or edge == nil then
+		if currentGraph == nil then
 			return
 		end
 		mutate(`Set Stagewright route to {laneCount} lanes`, function()
-			local profile = currentGraph.laneProfiles[edge.laneProfileId]
-			if profile == nil then
-				return
-			end
-			local references = 0
-			for _, candidate in currentGraph.edges do
-				if candidate.laneProfileId == edge.laneProfileId then
-					references += 1
-				end
-			end
-			if references > 1 then
-				local profileId = `lane_{string.lower(game:GetService("HttpService"):GenerateGUID(false))}`
-				profile = {
-					id = profileId,
-					offsets = table.clone(profile.offsets),
-					clearanceRadius = profile.clearanceRadius,
-				}
-				currentGraph.laneProfiles[profileId] = profile
-				edge.laneProfileId = profileId
-			end
-			profile.offsets = StageLanes.offsets(laneCount)
-			profile.clearanceRadius = StageLanes.clearanceRadius(profile.offsets)
+			GraphOperations.setLaneCount(currentGraph, edgeId, laneCount)
 		end)
 		renderAll()
 	end
@@ -4497,60 +3996,15 @@ do
 	flowUi.splitSelected = function()
 		local currentGraph = graph()
 		local edgeId = selectedEdgeId
-		local edge = if currentGraph ~= nil and edgeId ~= nil then currentGraph.edges[edgeId] else nil
-		if currentGraph == nil or edge == nil then
+		if currentGraph == nil or edgeId == nil then
 			setStatus("Select a spline before splitting it.", true)
 			return
 		end
-		local from = currentGraph.nodes[edge.fromNodeId]
-		local to = currentGraph.nodes[edge.toNodeId]
-		if from == nil or to == nil then
-			return
-		end
 		mutate("Split Stagewright graph edge", function()
-			local nodeId = `node_{string.lower(game:GetService("HttpService"):GenerateGUID(false))}`
-			local firstId = `edge_{string.lower(game:GetService("HttpService"):GenerateGUID(false))}`
-			local secondId = `edge_{string.lower(game:GetService("HttpService"):GenerateGUID(false))}`
-			local midpoint = {
-				x = (from.position.x + to.position.x) * 0.5,
-				y = (from.position.y + to.position.y) * 0.5,
-				z = (from.position.z + to.position.z) * 0.5,
-			}
-			local delta = {
-				x = (to.position.x - from.position.x) / 6,
-				y = (to.position.y - from.position.y) / 6,
-				z = (to.position.z - from.position.z) / 6,
-			}
-			currentGraph.nodes[nodeId] = {
-				id = nodeId,
-				name = "Junction",
-				kind = "Junction",
-				position = midpoint,
-				tags = {},
-			}
-			currentGraph.edges[firstId] = {
-				id = firstId,
-				fromNodeId = edge.fromNodeId,
-				toNodeId = nodeId,
-				outHandleOffset = delta,
-				inHandleOffset = { x = -delta.x, y = -delta.y, z = -delta.z },
-				laneProfileId = edge.laneProfileId,
-				priority = edge.priority,
-				predicates = table.clone(edge.predicates),
-			}
-			currentGraph.edges[secondId] = {
-				id = secondId,
-				fromNodeId = nodeId,
-				toNodeId = edge.toNodeId,
-				outHandleOffset = delta,
-				inHandleOffset = { x = -delta.x, y = -delta.y, z = -delta.z },
-				laneProfileId = edge.laneProfileId,
-				priority = 1,
-				predicates = {},
-			}
-			currentGraph.edges[edgeId :: string] = nil
-			selectedNodeId = nodeId
-			selectedEdgeId = nil
+			selectedNodeId = GraphOperations.splitEdge(currentGraph, edgeId)
+			if selectedNodeId ~= nil then
+				selectedEdgeId = nil
+			end
 		end)
 		renderAll()
 	end
@@ -5111,22 +4565,11 @@ do
 		setLanes = flowUi.setLaneCount,
 		smoothEdge = function(edgeId: string)
 			local currentGraph = graph()
-			local edge = if currentGraph ~= nil then currentGraph.edges[edgeId] else nil
-			local from = if edge ~= nil and currentGraph ~= nil
-				then currentGraph.nodes[edge.fromNodeId]
-				else nil
-			local to = if edge ~= nil and currentGraph ~= nil then currentGraph.nodes[edge.toNodeId] else nil
-			if edge == nil or from == nil or to == nil then
+			if currentGraph == nil then
 				return
 			end
 			mutate("Smooth Stagewright route spline", function()
-				local delta = {
-					x = (to.position.x - from.position.x) / 3,
-					y = (to.position.y - from.position.y) / 3,
-					z = (to.position.z - from.position.z) / 3,
-				}
-				edge.outHandleOffset = delta
-				edge.inHandleOffset = { x = -delta.x, y = -delta.y, z = -delta.z }
+				GraphOperations.smoothEdge(currentGraph, edgeId)
 			end)
 			renderAll()
 		end,
