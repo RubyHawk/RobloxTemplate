@@ -444,6 +444,43 @@
           "Children": []
         },
         {
+          "Name": "GlyphImage",
+          "ClassName": "ImageLabel",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "BorderSizePixel": 0,
+            "Image": "",
+            "ScaleType": "Fit",
+            "Visible": false,
+            "ZIndex": 21,
+            "Position": {
+              "UDim2": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  86
+                ]
+              ]
+            },
+            "Size": {
+              "UDim2": [
+                [
+                  1,
+                  0
+                ],
+                [
+                  0,
+                  78
+                ]
+              ]
+            }
+          },
+          "Children": []
+        },
+        {
           "Name": "RuneName",
           "ClassName": "TextLabel",
           "Properties": {

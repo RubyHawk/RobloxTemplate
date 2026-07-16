@@ -26,6 +26,18 @@ export type CatalogLike = {
 
 local RuneLogic = {}
 
+-- Rune glyphs are display text (an emoji works great) unless the string is
+-- 5-16 digits, in which case it names a Roblox image asset. Returns the
+-- ready-to-assign ImageLabel content ("rbxassetid://…"), or nil when the
+-- glyph should render as text. The Runewright workbench mirrors this rule
+-- for its live preview.
+function RuneLogic.glyphImage(glyph: string): string?
+	if #glyph >= 5 and #glyph <= 16 and string.match(glyph, "^%d+$") ~= nil then
+		return `rbxassetid://{glyph}`
+	end
+	return nil
+end
+
 -- Keeps a corrupt or maliciously large save from producing a multiplier that
 -- overflows downstream award math.
 local MAX_TOTAL_BONUS_PERCENT = 1_000_000
