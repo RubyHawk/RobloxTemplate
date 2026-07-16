@@ -16,6 +16,10 @@ domain logic or reusable UI primitives should not be added to the bootstrap.
 - `UI/Theme.luau`: shared color and sizing tokens. Change visual language here.
 - `UI/Factory.luau`: small, reusable plugin controls.
 - `UI/Toolbar.luau`: vector icons and toolbar selection styles.
+- `UI/PaintAppearance.luau`: semantic cell colors and glyphs. It contains no
+  canvas input or project mutation.
+- `Paint/Brushes.luau`: pure brush catalog and bounded cell-area mutation. It
+  contains no UI, persistence, or Workspace dependency.
 - `Graph/Operations.luau`: graph mutations such as connect, split, lanes, and
   handle smoothing. It has no UI, persistence, or Workspace dependency.
 - `Graph/PredicateFields.luau`: predicate input parsing and trace-context
@@ -31,6 +35,7 @@ domain logic or reusable UI primitives should not be added to the bootstrap.
 bootstrap / views -> UI
 bootstrap / views -> ProjectStore
 bootstrap -> Graph
+bootstrap -> Paint
 bootstrap -> Validation
 Graph -> Shared
 ProjectStore -> Shared
@@ -38,8 +43,9 @@ UI -> Theme
 ```
 
 Modules never require bootstrap. Graph modules never require UI,
-`ProjectStore`, or Workspace. UI modules never require graph or persistence.
-This keeps styling changes independent from route behavior and project data.
+`ProjectStore`, or Workspace. Paint modules never require UI, persistence, or
+Workspace. UI modules never require graph or persistence. This keeps styling
+changes independent from route behavior and project data.
 
 ## Mutation flow
 

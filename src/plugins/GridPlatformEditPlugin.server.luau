@@ -14,6 +14,7 @@ end
 local AuthoringArea = require(script.AuthoringArea)
 local GraphOperations = require(script.Graph.Operations)
 local PredicateFields = require(script.Graph.PredicateFields)
+local Brushes = require(script.Paint.Brushes)
 local ProjectStore = require(script.ProjectStore)
 local RouteOverview = require(script.RouteOverview)
 local StageHierarchy = require(script.Shared.StageHierarchy)
@@ -22,6 +23,7 @@ local StageTrace = require(script.Shared.StageTrace)
 local AppShell = require(script.UI.AppShell)
 local Factory = require(script.UI.Factory)
 local HeaderController = require(script.UI.HeaderController)
+local PaintAppearance = require(script.UI.PaintAppearance)
 local Toolbar = require(script.UI.Toolbar)
 local IssueModel = require(script.Validation.IssueModel)
 
@@ -67,13 +69,6 @@ type FlowRuntime = {
 	toggleAction: (string, number, () -> ()) -> TextButton,
 	setToggleSelected: (TextButton, boolean) -> (),
 	workspacePreviewEnabled: boolean,
-}
-type Brush = {
-	id: string,
-	label: string,
-	category: string,
-	help: string,
-	apply: (cell: any) -> (),
 }
 type PaintRuntime = {
 	mode: string,
@@ -165,7 +160,6 @@ widget.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 local shell = AppShell.new(widget)
 local root = shell.root
-local title = shell.title
 local status = shell.status
 local modes = shell.modes
 local headerValidation = shell.headerValidation
@@ -173,7 +167,6 @@ local leftSidebar = shell.leftSidebar
 local workspace = shell.workspace
 local rightSidebar = shell.rightSidebar
 local sidebarTitle = shell.sidebarTitle
-local inspectorTitle = shell.inspectorTitle
 
 local function applyResponsiveShell()
 	shell:applyResponsive(activeMode)
@@ -306,119 +299,7 @@ local function confirm(id: string, prompt: string): boolean
 	return false
 end
 
-local brushes: { Brush } = {
-	{
-		id = "reset_cell",
-		label = "Reset to default",
-		category = "Quick tools",
-		help = "Remove authored overrides so the cell inherits the level default.",
-		apply = function(cell)
-			for key in cell do
-				cell[key] = nil
-			end
-		end,
-	},
-	{
-		id = "terrain_ground",
-		label = "Ground",
-		category = "Terrain",
-		help = "Paint normal playable ground.",
-		apply = function(cell)
-			cell.terrainId = "ground"
-		end,
-	},
-	{
-		id = "terrain_void",
-		label = "Void",
-		category = "Terrain",
-		help = "Paint empty terrain outside the playable surface.",
-		apply = function(cell)
-			cell.terrainId = "void"
-		end,
-	},
-	{
-		id = "build_allowed",
-		label = "Build allowed",
-		category = "Build policy",
-		help = "Allow players to place towers in this cell.",
-		apply = function(cell)
-			cell.buildPolicy = "Allowed"
-		end,
-	},
-	{
-		id = "build_blocked",
-		label = "Build blocked",
-		category = "Build policy",
-		help = "Prevent tower placement without changing terrain.",
-		apply = function(cell)
-			cell.buildPolicy = "Blocked"
-		end,
-	},
-	{
-		id = "build_auto",
-		label = "Auto-place only",
-		category = "Build policy",
-		help = "Reserve this cell for automatic placement systems.",
-		apply = function(cell)
-			cell.buildPolicy = "AutoOnly"
-		end,
-	},
-	{
-		id = "traversal_allowed",
-		label = "Traversal allowed",
-		category = "Enemy traversal",
-		help = "Allow route corridors to cross this cell.",
-		apply = function(cell)
-			cell.enemyTraversalPolicy = "Allowed"
-		end,
-	},
-	{
-		id = "traversal_blocked",
-		label = "Traversal blocked",
-		category = "Enemy traversal",
-		help = "Prevent route corridors from crossing this cell.",
-		apply = function(cell)
-			cell.enemyTraversalPolicy = "Blocked"
-		end,
-	},
-}
-for _, role in
-	{
-		"EnemySpawn",
-		"EnemyGoal",
-		"AutoPlace",
-		"Hazard",
-		"Reward",
-		"Trigger",
-		"StageTransition",
-		"DecorationAnchor",
-	}
-do
-	table.insert(brushes, {
-		id = `role_{role}`,
-		label = string.gsub(role, "(%l)(%u)", "%1 %2"),
-		category = "Cell roles",
-		help = `Toggle the {string.gsub(role, "(%l)(%u)", "%1 %2")} role on painted cells.`,
-		apply = function(cell)
-			cell.roles = cell.roles or {}
-			cell.roles[role] = not cell.roles[role]
-			if role == "EnemySpawn" or role == "EnemyGoal" then
-				cell.buildPolicy = "Blocked"
-			elseif role == "AutoPlace" and cell.buildPolicy == "Blocked" then
-				cell.buildPolicy = "Allowed"
-			end
-		end,
-	})
-end
-
-local function activeBrush(): Brush
-	for _, brush in brushes do
-		if brush.id == activeBrushId then
-			return brush
-		end
-	end
-	return brushes[1]
-end
+local brushes = Brushes.all
 
 local function localOrigin(): CFrame
 	return AuthoringArea.origin()
@@ -986,7 +867,7 @@ do
 	end
 end
 function renderPaintChrome()
-	local brush = activeBrush()
+	local brush = Brushes.find(activeBrushId)
 	local editingRoute = paintRuntime.mode == "Route"
 	for modeId, modeButton in paintRuntime.modeButtons do
 		setButtonSelected(modeButton, modeId == paintRuntime.mode)
@@ -1750,67 +1631,10 @@ paintRuntime.renderRoute = function(preview: any?)
 	end
 end
 
-local function cellVisual(cell: any, authoredCell: any?, defaultCell: any): (Color3, string)
-	local roles = cell.roles or defaultCell.roles or {}
-	local terrainId = cell.terrainId or defaultCell.terrainId
-	local color = if terrainId == "void" then COLORS.void else COLORS.ground
-	local glyph = ""
-	if authoredCell ~= nil and authoredCell.buildPolicy == "Allowed" then
-		color = COLORS.allowed
-	elseif authoredCell ~= nil and authoredCell.buildPolicy == "Blocked" then
-		color = COLORS.blocked
-		glyph = "X"
-	elseif authoredCell ~= nil and authoredCell.buildPolicy == "AutoOnly" then
-		color = COLORS.auto
-		glyph = "A"
-	end
-	if authoredCell ~= nil and authoredCell.enemyTraversalPolicy == "Allowed" then
-		color = Color3.fromRGB(51, 116, 164)
-	elseif authoredCell ~= nil and authoredCell.enemyTraversalPolicy == "Blocked" then
-		color = COLORS.blocked
-		glyph = "X"
-	end
-	if roles.EnemySpawn then
-		return Color3.fromRGB(45, 146, 84), "S"
-	elseif roles.EnemyGoal then
-		return Color3.fromRGB(113, 76, 193), "G"
-	elseif roles.AutoPlace then
-		return color, "A"
-	elseif roles.Hazard then
-		return COLORS.blocked, "H"
-	elseif roles.Reward then
-		return COLORS.warning, "R"
-	elseif roles.Trigger then
-		return COLORS.accent, "T"
-	elseif roles.StageTransition then
-		return COLORS.accentMuted, ">"
-	elseif roles.DecorationAnchor then
-		return COLORS.surface, "D"
-	end
-	return color, glyph
-end
-
 local function paintCell(column: number, row: number)
 	local current = stage()
-	local radius = math.floor(paintBrushSize / 2)
-	local brush = if activePaintTool == "Erase" then brushes[1] else activeBrush()
-	for targetRow = math.max(row - radius, 1), math.min(row + radius, current.grid.rows) do
-		for targetColumn = math.max(column - radius, 1), math.min(column + radius, current.grid.columns) do
-			local key = `{targetColumn}:{targetRow}`
-			if not paintedKeys[key] then
-				paintedKeys[key] = true
-				local cell = current.grid.cells[key]
-				if cell == nil then
-					cell = {}
-					current.grid.cells[key] = cell
-				end
-				brush.apply(cell)
-				if next(cell) == nil then
-					current.grid.cells[key] = nil
-				end
-			end
-		end
-	end
+	local brushId = if activePaintTool == "Erase" then Brushes.RESET_ID else activeBrushId
+	Brushes.applyArea(current.grid, Brushes.find(brushId), column, row, paintBrushSize, paintedKeys)
 end
 
 paintRuntime.beginInteraction = function(column: number, row: number)
@@ -1833,7 +1657,7 @@ paintRuntime.beginInteraction = function(column: number, row: number)
 		local fillStage = stage()
 		local authoredCell = fillStage.grid.cells[`{column}:{row}`]
 		local resolvedCell = authoredCell or fillStage.grid.defaultCell
-		local targetColor = cellVisual(resolvedCell, authoredCell, fillStage.grid.defaultCell)
+		local targetColor = PaintAppearance.resolve(resolvedCell, authoredCell, fillStage.grid.defaultCell)
 		local queue = { Vector2.new(column, row) }
 		local visited: { [string]: boolean } = {}
 		local head = 1
@@ -1855,7 +1679,8 @@ paintRuntime.beginInteraction = function(column: number, row: number)
 				visited[key] = true
 				local candidateOverride = fillStage.grid.cells[key]
 				local candidate = candidateOverride or fillStage.grid.defaultCell
-				local candidateColor = cellVisual(candidate, candidateOverride, fillStage.grid.defaultCell)
+				local candidateColor =
+					PaintAppearance.resolve(candidate, candidateOverride, fillStage.grid.defaultCell)
 				if candidateColor == targetColor then
 					paintCell(pointColumn, pointRow)
 					table.insert(queue, Vector2.new(pointColumn - 1, pointRow))
@@ -2002,7 +1827,7 @@ function renderCanvas()
 			local key = `{column}:{row}`
 			local authoredCell = grid.cells[key]
 			local cell = authoredCell or grid.defaultCell
-			local color, glyph = cellVisual(cell, authoredCell, grid.defaultCell)
+			local color, glyph = PaintAppearance.resolve(cell, authoredCell, grid.defaultCell)
 			local traversalPolicy = if authoredCell ~= nil
 					and authoredCell.enemyTraversalPolicy ~= nil
 				then authoredCell.enemyTraversalPolicy
@@ -5327,7 +5152,7 @@ function rerenderAll()
 		graphMiniPreviewView.Visible = false
 	end
 	graphList.Visible = false
-	inspectorTitle.Text = if activeMode == "Graph"
+	shell.inspectorTitle.Text = if activeMode == "Graph"
 		then if selectedEdgeId ~= nil then "EDGE" elseif selectedNodeId ~= nil then "NODE" else "INSPECTOR"
 		elseif activeMode == "Paint" then if paintRuntime.mode == "Route"
 			then "ROUTE INSPECTOR"
@@ -5340,7 +5165,7 @@ function rerenderAll()
 	local current = stage()
 	if current ~= nil then
 		local address = StageHierarchy.address(current)
-		title.Text = "Stagewright"
+		shell.title.Text = "Stagewright"
 		status.Text = `Stage {address.stageNumber} / Level {address.levelNumber}        ⌄`
 		status.TextColor3 = COLORS.text
 		shell.footerStage.Text =
@@ -5403,7 +5228,8 @@ function rerenderAll()
 						)
 						local authoredCell = current.grid.cells[`{column}:{row}`]
 						local resolvedCell = authoredCell or current.grid.defaultCell
-						local color = cellVisual(resolvedCell, authoredCell, current.grid.defaultCell)
+						local color =
+							PaintAppearance.resolve(resolvedCell, authoredCell, current.grid.defaultCell)
 						create("Frame", {
 							BackgroundColor3 = color,
 							BorderColor3 = COLORS.background,
@@ -5443,7 +5269,8 @@ function rerenderAll()
 						local key = `{column}:{row}`
 						local authoredCell = current.grid.cells[key]
 						local resolvedCell = authoredCell or current.grid.defaultCell
-						local color, glyph = cellVisual(resolvedCell, authoredCell, current.grid.defaultCell)
+						local color, glyph =
+							PaintAppearance.resolve(resolvedCell, authoredCell, current.grid.defaultCell)
 						local previewCellFrame = create("Frame", {
 							BackgroundColor3 = color,
 							BorderColor3 = Color3.fromRGB(28, 34, 41),

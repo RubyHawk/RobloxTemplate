@@ -14,6 +14,12 @@
         "$path": "../src/plugins/Stagewright/Graph/PredicateFields.luau"
       }
     },
+    "Paint": {
+      "$className": "Folder",
+      "Brushes": {
+        "$path": "../src/plugins/Stagewright/Paint/Brushes.luau"
+      }
+    },
     "ProjectStore": {
       "$path": "../src/plugins/Stagewright/ProjectStore.luau"
     },
@@ -33,6 +39,9 @@
       },
       "HeaderController": {
         "$path": "../src/plugins/Stagewright/UI/HeaderController.luau"
+      },
+      "PaintAppearance": {
+        "$path": "../src/plugins/Stagewright/UI/PaintAppearance.luau"
       },
       "Theme": {
         "$path": "../src/plugins/Stagewright/UI/Theme.luau"

@@ -17,6 +17,7 @@ local StageSchema = require("../src/shared/StageSchema")
 local StageStarterProject = require("../src/shared/StageStarterProject")
 local StageExport = require("../src/shared/StageExport")
 local StageTrace = require("../src/shared/StageTrace")
+local PaintBrushes = require("../src/plugins/Stagewright/Paint/Brushes")
 local DataStoreNames = require("../src/shared/DataStoreNames")
 local DataStoreKeys = require("../src/shared/DataStoreKeys")
 local MigrationCore = require("../src/shared/MigrationCore")
@@ -38,6 +39,38 @@ end
 local function expectCompiles(source: string, label: string)
 	local chunk, compileError = luau.load(source)
 	expectEqual(chunk ~= nil, true, `{label}: {tostring(compileError)}`)
+end
+
+do
+	local grid: any = {
+		columns = 3,
+		rows = 2,
+		cells = {},
+	}
+	local paintedKeys: { [string]: boolean } = {}
+	PaintBrushes.applyArea(grid, PaintBrushes.find("build_blocked"), 1, 1, 3, paintedKeys)
+	expectEqual(grid.cells["1:1"].buildPolicy, "Blocked", "paint brush mutates the selected cell")
+	expectEqual(grid.cells["2:2"].buildPolicy, "Blocked", "paint brush covers its bounded area")
+	expectEqual(grid.cells["3:1"], nil, "paint brush clamps at the grid edge")
+
+	PaintBrushes.applyArea(grid, PaintBrushes.find(PaintBrushes.RESET_ID), 1, 1, 3, paintedKeys)
+	expectEqual(
+		grid.cells["1:1"].buildPolicy,
+		"Blocked",
+		"painted-key tracking prevents repeated drag mutations"
+	)
+	PaintBrushes.applyArea(grid, PaintBrushes.find(PaintBrushes.RESET_ID), 1, 1, 1, {})
+	expectEqual(grid.cells["1:1"], nil, "reset brush removes an empty authored override")
+
+	grid.cells["3:2"] = { buildPolicy = "Blocked" }
+	PaintBrushes.applyArea(grid, PaintBrushes.find("role_AutoPlace"), 3, 2, 1, {})
+	expectEqual(grid.cells["3:2"].roles.AutoPlace, true, "role brush toggles the requested role")
+	expectEqual(grid.cells["3:2"].buildPolicy, "Allowed", "auto-place role preserves its compatibility rule")
+	expectEqual(
+		PaintBrushes.find("unknown-brush").id,
+		PaintBrushes.RESET_ID,
+		"unknown brush IDs fail safely to reset"
+	)
 end
 
 do
@@ -838,24 +871,30 @@ local stagewrightAppShellSource = fs.readFile("src/plugins/Stagewright/UI/AppShe
 local stagewrightThemeSource = fs.readFile("src/plugins/Stagewright/UI/Theme.luau")
 local stagewrightFactorySource = fs.readFile("src/plugins/Stagewright/UI/Factory.luau")
 local stagewrightHeaderControllerSource = fs.readFile("src/plugins/Stagewright/UI/HeaderController.luau")
+local stagewrightPaintAppearanceSource = fs.readFile("src/plugins/Stagewright/UI/PaintAppearance.luau")
 local stagewrightToolbarSource = fs.readFile("src/plugins/Stagewright/UI/Toolbar.luau")
 local stagewrightGraphOperationsSource = fs.readFile("src/plugins/Stagewright/Graph/Operations.luau")
 local stagewrightPredicateFieldsSource = fs.readFile("src/plugins/Stagewright/Graph/PredicateFields.luau")
+local stagewrightPaintBrushesSource = fs.readFile("src/plugins/Stagewright/Paint/Brushes.luau")
 local stagewrightIssueModelSource = fs.readFile("src/plugins/Stagewright/Validation/IssueModel.luau")
 local stagewrightUiSource = stagewrightAppShellSource
 	.. stagewrightThemeSource
 	.. stagewrightFactorySource
 	.. stagewrightHeaderControllerSource
+	.. stagewrightPaintAppearanceSource
 	.. stagewrightToolbarSource
 local stagewrightGraphSource = stagewrightGraphOperationsSource .. stagewrightPredicateFieldsSource
+local stagewrightPaintSource = stagewrightPaintBrushesSource
 expectCompiles(gridPluginSource, "modern Stagewright plugin shell compiles as Luau")
 expectCompiles(stagewrightAppShellSource, "Stagewright app shell compiles as Luau")
 expectCompiles(stagewrightThemeSource, "Stagewright UI theme compiles as Luau")
 expectCompiles(stagewrightFactorySource, "Stagewright UI factory compiles as Luau")
 expectCompiles(stagewrightHeaderControllerSource, "Stagewright header controller compiles as Luau")
+expectCompiles(stagewrightPaintAppearanceSource, "Stagewright paint appearance compiles as Luau")
 expectCompiles(stagewrightToolbarSource, "Stagewright toolbar compiles as Luau")
 expectCompiles(stagewrightGraphOperationsSource, "Stagewright graph operations compile as Luau")
 expectCompiles(stagewrightPredicateFieldsSource, "Stagewright predicate fields compile as Luau")
+expectCompiles(stagewrightPaintBrushesSource, "Stagewright paint brushes compile as Luau")
 expectCompiles(stagewrightIssueModelSource, "Stagewright validation issue model compiles as Luau")
 expectEqual(
 	string.find(gridPluginSource, "require(script.UI.AppShell)", 1, true) ~= nil
@@ -869,6 +908,13 @@ for _, forbiddenDependency in { "ProjectStore", "Workspace", "TextButton", "GuiO
 		string.find(stagewrightGraphSource, forbiddenDependency, 1, true),
 		nil,
 		`Stagewright graph domain stays independent from {forbiddenDependency}`
+	)
+end
+for _, forbiddenDependency in { "ProjectStore", "Workspace", "TextButton", "Instance.new", "UI.Theme" } do
+	expectEqual(
+		string.find(stagewrightPaintSource, forbiddenDependency, 1, true),
+		nil,
+		`Stagewright paint domain stays independent from {forbiddenDependency}`
 	)
 end
 for _, forbiddenDependency in { "ProjectStore", "ServerStorage", "StagePayload", "Graph.Operations" } do
@@ -1094,6 +1140,7 @@ do
 				.. stagewrightAuthoringAreaSource
 				.. stagewrightUiSource
 				.. stagewrightGraphSource
+				.. stagewrightPaintSource
 				.. stagewrightIssueModelSource
 				.. templateConfigSource,
 			pluginObject,
