@@ -25,6 +25,9 @@
     },
     "UI": {
       "$className": "Folder",
+      "AppShell": {
+        "$path": "../src/plugins/Stagewright/UI/AppShell.luau"
+      },
       "Factory": {
         "$path": "../src/plugins/Stagewright/UI/Factory.luau"
       },

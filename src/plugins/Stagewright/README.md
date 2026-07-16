@@ -11,6 +11,7 @@ domain logic or reusable UI primitives should not be added to the bootstrap.
 - `AuthoringArea.luau`: transient Studio authoring model and 3D selection.
 - `WorldPathView.luau`: world-path canvas rendering and input.
 - `RouteOverview.luau`: route-logic graph rendering and input.
+- `UI/AppShell.luau`: dock-widget chrome and responsive page layout.
 - `UI/Theme.luau`: shared color and sizing tokens. Change visual language here.
 - `UI/Factory.luau`: small, reusable plugin controls.
 - `UI/Toolbar.luau`: vector icons and toolbar selection styles.

@@ -834,21 +834,27 @@ local stagewrightStoreSource = fs.readFile("src/plugins/Stagewright/ProjectStore
 	.. fs.readFile("src/shared/StagePayload.luau")
 	.. fs.readFile("src/plugins/Stagewright/RouteOverview.luau")
 local stagewrightAuthoringAreaSource = fs.readFile("src/plugins/Stagewright/AuthoringArea.luau")
+local stagewrightAppShellSource = fs.readFile("src/plugins/Stagewright/UI/AppShell.luau")
 local stagewrightThemeSource = fs.readFile("src/plugins/Stagewright/UI/Theme.luau")
 local stagewrightFactorySource = fs.readFile("src/plugins/Stagewright/UI/Factory.luau")
 local stagewrightToolbarSource = fs.readFile("src/plugins/Stagewright/UI/Toolbar.luau")
 local stagewrightGraphOperationsSource = fs.readFile("src/plugins/Stagewright/Graph/Operations.luau")
 local stagewrightPredicateFieldsSource = fs.readFile("src/plugins/Stagewright/Graph/PredicateFields.luau")
-local stagewrightUiSource = stagewrightThemeSource .. stagewrightFactorySource .. stagewrightToolbarSource
+local stagewrightUiSource = stagewrightAppShellSource
+	.. stagewrightThemeSource
+	.. stagewrightFactorySource
+	.. stagewrightToolbarSource
 local stagewrightGraphSource = stagewrightGraphOperationsSource .. stagewrightPredicateFieldsSource
 expectCompiles(gridPluginSource, "modern Stagewright plugin shell compiles as Luau")
+expectCompiles(stagewrightAppShellSource, "Stagewright app shell compiles as Luau")
 expectCompiles(stagewrightThemeSource, "Stagewright UI theme compiles as Luau")
 expectCompiles(stagewrightFactorySource, "Stagewright UI factory compiles as Luau")
 expectCompiles(stagewrightToolbarSource, "Stagewright toolbar compiles as Luau")
 expectCompiles(stagewrightGraphOperationsSource, "Stagewright graph operations compile as Luau")
 expectCompiles(stagewrightPredicateFieldsSource, "Stagewright predicate fields compile as Luau")
 expectEqual(
-	string.find(gridPluginSource, "require(script.UI.Theme)", 1, true) ~= nil
+	string.find(gridPluginSource, "require(script.UI.AppShell)", 1, true) ~= nil
+		and string.find(gridPluginSource, "require(script.UI.Theme)", 1, true) ~= nil
 		and string.find(gridPluginSource, "require(script.Graph.Operations)", 1, true) ~= nil,
 	true,
 	"Stagewright bootstrap composes dedicated UI and graph modules"

@@ -19,6 +19,7 @@ local RouteOverview = require(script.RouteOverview)
 local StageHierarchy = require(script.Shared.StageHierarchy)
 local StagePayload = require(script.Shared.StagePayload)
 local StageTrace = require(script.Shared.StageTrace)
+local AppShell = require(script.UI.AppShell)
 local Factory = require(script.UI.Factory)
 local Toolbar = require(script.UI.Toolbar)
 
@@ -160,191 +161,22 @@ local widget = plugin:CreateDockWidgetPluginGuiAsync(
 widget.Title = "Stagewright - Tower Defense Stage Editor"
 widget.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-local root = create("Frame", {
-	Name = "Root",
-	BackgroundColor3 = COLORS.background,
-	BorderSizePixel = 0,
-	Size = UDim2.fromScale(1, 1),
-}, widget) :: Frame
-local header = create("Frame", {
-	Name = "ToolHeader",
-	BackgroundColor3 = COLORS.panel,
-	BorderSizePixel = 0,
-	Size = UDim2.new(1, 0, 0, 52),
-}, root) :: Frame
-create("Frame", {
-	AnchorPoint = Vector2.new(0, 1),
-	BackgroundColor3 = COLORS.border,
-	BorderSizePixel = 0,
-	Position = UDim2.fromScale(0, 1),
-	Size = UDim2.new(1, 0, 0, 1),
-}, header)
-local title = create("TextLabel", {
-	BackgroundTransparency = 1,
-	Font = Enum.Font.BuilderSansBold,
-	Position = UDim2.fromOffset(52, 0),
-	Size = UDim2.fromOffset(128, 52),
-	Text = "Stagewright",
-	TextColor3 = COLORS.text,
-	TextSize = 17,
-	TextXAlignment = Enum.TextXAlignment.Left,
-}, header) :: TextLabel
-local status = create("TextLabel", {
-	BackgroundTransparency = 1,
-	Font = Enum.Font.BuilderSansMedium,
-	Position = UDim2.fromOffset(0, 0),
-	Size = UDim2.fromOffset(1, 1),
-	Text = "Loading your versioned stage project...",
-	TextColor3 = COLORS.muted,
-	TextSize = 11,
-	TextTruncate = Enum.TextTruncate.AtEnd,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	Visible = false,
-}, header) :: TextLabel
-local modes = create("Frame", {
-	AnchorPoint = Vector2.new(1, 0.5),
-	BackgroundTransparency = 1,
-	Position = UDim2.new(1, -96, 0.5, 0),
-	Size = UDim2.fromOffset(500, 34),
-}, header) :: Frame
-create("UIGridLayout", {
-	CellPadding = UDim2.fromOffset(8, 0),
-	CellSize = UDim2.new(0.25, -6, 1, 0),
-	SortOrder = Enum.SortOrder.LayoutOrder,
-}, modes)
-local body = create("Frame", {
-	BackgroundTransparency = 1,
-	Position = UDim2.fromOffset(0, 52),
-	Size = UDim2.new(1, 0, 1, -52),
-}, root) :: Frame
-local footer = create("Frame", {
-	BackgroundColor3 = COLORS.panel,
-	BorderSizePixel = 0,
-	Position = UDim2.fromScale(0, 1),
-	Size = UDim2.fromScale(1, 0),
-	Visible = false,
-}, root) :: Frame
-local footerStage = create("TextLabel", {
-	BackgroundTransparency = 1,
-	Font = Enum.Font.BuilderSans,
-	Position = UDim2.fromOffset(14, 0),
-	Size = UDim2.new(0.65, -14, 1, 0),
-	Text = "Stage 1 / Level 1",
-	TextColor3 = COLORS.muted,
-	TextSize = 11,
-	TextXAlignment = Enum.TextXAlignment.Left,
-}, footer) :: TextLabel
-create("TextLabel", {
-	AnchorPoint = Vector2.new(1, 0),
-	BackgroundTransparency = 1,
-	Font = Enum.Font.BuilderSans,
-	Position = UDim2.fromScale(1, 0),
-	Size = UDim2.fromOffset(180, 34),
-	Text = "Stagewright 2.4 - Edit mode only",
-	TextColor3 = COLORS.muted,
-	TextSize = 10,
-	TextXAlignment = Enum.TextXAlignment.Right,
-}, footer)
-local headerValidation = create("TextButton", {
-	AnchorPoint = Vector2.new(1, 0),
-	AutoButtonColor = false,
-	BackgroundColor3 = Color3.fromRGB(45, 35, 18),
-	BorderSizePixel = 0,
-	Font = Enum.Font.BuilderSansBold,
-	Position = UDim2.new(1, -598, 0, 9),
-	Size = UDim2.fromOffset(174, 34),
-	Text = "Checking project...",
-	TextColor3 = COLORS.muted,
-	TextSize = 12,
-}, header) :: TextButton
-create("UICorner", { CornerRadius = UDim.new(0, 7) }, headerValidation)
-create("UIStroke", { Color = COLORS.border, Thickness = 1 }, headerValidation)
-
-local leftSidebar = create("Frame", {
-	BackgroundColor3 = COLORS.panel,
-	BorderSizePixel = 0,
-	Size = UDim2.new(0, 184, 1, 0),
-}, body) :: Frame
-local workspace = create("Frame", {
-	BackgroundColor3 = COLORS.background,
-	BorderSizePixel = 0,
-	Position = UDim2.fromOffset(190, 0),
-	Size = UDim2.new(1, -380, 1, 0),
-}, body) :: Frame
-local rightSidebar = create("Frame", {
-	AnchorPoint = Vector2.new(1, 0),
-	BackgroundColor3 = COLORS.panel,
-	BorderSizePixel = 0,
-	Position = UDim2.fromScale(1, 0),
-	Size = UDim2.new(0, 184, 1, 0),
-}, body) :: Frame
-local sidebarTitle = create("TextLabel", {
-	BackgroundTransparency = 1,
-	Font = Enum.Font.BuilderSansBold,
-	Position = UDim2.fromOffset(12, 8),
-	Size = UDim2.new(1, -24, 0, 24),
-	Text = "STAGES & LEVELS",
-	TextColor3 = COLORS.text,
-	TextSize = 12,
-	TextXAlignment = Enum.TextXAlignment.Left,
-}, leftSidebar) :: TextLabel
-local inspectorTitle = create("TextLabel", {
-	BackgroundTransparency = 1,
-	Font = Enum.Font.BuilderSansBold,
-	Position = UDim2.fromOffset(12, 8),
-	Size = UDim2.new(1, -24, 0, 24),
-	Text = "INSPECTOR",
-	TextColor3 = COLORS.text,
-	TextSize = 12,
-	TextXAlignment = Enum.TextXAlignment.Left,
-}, rightSidebar) :: TextLabel
+local shell = AppShell.new(widget)
+local root = shell.root
+local header = shell.header
+local title = shell.title
+local status = shell.status
+local modes = shell.modes
+local footerStage = shell.footerStage
+local headerValidation = shell.headerValidation
+local leftSidebar = shell.leftSidebar
+local workspace = shell.workspace
+local rightSidebar = shell.rightSidebar
+local sidebarTitle = shell.sidebarTitle
+local inspectorTitle = shell.inspectorTitle
 
 local function applyResponsiveShell()
-	local width = root.AbsoluteSize.X
-	local wantsInspector = activeMode ~= "Validate"
-	local leftWidth = if width >= 1_500
-		then if activeMode == "Paint" then 232 elseif activeMode == "Validate" then 196 else 240
-		else if width >= 1_100 then 208 else 172
-	local inspectorWidth = if width >= 1_500
-		then if activeMode == "Graph" then 300 elseif activeMode == "Stage" then 310 else 260
-		else 236
-	if activeMode == "Graph" then
-		leftSidebar.Visible = false
-		rightSidebar.Visible = false
-		workspace.Position = UDim2.fromOffset(0, 0)
-		workspace.Size = UDim2.fromScale(1, 1)
-		title.Visible = true
-		status.Visible = false
-		modes.AnchorPoint = Vector2.new(1, 0.5)
-		modes.Position = UDim2.new(1, -96, 0.5, 0)
-		modes.Size = UDim2.fromOffset(500, 34)
-		headerValidation.Visible = true
-	elseif width >= 760 then
-		leftSidebar.Visible = true
-		rightSidebar.Visible = wantsInspector
-		leftSidebar.Size = UDim2.new(0, leftWidth, 1, 0)
-		workspace.Position = UDim2.fromOffset(leftWidth + 1, 0)
-		workspace.Size =
-			UDim2.new(1, if wantsInspector then -(leftWidth + inspectorWidth + 2) else -(leftWidth + 1), 1, 0)
-		rightSidebar.Size = UDim2.new(0, inspectorWidth, 1, 0)
-		title.Visible = true
-		status.Visible = false
-		modes.AnchorPoint = Vector2.new(1, 0.5)
-		modes.Position = UDim2.new(1, -96, 0.5, 0)
-		modes.Size = UDim2.fromOffset(500, 34)
-		headerValidation.Visible = true
-	else
-		leftSidebar.Visible = false
-		rightSidebar.Visible = false
-		workspace.Position = UDim2.fromOffset(0, 0)
-		workspace.Size = UDim2.fromScale(1, 1)
-		title.Visible = false
-		status.Visible = false
-		modes.AnchorPoint = Vector2.new(0, 0.5)
-		modes.Position = UDim2.new(0, 10, 0.5, 0)
-		modes.Size = UDim2.new(1, -20, 0, 30)
-		headerValidation.Visible = false
-	end
+	shell:applyResponsive(activeMode)
 end
 root:GetPropertyChangedSignal("AbsoluteSize"):Connect(applyResponsiveShell)
 
