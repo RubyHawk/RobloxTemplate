@@ -6,6 +6,8 @@
 -- Rarity weights are integer parts-per-ten-thousand and MUST sum to exactly
 -- 10000 so the disclosed odds always total 100% (see
 -- docs/internal/2026-07-10-rune-policy-check.md).
+-- Glyphs are display text unless the string is 5-16 digits, which names a
+-- Roblox image asset id (RuneLogic.glyphImage decides).
 
 export type RuneRarity = {
 	id: string,

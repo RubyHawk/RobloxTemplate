@@ -104,6 +104,11 @@ local bannerLabel = rarityBanner:WaitForChild("BannerLabel") :: TextLabel
 local newTag = revealCard:WaitForChild("NewTag") :: Frame
 local pityTag = revealCard:WaitForChild("PityTag") :: Frame
 local glyphLabel = revealCard:WaitForChild("Glyph") :: TextLabel
+-- Optional bind so places built before image glyphs keep revealing text-only.
+local glyphImageCandidate = revealCard:FindFirstChild("GlyphImage")
+local glyphImage: ImageLabel? = if glyphImageCandidate ~= nil and glyphImageCandidate:IsA("ImageLabel")
+	then glyphImageCandidate
+	else nil
 local runeNameLabel = revealCard:WaitForChild("RuneName") :: TextLabel
 local bonusLine = revealCard:WaitForChild("BonusLine") :: TextLabel
 local ownedLine = revealCard:WaitForChild("OwnedLine") :: TextLabel
@@ -438,7 +443,16 @@ local function showReveal(result: any)
 	local token = revealToken
 	rarityBanner.BackgroundColor3 = rarityColor(rarity.id)
 	bannerLabel.Text = string.upper(`{rarity.name} RUNE`)
-	glyphLabel.Text = rune.glyph
+	-- Digit glyphs name a Roblox image asset (RuneLogic.glyphImage); everything
+	-- else stays display text. Without the authored GlyphImage slot the raw
+	-- glyph text shows, so pre-image places never reveal an empty card.
+	local glyphImageContent = if glyphImage ~= nil then RuneLogic.glyphImage(rune.glyph) else nil
+	glyphLabel.Visible = glyphImageContent == nil
+	glyphLabel.Text = if glyphImageContent == nil then rune.glyph else ""
+	if glyphImage ~= nil then
+		glyphImage.Image = glyphImageContent or ""
+		glyphImage.Visible = glyphImageContent ~= nil
+	end
 	runeNameLabel.Text = string.upper(rune.name)
 	bonusLine.Text = `+{rune.bonusPercent}% {currencyName} GENERATION`
 	ownedLine.Text = `OWNED x{result.ownedCount}`
