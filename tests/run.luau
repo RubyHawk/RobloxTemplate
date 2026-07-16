@@ -1048,6 +1048,11 @@ for _, runePluginObject in
 		"toggleSwitch",
 		"parseHexColor",
 		"OddsBar",
+		-- Glyphs accept a Roblox image asset id (5-16 digits) as well as an
+		-- emoji; the card cell previews the actual image via the same rule
+		-- RuneLogic.glyphImage applies at runtime.
+		"glyphImageId",
+		"GlyphPreview",
 		-- Tier and milestone editors hold everything the runtime accepts
 		-- (RuneModeConfig.MAX_TIERS / MAX_MILESTONES), so loading a place
 		-- never silently truncates authored rows.
@@ -1798,6 +1803,17 @@ expectEqual(
 	10000,
 	"rune rarity weights sum to exactly 10000 so disclosed odds total 100%"
 )
+
+-- Glyphs: 5-16 digit strings name Roblox image assets; everything else is text.
+expectEqual(
+	RuneLogic.glyphImage("105300168575798"),
+	"rbxassetid://105300168575798",
+	"digit glyphs resolve to Roblox image asset content"
+)
+expectEqual(RuneLogic.glyphImage("🔥"), nil, "emoji glyphs stay display text")
+expectEqual(RuneLogic.glyphImage("7"), nil, "short digit glyphs stay display text")
+expectEqual(RuneLogic.glyphImage("12345678901234567"), nil, "overlong digit strings stay display text")
+expectEqual(RuneLogic.glyphImage("123a5"), nil, "mixed alphanumeric glyphs stay display text")
 local oddsSum = 0
 for _, rarity in RuneCatalog.rarities do
 	oddsSum += RuneLogic.oddsPercent(rarity)
@@ -1946,6 +1962,7 @@ for _, authoredRuneObject in
 		'"Name": "MomentumMeter"',
 		'"Name": "ModeHint"',
 		'"Name": "MilestoneLine"',
+		'"Name": "GlyphImage"',
 		"rbxassetid://125907024425133",
 		"rbxassetid://111977708425543",
 	}
@@ -2404,6 +2421,16 @@ do
 		string.find(runeClientSource, "effectiveWeights", 1, true) ~= nil,
 		true,
 		"the odds panel renders the server-sent effective odds"
+	)
+	expectEqual(
+		string.find(runeClientSource, "RuneLogic.glyphImage", 1, true) ~= nil,
+		true,
+		"the reveal card resolves image glyphs through the shared RuneLogic rule"
+	)
+	expectEqual(
+		string.find(runeClientSource, "GlyphImage", 1, true) ~= nil,
+		true,
+		"the reveal card binds the authored GlyphImage slot optionally"
 	)
 	local incrementalUi = fs.readFile("src/ui/presets/incremental/TemplateUI.model.json")
 	for _, authoredHudObject in { '"Name": "RunesValue"', '"Name": "ChannelValue"' } do

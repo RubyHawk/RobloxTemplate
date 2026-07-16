@@ -503,7 +503,7 @@ function Val.all(): { Issue }
 			fail(TAB_RUNES, `Rune {label} needs a name (1-40 characters)`)
 		end
 		if #rune.glyph < 1 or #rune.glyph > 16 then
-			fail(TAB_RUNES, `Rune {label} needs a glyph (an emoji works great)`)
+			fail(TAB_RUNES, `Rune {label} needs a glyph (an emoji or a Roblox image asset id)`)
 		end
 		if not Val.isFinite(rune.bonusPercent) or rune.bonusPercent <= 0 then
 			fail(TAB_RUNES, `Rune {label} bonus must be a positive percent`)
@@ -656,6 +656,8 @@ function Gen.catalogSource(): string
 		"-- unavailable outside Roblox. Rarity weights are integer parts-per-ten-",
 		"-- thousand and MUST sum to exactly 10000 so the disclosed odds always total",
 		"-- 100% (see docs/internal/2026-07-12-rune-channel-modes.md).",
+		"-- Glyphs are display text unless the string is 5-16 digits, which names a",
+		"-- Roblox image asset id (RuneLogic.glyphImage decides).",
 		"",
 		"export type RuneRarity = {",
 		"\tid: string,",
@@ -853,6 +855,16 @@ local function parseHexColor(text: string): (number?, number?, number?)
 		return nil, nil, nil
 	end
 	return tonumber(r, 16), tonumber(g, 16), tonumber(b, 16)
+end
+
+-- Mirrors RuneLogic.glyphImage: a 5-16 digit glyph names a Roblox image
+-- asset; anything else renders as display text. The plugin build is
+-- standalone, so the rule is duplicated here — keep both in sync.
+local function glyphImageId(glyph: string): string?
+	if #glyph >= 5 and #glyph <= 16 and string.match(glyph, "^%d+$") ~= nil then
+		return `rbxassetid://{glyph}`
+	end
+	return nil
 end
 
 local KIND_EXPLAINERS: { [string]: string } = {
@@ -2413,7 +2425,8 @@ local function buildPanel()
 		runesSection.frame,
 		"RunesHint",
 		"Ids are save keys — renaming one orphans existing copies until the id returns."
-			.. " Every rarity needs at least one card."
+			.. " Every rarity needs at least one card. Glyph takes an emoji or a Roblox image"
+			.. " asset id (digits only) — the cell previews the actual image."
 	)
 
 	local runesList = Instance.new("Frame")
@@ -2472,15 +2485,41 @@ local function buildPanel()
 		topRow.LayoutOrder = 1
 		topRow.Parent = content
 
+		-- The glyph cell previews digit glyphs as their actual Roblox image;
+		-- focusing the cell swaps back to the raw id for editing.
+		local glyphPreview = Instance.new("ImageLabel")
+		glyphPreview.Name = "GlyphPreview"
+		glyphPreview.BackgroundTransparency = 1
+		glyphPreview.AnchorPoint = Vector2.new(0.5, 0.5)
+		glyphPreview.Position = UDim2.fromScale(0.5, 0.5)
+		glyphPreview.Size = UDim2.fromOffset(18, 18)
+		glyphPreview.ScaleType = Enum.ScaleType.Fit
+		glyphPreview.Visible = false
+
+		local repaintGlyph: () -> ()
 		local glyphBox, glyphShell = textInput(topRow, "Glyph", function()
 			return rune.glyph
 		end, function(value)
 			rune.glyph = value
+			repaintGlyph()
 		end)
+		glyphPreview.Parent = glyphShell
 		glyphShell.Size = UDim2.fromOffset(36, INPUT_HEIGHT)
 		glyphBox.TextXAlignment = Enum.TextXAlignment.Center
 		glyphBox.Position = UDim2.fromOffset(0, 0)
 		glyphBox.Size = UDim2.fromScale(1, 1)
+		repaintGlyph = function()
+			local image = glyphImageId(rune.glyph)
+			glyphPreview.Image = image or ""
+			glyphPreview.Visible = image ~= nil
+			glyphBox.TextTransparency = if image ~= nil then 1 else 0
+		end
+		glyphBox.Focused:Connect(function()
+			glyphPreview.Visible = false
+			glyphBox.TextTransparency = 0
+		end)
+		glyphBox.FocusLost:Connect(repaintGlyph)
+		repaintGlyph()
 
 		local _, nameShell = textInput(topRow, "DisplayName", function()
 			return rune.name
