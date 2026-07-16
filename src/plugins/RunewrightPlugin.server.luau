@@ -2535,7 +2535,7 @@ local function buildPanel()
 		pctLabel.Size = UDim2.fromOffset(10, INPUT_HEIGHT)
 		pctLabel.TextSize = 9
 
-		local _, bonusShell = numberInput(topRow, "Bonus", function()
+		local _, bonusShell = numberInput(topRow, "Bonus", "Bonus %", function()
 			return rune.bonusPercent
 		end, function(value)
 			if value ~= nil then
