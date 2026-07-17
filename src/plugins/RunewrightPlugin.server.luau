@@ -6,9 +6,12 @@
 -- rune cards themselves (names, glyphs, bonuses, flavor).
 --
 -- The panel is an identity header, five tabs (Altar / Modes / Rarity / Runes /
--- Review), and a persistent action footer, drawn as flat form rows and tables
--- rather than nested boxes. Colors and control sizes come from the studio's
--- shared Stagewright theme so both Studio tools read as one product:
+-- Review), and a persistent action footer. Surfaces read by elevation — raised
+-- fills, soft UIShadow drop shadows, and generous spacing — rather than an
+-- outline around every control, which is the modern-tool convention (inputs are
+-- borderless and show a steel ring only on focus). Colors and control sizes come
+-- from the studio's shared Stagewright theme so both Studio tools read as one
+-- product:
 -- - Sections are hairline-ruled headers, labels sit beside compact inputs
 --   instead of inside chunky cells, and repeating data (momentum tiers, copy
 --   milestones, rarities) renders as real tables with column headers.
@@ -69,7 +72,6 @@ local TRACK_ON = Color3.fromRGB(3, 82, 132) -- toggle "on" track, accent-tinted
 local KNOB_OFF = Color3.fromRGB(120, 132, 150)
 local KNOB_ON = Color3.fromRGB(235, 242, 250)
 local BORDER = Color3.fromRGB(35, 45, 59)
-local BORDER_STRONG = Color3.fromRGB(52, 67, 87)
 local TEXT = Color3.fromRGB(229, 234, 242)
 local TEXT_ACTIVE = Color3.fromRGB(245, 248, 252)
 local MUTED = Color3.fromRGB(143, 155, 173)
@@ -978,6 +980,23 @@ local function buildPanel()
 		return stroke
 	end
 
+	-- Soft drop shadow (Studio's UIShadow, GA Jan 2026) so raised surfaces read
+	-- by elevation instead of an outline — the modern-tool way. pcall-guarded so
+	-- an older Studio without the class simply renders flat instead of erroring.
+	local function shadow(parent: Instance, blur: number, transparency: number, yOffset: number)
+		local ok, sh = pcall(Instance.new, "UIShadow")
+		if not ok or sh == nil then
+			return
+		end
+		sh.BlurRadius = UDim.new(0, blur)
+		sh.Color = Color3.new(0, 0, 0)
+		sh.Transparency = transparency
+		sh.Offset = UDim2.fromOffset(0, yOffset)
+		sh.Spread = 0
+		sh.ZIndex = -1
+		sh.Parent = parent
+	end
+
 	local function createButton(
 		parent: Instance,
 		name: string,
@@ -997,8 +1016,9 @@ local function buildPanel()
 		button.TextTruncate = Enum.TextTruncate.AtEnd
 		button.Size = UDim2.new(1, 0, 0, height)
 		button.Parent = parent
-		round(button, 5)
-		outline(button, 0.55)
+		round(button, 8)
+		-- Borderless at rest; armButton reveals this stroke as its confirm state.
+		outline(button, 1)
 		if hover ~= false then
 			button.MouseEnter:Connect(function()
 				button.BackgroundColor3 = BUTTON_HOVER
@@ -1017,6 +1037,7 @@ local function buildPanel()
 		local restingColor = button.TextColor3
 		local stroke = button:FindFirstChildOfClass("UIStroke")
 		local restingStroke = if stroke ~= nil then stroke.Color else BORDER
+		local restingStrokeTransparency = if stroke ~= nil then stroke.Transparency else 1
 		local armed = false
 		local generation = 0
 		local function rest()
@@ -1026,6 +1047,7 @@ local function buildPanel()
 			button.TextColor3 = restingColor
 			if stroke ~= nil then
 				stroke.Color = restingStroke
+				stroke.Transparency = restingStrokeTransparency
 			end
 		end
 		button.MouseButton1Click:Connect(function()
@@ -1041,6 +1063,7 @@ local function buildPanel()
 			button.TextColor3 = BAD
 			if stroke ~= nil then
 				stroke.Color = BAD
+				stroke.Transparency = 0.1
 			end
 			task.delay(2.5, function()
 				if armed and generation == myGeneration then
@@ -1061,7 +1084,7 @@ local function buildPanel()
 		section.AutomaticSize = Enum.AutomaticSize.Y
 		section.Parent = parent
 		local layout = Instance.new("UIListLayout")
-		layout.Padding = UDim.new(0, 4)
+		layout.Padding = UDim.new(0, 8)
 		layout.SortOrder = Enum.SortOrder.LayoutOrder
 		layout.Parent = section
 
@@ -1122,8 +1145,10 @@ local function buildPanel()
 		shell.BorderSizePixel = 0
 		shell.Size = UDim2.new(1, 0, 0, INPUT_HEIGHT)
 		shell.Parent = parent
-		round(shell, 4)
-		local stroke = outline(shell, 0.7)
+		round(shell, 8)
+		-- No resting border: the field reads by its raised fill, and a steel ring
+		-- appears only on focus. Hover lifts the fill. (Elevation over outlines.)
+		local stroke = outline(shell, 1)
 
 		local box = Instance.new("TextBox")
 		box.Name = "Value"
@@ -1145,10 +1170,9 @@ local function buildPanel()
 			if focused then
 				stroke.Color = BUTTON_ACTIVE
 				stroke.Transparency = 0.1
-				shell.BackgroundColor3 = PANEL_FIELD
+				shell.BackgroundColor3 = FIELD_HOVER
 			else
-				stroke.Color = if hovered then BORDER_STRONG else BORDER
-				stroke.Transparency = if hovered then 0.35 else 0.55
+				stroke.Transparency = 1
 				shell.BackgroundColor3 = if hovered then FIELD_HOVER else PANEL_FIELD
 			end
 		end
@@ -1311,19 +1335,19 @@ local function buildPanel()
 				pill.AutoButtonColor = false
 				pill.BorderSizePixel = 0
 				pill.Font = Enum.Font.GothamBold
-				pill.TextSize = if tint == true then 9 else 10
+				pill.TextSize = if tint == true then 10 else 11
 				pill.TextTruncate = Enum.TextTruncate.AtEnd
 				pill.LayoutOrder = order
 				local selected = option.value == current
 				local idleText: Color3
 				if tint == true and option.dotColor ~= nil then
-					-- Selected: a translucent wash of the rarity color with a solid
-					-- colored stroke and lightened text — a picked state, not a tag.
+					-- Selected: a wash of the rarity color with lightened text — a
+					-- picked state read by fill, not an outline.
 					local dotColor = option.dotColor
 					idleText = dotColor
 					pill.BackgroundColor3 = dotColor
-					pill.BackgroundTransparency = if selected then 0.84 else 1
-					pill.TextColor3 = if selected then dotColor:Lerp(Color3.new(1, 1, 1), 0.4) else dotColor
+					pill.BackgroundTransparency = if selected then 0.72 else 1
+					pill.TextColor3 = if selected then dotColor:Lerp(Color3.new(1, 1, 1), 0.5) else dotColor
 					pill.Text = option.text
 				else
 					idleText = MUTED
@@ -1338,12 +1362,7 @@ local function buildPanel()
 					end
 				end
 				pill.Parent = pillHost
-				round(pill, 4)
-				local pillStroke = outline(pill, if selected then 0.35 else 0.6)
-				if tint == true and selected and option.dotColor ~= nil then
-					pillStroke.Color = option.dotColor
-					pillStroke.Transparency = 0.25
-				end
+				round(pill, 6)
 				if not selected then
 					pill.MouseEnter:Connect(function()
 						pill.TextColor3 = if tint == true
@@ -1387,8 +1406,7 @@ local function buildPanel()
 		track.BorderSizePixel = 0
 		track.Size = UDim2.new(1, 0, 0, INPUT_HEIGHT)
 		track.Parent = parent
-		round(track, 5)
-		outline(track, 0.6)
+		round(track, 8)
 		local trackPadding = Instance.new("UIPadding")
 		trackPadding.PaddingTop = UDim.new(0, 2)
 		trackPadding.PaddingBottom = UDim.new(0, 2)
@@ -1427,7 +1445,7 @@ local function buildPanel()
 				segment.Text = option.text
 				segment.Size = UDim2.new(1 / count, if order < count then -2 else 0, 1, 0)
 				segment.Parent = track
-				round(segment, 3)
+				round(segment, 6)
 				if not selected then
 					segment.MouseEnter:Connect(function()
 						segment.TextColor3 = TEXT
@@ -1669,6 +1687,8 @@ local function buildPanel()
 	footer.Position = UDim2.fromScale(0, 1)
 	footer.Size = UDim2.new(1, 0, 0, FOOTER_HEIGHT)
 	footer.Parent = root
+	-- Cast upward over the content so the action dock reads as a floating bar.
+	shadow(footer, 14, 0.7, -3)
 
 	local footerRule = Instance.new("Frame")
 	footerRule.Name = "Rule"
@@ -1722,6 +1742,7 @@ local function buildPanel()
 	header.BorderSizePixel = 0
 	header.Size = UDim2.new(1, 0, 0, HEADER_HEIGHT)
 	header.Parent = root
+	shadow(header, 12, 0.72, 3)
 
 	local headerRule = Instance.new("Frame")
 	headerRule.Name = "Rule"
@@ -1828,6 +1849,7 @@ local function buildPanel()
 	applyButton.LayoutOrder = 1
 	applyButton.BackgroundColor3 = BUTTON_ACTIVE
 	applyButton.TextColor3 = ON_ACCENT
+	shadow(applyButton, 10, 0.6, 2)
 	applyButton.MouseButton1Click:Connect(applyToPlace)
 	applyButton.MouseEnter:Connect(function()
 		if applyButton.BackgroundColor3 == BUTTON_ACTIVE then
@@ -1904,13 +1926,13 @@ local function buildPanel()
 		page.Visible = tabName == activeTabName
 		page.Parent = pageHost
 		local pagePadding = Instance.new("UIPadding")
-		pagePadding.PaddingTop = UDim.new(0, 12)
-		pagePadding.PaddingBottom = UDim.new(0, 12)
-		pagePadding.PaddingLeft = UDim.new(0, 12)
-		pagePadding.PaddingRight = UDim.new(0, 12)
+		pagePadding.PaddingTop = UDim.new(0, 16)
+		pagePadding.PaddingBottom = UDim.new(0, 16)
+		pagePadding.PaddingLeft = UDim.new(0, 16)
+		pagePadding.PaddingRight = UDim.new(0, 16)
 		pagePadding.Parent = page
 		local pageLayout = Instance.new("UIListLayout")
-		pageLayout.Padding = UDim.new(0, 14)
+		pageLayout.Padding = UDim.new(0, 22)
 		pageLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		pageLayout.Parent = page
 		pages[tabName] = page
@@ -2094,13 +2116,13 @@ local function buildPanel()
 		card.AutomaticSize = Enum.AutomaticSize.Y
 		card.LayoutOrder = 10 + index
 		card.Parent = modesSection.frame
-		round(card, 6)
-		outline(card, 0.55)
+		round(card, 10)
+		shadow(card, 14, 0.72, 3)
 		local cardPadding = Instance.new("UIPadding")
-		cardPadding.PaddingTop = UDim.new(0, 10)
-		cardPadding.PaddingBottom = UDim.new(0, 10)
-		cardPadding.PaddingLeft = UDim.new(0, 10)
-		cardPadding.PaddingRight = UDim.new(0, 10)
+		cardPadding.PaddingTop = UDim.new(0, 14)
+		cardPadding.PaddingBottom = UDim.new(0, 14)
+		cardPadding.PaddingLeft = UDim.new(0, 14)
+		cardPadding.PaddingRight = UDim.new(0, 14)
 		cardPadding.Parent = card
 		local cardLayout = Instance.new("UIListLayout")
 		cardLayout.Padding = UDim.new(0, 8)
@@ -2317,8 +2339,7 @@ local function buildPanel()
 	oddsBar.Size = UDim2.new(1, 0, 0, 14)
 	oddsBar.LayoutOrder = 5
 	oddsBar.Parent = raritiesSection.frame
-	round(oddsBar, 4)
-	outline(oddsBar, 0.5)
+	round(oddsBar, 6)
 
 	local oddsLabels: { TextLabel } = {}
 	local weightBoxes: { TextBox } = {}
@@ -2559,8 +2580,8 @@ local function buildPanel()
 		card.AutomaticSize = Enum.AutomaticSize.Y
 		card.LayoutOrder = index
 		card.Parent = runesList
-		round(card, 6)
-		outline(card, 0.55)
+		round(card, 10)
+		shadow(card, 14, 0.72, 3)
 
 		local edge = Instance.new("Frame")
 		edge.Name = "Edge"

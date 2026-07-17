@@ -916,17 +916,36 @@ emitNode = function(node: AnyTable, out: { string })
 		`z-index:{node.ZIndex or 1}`,
 	}
 	table.insert(style, `background:{cssColor(node.BackgroundColor3, node.BackgroundTransparency)}`)
-	local _, _, cornerChild = nil, nil, nil
+	-- Strokes (1px ring) and UIShadow drop shadows both map to CSS box-shadow, so
+	-- collect every part and emit one combined declaration — a second box-shadow
+	-- rule would otherwise clobber the first.
+	local boxShadows: { string } = {}
 	for _, decorator in node._children do
 		local decoratorClass = decorator._props.ClassName
 		if decoratorClass == "UICorner" then
 			local radius = decorator.CornerRadius
 			table.insert(style, `border-radius:{if radius ~= nil then radius.Offset else 4}px`)
 		elseif decoratorClass == "UIStroke" then
-			table.insert(style, `box-shadow:0 0 0 1px {cssColor(decorator.Color, decorator.Transparency)}`)
+			local color = cssColor(decorator.Color, decorator.Transparency)
+			if color ~= "transparent" then
+				table.insert(boxShadows, `0 0 0 1px {color}`)
+			end
+		elseif decoratorClass == "UIShadow" then
+			local color = cssColor(decorator.Color, decorator.Transparency)
+			if color ~= "transparent" then
+				local offset = decorator.Offset
+				local ox = if offset ~= nil then offset.X.Offset else 0
+				local oy = if offset ~= nil then offset.Y.Offset else 0
+				local blur = decorator.BlurRadius
+				local b = if blur ~= nil then blur.Offset else 0
+				local spread = decorator.Spread or 0
+				table.insert(boxShadows, `{ox}px {oy}px {b}px {spread}px {color}`)
+			end
 		end
 	end
-	local _ = cornerChild
+	if #boxShadows > 0 then
+		table.insert(style, `box-shadow:{table.concat(boxShadows, ",")}`)
+	end
 	if node.ClipsDescendants == true then
 		table.insert(style, "overflow:hidden")
 	end
