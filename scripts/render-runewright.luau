@@ -492,6 +492,17 @@ check(child(actions, "Apply").Text == "Apply to Place", "Apply to Place present"
 check(child(actions, "Print").Text == "Print Sources", "Print Sources present")
 check(child(actions, "Reload").Text == "Reload", "Reload present")
 
+-- Identity header: wordmark plus one rarity band per configured rarity.
+local header = child(root, "Header")
+check(child(header, "Wordmark").Text == "Runewright", "identity header shows the wordmark")
+local headerBands = 0
+for _, markChild in child(header, "Mark"):GetChildren() do
+	if markChild._props.ClassName == "Frame" then
+		headerBands += 1
+	end
+end
+check(headerBands == 6, "header mark carries one rarity band per rarity")
+
 -- Altar: scalar rows + entry-time range rejection.
 local altarPage = child(pageHost, "Altar")
 local pacing = child(altarPage, "Pacing")
@@ -589,6 +600,18 @@ check(
 	string.find(child(tabBar, "TabRarity").Text, "1", 1, true) ~= nil,
 	"the Rarity tab badges its issue count"
 )
+-- Click-to-fix: the footer readiness line jumps to the first issue's tab.
+child(footer, "ReadinessJump").MouseButton1Click:Fire()
+check(child(pageHost, "Rarity").Visible == true, "readiness line jumps to the offending tab")
+-- And every Review issue row is itself a hit target that jumps to its tab.
+child(tabBar, "TabReview").MouseButton1Click:Fire()
+local firstIssue = child(child(child(pageHost, "Review"), "Validation"), "Issues"):FindFirstChild("Issue1")
+check(firstIssue ~= nil, "Review lists the open issue as a row")
+if firstIssue ~= nil then
+	check(firstIssue._props.ClassName == "TextButton", "Review issue rows are clickable")
+	firstIssue.MouseButton1Click:Fire()
+	check(child(pageHost, "Rarity").Visible == true, "clicking a Review issue jumps to its tab")
+end
 typeInto(commonWeightBox, "5400")
 check(child(footer, "Readiness").Text == "Ready to apply — no issues.", "fixing the weight restores ready")
 
@@ -962,7 +985,8 @@ if not fs.isDir(OUTPUT_DIRECTORY) then
 end
 
 local PANEL_WIDTH = 420
-local TAB_BAR_HEIGHT = 30
+local HEADER_HEIGHT = 42
+local TAB_BAR_HEIGHT = 34
 local FOOTER_HEIGHT = 92
 
 local function clearRects(node: AnyTable)
@@ -981,7 +1005,7 @@ for index, tabName in tabNames do
 	local page = child(pageHost, tabName)
 	local canvasH = arrange(page, 0, 0, PANEL_WIDTH)
 	clearRects(root)
-	local panelH = TAB_BAR_HEIGHT + math.max(canvasH, 578) + FOOTER_HEIGHT
+	local panelH = HEADER_HEIGHT + TAB_BAR_HEIGHT + math.max(canvasH, 578) + FOOTER_HEIGHT
 	root._rect = { x = 0, y = 0, w = PANEL_WIDTH, h = panelH }
 	arrange(root, 0, 0, PANEL_WIDTH, panelH)
 

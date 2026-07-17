@@ -5,15 +5,17 @@
 -- tiers and unlock gates, copy milestones, rarity weights and colors, and the
 -- rune cards themselves (names, glyphs, bonuses, flavor).
 --
--- The panel is five tabs (Altar / Modes / Rarity / Runes / Review) over a
--- persistent action footer, drawn as flat form rows and tables rather than
--- nested boxes:
+-- The panel is an identity header, five tabs (Altar / Modes / Rarity / Runes /
+-- Review), and a persistent action footer, drawn as flat form rows and tables
+-- rather than nested boxes. Colors and control sizes come from the studio's
+-- shared Stagewright theme so both Studio tools read as one product:
 -- - Sections are hairline-ruled headers, labels sit beside compact inputs
 --   instead of inside chunky cells, and repeating data (momentum tiers, copy
 --   milestones, rarities) renders as real tables with column headers.
 -- - Validation reruns after every edit. The footer says whether Apply is
 --   ready, each tab badges its own issue count, and the Review tab lists
---   every problem with the tab it lives on.
+--   every problem with the tab it lives on. The footer readiness line and each
+--   Review issue row are hit targets that jump to the tab that fixes them.
 -- - Fixed choices (mode kind, unlock gates, rarity pickers) are visible pill
 --   pickers; rune cards use a rarity-tinted picker row and a colored edge.
 -- - Scalar fields show their accepted range and refuse out-of-range input at
@@ -920,6 +922,7 @@ local function performReload()
 	end
 end
 
+local HEADER_HEIGHT = 42
 local TAB_BAR_HEIGHT = 34
 local FOOTER_HEIGHT = 92
 local INPUT_HEIGHT = 28
@@ -1681,6 +1684,9 @@ local function buildPanel()
 	validationLabel.Size = UDim2.new(1, -24, 0, 12)
 	validationLabel.TextSize = 11
 	validationLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	-- Tracks whether the readiness line currently reports issues, so its
+	-- click-to-jump hover can restore the right resting colour.
+	local footerHasIssues = false
 
 	local statusLabel = createLabel(footer, "Status", "", 26, MUTED)
 	statusLabel.Position = UDim2.fromOffset(12, 19)
@@ -1705,6 +1711,63 @@ local function buildPanel()
 	actionLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	actionLayout.Parent = actionRow
 
+	-- Identity header ------------------------------------------------------
+	-- A rarity-spectrum mark plus the wordmark, so the panel has a face of its
+	-- own instead of leaning on the generic reused toolbar icon. The mark is
+	-- built from plain Frame bands (no UIGradient) so the headless render
+	-- harness can draw it too, and it echoes the odds bar on the Rarity tab.
+	local header = Instance.new("Frame")
+	header.Name = "Header"
+	header.BackgroundColor3 = PANEL_HEADER
+	header.BorderSizePixel = 0
+	header.Size = UDim2.new(1, 0, 0, HEADER_HEIGHT)
+	header.Parent = root
+
+	local headerRule = Instance.new("Frame")
+	headerRule.Name = "Rule"
+	headerRule.BackgroundColor3 = BORDER
+	headerRule.BackgroundTransparency = 0.5
+	headerRule.BorderSizePixel = 0
+	headerRule.Position = UDim2.fromOffset(0, HEADER_HEIGHT - 1)
+	headerRule.Size = UDim2.new(1, 0, 0, 1)
+	headerRule.Parent = header
+
+	local mark = Instance.new("Frame")
+	mark.Name = "Mark"
+	mark.BackgroundColor3 = BUTTON_ACTIVE
+	mark.BorderSizePixel = 0
+	mark.ClipsDescendants = true
+	mark.AnchorPoint = Vector2.new(0, 0.5)
+	mark.Position = UDim2.new(0, 12, 0.5, 0)
+	mark.Size = UDim2.fromOffset(26, 26)
+	mark.Parent = header
+	round(mark, 7)
+	outline(mark, 0.35)
+	if #State.rarities > 0 then
+		local fraction = 1 / #State.rarities
+		for bandIndex, rarity in State.rarities do
+			local band = Instance.new("Frame")
+			band.Name = `Band{bandIndex}`
+			band.BackgroundColor3 = Color3.fromRGB(rarity.color[1], rarity.color[2], rarity.color[3])
+			band.BorderSizePixel = 0
+			band.Position = UDim2.fromScale((bandIndex - 1) * fraction, 0)
+			band.Size = UDim2.fromScale(fraction, 1)
+			band.Parent = mark
+		end
+	end
+
+	local wordmark = createLabel(header, "Wordmark", PLUGIN_NAME, 16, TEXT_ACTIVE)
+	wordmark.Font = Enum.Font.GothamBold
+	wordmark.TextSize = 14
+	wordmark.Position = UDim2.fromOffset(48, 6)
+	wordmark.Size = UDim2.new(1, -60, 0, 16)
+
+	local tagline = createLabel(header, "Tagline", string.upper(PLUGIN_SUBTITLE), 12, SUBTLE)
+	tagline.Font = Enum.Font.GothamBold
+	tagline.TextSize = 10
+	tagline.Position = UDim2.fromOffset(48, 23)
+	tagline.Size = UDim2.new(1, -60, 0, 12)
+
 	-- Disconnected: no tabs, no forms — one clear recovery path -------------
 	if not State.loaded then
 		validationLabel.Text = "Not connected to a template place."
@@ -1717,7 +1780,8 @@ local function buildPanel()
 		local notice = Instance.new("Frame")
 		notice.Name = "NotConnected"
 		notice.BackgroundTransparency = 1
-		notice.Size = UDim2.new(1, 0, 1, -FOOTER_HEIGHT)
+		notice.Position = UDim2.fromOffset(0, HEADER_HEIGHT)
+		notice.Size = UDim2.new(1, 0, 1, -(HEADER_HEIGHT + FOOTER_HEIGHT))
 		notice.Parent = root
 		local noticePadding = Instance.new("UIPadding")
 		noticePadding.PaddingTop = UDim.new(0, 16)
@@ -1793,6 +1857,7 @@ local function buildPanel()
 	tabBar.Name = "TabBar"
 	tabBar.BackgroundColor3 = PANEL_HEADER
 	tabBar.BorderSizePixel = 0
+	tabBar.Position = UDim2.fromOffset(0, HEADER_HEIGHT)
 	tabBar.Size = UDim2.new(1, 0, 0, TAB_BAR_HEIGHT)
 	tabBar.Parent = root
 	local tabPadding = Instance.new("UIPadding")
@@ -1810,7 +1875,7 @@ local function buildPanel()
 	tabBarRule.BackgroundColor3 = BORDER
 	tabBarRule.BackgroundTransparency = 0.5
 	tabBarRule.BorderSizePixel = 0
-	tabBarRule.Position = UDim2.fromOffset(0, TAB_BAR_HEIGHT - 1)
+	tabBarRule.Position = UDim2.fromOffset(0, HEADER_HEIGHT + TAB_BAR_HEIGHT - 1)
 	tabBarRule.Size = UDim2.new(1, 0, 0, 1)
 	tabBarRule.ZIndex = 2
 	tabBarRule.Parent = root
@@ -1818,8 +1883,8 @@ local function buildPanel()
 	local pageHost = Instance.new("Frame")
 	pageHost.Name = "Pages"
 	pageHost.BackgroundTransparency = 1
-	pageHost.Position = UDim2.fromOffset(0, TAB_BAR_HEIGHT)
-	pageHost.Size = UDim2.new(1, 0, 1, -(TAB_BAR_HEIGHT + FOOTER_HEIGHT))
+	pageHost.Position = UDim2.fromOffset(0, HEADER_HEIGHT + TAB_BAR_HEIGHT)
+	pageHost.Size = UDim2.new(1, 0, 1, -(HEADER_HEIGHT + TAB_BAR_HEIGHT + FOOTER_HEIGHT))
 	pageHost.Parent = root
 
 	local pages: { [string]: ScrollingFrame } = {}
@@ -1917,6 +1982,33 @@ local function buildPanel()
 			repaintTabs()
 		end)
 	end
+
+	-- Click-to-fix: the footer readiness line is a hit target that jumps to the
+	-- tab of the first open issue, so a failed Apply never leaves you hunting
+	-- for where the problem lives.
+	local readinessJump = Instance.new("TextButton")
+	readinessJump.Name = "ReadinessJump"
+	readinessJump.AutoButtonColor = false
+	readinessJump.BackgroundTransparency = 1
+	readinessJump.Text = ""
+	readinessJump.Position = UDim2.fromOffset(12, 5)
+	readinessJump.Size = UDim2.new(1, -24, 0, 12)
+	readinessJump.ZIndex = 2
+	readinessJump.Parent = footer
+	readinessJump.MouseButton1Click:Connect(function()
+		local problems = Val.all()
+		if #problems > 0 then
+			selectTab(problems[1].tab)
+		end
+	end)
+	readinessJump.MouseEnter:Connect(function()
+		if footerHasIssues then
+			validationLabel.TextColor3 = AMBER:Lerp(Color3.new(1, 1, 1), 0.35)
+		end
+	end)
+	readinessJump.MouseLeave:Connect(function()
+		validationLabel.TextColor3 = if footerHasIssues then AMBER else GOOD
+	end)
 
 	-- Altar tab ---------------------------------------------------------------
 	local altarPage = pages[TAB_ALTAR]
@@ -2704,17 +2796,42 @@ local function buildPanel()
 	)
 	workflowText.TextColor3 = MUTED
 
-	local function addIssueRow(order: number, text: string, color: Color3)
-		local issueLabel = createLabel(issuesHost, `Issue{order}`, text, 14, color)
-		issueLabel.LayoutOrder = order
-		issueLabel.TextSize = 11
-		issueLabel.TextWrapped = true
-		issueLabel.AutomaticSize = Enum.AutomaticSize.Y
-		issueLabel.Size = UDim2.fromScale(1, 0)
+	-- A row per issue. When it carries a tab it is a real hit target: clicking
+	-- jumps straight to where the problem is fixed, so the Review list is a
+	-- table of contents, not a dead end. The ready-state row passes no tab.
+	local function addIssueRow(order: number, text: string, color: Color3, tab: string?)
+		local row = Instance.new("TextButton")
+		row.Name = `Issue{order}`
+		row.AutoButtonColor = false
+		row.BackgroundTransparency = 1
+		row.BorderSizePixel = 0
+		row.Font = Enum.Font.GothamMedium
+		row.Text = text
+		row.TextColor3 = color
+		row.TextSize = 11
+		row.TextXAlignment = Enum.TextXAlignment.Left
+		row.TextYAlignment = Enum.TextYAlignment.Top
+		row.TextWrapped = true
+		row.AutomaticSize = Enum.AutomaticSize.Y
+		row.Size = UDim2.fromScale(1, 0)
+		row.LayoutOrder = order
+		row.Parent = issuesHost
+		if tab ~= nil then
+			row.MouseEnter:Connect(function()
+				row.TextColor3 = TEXT_ACTIVE
+			end)
+			row.MouseLeave:Connect(function()
+				row.TextColor3 = color
+			end)
+			row.MouseButton1Click:Connect(function()
+				selectTab(tab)
+			end)
+		end
 	end
 
 	Refresh.validation = function()
 		local issues = Val.all()
+		footerHasIssues = #issues > 0
 		table.clear(issueCountByTab)
 		for _, issue in issues do
 			issueCountByTab[issue.tab] = (issueCountByTab[issue.tab] or 0) + 1
@@ -2726,14 +2843,14 @@ local function buildPanel()
 			validationLabel.TextColor3 = GOOD
 		else
 			local noun = if #issues == 1 then "issue" else "issues"
-			validationLabel.Text = `{#issues} {noun} to fix — the Review tab lists them all.`
+			validationLabel.Text = `{#issues} {noun} to fix — click to jump to the first, on {issues[1].tab}.`
 			validationLabel.TextColor3 = AMBER
 		end
 		applyButton.BackgroundColor3 = if #issues == 0 then BUTTON_ACTIVE else BUTTON_BG
 		applyButton.TextColor3 = if #issues == 0 then ON_ACCENT else MUTED
 
 		for _, child in issuesHost:GetChildren() do
-			if child:IsA("TextLabel") then
+			if child:IsA("TextLabel") or child:IsA("TextButton") then
 				child:Destroy()
 			end
 		end
@@ -2741,7 +2858,7 @@ local function buildPanel()
 			addIssueRow(1, "No issues — Apply to Place is ready.", GOOD)
 		else
 			for order, issue in issues do
-				addIssueRow(order, `[{issue.tab}]  {issue.message}`, TEXT)
+				addIssueRow(order, `[{issue.tab}]  {issue.message}`, TEXT, issue.tab)
 			end
 		end
 	end
