@@ -961,6 +961,19 @@ expectCompiles(stagewrightPaintBrushesSource, "Stagewright paint brushes compile
 expectCompiles(stagewrightStageSettingsSource, "Stagewright stage settings compile as Luau")
 expectCompiles(stagewrightIssueModelSource, "Stagewright validation issue model compiles as Luau")
 expectEqual(
+	string.find(stagewrightToolbarSource, "resolvedOffsetX -= padding.PaddingLeft.Offset", 1, true) ~= nil,
+	true,
+	"Stagewright toolbar icons compensate for padded button coordinates"
+)
+expectEqual(
+	string.find(stagewrightAppShellSource, 'Name = "PopupLayer"', 1, true) ~= nil
+		and string.find(stagewrightHeaderControllerSource, "config.popupLayer", 1, true) ~= nil
+		and string.find(stagewrightHeaderControllerSource, "stageDropdown.Visible = false", 1, true)
+			~= nil,
+	true,
+	"Stagewright header menus use an interactive overlay and close competing popovers"
+)
+expectEqual(
 	string.find(gridPluginSource, "require(script.UI.AppShell)", 1, true) ~= nil
 		and string.find(gridPluginSource, "require(script.UI.Theme)", 1, true) ~= nil
 		and string.find(gridPluginSource, "require(script.Graph.Operations)", 1, true) ~= nil,

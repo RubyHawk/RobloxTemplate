@@ -187,6 +187,7 @@ local renderCanvas: () -> ()
 do
 	local controller = HeaderController.new({
 		header = shell.header,
+		popupLayer = shell.popupLayer,
 		headerValidation = headerValidation,
 		status = status,
 		widget = widget,

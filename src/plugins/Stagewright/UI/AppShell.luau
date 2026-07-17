@@ -18,6 +18,7 @@ export type Controller = {
 	footer: Frame,
 	footerStage: TextLabel,
 	headerValidation: TextButton,
+	popupLayer: Frame,
 	leftSidebar: Frame,
 	workspace: Frame,
 	rightSidebar: Frame,
@@ -33,12 +34,14 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 		Name = "Root",
 		BackgroundColor3 = COLORS.background,
 		BorderSizePixel = 0,
+		ClipsDescendants = false,
 		Size = UDim2.fromScale(1, 1),
 	}, widget) :: Frame
 	local header = create("Frame", {
 		Name = "ToolHeader",
 		BackgroundColor3 = COLORS.panel,
 		BorderSizePixel = 0,
+		ClipsDescendants = false,
 		Size = UDim2.new(1, 0, 0, Theme.metrics.headerHeight),
 	}, root) :: Frame
 	create("Frame", {
@@ -85,6 +88,7 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 		BackgroundTransparency = 1,
 		Position = UDim2.fromOffset(0, Theme.metrics.headerHeight),
 		Size = UDim2.new(1, 0, 1, -Theme.metrics.headerHeight),
+		ZIndex = 1,
 	}, root) :: Frame
 	local footer = create("Frame", {
 		BackgroundColor3 = COLORS.panel,
@@ -92,6 +96,7 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 		Position = UDim2.fromScale(0, 1),
 		Size = UDim2.fromScale(1, 0),
 		Visible = false,
+		ZIndex = 2,
 	}, root) :: Frame
 	local footerStage = create("TextLabel", {
 		BackgroundTransparency = 1,
@@ -128,6 +133,19 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 	}, header) :: TextButton
 	create("UICorner", { CornerRadius = UDim.new(0, 7) }, headerValidation)
 	create("UIStroke", { Color = COLORS.border, Thickness = 1 }, headerValidation)
+
+	-- Header dropdowns must sit above every editor surface without turning the
+	-- entire window into an input blocker. Only the visible popup children are
+	-- Active; this transparent layer itself never consumes pointer input.
+	local popupLayer = create("Frame", {
+		Active = false,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ClipsDescendants = false,
+		Name = "PopupLayer",
+		Size = UDim2.fromScale(1, 1),
+		ZIndex = 300,
+	}, root) :: Frame
 
 	local leftSidebar = create("Frame", {
 		BackgroundColor3 = COLORS.panel,
@@ -178,6 +196,7 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 	controller.footer = footer
 	controller.footerStage = footerStage
 	controller.headerValidation = headerValidation
+	controller.popupLayer = popupLayer
 	controller.leftSidebar = leftSidebar
 	controller.workspace = workspace
 	controller.rightSidebar = rightSidebar

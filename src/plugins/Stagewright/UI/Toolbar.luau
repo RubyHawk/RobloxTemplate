@@ -61,11 +61,19 @@ function Toolbar.addVectorIcon(parent: GuiObject, kind: string, color: Color3, o
 	if existing ~= nil then
 		existing:Destroy()
 	end
+	-- UIPadding changes the coordinate space of every child, including decorative
+	-- icons. Compensate for its left inset so offsetX always means pixels from the
+	-- visible edge of the button instead of pixels from the padded text area.
+	local resolvedOffsetX = offsetX or 12
+	local padding = parent:FindFirstChildOfClass("UIPadding")
+	if padding ~= nil then
+		resolvedOffsetX -= padding.PaddingLeft.Offset
+	end
 	local icon = create("Frame", {
 		AnchorPoint = Vector2.new(0, 0.5),
 		BackgroundTransparency = 1,
 		Name = "VectorIcon",
-		Position = UDim2.new(0, offsetX or 12, 0.5, 0),
+		Position = UDim2.new(0, resolvedOffsetX, 0.5, 0),
 		Size = UDim2.fromOffset(20, 20),
 		ZIndex = parent.ZIndex + 1,
 	}, parent) :: Frame

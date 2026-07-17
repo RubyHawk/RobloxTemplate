@@ -18,6 +18,7 @@ export type StageOption = {
 
 export type Config = {
 	header: Frame,
+	popupLayer: Frame,
 	headerValidation: TextButton,
 	status: TextLabel,
 	widget: DockWidgetPluginGui,
@@ -83,7 +84,7 @@ function HeaderController.new(config: Config): Controller
 		Name = "StageSelector",
 		Position = UDim2.fromOffset(198, 7),
 		Size = UDim2.fromOffset(224, 38),
-		Text = "Stage 1 / Level 1",
+		Text = "",
 		TextColor3 = COLORS.text,
 		TextSize = 14,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -91,23 +92,33 @@ function HeaderController.new(config: Config): Controller
 	}, header) :: TextButton
 	create("UICorner", { CornerRadius = UDim.new(0, 6) }, stageSelector)
 	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, stageSelector)
-	create("UIPadding", {
-		PaddingLeft = UDim.new(0, 14),
-		PaddingRight = UDim.new(0, 38),
-	}, stageSelector)
+	local stageSelectorLabel = create("TextLabel", {
+		Active = false,
+		BackgroundTransparency = 1,
+		Font = Enum.Font.BuilderSansMedium,
+		Position = UDim2.fromOffset(14, 0),
+		Size = UDim2.new(1, -52, 1, 0),
+		Text = "Stage 1 / Level 1",
+		TextColor3 = COLORS.text,
+		TextSize = 14,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 203,
+	}, stageSelector) :: TextLabel
 	local stageChevron = Toolbar.addVectorIcon(stageSelector, "chevron", COLORS.muted, 0)
 	stageChevron.AnchorPoint = Vector2.new(1, 0.5)
-	stageChevron.Position = UDim2.new(1, -10, 0.5, 0)
+	stageChevron.Position = UDim2.new(1, -12, 0.5, 0)
 
 	local stageDropdown = create("Frame", {
+		Active = true,
 		BackgroundColor3 = COLORS.panel,
 		BorderSizePixel = 0,
 		Name = "StageDropdown",
 		Position = UDim2.fromOffset(198, 51),
 		Size = UDim2.fromOffset(224, 294),
 		Visible = false,
-		ZIndex = 210,
-	}, header) :: Frame
+		ZIndex = 310,
+	}, config.popupLayer) :: Frame
 	create("UICorner", { CornerRadius = UDim.new(0, 7) }, stageDropdown)
 	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, stageDropdown)
 	local stageDropdownList = create("ScrollingFrame", {
@@ -119,7 +130,7 @@ function HeaderController.new(config: Config): Controller
 		ScrollBarImageColor3 = COLORS.borderStrong,
 		ScrollBarThickness = 4,
 		Size = UDim2.new(1, -14, 1, -14),
-		ZIndex = 211,
+		ZIndex = 311,
 	}, stageDropdown) :: ScrollingFrame
 	create("UIListLayout", {
 		Padding = UDim.new(0, 5),
@@ -131,7 +142,7 @@ function HeaderController.new(config: Config): Controller
 		local options = config.stageOptions()
 		for _, option in options do
 			if option.selected then
-				stageSelector.Text = option.label
+				stageSelectorLabel.Text = option.label
 				break
 			end
 		end
@@ -149,7 +160,7 @@ function HeaderController.new(config: Config): Controller
 			item.Size = UDim2.new(1, -2, 0, 34)
 			item.TextXAlignment = Enum.TextXAlignment.Left
 			item.TextSize = 13
-			item.ZIndex = 212
+			item.ZIndex = 312
 			create("UIPadding", {
 				PaddingLeft = UDim.new(0, 12),
 				PaddingRight = UDim.new(0, 12),
@@ -164,20 +175,23 @@ function HeaderController.new(config: Config): Controller
 			end
 		end
 	end
+	local menuPopup: Frame
 	stageSelector.Activated:Connect(function()
+		menuPopup.Visible = false
 		controller:refreshStageSelector()
 		stageDropdown.Visible = not stageDropdown.Visible
 	end)
 
-	local menuPopup = create("Frame", {
+	menuPopup = create("Frame", {
+		Active = true,
 		AnchorPoint = Vector2.new(1, 0),
 		BackgroundColor3 = COLORS.panel,
 		BorderSizePixel = 0,
-		Position = UDim2.new(1, -8, 1, 6),
+		Position = UDim2.new(1, -8, 0, 58),
 		Size = UDim2.fromOffset(190, 190),
 		Visible = false,
-		ZIndex = 100,
-	}, header) :: Frame
+		ZIndex = 310,
+	}, config.popupLayer) :: Frame
 	create("UICorner", { CornerRadius = UDim.new(0, 8) }, menuPopup)
 	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, menuPopup)
 	create("TextLabel", {
@@ -189,7 +203,7 @@ function HeaderController.new(config: Config): Controller
 		TextColor3 = COLORS.muted,
 		TextSize = 10,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 101,
+		ZIndex = 311,
 	}, menuPopup)
 	local function menuItem(label: string, order: number, callback: () -> ())
 		local item = button(menuPopup, label, 170, function()
@@ -199,7 +213,7 @@ function HeaderController.new(config: Config): Controller
 		item.Position = UDim2.fromOffset(10, 32 + (order - 1) * 38)
 		item.Size = UDim2.new(1, -20, 0, 32)
 		item.TextXAlignment = Enum.TextXAlignment.Left
-		item.ZIndex = 101
+		item.ZIndex = 311
 		create("UIPadding", { PaddingLeft = UDim.new(0, 10) }, item)
 	end
 	menuItem("Save changes", 1, function()
@@ -235,6 +249,7 @@ function HeaderController.new(config: Config): Controller
 	redo.Size = UDim2.fromOffset(82, 34)
 	Toolbar.styleIconButton(redo, "Redo", "redo", COLORS.muted)
 	local menu = button(header, "Menu", 76, function()
+		stageDropdown.Visible = false
 		menuPopup.Visible = not menuPopup.Visible
 	end)
 	menu.AnchorPoint = Vector2.new(1, 0)
