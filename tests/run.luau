@@ -18,6 +18,7 @@ local StageStarterProject = require("../src/shared/StageStarterProject")
 local StageExport = require("../src/shared/StageExport")
 local StageTrace = require("../src/shared/StageTrace")
 local PaintBrushes = require("../src/plugins/Stagewright/Paint/Brushes")
+local StageSettings = require("../src/plugins/Stagewright/Stage/Settings")
 local DataStoreNames = require("../src/shared/DataStoreNames")
 local DataStoreKeys = require("../src/shared/DataStoreKeys")
 local MigrationCore = require("../src/shared/MigrationCore")
@@ -71,6 +72,66 @@ do
 		PaintBrushes.RESET_ID,
 		"unknown brush IDs fail safely to reset"
 	)
+end
+
+do
+	local update, parseError = StageSettings.parse({
+		name = "Forest Pass",
+		waveSetId = "wave_forest",
+		themeId = "forest",
+		columns = "32.9",
+		rows = "27.4",
+		cellSize = "4",
+	})
+	expectEqual(parseError, nil, "valid stage settings parse without an error")
+	expectEqual(update and update.columns, 32, "stage width floors to a whole cell")
+	expectEqual(update and update.rows, 27, "stage height floors to a whole cell")
+
+	local invalidUpdate, invalidError = StageSettings.parse({
+		name = "",
+		waveSetId = "default",
+		themeId = "default",
+		columns = "513",
+		rows = "27",
+		cellSize = "4",
+	})
+	expectEqual(invalidUpdate, nil, "out-of-range stage settings are rejected")
+	expectEqual(invalidError, StageSettings.INVALID_GRID_MESSAGE, "invalid stage settings explain limits")
+
+	local definition: any = {
+		name = "Original",
+		waveSetId = "old_wave",
+		themeId = "old_theme",
+		grid = {
+			columns = 4,
+			rows = 3,
+			cellSize = 2,
+			cells = {
+				["1:1"] = { metadata = { keep = true } },
+				["4:3"] = { buildPolicy = "Blocked" },
+				malformed = { metadata = { unknown = true } },
+			},
+		},
+	}
+	expectEqual(
+		StageSettings.countTruncated(definition.grid, 2, 2),
+		2,
+		"grid shrink reports out-of-bounds and malformed overrides"
+	)
+	local blankNameUpdate = StageSettings.parse({
+		name = "",
+		waveSetId = "new_wave",
+		themeId = "new_theme",
+		columns = "2",
+		rows = "2",
+		cellSize = "3",
+	})
+	StageSettings.apply(definition, blankNameUpdate :: any)
+	expectEqual(definition.name, "Original", "blank stage name preserves the existing name")
+	expectEqual(definition.waveSetId, "new_wave", "stage settings update catalog references")
+	expectEqual(definition.grid.cells["1:1"].metadata.keep, true, "grid shrink preserves in-bounds data")
+	expectEqual(definition.grid.cells["4:3"], nil, "grid shrink removes out-of-bounds data")
+	expectEqual(definition.grid.cells.malformed, nil, "grid shrink removes malformed cell keys")
 end
 
 do
@@ -876,6 +937,7 @@ local stagewrightToolbarSource = fs.readFile("src/plugins/Stagewright/UI/Toolbar
 local stagewrightGraphOperationsSource = fs.readFile("src/plugins/Stagewright/Graph/Operations.luau")
 local stagewrightPredicateFieldsSource = fs.readFile("src/plugins/Stagewright/Graph/PredicateFields.luau")
 local stagewrightPaintBrushesSource = fs.readFile("src/plugins/Stagewright/Paint/Brushes.luau")
+local stagewrightStageSettingsSource = fs.readFile("src/plugins/Stagewright/Stage/Settings.luau")
 local stagewrightIssueModelSource = fs.readFile("src/plugins/Stagewright/Validation/IssueModel.luau")
 local stagewrightUiSource = stagewrightAppShellSource
 	.. stagewrightThemeSource
@@ -885,6 +947,7 @@ local stagewrightUiSource = stagewrightAppShellSource
 	.. stagewrightToolbarSource
 local stagewrightGraphSource = stagewrightGraphOperationsSource .. stagewrightPredicateFieldsSource
 local stagewrightPaintSource = stagewrightPaintBrushesSource
+local stagewrightStageSource = stagewrightStageSettingsSource
 expectCompiles(gridPluginSource, "modern Stagewright plugin shell compiles as Luau")
 expectCompiles(stagewrightAppShellSource, "Stagewright app shell compiles as Luau")
 expectCompiles(stagewrightThemeSource, "Stagewright UI theme compiles as Luau")
@@ -895,6 +958,7 @@ expectCompiles(stagewrightToolbarSource, "Stagewright toolbar compiles as Luau")
 expectCompiles(stagewrightGraphOperationsSource, "Stagewright graph operations compile as Luau")
 expectCompiles(stagewrightPredicateFieldsSource, "Stagewright predicate fields compile as Luau")
 expectCompiles(stagewrightPaintBrushesSource, "Stagewright paint brushes compile as Luau")
+expectCompiles(stagewrightStageSettingsSource, "Stagewright stage settings compile as Luau")
 expectCompiles(stagewrightIssueModelSource, "Stagewright validation issue model compiles as Luau")
 expectEqual(
 	string.find(gridPluginSource, "require(script.UI.AppShell)", 1, true) ~= nil
@@ -915,6 +979,13 @@ for _, forbiddenDependency in { "ProjectStore", "Workspace", "TextButton", "Inst
 		string.find(stagewrightPaintSource, forbiddenDependency, 1, true),
 		nil,
 		`Stagewright paint domain stays independent from {forbiddenDependency}`
+	)
+end
+for _, forbiddenDependency in { "ProjectStore", "Workspace", "TextButton", "Instance.new", "UI.Theme" } do
+	expectEqual(
+		string.find(stagewrightStageSource, forbiddenDependency, 1, true),
+		nil,
+		`Stagewright stage settings stay independent from {forbiddenDependency}`
 	)
 end
 for _, forbiddenDependency in { "ProjectStore", "ServerStorage", "StagePayload", "Graph.Operations" } do
@@ -1141,6 +1212,7 @@ do
 				.. stagewrightUiSource
 				.. stagewrightGraphSource
 				.. stagewrightPaintSource
+				.. stagewrightStageSource
 				.. stagewrightIssueModelSource
 				.. templateConfigSource,
 			pluginObject,

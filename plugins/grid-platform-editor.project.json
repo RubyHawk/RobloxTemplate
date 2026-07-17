@@ -26,6 +26,12 @@
     "RouteOverview": {
       "$path": "../src/plugins/Stagewright/RouteOverview.luau"
     },
+    "Stage": {
+      "$className": "Folder",
+      "Settings": {
+        "$path": "../src/plugins/Stagewright/Stage/Settings.luau"
+      }
+    },
     "WorldPathView": {
       "$path": "../src/plugins/Stagewright/WorldPathView.luau"
     },

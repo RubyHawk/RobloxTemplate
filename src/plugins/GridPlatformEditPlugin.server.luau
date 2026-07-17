@@ -17,6 +17,7 @@ local PredicateFields = require(script.Graph.PredicateFields)
 local Brushes = require(script.Paint.Brushes)
 local ProjectStore = require(script.ProjectStore)
 local RouteOverview = require(script.RouteOverview)
+local StageSettings = require(script.Stage.Settings)
 local StageHierarchy = require(script.Shared.StageHierarchy)
 local StagePayload = require(script.Shared.StagePayload)
 local StageTrace = require(script.Shared.StageTrace)
@@ -1959,36 +1960,19 @@ local applyStageButton = button(stageInspector, "Apply changes", 124, function()
 	if current == nil then
 		return
 	end
-	local columns = tonumber(columnsField.Text)
-	local rows = tonumber(rowsField.Text)
-	local cellSize = tonumber(cellSizeField.Text)
-	if
-		columns == nil
-		or rows == nil
-		or cellSize == nil
-		or columns < 1
-		or columns > 512
-		or rows < 1
-		or rows > 512
-		or cellSize <= 0
-		or cellSize > 128
-	then
-		setStatus(
-			"Grid width and height must be 1-512; cell size must be greater than 0 and at most 128.",
-			true
-		)
+	local update, parseError = StageSettings.parse({
+		name = stageNameField.Text,
+		waveSetId = waveSetField.Text,
+		themeId = themeField.Text,
+		columns = columnsField.Text,
+		rows = rowsField.Text,
+		cellSize = cellSizeField.Text,
+	})
+	if update == nil then
+		setStatus(parseError or StageSettings.INVALID_GRID_MESSAGE, true)
 		return
 	end
-	columns = math.floor(columns)
-	rows = math.floor(rows)
-	local truncated = 0
-	for key in current.grid.cells do
-		local columnText, rowText = string.match(key, "^(%d+):(%d+)$")
-		local column, row = tonumber(columnText), tonumber(rowText)
-		if column == nil or row == nil or column > columns or row > rows then
-			truncated += 1
-		end
-	end
+	local truncated = StageSettings.countTruncated(current.grid, update.columns, update.rows)
 	if
 		truncated > 0
 		and not confirm(`resize_{current.id}`, `Resize would remove {truncated} cell override(s).`)
@@ -1996,19 +1980,7 @@ local applyStageButton = button(stageInspector, "Apply changes", 124, function()
 		return
 	end
 	mutate("Update Stagewright level settings", function()
-		current.name = if stageNameField.Text ~= "" then stageNameField.Text else current.name
-		current.waveSetId = waveSetField.Text
-		current.themeId = themeField.Text
-		current.grid.columns = columns
-		current.grid.rows = rows
-		current.grid.cellSize = cellSize
-		for key in current.grid.cells do
-			local columnText, rowText = string.match(key, "^(%d+):(%d+)$")
-			local column, row = tonumber(columnText), tonumber(rowText)
-			if column == nil or row == nil or column > columns or row > rows then
-				current.grid.cells[key] = nil
-			end
-		end
+		StageSettings.apply(current, update)
 	end)
 	renderAll()
 end)

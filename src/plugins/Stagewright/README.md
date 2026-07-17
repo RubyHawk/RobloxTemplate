@@ -20,6 +20,8 @@ domain logic or reusable UI primitives should not be added to the bootstrap.
   canvas input or project mutation.
 - `Paint/Brushes.luau`: pure brush catalog and bounded cell-area mutation. It
   contains no UI, persistence, or Workspace dependency.
+- `Stage/Settings.luau`: pure level-setting parsing and transactional grid
+  resize rules. It preserves in-bounds cell data and reports truncation first.
 - `Graph/Operations.luau`: graph mutations such as connect, split, lanes, and
   handle smoothing. It has no UI, persistence, or Workspace dependency.
 - `Graph/PredicateFields.luau`: predicate input parsing and trace-context
@@ -36,6 +38,7 @@ bootstrap / views -> UI
 bootstrap / views -> ProjectStore
 bootstrap -> Graph
 bootstrap -> Paint
+bootstrap -> Stage
 bootstrap -> Validation
 Graph -> Shared
 ProjectStore -> Shared
