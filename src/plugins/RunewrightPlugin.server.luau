@@ -44,26 +44,38 @@ local PLUGIN_BUTTON_ID = "RunewrightEditor"
 local PLUGIN_WIDGET_ID = "RunewrightPanel"
 local PLUGIN_ICON = "rbxasset://textures/StudioSharedUI/grid@2x.png"
 
-local PANEL_BG = Color3.fromRGB(17, 18, 20)
-local PANEL_HEADER = Color3.fromRGB(23, 24, 27)
-local PANEL_STATUS = Color3.fromRGB(12, 13, 15)
-local PANEL_FIELD = Color3.fromRGB(10, 12, 14)
-local BUTTON_BG = Color3.fromRGB(15, 16, 18)
-local BUTTON_ACTIVE = Color3.fromRGB(86, 128, 184)
-local BUTTON_ACTIVE_HOVER = Color3.fromRGB(102, 144, 200)
-local BUTTON_HOVER = Color3.fromRGB(30, 33, 38)
-local TRACK_ON = Color3.fromRGB(51, 80, 122)
-local KNOB_OFF = Color3.fromRGB(99, 106, 118)
-local KNOB_ON = Color3.fromRGB(219, 228, 240)
-local BORDER = Color3.fromRGB(50, 54, 60)
-local TEXT = Color3.fromRGB(229, 232, 237)
-local TEXT_ACTIVE = Color3.fromRGB(245, 247, 250)
-local MUTED = Color3.fromRGB(151, 158, 169)
-local SUBTLE = Color3.fromRGB(99, 106, 118)
-local HEADING = Color3.fromRGB(138, 145, 156)
-local AMBER = Color3.fromRGB(193, 155, 62)
-local GOOD = Color3.fromRGB(74, 145, 98)
-local BAD = Color3.fromRGB(156, 74, 74)
+-- Palette mirrors the studio's shared Stagewright theme (src/plugins/Stagewright/
+-- UI/Theme.luau) so both Studio tools read as one product. The old palette packed
+-- every surface into a flat 13-unit near-black band with the input field the
+-- DARKEST layer of all, so fields read as holes punched in the panel. This is a
+-- real elevation ramp — ground < chrome < button < field < hover, each rung a
+-- touch bluer and lighter — and the field now sits ABOVE the body, so inputs read
+-- as raised, editable controls. The accent is Stagewright's confident blue, not a
+-- muted steel; filled-accent surfaces carry dark ink for contrast.
+local PANEL_BG = Color3.fromRGB(12, 16, 23) -- root body (ground)
+local SURFACE = Color3.fromRGB(16, 22, 30) -- raised cards / chrome (surface)
+local PANEL_HEADER = Color3.fromRGB(16, 22, 30) -- tab bar / header chrome
+local PANEL_STATUS = Color3.fromRGB(10, 14, 20) -- footer, seated below the body
+local PANEL_FIELD = Color3.fromRGB(22, 29, 39) -- inputs, lifted above the body
+local FIELD_HOVER = Color3.fromRGB(28, 38, 50) -- input/hover lift
+local BUTTON_BG = Color3.fromRGB(18, 24, 33)
+local BUTTON_ACTIVE = Color3.fromRGB(0, 157, 255) -- vivid accent (was muted steel)
+local BUTTON_ACTIVE_HOVER = Color3.fromRGB(70, 182, 255)
+local BUTTON_HOVER = Color3.fromRGB(28, 38, 50)
+local ON_ACCENT = Color3.fromRGB(6, 20, 33) -- dark ink for text on a filled accent
+local TRACK_ON = Color3.fromRGB(3, 82, 132) -- toggle "on" track, accent-tinted
+local KNOB_OFF = Color3.fromRGB(120, 132, 150)
+local KNOB_ON = Color3.fromRGB(235, 242, 250)
+local BORDER = Color3.fromRGB(35, 45, 59)
+local BORDER_STRONG = Color3.fromRGB(52, 67, 87)
+local TEXT = Color3.fromRGB(229, 234, 242)
+local TEXT_ACTIVE = Color3.fromRGB(245, 248, 252)
+local MUTED = Color3.fromRGB(143, 155, 173)
+local SUBTLE = Color3.fromRGB(110, 122, 140) -- brighter so 10px hints stay legible
+local HEADING = Color3.fromRGB(150, 162, 180)
+local AMBER = Color3.fromRGB(238, 181, 72) -- warning
+local GOOD = Color3.fromRGB(87, 196, 128) -- success
+local BAD = Color3.fromRGB(239, 103, 112) -- danger
 
 local MODE_KINDS = { "luck", "surge" }
 local UNLOCK_KINDS = { "always", "totalRolls", "runesOwned", "provider" }
@@ -908,10 +920,10 @@ local function performReload()
 	end
 end
 
-local TAB_BAR_HEIGHT = 30
+local TAB_BAR_HEIGHT = 34
 local FOOTER_HEIGHT = 92
-local INPUT_HEIGHT = 22
-local ROW_HEIGHT = 26
+local INPUT_HEIGHT = 28
+local ROW_HEIGHT = 32
 
 local function buildPanel()
 	Refresh.validation = nil
@@ -1061,12 +1073,12 @@ local function buildPanel()
 
 		local title = createLabel(head, "Title", string.upper(titleText), 18, HEADING)
 		title.Font = Enum.Font.GothamBold
-		title.TextSize = 10
+		title.TextSize = 11
 		title.Size = UDim2.new(0.5, 0, 0, 18)
 
 		local meta = createLabel(head, "Meta", "", 18, MUTED)
 		meta.Font = Enum.Font.GothamBold
-		meta.TextSize = 10
+		meta.TextSize = 11
 		meta.Position = UDim2.fromScale(0.5, 0)
 		meta.Size = UDim2.new(0.5, 0, 0, 18)
 		meta.TextXAlignment = Enum.TextXAlignment.Right
@@ -1085,7 +1097,7 @@ local function buildPanel()
 
 	local function createHint(parent: Instance, name: string, text: string): TextLabel
 		local hint = createLabel(parent, name, text, 14, SUBTLE)
-		hint.TextSize = 10
+		hint.TextSize = 11
 		hint.TextWrapped = true
 		hint.AutomaticSize = Enum.AutomaticSize.Y
 		hint.Size = UDim2.fromScale(1, 0)
@@ -1129,10 +1141,12 @@ local function buildPanel()
 		local function repaintStroke()
 			if focused then
 				stroke.Color = BUTTON_ACTIVE
-				stroke.Transparency = 0.15
+				stroke.Transparency = 0.1
+				shell.BackgroundColor3 = PANEL_FIELD
 			else
-				stroke.Color = BORDER
-				stroke.Transparency = if hovered then 0.45 else 0.7
+				stroke.Color = if hovered then BORDER_STRONG else BORDER
+				stroke.Transparency = if hovered then 0.35 else 0.55
+				shell.BackgroundColor3 = if hovered then FIELD_HOVER else PANEL_FIELD
 			end
 		end
 		box.Focused:Connect(function()
@@ -1222,7 +1236,7 @@ local function buildPanel()
 		hintLabel.AnchorPoint = Vector2.new(1, 0)
 		hintLabel.Position = UDim2.new(1, -104, 0, 0)
 		hintLabel.Size = UDim2.fromOffset(110, ROW_HEIGHT)
-		hintLabel.TextSize = 9
+		hintLabel.TextSize = 10
 		hintLabel.TextXAlignment = Enum.TextXAlignment.Right
 		hintLabel.TextTruncate = Enum.TextTruncate.AtEnd
 
@@ -1312,7 +1326,7 @@ local function buildPanel()
 					idleText = MUTED
 					pill.BackgroundColor3 = if selected then BUTTON_ACTIVE else PANEL_FIELD
 					pill.BackgroundTransparency = if selected then 0 else 1
-					pill.TextColor3 = if selected then TEXT_ACTIVE else MUTED
+					pill.TextColor3 = if selected then ON_ACCENT else MUTED
 					if option.dotColor ~= nil then
 						pill.RichText = true
 						pill.Text = `<font color="#{colorHex(option.dotColor)}">●</font> {option.text}`
@@ -1400,13 +1414,13 @@ local function buildPanel()
 				segment.AutoButtonColor = false
 				segment.BorderSizePixel = 0
 				segment.Font = Enum.Font.GothamBold
-				segment.TextSize = 10
+				segment.TextSize = 11
 				segment.TextTruncate = Enum.TextTruncate.AtEnd
 				segment.LayoutOrder = order
 				local selected = option.value == current
 				segment.BackgroundColor3 = BUTTON_ACTIVE
 				segment.BackgroundTransparency = if selected then 0 else 1
-				segment.TextColor3 = if selected then TEXT_ACTIVE else MUTED
+				segment.TextColor3 = if selected then ON_ACCENT else MUTED
 				segment.Text = option.text
 				segment.Size = UDim2.new(1 / count, if order < count then -2 else 0, 1, 0)
 				segment.Parent = track
@@ -1449,7 +1463,7 @@ local function buildPanel()
 
 		local caption = createLabel(hit, "Caption", "", 20, MUTED)
 		caption.Font = Enum.Font.GothamBold
-		caption.TextSize = 10
+		caption.TextSize = 11
 		caption.Size = UDim2.new(1, -37, 0, 20)
 		caption.TextXAlignment = Enum.TextXAlignment.Right
 
@@ -1554,16 +1568,16 @@ local function buildPanel()
 		head.Parent = host
 		local headIndex = createLabel(head, "Index", "#", 12, SUBTLE)
 		headIndex.Font = Enum.Font.GothamBold
-		headIndex.TextSize = 9
+		headIndex.TextSize = 10
 		headIndex.Size = UDim2.fromOffset(22, 12)
 		local headA = createLabel(head, "Wide", string.upper(headWide), 12, SUBTLE)
 		headA.Font = Enum.Font.GothamBold
-		headA.TextSize = 9
+		headA.TextSize = 10
 		headA.Position = UDim2.fromOffset(28, 0)
 		headA.Size = UDim2.new(1, -(28 + fixedWidth + 6), 0, 12)
 		local headB = createLabel(head, "Fixed", string.upper(headFixed), 12, SUBTLE)
 		headB.Font = Enum.Font.GothamBold
-		headB.TextSize = 9
+		headB.TextSize = 10
 		headB.AnchorPoint = Vector2.new(1, 0)
 		headB.Position = UDim2.fromScale(1, 0)
 		headB.Size = UDim2.fromOffset(fixedWidth, 12)
@@ -1598,7 +1612,7 @@ local function buildPanel()
 			row.Parent = host
 
 			local ix = createLabel(row, "Index", `{index}`, INPUT_HEIGHT, SUBTLE)
-			ix.TextSize = 10
+			ix.TextSize = 11
 			ix.Size = UDim2.fromOffset(22, INPUT_HEIGHT)
 
 			local _, wideShell = numberInput(row, "Wide", `#{index} {headWide}`, readWide, function(value)
@@ -1665,13 +1679,13 @@ local function buildPanel()
 	validationLabel.Font = Enum.Font.GothamBold
 	validationLabel.Position = UDim2.fromOffset(12, 5)
 	validationLabel.Size = UDim2.new(1, -24, 0, 12)
-	validationLabel.TextSize = 10
+	validationLabel.TextSize = 11
 	validationLabel.TextTruncate = Enum.TextTruncate.AtEnd
 
 	local statusLabel = createLabel(footer, "Status", "", 26, MUTED)
 	statusLabel.Position = UDim2.fromOffset(12, 19)
 	statusLabel.Size = UDim2.new(1, -24, 0, 26)
-	statusLabel.TextSize = 10
+	statusLabel.TextSize = 11
 	statusLabel.TextWrapped = true
 	statusLabel.TextYAlignment = Enum.TextYAlignment.Top
 	Refresh.status = function(message: string, color: Color3?)
@@ -1749,7 +1763,7 @@ local function buildPanel()
 	applyButton.Size = UDim2.new(0.4, -6, 1, 0)
 	applyButton.LayoutOrder = 1
 	applyButton.BackgroundColor3 = BUTTON_ACTIVE
-	applyButton.TextColor3 = TEXT_ACTIVE
+	applyButton.TextColor3 = ON_ACCENT
 	applyButton.MouseButton1Click:Connect(applyToPlace)
 	applyButton.MouseEnter:Connect(function()
 		if applyButton.BackgroundColor3 == BUTTON_ACTIVE then
@@ -1981,7 +1995,8 @@ local function buildPanel()
 	for index, mode in State.modes do
 		local card = Instance.new("Frame")
 		card.Name = `ModeCard{index}`
-		card.BackgroundTransparency = 1
+		card.BackgroundColor3 = SURFACE
+		card.BackgroundTransparency = 0
 		card.BorderSizePixel = 0
 		card.Size = UDim2.fromScale(1, 0)
 		card.AutomaticSize = Enum.AutomaticSize.Y
@@ -2008,7 +2023,7 @@ local function buildPanel()
 		headRow.Parent = card
 		local headTitle = createLabel(headRow, "Title", string.upper(`Mode {index}`), 20, HEADING)
 		headTitle.Font = Enum.Font.GothamBold
-		headTitle.TextSize = 10
+		headTitle.TextSize = 11
 
 		local body = Instance.new("Frame")
 		body.Name = "Body"
@@ -2025,12 +2040,12 @@ local function buildPanel()
 		local identityGrid = Instance.new("Frame")
 		identityGrid.Name = "Identity"
 		identityGrid.BackgroundTransparency = 1
-		identityGrid.Size = UDim2.new(1, 0, 0, 36)
+		identityGrid.Size = UDim2.new(1, 0, 0, 44)
 		identityGrid.LayoutOrder = 1
 		identityGrid.Parent = body
 		local identityLayout = Instance.new("UIGridLayout")
 		identityLayout.CellPadding = UDim2.fromOffset(8, 0)
-		identityLayout.CellSize = UDim2.new(0.5, -8, 0, 36)
+		identityLayout.CellSize = UDim2.new(0.5, -8, 0, 44)
 		identityLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		identityLayout.Parent = identityGrid
 
@@ -2045,10 +2060,10 @@ local function buildPanel()
 			cell.BackgroundTransparency = 1
 			cell.Parent = identityGrid
 			local mini = createLabel(cell, "Caption", caption, 12, SUBTLE)
-			mini.TextSize = 9
-			mini.Size = UDim2.new(1, 0, 0, 12)
+			mini.TextSize = 10
+			mini.Size = UDim2.new(1, 0, 0, 14)
 			local _, shell = textInput(cell, "Value", read, write)
-			shell.Position = UDim2.fromOffset(0, 14)
+			shell.Position = UDim2.fromOffset(0, 16)
 			shell.Size = UDim2.new(1, 0, 0, INPUT_HEIGHT)
 		end
 		identityCell("Id", "Id (lowercase, save key)", function()
@@ -2068,7 +2083,7 @@ local function buildPanel()
 
 		local explainer = createLabel(body, "KindExplainer", KIND_EXPLAINERS[mode.kind] or "", 14, MUTED)
 		explainer.LayoutOrder = 3
-		explainer.TextSize = 10
+		explainer.TextSize = 11
 		explainer.TextWrapped = true
 		explainer.AutomaticSize = Enum.AutomaticSize.Y
 		explainer.Size = UDim2.fromScale(1, 0)
@@ -2148,7 +2163,7 @@ local function buildPanel()
 		)
 		tiersHint.LayoutOrder = 6
 		tiersHint.Font = Enum.Font.GothamBold
-		tiersHint.TextSize = 9
+		tiersHint.TextSize = 10
 		tiersHint.TextWrapped = true
 		tiersHint.AutomaticSize = Enum.AutomaticSize.Y
 		tiersHint.Size = UDim2.fromScale(1, 0)
@@ -2265,7 +2280,7 @@ local function buildPanel()
 		oddsLabel.Position = UDim2.fromScale(1, 0)
 		oddsLabel.Size = UDim2.fromOffset(92, ROW_HEIGHT)
 		oddsLabel.TextXAlignment = Enum.TextXAlignment.Right
-		oddsLabel.TextSize = 9
+		oddsLabel.TextSize = 10
 		oddsLabels[index] = oddsLabel
 
 		local rgbRow = Instance.new("Frame")
@@ -2284,7 +2299,7 @@ local function buildPanel()
 		rgbPad.PaddingLeft = UDim.new(0, 18)
 		rgbPad.Parent = rgbRow
 		local rgbCaption = createLabel(rgbRow, "Caption", "Color", INPUT_HEIGHT, SUBTLE)
-		rgbCaption.TextSize = 9
+		rgbCaption.TextSize = 10
 		rgbCaption.Size = UDim2.fromOffset(28, INPUT_HEIGHT)
 
 		local function rarityColor3(): Color3
@@ -2341,7 +2356,7 @@ local function buildPanel()
 
 	local normalizeButton = createButton(raritiesSection.frame, "Normalize", "Normalize Weights to 10000", 22)
 	normalizeButton.LayoutOrder = 1000
-	normalizeButton.TextSize = 10
+	normalizeButton.TextSize = 11
 	normalizeButton.MouseButton1Click:Connect(function()
 		local total = Val.weightTotal()
 		if total <= 0 then
@@ -2419,7 +2434,7 @@ local function buildPanel()
 	addRuneButton.AnchorPoint = Vector2.new(1, 0)
 	addRuneButton.Position = UDim2.fromScale(1, 0)
 	addRuneButton.Size = UDim2.fromOffset(104, 18)
-	addRuneButton.TextSize = 10
+	addRuneButton.TextSize = 11
 	runesSection.meta.Visible = false
 	createHint(
 		runesSection.frame,
@@ -2444,7 +2459,8 @@ local function buildPanel()
 	local function buildRuneRow(index: number, rune: RuneRow)
 		local card = Instance.new("Frame")
 		card.Name = `Rune{index}`
-		card.BackgroundTransparency = 1
+		card.BackgroundColor3 = SURFACE
+		card.BackgroundTransparency = 0
 		card.BorderSizePixel = 0
 		card.ClipsDescendants = true
 		card.Size = UDim2.fromScale(1, 0)
@@ -2533,7 +2549,7 @@ local function buildPanel()
 		pctLabel.AnchorPoint = Vector2.new(1, 0)
 		pctLabel.Position = UDim2.fromScale(1, 0)
 		pctLabel.Size = UDim2.fromOffset(10, INPUT_HEIGHT)
-		pctLabel.TextSize = 9
+		pctLabel.TextSize = 10
 
 		local _, bonusShell = numberInput(topRow, "Bonus", "Bonus %", function()
 			return rune.bonusPercent
@@ -2573,7 +2589,7 @@ local function buildPanel()
 		removeButton.AnchorPoint = Vector2.new(1, 0.5)
 		removeButton.Position = UDim2.fromScale(1, 0.5)
 		removeButton.Size = UDim2.fromOffset(84, 20)
-		removeButton.TextSize = 9
+		removeButton.TextSize = 10
 		removeButton.TextColor3 = BAD
 		removeButton.BackgroundTransparency = 1
 		armButton(removeButton, "Confirm remove?", function()
@@ -2714,7 +2730,7 @@ local function buildPanel()
 			validationLabel.TextColor3 = AMBER
 		end
 		applyButton.BackgroundColor3 = if #issues == 0 then BUTTON_ACTIVE else BUTTON_BG
-		applyButton.TextColor3 = if #issues == 0 then TEXT_ACTIVE else MUTED
+		applyButton.TextColor3 = if #issues == 0 then ON_ACCENT else MUTED
 
 		for _, child in issuesHost:GetChildren() do
 			if child:IsA("TextLabel") then
