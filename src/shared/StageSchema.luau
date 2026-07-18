@@ -107,8 +107,7 @@ function StageSchema.encodeCanonical(value: JsonValue): string
 	return encodeCanonical(value, {})
 end
 
-function StageSchema.checksum(value: JsonValue): string
-	local encoded = StageSchema.encodeCanonical(value)
+function StageSchema.checksumEncoded(encoded: string): string
 	local hash = 2_166_136_261
 	for index = 1, #encoded do
 		hash = bit32.bxor(hash, string.byte(encoded, index))
@@ -117,6 +116,10 @@ function StageSchema.checksum(value: JsonValue): string
 		hash = (bit32.lshift(hash, 24) + hash * 403) % 4_294_967_296
 	end
 	return string.format("fnv1a32-%08x", hash)
+end
+
+function StageSchema.checksum(value: JsonValue): string
+	return StageSchema.checksumEncoded(StageSchema.encodeCanonical(value))
 end
 
 function StageSchema.cellKey(column: number, row: number): string

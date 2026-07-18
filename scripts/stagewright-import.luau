@@ -33,25 +33,44 @@ local function readPayload(payload: StringValue): string
 	local encoded, message = StagePayload.join(chunks, manifest.chunkCount, manifest.length)
 	assert(encoded ~= nil, message)
 	local decoded = serde.decode("json", encoded)
+	assert(type(decoded) == "table", "Stagewright payload is not a JSON object")
 	assert(
-		StageSchema.checksum(decoded) == manifest.checksum,
+		StageSchema.checksumEncoded(encoded) == manifest.checksum,
 		"Stagewright payload checksum does not match its chunk manifest"
 	)
 	return encoded
 end
 
-local function payloadFromRoots(roots: { Instance }): string?
+local function payloadFromRoots(roots: { Instance }, valueName: string): (string?, Instance?)
+	local found: StringValue? = nil
 	for _, root in roots do
-		if root.Name == StagePayload.AUTHORING_VALUE_NAME and root:IsA("StringValue") then
-			return readPayload(root)
+		if root.Name == valueName and root:IsA("StringValue") then
+			assert(found == nil, `RBXM contains more than one {valueName}`)
+			found = root
 		end
 		for _, descendant in root:GetDescendants() do
-			if descendant.Name == StagePayload.AUTHORING_VALUE_NAME and descendant:IsA("StringValue") then
-				return readPayload(descendant)
+			if descendant.Name == valueName and descendant:IsA("StringValue") then
+				assert(found == nil, `RBXM contains more than one {valueName}`)
+				found = descendant
 			end
 		end
 	end
-	return nil
+	if found ~= nil then
+		return readPayload(found), found.Parent
+	end
+	return nil, nil
+end
+
+local function markedBundleFrom(parent: Instance?): (Instance?, any?)
+	local current = parent
+	while current ~= nil do
+		local format = current:GetAttribute(StagePayload.BUNDLE_FORMAT_ATTRIBUTE)
+		if format ~= nil then
+			return current, format
+		end
+		current = current.Parent
+	end
+	return nil, nil
 end
 
 local function findGamePlatform(roots: { Instance }): Instance?
@@ -136,11 +155,64 @@ end
 
 local project: any
 local importNotices: { string } = {}
+local embeddedRuntimePayload: string? = nil
+local embeddedBundleFormat: string? = nil
+local embeddedBundleSchemaVersion: any? = nil
+local embeddedBundleChecksum: any? = nil
 if string.match(string.lower(inputPath), "%.rbxmx?$") then
 	local roots = roblox.deserializeModel(fs.readFile(inputPath))
-	local payload = payloadFromRoots(roots)
-	if payload ~= nil then
-		project = StageSchema.migrateProject(serde.decode("json", payload))
+	local authoringPayload, authoringParent = payloadFromRoots(roots, StagePayload.AUTHORING_VALUE_NAME)
+	local runtimePayload, runtimeParent = payloadFromRoots(roots, StagePayload.RUNTIME_VALUE_NAME)
+	local authoringBundle, authoringFormat = markedBundleFrom(authoringParent)
+	local runtimeBundle, runtimeFormat = markedBundleFrom(runtimeParent)
+	local markedBundle = authoringBundle or runtimeBundle
+	if markedBundle ~= nil then
+		assert(
+			authoringPayload == nil or authoringBundle == markedBundle,
+			"Stagewright authoring payload is outside the marked bundle container"
+		)
+		assert(
+			runtimePayload == nil or runtimeBundle == markedBundle,
+			"Stagewright runtime payload is outside the marked bundle container"
+		)
+	else
+		assert(
+			runtimeParent == nil or authoringParent == nil or runtimeParent == authoringParent,
+			"Stagewright authoring and runtime payloads do not share one bundle container"
+		)
+	end
+	local bundleParent = markedBundle or authoringParent or runtimeParent
+	local bundleFormat = if authoringBundle ~= nil then authoringFormat else runtimeFormat
+	assert(
+		bundleFormat == nil or type(bundleFormat) == "string",
+		"Stagewright bundle format marker is invalid"
+	)
+	assert(
+		bundleFormat == nil or bundleFormat == StagePayload.BUNDLE_FORMAT,
+		`Unsupported Stagewright bundle format {tostring(bundleFormat)}`
+	)
+	assert(
+		runtimePayload == nil or authoringPayload ~= nil,
+		"Stagewright bundle has a runtime payload but no authoring payload"
+	)
+	if bundleFormat == StagePayload.BUNDLE_FORMAT then
+		assert(authoringPayload ~= nil, "Stagewright bundle authoring payload is missing")
+		assert(runtimePayload ~= nil, "Stagewright bundle runtime payload is missing")
+	end
+	embeddedBundleFormat = bundleFormat
+	if bundleParent ~= nil then
+		embeddedBundleSchemaVersion = bundleParent:GetAttribute("SchemaVersion")
+		embeddedBundleChecksum = bundleParent:GetAttribute("Checksum")
+	end
+	embeddedRuntimePayload = runtimePayload
+	if authoringPayload ~= nil then
+		project = StageSchema.migrateProject(serde.decode("json", authoringPayload))
+		if runtimePayload == nil then
+			table.insert(
+				importNotices,
+				"Authoring-only Stagewright bundle; the runtime payload was regenerated"
+			)
+		end
 	else
 		project, importNotices = legacyProject(roots)
 	end
@@ -161,6 +233,33 @@ assert(result.bundle ~= nil, "Stagewright export validation failed")
 
 local canonicalProject = StageSchema.encodeCanonical(project)
 local canonicalRuntime = StageSchema.encodeCanonical(result.bundle)
+if embeddedRuntimePayload ~= nil then
+	local decodeSuccess, embeddedRuntime = pcall(serde.decode, "json", embeddedRuntimePayload)
+	assert(
+		decodeSuccess and type(embeddedRuntime) == "table",
+		"Embedded Stagewright runtime is not valid JSON"
+	)
+	assert(
+		embeddedRuntime.checksum == result.bundle.checksum,
+		"Embedded Stagewright runtime checksum differs from the authoring export"
+	)
+	assert(
+		embeddedRuntimePayload == canonicalRuntime,
+		"Embedded Stagewright runtime differs from the canonical authoring export"
+	)
+	print(`Stagewright embedded runtime verified: {result.bundle.checksum}`)
+end
+if embeddedBundleFormat == StagePayload.BUNDLE_FORMAT then
+	assert(
+		embeddedBundleSchemaVersion == result.bundle.schemaVersion,
+		"Stagewright bundle SchemaVersion attribute differs from the authoring export"
+	)
+	assert(
+		embeddedBundleChecksum == result.bundle.checksum,
+		"Stagewright bundle Checksum attribute differs from the authoring export"
+	)
+end
+
 local generated = table.concat({
 	"--!strict",
 	"-- Generated by scripts/stagewright-import.luau. Do not edit by hand.",

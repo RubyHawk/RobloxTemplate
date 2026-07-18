@@ -590,12 +590,7 @@ function ProjectLoadPolicy.planEncoded(
 		end
 		sourceVersion = versionValue
 	end
-	local checksumSuccess, persistedChecksum = pcall(function()
-		return StageSchema.checksum(decoded)
-	end)
-	if not checksumSuccess or type(persistedChecksum) ~= "string" then
-		return corrupt("ChecksumFailed", "Stagewright project checksum could not be computed")
-	end
+	local persistedChecksum = StageSchema.checksumEncoded(encoded)
 	if expectedChecksum ~= nil and persistedChecksum ~= expectedChecksum then
 		return corrupt("ChecksumMismatch", "Stagewright project checksum does not match stored data")
 	end

@@ -62,6 +62,11 @@ Do not connect the legacy `rng-defender-grid-demo` Rojo patch during this import
    lune run scripts/stagewright-import.luau "C:\path\to\StagewrightBundle.rbxm"
    ```
 
+   Current bundles contain both authoring and baked runtime payloads. The plugin
+   rereads both payloads before opening the save prompt, and this command rebakes
+   the authoring data and rejects a saved file whose embedded runtime differs.
+   Older authoring-only bundles remain importable and print a legacy notice.
+
    The same command also accepts the original legacy `GamePlatform` RBXM. It detects the absence of `StagewrightPayload`, imports `CellMap` and `PathPoints`, and prints every inferred endpoint decision.
 
 4. Review changes under `stage-data/` and `src/shared/StageCatalog.generated.luau`.

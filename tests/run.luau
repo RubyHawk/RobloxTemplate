@@ -873,6 +873,16 @@ end
 
 do
 	local StagePayload = require("../src/shared/StagePayload")
+	expectEqual(
+		StagePayload.BUNDLE_FORMAT,
+		"StagewrightBundle:v1",
+		"Stagewright exports declare one stable authoring/runtime bundle format"
+	)
+	expectEqual(
+		StagePayload.BUNDLE_FORMAT_ATTRIBUTE,
+		"StagewrightBundleFormat",
+		"Stagewright exports use one shared bundle-format attribute"
+	)
 	local largePayload = string.rep("a", StagePayload.CHUNK_SIZE)
 		.. string.rep("b", StagePayload.CHUNK_SIZE)
 		.. string.rep("c", 121_372)
@@ -905,6 +915,13 @@ do
 		StagePayload.parseManifest("StagewrightChunked:v1:999999999:1:fnv1a32-deadbeef"),
 		nil,
 		"impossible Stagewright chunk count is rejected before allocation"
+	)
+	local checksumFixture = { label = "canonical", value = 0.48000000000000004 }
+	local canonicalChecksumFixture = StageSchema.encodeCanonical(checksumFixture)
+	expectEqual(
+		StageSchema.checksumEncoded(canonicalChecksumFixture),
+		StageSchema.checksum(checksumFixture),
+		"Stagewright transport checksum hashes canonical payload bytes without reparsing numbers"
 	)
 end
 
@@ -2262,6 +2279,8 @@ do
 	local stagewrightProjectStoreSource = fs.readFile("src/plugins/Stagewright/ProjectStore.luau")
 	local stagewrightAuthoringAreaSource = fs.readFile("src/plugins/Stagewright/AuthoringArea.luau")
 	local stagewrightStorageSource = fs.readFile("src/plugins/Stagewright/Persistence/ProjectStorage.luau")
+	local stagewrightLoadPolicySource =
+		fs.readFile("src/plugins/Stagewright/Persistence/ProjectLoadPolicy.luau")
 	local stagewrightWorkspacePreviewSource = fs.readFile("src/plugins/Stagewright/WorkspacePreview.luau")
 	local stagewrightRouteOverviewSource = fs.readFile("src/plugins/Stagewright/RouteOverview.luau")
 	local stagewrightWorldPathSource = fs.readFile("src/plugins/Stagewright/WorldPathView.luau")
@@ -2280,6 +2299,7 @@ do
 	local stagewrightPaintBrushesSource = fs.readFile("src/plugins/Stagewright/Paint/Brushes.luau")
 	local stagewrightStageSettingsSource = fs.readFile("src/plugins/Stagewright/Stage/Settings.luau")
 	local stagewrightIssueModelSource = fs.readFile("src/plugins/Stagewright/Validation/IssueModel.luau")
+	local stagewrightImportSource = fs.readFile("scripts/stagewright-import.luau")
 	local stagewrightUiSource = stagewrightAppShellSource
 		.. stagewrightThemeSource
 		.. stagewrightFactorySource
@@ -2292,6 +2312,7 @@ do
 	expectCompiles(gridPluginSource, "modern Stagewright plugin shell compiles as Luau")
 	expectCompiles(stagewrightProjectStoreSource, "Stagewright project store compiles as Luau")
 	expectCompiles(stagewrightStorageSource, "Stagewright storage adapter compiles as Luau")
+	expectCompiles(stagewrightLoadPolicySource, "Stagewright load policy compiles as Luau")
 	expectCompiles(stagewrightWorkspacePreviewSource, "Stagewright Workspace preview compiles as Luau")
 	expectCompiles(stagewrightRouteOverviewSource, "Stagewright 2D route overview compiles as Luau")
 	expectCompiles(stagewrightWorldPathSource, "Stagewright real-world path view compiles as Luau")
@@ -2311,6 +2332,7 @@ do
 	expectCompiles(stagewrightPaintBrushesSource, "Stagewright paint brushes compile as Luau")
 	expectCompiles(stagewrightStageSettingsSource, "Stagewright stage settings compile as Luau")
 	expectCompiles(stagewrightIssueModelSource, "Stagewright validation issue model compiles as Luau")
+	expectCompiles(stagewrightImportSource, "Stagewright repository importer compiles as Luau")
 	expectEqual(
 		string.find(stagewrightToolbarSource, "resolvedOffsetX -= padding.PaddingLeft.Offset", 1, true) ~= nil,
 		true,
@@ -2408,11 +2430,53 @@ do
 			`Stagewright project store delegates through {storageBoundaryCall}`
 		)
 	end
+	expectEqual(
+		string.find(stagewrightLoadPolicySource, "StageSchema.checksumEncoded(encoded)", 1, true) ~= nil,
+		true,
+		"Stagewright validates stored transport bytes without reparsing floating-point values"
+	)
 	for _, payloadBoundaryCall in { "ProjectStorage.readPayload(", "ProjectStorage.writePayload(" } do
 		expectEqual(
 			string.find(gridPluginSource, payloadBoundaryCall, 1, true) ~= nil,
 			true,
 			`Stagewright bootstrap delegates generic payload access through {payloadBoundaryCall}`
+		)
+	end
+	for _, exportReadbackContract in
+		{
+			"verifyEmbeddedPayload(",
+			"expectedEncoded",
+			"StagePayload.BUNDLE_FORMAT_ATTRIBUTE",
+			"Bundle saved; embedded authoring/runtime verified",
+		}
+	do
+		expectEqual(
+			string.find(gridPluginSource, exportReadbackContract, 1, true) ~= nil,
+			true,
+			`Stagewright plugin verifies export readback through {exportReadbackContract}`
+		)
+	end
+	expectEqual(
+		string.find(gridPluginSource, "Export hash matched", 1, true),
+		nil,
+		"Stagewright plugin does not claim an unread export hash matched"
+	)
+	for _, importerReadbackContract in
+		{
+			"payloadFromRoots(roots, StagePayload.RUNTIME_VALUE_NAME)",
+			"markedBundleFrom(authoringParent)",
+			"outside the marked bundle container",
+			"bundleFormat == StagePayload.BUNDLE_FORMAT",
+			"embeddedRuntimePayload == canonicalRuntime",
+			"Unsupported Stagewright bundle format",
+			"embeddedBundleSchemaVersion",
+			"Authoring-only Stagewright bundle",
+		}
+	do
+		expectEqual(
+			string.find(stagewrightImportSource, importerReadbackContract, 1, true) ~= nil,
+			true,
+			`Stagewright importer enforces export readback through {importerReadbackContract}`
 		)
 	end
 	for _, bootstrapCall in
@@ -3608,6 +3672,31 @@ do
 		firstExport.bundle ~= nil and secondExport.bundle ~= nil and firstExport.bundle.checksum,
 		secondExport.bundle ~= nil and secondExport.bundle.checksum,
 		"unchanged Stagewright exports are checksum deterministic"
+	)
+	local exportedBundle = assert(firstExport.bundle, "valid Stagewright project has no runtime bundle")
+	local normalizedExportProject =
+		StageSchema.migrateProject(serde.decode("json", StageSchema.encodeCanonical(authoringProject)))
+	local normalizedExport = StageExport.bake(normalizedExportProject)
+	local normalizedBundle =
+		assert(normalizedExport.bundle, "normalized Stagewright project has no runtime bundle")
+	expectEqual(
+		StageSchema.encodeCanonical(normalizedBundle),
+		StageSchema.encodeCanonical(exportedBundle),
+		"canonical authoring readback rebakes the exact embedded runtime payload"
+	)
+	local canonicalEmbeddedRuntime = StageSchema.encodeCanonical(exportedBundle)
+	local tamperedEmbeddedRuntime = serde.decode("json", canonicalEmbeddedRuntime)
+	tamperedEmbeddedRuntime.stages.stage_default.name = "Tampered stage"
+	expectEqual(
+		tamperedEmbeddedRuntime.checksum == exportedBundle.checksum
+			and StageSchema.encodeCanonical(tamperedEmbeddedRuntime) ~= canonicalEmbeddedRuntime,
+		true,
+		"canonical runtime readback rejects modified contents even when the copied checksum matches"
+	)
+	expectEqual(
+		exportedBundle.stages.stage_default.name,
+		authoringProject.stages.stage_default.name,
+		"runtime verification never mutates the expected export"
 	)
 	local alternateStartingProject = serde.decode("json", serde.encode("json", authoringProject))
 	alternateStartingProject.startingStageId = "stage_1_level_2"

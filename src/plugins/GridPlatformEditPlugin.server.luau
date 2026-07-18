@@ -20,6 +20,7 @@ local RouteOverview = require(script.RouteOverview)
 local StageSettings = require(script.Stage.Settings)
 local StageHierarchy = require(script.Shared.StageHierarchy)
 local StagePayload = require(script.Shared.StagePayload)
+local StageSchema = require(script.Shared.StageSchema)
 local StageTrace = require(script.Shared.StageTrace)
 local AppShell = require(script.UI.AppShell)
 local Factory = require(script.UI.Factory)
@@ -3945,6 +3946,52 @@ local function renderIssues()
 	issueList.CanvasSize = UDim2.fromOffset(0, math.max(#groupedIssues, 1) * 48 + 16)
 end
 
+local function verifyEmbeddedPayload(
+	parent: Instance,
+	valueName: string,
+	expectedEncoded: string,
+	expectedChecksum: string
+): (boolean, string?)
+	local encoded, readError, readChecksum = ProjectStorage.readPayload(parent, valueName)
+	if encoded == nil then
+		return false, readError or `{valueName} could not be read`
+	end
+	if encoded ~= expectedEncoded then
+		return false, `{valueName} differs from the canonical export`
+	end
+	if readChecksum ~= nil and readChecksum ~= expectedChecksum then
+		return false, `{valueName} transport checksum differs from the canonical export`
+	end
+	return true, nil
+end
+
+local function verifyExportModel(
+	model: Model,
+	expectedAuthoring: string,
+	expectedAuthoringChecksum: string,
+	expectedRuntime: string,
+	expectedRuntimeChecksum: string
+): (boolean, string?)
+	if model:GetAttribute(StagePayload.BUNDLE_FORMAT_ATTRIBUTE) ~= StagePayload.BUNDLE_FORMAT then
+		return false, "Stagewright bundle format marker is missing"
+	end
+	local authoringVerified, authoringError = verifyEmbeddedPayload(
+		model,
+		StagePayload.AUTHORING_VALUE_NAME,
+		expectedAuthoring,
+		expectedAuthoringChecksum
+	)
+	if not authoringVerified then
+		return false, authoringError
+	end
+	return verifyEmbeddedPayload(
+		model,
+		StagePayload.RUNTIME_VALUE_NAME,
+		expectedRuntime,
+		expectedRuntimeChecksum
+	)
+end
+
 local function exportBundle()
 	if not ProjectStore.isWritable() then
 		flowRuntime.reportBlocked("Export")
@@ -3960,23 +4007,23 @@ local function exportBundle()
 	end
 	local model = Instance.new("Model")
 	model.Name = "StagewrightBundle"
-	local schema = require(script.Shared.StageSchema)
-	local authoring = schema.encodeCanonical(ProjectStore.get())
-	local runtime = schema.encodeCanonical(result.bundle)
-	ProjectStorage.writePayload(
-		model,
-		StagePayload.AUTHORING_VALUE_NAME,
-		authoring,
-		schema.checksum(ProjectStore.get())
-	)
-	ProjectStorage.writePayload(
-		model,
-		StagePayload.RUNTIME_VALUE_NAME,
-		runtime,
-		schema.checksum(result.bundle)
-	)
+	local currentProject = ProjectStore.get()
+	local authoring = StageSchema.encodeCanonical(currentProject)
+	local runtime = StageSchema.encodeCanonical(result.bundle)
+	local authoringChecksum = StageSchema.checksum(currentProject)
+	local runtimeChecksum = StageSchema.checksum(result.bundle)
+	ProjectStorage.writePayload(model, StagePayload.AUTHORING_VALUE_NAME, authoring, authoringChecksum)
+	ProjectStorage.writePayload(model, StagePayload.RUNTIME_VALUE_NAME, runtime, runtimeChecksum)
+	model:SetAttribute(StagePayload.BUNDLE_FORMAT_ATTRIBUTE, StagePayload.BUNDLE_FORMAT)
 	model:SetAttribute("SchemaVersion", result.bundle.schemaVersion)
 	model:SetAttribute("Checksum", result.bundle.checksum)
+	local verified, verificationMessage =
+		verifyExportModel(model, authoring, authoringChecksum, runtime, runtimeChecksum)
+	if not verified then
+		model:Destroy()
+		setStatus(`Export verification failed: {verificationMessage or "unknown error"}`, true)
+		return
+	end
 	model.Parent = ServerStorage
 	local previousSelection = Selection:Get()
 	Selection:Set({ model })
@@ -3985,14 +4032,16 @@ local function exportBundle()
 	end)
 	Selection:Set(previousSelection)
 	model:Destroy()
-	if success and saved ~= false then
+	if not success then
+		setStatus(`Export failed: {tostring(saved)}`, true)
+	elseif saved == false then
+		setStatus("Export cancelled; no bundle was saved.")
+	else
 		local folder = ServerStorage:FindFirstChild("StagewrightProject")
 		if folder ~= nil then
 			folder:SetAttribute("ExportChecksum", result.bundle.checksum)
 		end
-		setStatus(`Export hash matched - {result.bundle.checksum}`)
-	else
-		setStatus("Export cancelled; project was not changed.")
+		setStatus(`Bundle saved; embedded authoring/runtime verified - {result.bundle.checksum}`)
 	end
 end
 
