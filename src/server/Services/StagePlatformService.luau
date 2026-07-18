@@ -8,6 +8,7 @@ local Workspace = game:GetService("Workspace")
 local Template = ReplicatedStorage:WaitForChild("Template")
 local Shared = Template:WaitForChild("Shared")
 local Config = require(Shared.TemplateConfig)
+local StageCatalog = require(Shared.StageCatalog)
 
 local StagePlatformService = {}
 
@@ -40,7 +41,7 @@ local function publishOwner(slot: number, player: Player?)
 	if player == nil then
 		value:SetAttribute("ActiveStageId", "")
 	elseif previousOwnerUserId ~= player.UserId then
-		value:SetAttribute("ActiveStageId", Config.towerDefense.startingStageId)
+		value:SetAttribute("ActiveStageId", StageCatalog.defaultStageId())
 	end
 	value:SetAttribute("OwnerUserId", if player ~= nil then player.UserId else 0)
 end

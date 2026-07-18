@@ -115,7 +115,7 @@ function StageRuntimeService.isUnlocked(player: Player, stageId: string): boolea
 	if stage == nil then
 		return false
 	end
-	if stageId == Config.towerDefense.startingStageId then
+	if stageId == StageCatalog.defaultStageId() then
 		return true
 	end
 	local progress = profileProgress(player)
@@ -158,9 +158,10 @@ function StageRuntimeService.activeStageId(player: Player): string
 		activationPublisher(player, selected)
 		return selected
 	end
-	activeStageIds[player] = Config.towerDefense.startingStageId
-	activationPublisher(player, Config.towerDefense.startingStageId)
-	return Config.towerDefense.startingStageId
+	local defaultStageId = StageCatalog.defaultStageId()
+	activeStageIds[player] = defaultStageId
+	activationPublisher(player, defaultStageId)
+	return defaultStageId
 end
 
 function StageRuntimeService.activeStage(player: Player): RuntimeStageDefinition?

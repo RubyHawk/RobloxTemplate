@@ -1610,6 +1610,7 @@ local futureOk = pcall(function()
 end)
 expectEqual(futureOk, false, "future profile schemas are refused instead of overwritten")
 local migrationsSource = fs.readFile("src/shared/Migrations.luau")
+local profileTemplateSource = fs.readFile("src/shared/ProfileTemplate.luau")
 expectEqual(
 	string.find(migrationsSource, "Migrations.CURRENT_VERSION = 7", 1, true) ~= nil,
 	true,
@@ -1644,6 +1645,17 @@ do
 		`stage profile migration includes {stageMigrationMarker}`
 	)
 end
+expectEqual(
+	string.find(migrationsSource, "StageCatalog.defaultStageId()", 1, true) ~= nil
+		and string.find(profileTemplateSource, "StageCatalog.defaultStageId()", 1, true) ~= nil,
+	true,
+	"new and migrated profiles seed the exported runtime starting stage"
+)
+expectEqual(
+	string.find(migrationsSource .. profileTemplateSource, "Config.towerDefense.startingStageId", 1, true),
+	nil,
+	"profile defaults do not override the exported runtime starting stage"
+)
 
 expectEqual(DataStoreKeys.profile(123), "player:123", "profile key is documented and stable")
 expectEqual(DataStoreKeys.publicProfile(123), "user:123", "public profile key is documented")
@@ -3597,6 +3609,30 @@ do
 		secondExport.bundle ~= nil and secondExport.bundle.checksum,
 		"unchanged Stagewright exports are checksum deterministic"
 	)
+	local alternateStartingProject = serde.decode("json", serde.encode("json", authoringProject))
+	alternateStartingProject.startingStageId = "stage_1_level_2"
+	local alternateStartingExport = StageExport.bake(alternateStartingProject)
+	expectEqual(
+		alternateStartingExport.bundle ~= nil and alternateStartingExport.bundle.startingStageId,
+		"stage_1_level_2",
+		"runtime export preserves the authored starting stage"
+	)
+	local danglingStartingProject = serde.decode("json", serde.encode("json", authoringProject))
+	danglingStartingProject.startingStageId = "stage_missing"
+	local danglingStartingExport = StageExport.bake(danglingStartingProject)
+	expectEqual(danglingStartingExport.bundle, nil, "runtime export rejects a dangling starting stage")
+	local foundInvalidStartingStage = false
+	for _, issue in danglingStartingExport.issues do
+		if issue.code == "InvalidStartingStage" then
+			foundInvalidStartingStage = true
+			break
+		end
+	end
+	expectEqual(
+		foundInvalidStartingStage,
+		true,
+		"runtime export identifies the dangling starting-stage contract"
+	)
 	local runtimeStage = firstExport.bundle ~= nil and firstExport.bundle.stages.stage_default or nil
 	local runtimeGraph = runtimeStage ~= nil and runtimeStage.pathGraphs[authoredGraphId] or nil
 	local autoPlaceCount = 0
@@ -4404,6 +4440,17 @@ local stagePlatformCompiles = pcall(function()
 	luau.load(stagePlatformSource)
 end)
 expectEqual(stagePlatformCompiles, true, "six-platform allocator compiles as Luau")
+expectEqual(
+	string.find(stageRuntimeSource, "StageCatalog.defaultStageId()", 1, true) ~= nil
+		and string.find(stagePlatformSource, "StageCatalog.defaultStageId()", 1, true) ~= nil,
+	true,
+	"runtime stage fallback and platform publication use the exported catalog default"
+)
+expectEqual(
+	string.find(stageRuntimeSource .. stagePlatformSource, "Config.towerDefense.startingStageId", 1, true),
+	nil,
+	"runtime services do not override the exported starting stage with template configuration"
+)
 for _, platformMarker in
 	{
 		"platformSlotCount",

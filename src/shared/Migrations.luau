@@ -4,11 +4,13 @@ local CurrencyConfig = require(script.Parent.CurrencyConfig)
 local ProfileTemplate = require(script.Parent.ProfileTemplate)
 local MigrationCore = require(script.Parent.MigrationCore)
 local Config = require(script.Parent.TemplateConfig)
+local StageCatalog = require(script.Parent.StageCatalog)
 
 local Migrations = {}
 Migrations.CURRENT_VERSION = 7
 
 function Migrations.migrate(raw: any, now: number): any
+	local startingStageId = StageCatalog.defaultStageId()
 	local previousVersion = if type(raw) == "table" and type(raw.schemaVersion) == "number"
 		then raw.schemaVersion
 		else 0
@@ -32,7 +34,7 @@ function Migrations.migrate(raw: any, now: number): any
 		profile.towerDefense = {
 			ownedUnits = {},
 			loadout = {},
-			selectedStageId = Config.towerDefense.startingStageId,
+			selectedStageId = startingStageId,
 			stageProgress = {},
 			stats = {
 				wins = 0,
@@ -44,14 +46,14 @@ function Migrations.migrate(raw: any, now: number): any
 	if previousVersion < 7 then
 		local towerDefense = profile.towerDefense
 		if type(towerDefense.selectedStageId) ~= "string" or towerDefense.selectedStageId == "" then
-			towerDefense.selectedStageId = Config.towerDefense.startingStageId
+			towerDefense.selectedStageId = startingStageId
 		end
 		if type(towerDefense.stageProgress) ~= "table" then
 			towerDefense.stageProgress = {}
 		end
-		local startingProgress = towerDefense.stageProgress[Config.towerDefense.startingStageId]
+		local startingProgress = towerDefense.stageProgress[startingStageId]
 		if type(startingProgress) ~= "table" then
-			towerDefense.stageProgress[Config.towerDefense.startingStageId] = {
+			towerDefense.stageProgress[startingStageId] = {
 				unlocked = true,
 				clears = 0,
 				bestWave = if type(towerDefense.stats) == "table"

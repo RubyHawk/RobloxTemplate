@@ -2,6 +2,7 @@
 
 local CurrencyConfig = require(script.Parent.CurrencyConfig)
 local Config = require(script.Parent.TemplateConfig)
+local StageCatalog = require(script.Parent.StageCatalog)
 local Types = require(script.Parent.Types)
 type PlayerProfileV1 = Types.PlayerProfileV1
 
@@ -9,6 +10,7 @@ local ProfileTemplate = {}
 
 function ProfileTemplate.create(now: number): PlayerProfileV1
 	local currencies = CurrencyConfig.startingBalances(Config.economy.currencies)
+	local startingStageId = StageCatalog.defaultStageId()
 	return {
 		schemaVersion = 7,
 		coins = currencies[Config.economy.primaryCurrencyId] or 0,
@@ -55,9 +57,9 @@ function ProfileTemplate.create(now: number): PlayerProfileV1
 		towerDefense = {
 			ownedUnits = {},
 			loadout = {},
-			selectedStageId = Config.towerDefense.startingStageId,
+			selectedStageId = startingStageId,
 			stageProgress = {
-				[Config.towerDefense.startingStageId] = {
+				[startingStageId] = {
 					unlocked = true,
 					clears = 0,
 					bestWave = 0,

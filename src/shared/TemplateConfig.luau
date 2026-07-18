@@ -192,7 +192,6 @@ local Config = {
 		baseHealth = 20,
 		autoPlaceMaxUnits = 4,
 		runtimeFolderName = "TowerDefenseRuntime",
-		startingStageId = "stage_default",
 		simulationHz = 20,
 		networkSnapshotHz = 4,
 		maximumEnemiesPerPlayer = 500,

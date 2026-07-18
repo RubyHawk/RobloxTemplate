@@ -133,6 +133,13 @@ function StageExport.bake(project: any): ExportResult
 			issues = { { severity = "Error", code = "InvalidProject", message = "Project has no stages" } },
 		}
 	end
+	if type(project.startingStageId) ~= "string" or project.stages[project.startingStageId] == nil then
+		table.insert(issues, {
+			severity = "Error",
+			code = "InvalidStartingStage",
+			message = `Starting stage {tostring(project.startingStageId)} does not reference an exported stage`,
+		})
+	end
 	local stageIds: { string } = {}
 	local groupByNumber: { [number]: string } = {}
 	local numberByGroup: { [string]: number } = {}
