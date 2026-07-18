@@ -20,6 +20,15 @@
         "$path": "../src/plugins/Stagewright/Paint/Brushes.luau"
       }
     },
+    "Persistence": {
+      "$className": "Folder",
+      "ProjectLoadPolicy": {
+        "$path": "../src/plugins/Stagewright/Persistence/ProjectLoadPolicy.luau"
+      },
+      "ProjectStorage": {
+        "$path": "../src/plugins/Stagewright/Persistence/ProjectStorage.luau"
+      }
+    },
     "ProjectStore": {
       "$path": "../src/plugins/Stagewright/ProjectStore.luau"
     },
@@ -34,6 +43,9 @@
     },
     "WorldPathView": {
       "$path": "../src/plugins/Stagewright/WorldPathView.luau"
+    },
+    "WorkspacePreview": {
+      "$path": "../src/plugins/Stagewright/WorkspacePreview.luau"
     },
     "UI": {
       "$className": "Folder",

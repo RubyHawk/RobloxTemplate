@@ -28,6 +28,8 @@ export type Config = {
 	onSave: () -> string,
 	onOpenValidation: () -> (),
 	onFocusAuthoring: () -> (),
+	canMutate: () -> boolean,
+	onBlocked: (action: string) -> (),
 }
 
 export type Controller = {
@@ -138,6 +140,14 @@ function HeaderController.new(config: Config): Controller
 	}, stageDropdownList)
 
 	local controller: Controller = {} :: any
+	local function canRunMutation(action: string): boolean
+		if config.canMutate() then
+			return true
+		end
+		config.onBlocked(action)
+		return false
+	end
+
 	controller.refreshStageSelector = function(_self: Controller)
 		local options = config.stageOptions()
 		for _, option in options do
@@ -217,11 +227,17 @@ function HeaderController.new(config: Config): Controller
 		create("UIPadding", { PaddingLeft = UDim.new(0, 10) }, item)
 	end
 	menuItem("Save changes", 1, function()
+		if not canRunMutation("Save changes") then
+			return
+		end
 		config.status.Text = `Saved working copy - {config.onSave()}`
 		config.status.TextColor3 = COLORS.success
 	end)
 	menuItem("Open validation", 2, config.onOpenValidation)
 	menuItem("Focus authoring area", 3, function()
+		if not canRunMutation("Focus authoring area") then
+			return
+		end
 		config.onFocusAuthoring()
 		config.status.Text = "Focused the Stagewright authoring area below the shared map."
 		config.status.TextColor3 = COLORS.text
@@ -231,6 +247,9 @@ function HeaderController.new(config: Config): Controller
 	end)
 
 	local undo = button(header, "Undo", 82, function()
+		if not canRunMutation("Undo") then
+			return
+		end
 		pcall(function()
 			ChangeHistoryService:Undo()
 		end)
@@ -240,6 +259,9 @@ function HeaderController.new(config: Config): Controller
 	undo.Size = UDim2.fromOffset(82, 34)
 	Toolbar.styleIconButton(undo, "Undo", "undo", COLORS.muted)
 	local redo = button(header, "Redo", 82, function()
+		if not canRunMutation("Redo") then
+			return
+		end
 		pcall(function()
 			ChangeHistoryService:Redo()
 		end)

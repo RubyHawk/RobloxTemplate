@@ -3,26 +3,36 @@
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ServerStorage = game:GetService("ServerStorage")
 
 local AuthoringArea = require(script.Parent.AuthoringArea)
+local ProjectLoadPolicy = require(script.Parent.Persistence.ProjectLoadPolicy)
+local ProjectStorage = require(script.Parent.Persistence.ProjectStorage)
 local Shared = script.Parent.Shared
 local StageExport = require(Shared.StageExport)
 local StageHierarchy = require(Shared.StageHierarchy)
 local StageLegacy = require(Shared.StageLegacy)
 local StageLanes = require(Shared.StageLanes)
-local StagePayload = require(Shared.StagePayload)
 local StageSchema = require(Shared.StageSchema)
 local StageStarterProject = require(Shared.StageStarterProject)
 
 local ProjectStore = {}
 
-local PROJECT_NAME = "StagewrightProject"
-local PAYLOAD_NAME = "Payload"
+type LoadResult = ProjectLoadPolicy.PlanResult
+export type Transaction = number
+
 local project: any = nil
+local loadResult: LoadResult? = nil
 local recording: any = nil
+local recordingSnapshot: any = nil
+local activeTransaction: Transaction? = nil
+local nextTransactionId = 0
 local writingPayload = false
+local writesSuspended = false
 local previewCache: { [string]: { signature: string, stage: any } } = {}
+local observerCallback: (() -> ())? = nil
+local observerRevision = 0
+local ensureStarterLevels: (any) -> boolean
+local finishActiveTransaction: (boolean) -> boolean
 
 local function configuredStarterLevelCount(): number
 	local template = ReplicatedStorage:FindFirstChild("Template")
@@ -60,142 +70,8 @@ local function clone(value: any, seen: { [table]: table }?): any
 	return result
 end
 
-local function container(): (Folder, StringValue)
-	local folder = ServerStorage:FindFirstChild(PROJECT_NAME)
-	if folder == nil or not folder:IsA("Folder") then
-		if folder ~= nil then
-			folder:Destroy()
-		end
-		folder = Instance.new("Folder")
-		folder.Name = PROJECT_NAME
-		folder.Parent = ServerStorage
-	end
-	local payload = folder:FindFirstChild(PAYLOAD_NAME)
-	if payload == nil or not payload:IsA("StringValue") then
-		if payload ~= nil then
-			payload:Destroy()
-		end
-		payload = Instance.new("StringValue")
-		payload.Name = PAYLOAD_NAME
-		payload.Parent = folder
-	end
-	return folder, payload
-end
-
-local function ensureFolder(parent: Instance, name: string): Folder
-	local folder = parent:FindFirstChild(name)
-	if folder == nil or not folder:IsA("Folder") then
-		if folder ~= nil then
-			folder:Destroy()
-		end
-		folder = Instance.new("Folder")
-		folder.Name = name
-		folder.Parent = parent
-	end
-	return folder
-end
-
-function ProjectStore.writePayload(
-	parent: Instance,
-	valueName: string,
-	encoded: string,
-	checksum: string
-): StringValue
-	local value = parent:FindFirstChild(valueName)
-	if value == nil or not value:IsA("StringValue") then
-		if value ~= nil then
-			value:Destroy()
-		end
-		value = Instance.new("StringValue")
-		value.Name = valueName
-		value.Parent = parent
-	end
-	local chunksName = StagePayload.chunksName(valueName)
-	local existingChunks = parent:FindFirstChild(chunksName)
-	if #encoded <= StagePayload.CHUNK_SIZE then
-		value.Value = encoded
-		if existingChunks ~= nil then
-			existingChunks:Destroy()
-		end
-		return value
-	end
-
-	local chunksFolder = ensureFolder(parent, chunksName)
-	local chunks = StagePayload.split(encoded)
-	for index, chunk in chunks do
-		local chunkName = StagePayload.chunkName(index)
-		local child = chunksFolder:FindFirstChild(chunkName)
-		if child == nil or not child:IsA("StringValue") then
-			if child ~= nil then
-				child:Destroy()
-			end
-			child = Instance.new("StringValue")
-			child.Name = chunkName
-			child.Parent = chunksFolder
-		end
-		child.Value = chunk
-	end
-	for _, child in chunksFolder:GetChildren() do
-		local indexText = string.match(child.Name, "^Chunk_(%d+)$")
-		local index = if indexText ~= nil then tonumber(indexText) else nil
-		if index == nil or index < 1 or index > #chunks or not child:IsA("StringValue") then
-			child:Destroy()
-		end
-	end
-	chunksFolder:SetAttribute("ChunkCount", #chunks)
-	chunksFolder:SetAttribute("PayloadLength", #encoded)
-	chunksFolder:SetAttribute("PayloadChecksum", checksum)
-	value.Value = StagePayload.manifest(checksum, #chunks, #encoded)
-	return value
-end
-
-function ProjectStore.readPayload(
-	parent: Instance,
-	valueName: string
-): (string?, string?, StagePayload.Manifest?)
-	local value = parent:FindFirstChild(valueName)
-	if value == nil or not value:IsA("StringValue") then
-		return nil, `{valueName} is missing`, nil
-	end
-	local manifest = StagePayload.parseManifest(value.Value)
-	if manifest == nil then
-		return value.Value, nil, nil
-	end
-	local chunksFolder = parent:FindFirstChild(StagePayload.chunksName(valueName))
-	if chunksFolder == nil or not chunksFolder:IsA("Folder") then
-		return nil, `{StagePayload.chunksName(valueName)} is missing`, manifest
-	end
-	local chunks: { string } = {}
-	for index = 1, manifest.chunkCount do
-		local child = chunksFolder:FindFirstChild(StagePayload.chunkName(index))
-		if child ~= nil and child:IsA("StringValue") then
-			chunks[index] = child.Value
-		end
-	end
-	local encoded, message = StagePayload.join(chunks, manifest.chunkCount, manifest.length)
-	if encoded ~= nil then
-		local success, decoded = pcall(function()
-			return HttpService:JSONDecode(encoded)
-		end)
-		if success and type(decoded) == "table" and StageSchema.checksum(decoded) ~= manifest.checksum then
-			return nil, "Payload checksum does not match its chunk manifest", manifest
-		end
-	end
-	return encoded, message, manifest
-end
-
-local function storedProject(folder: Folder): (any?, string?)
-	local encoded, readError = ProjectStore.readPayload(folder, PAYLOAD_NAME)
-	if encoded == nil or encoded == "" then
-		return nil, readError
-	end
-	local success, decoded = pcall(function()
-		return HttpService:JSONDecode(encoded)
-	end)
-	if not success or type(decoded) ~= "table" or type(decoded.stages) ~= "table" then
-		return nil, "Payload JSON is invalid; preserved for manual recovery"
-	end
-	return decoded, nil
+local function decodeJson(encoded: string): any
+	return HttpService:JSONDecode(encoded)
 end
 
 local function intValue(parent: Instance?, name: string, fallback: number): number
@@ -275,35 +151,77 @@ local function defaultProject(platformOverride: Instance?): any
 	return imported
 end
 
-function ProjectStore.load(platformOverride: Instance?): any
-	local folder, payload = container()
-	if payload.Value ~= "" then
-		local decoded, loadError = storedProject(folder)
-		if decoded ~= nil then
-			project = StageSchema.migrateProject(decoded)
-			if StageStarterProject.isRecognizedLegacyTestProject(project) then
-				project = StageStarterProject.build(
-					configuredStarterLevelCount(),
-					guid,
-					"stage_default",
-					"stage_group_1"
-				)
-				folder:SetAttribute("AuthorizedStarterReplacementRevision", StageStarterProject.REVISION)
-				folder:SetAttribute(
-					"AuthorizedStarterReplacementStatus",
-					"Replaced recognized legacy test data"
-				)
-			else
-				ProjectStore.ensureStarterLevels(configuredStarterLevelCount())
-			end
-			ProjectStore.save()
-			return project
+local function recoveryPlaceholder(): any
+	return StageStarterProject.build(1, guid, "stage_recovery", "stage_group_recovery")
+end
+
+local function initializeInMemory(platformOverride: Instance?, state: ProjectLoadPolicy.Initialize)
+	local success, initialized = pcall(function()
+		return StageSchema.migrateProject(defaultProject(platformOverride))
+	end)
+	if success and type(initialized) == "table" then
+		project = initialized
+		loadResult = state
+		local seedSuccess, seedError = pcall(function()
+			ensureStarterLevels(configuredStarterLevelCount())
+		end)
+		if seedSuccess then
+			return
 		end
-		folder:SetAttribute("LoadError", loadError)
+		initialized = seedError
 	end
-	project = StageSchema.migrateProject(defaultProject(platformOverride))
-	ProjectStore.ensureStarterLevels(configuredStarterLevelCount())
-	ProjectStore.save()
+	project = recoveryPlaceholder()
+	loadResult = {
+		kind = "Corrupt",
+		code = "InitializationFailed",
+		message = `Stagewright could not initialize an in-memory project: {tostring(initialized)}`,
+	}
+end
+
+local function applyLoadedPlan(state: ProjectLoadPolicy.Ready | ProjectLoadPolicy.LegacyMigratedInMemory)
+	project = state.project
+	loadResult = state
+	local original = clone(project)
+	local normalizeSuccess, changed = pcall(function()
+		if StageStarterProject.isRecognizedLegacyTestProject(project) then
+			project = StageStarterProject.build(
+				configuredStarterLevelCount(),
+				guid,
+				"stage_default",
+				"stage_group_1"
+			)
+			return true
+		end
+		return ensureStarterLevels(configuredStarterLevelCount())
+	end)
+	if not normalizeSuccess then
+		project = original
+		state.project = original
+		loadResult = state
+		return
+	end
+	if changed then
+		loadResult = {
+			kind = "LegacyMigratedInMemory",
+			project = project,
+			sourceVersion = state.sourceVersion,
+			persistedChecksum = state.persistedChecksum,
+		}
+	end
+end
+
+function ProjectStore.load(platformOverride: Instance?): any
+	local planned = ProjectLoadPolicy.plan(ProjectStorage.projectSnapshot(), decodeJson)
+	writesSuspended = false
+	if planned.kind == "Ready" or planned.kind == "LegacyMigratedInMemory" then
+		applyLoadedPlan(planned)
+	elseif planned.kind == "Initialize" then
+		initializeInMemory(platformOverride, planned)
+	else
+		project = recoveryPlaceholder()
+		loadResult = planned
+	end
+	table.clear(previewCache)
 	return project
 end
 
@@ -311,24 +229,66 @@ function ProjectStore.get(): any
 	return project or ProjectStore.load()
 end
 
-function ProjectStore.save(): string
-	local folder = container()
-	local encoded = StageSchema.encodeCanonical(ProjectStore.get())
-	local checksum = StageSchema.checksum(ProjectStore.get())
+local function currentLoadState(): LoadResult
+	if loadResult == nil then
+		ProjectStore.load()
+	end
+	return assert(loadResult, "Stagewright load state was not initialized")
+end
+
+function ProjectStore.isWritable(): boolean
+	if writesSuspended then
+		return false
+	end
+	local state = currentLoadState()
+	return state.kind == "Ready" or state.kind == "Initialize" or state.kind == "LegacyMigratedInMemory"
+end
+
+function ProjectStore.recoveryMessage(): string?
+	if writesSuspended then
+		return "Stagewright is verifying an external project update"
+	end
+	local state = currentLoadState()
+	if state.kind == "Corrupt" or state.kind == "UnsupportedFutureVersion" then
+		return state.message
+	end
+	return nil
+end
+
+local refreshObserverConnections: () -> ()
+
+local function saveUnchecked(): string
+	local current = ProjectStore.get()
+	local encoded = StageSchema.encodeCanonical(current)
+	local checksum = StageSchema.checksum(current)
 	writingPayload = true
 	local success, message = pcall(function()
-		ProjectStore.writePayload(folder, PAYLOAD_NAME, encoded, checksum)
+		ProjectStorage.writeProject(encoded, checksum, StageSchema.AUTHORING_VERSION)
 	end)
 	writingPayload = false
 	if not success then
 		error(message)
 	end
-	folder:SetAttribute("SchemaVersion", StageSchema.AUTHORING_VERSION)
-	folder:SetAttribute("WorkingChecksum", checksum)
+	loadResult = {
+		kind = "Ready",
+		project = current,
+		sourceVersion = StageSchema.AUTHORING_VERSION,
+		persistedChecksum = checksum,
+	}
+	writesSuspended = false
+	refreshObserverConnections()
 	return checksum
 end
 
+function ProjectStore.save(): string
+	assert(ProjectStore.isWritable(), "Stagewright project is read-only until recovery succeeds")
+	return saveUnchecked()
+end
+
 function ProjectStore.preview(stageId: string): any?
+	if not ProjectStore.isWritable() then
+		return nil
+	end
 	local source = ProjectStore.get().stages[stageId]
 	if source == nil then
 		return nil
@@ -354,72 +314,165 @@ function ProjectStore.preview(stageId: string): any?
 end
 
 function ProjectStore.workingChecksum(): string
-	local folder = container()
-	local checksum = folder:GetAttribute("WorkingChecksum")
-	return if type(checksum) == "string" then checksum else ProjectStore.save()
+	return StageSchema.checksum(ProjectStore.get())
 end
 
-function ProjectStore.observe(callback: () -> ()): RBXScriptConnection
-	local folder, payload = container()
-	local revision = 0
-	return payload:GetPropertyChangedSignal("Value"):Connect(function()
-		if writingPayload then
+local function applyObservedPlan(planned: LoadResult)
+	if planned.kind == "Ready" or planned.kind == "LegacyMigratedInMemory" then
+		applyLoadedPlan(planned)
+	elseif planned.kind == "Initialize" then
+		local previous = loadResult
+		if previous == nil then
+			initializeInMemory(nil, planned)
+		elseif previous.kind == "Initialize" then
+			loadResult = planned
+		else
+			loadResult = {
+				kind = "Corrupt",
+				code = "ProjectStorageRemoved",
+				message = "Stagewright project storage was removed after loading. Restore it to continue editing.",
+			}
+		end
+	else
+		if project == nil then
+			project = recoveryPlaceholder()
+		end
+		loadResult = planned
+	end
+	writesSuspended = false
+	table.clear(previewCache)
+end
+
+local function isSamePersistedRevision(left: LoadResult?, right: LoadResult): boolean
+	if left == nil then
+		return false
+	end
+	if left.kind == "Initialize" or right.kind == "Initialize" then
+		return left.kind == "Initialize" and right.kind == "Initialize"
+	end
+	if left.kind ~= "Ready" and left.kind ~= "LegacyMigratedInMemory" then
+		return false
+	end
+	if right.kind ~= "Ready" and right.kind ~= "LegacyMigratedInMemory" then
+		return false
+	end
+	return left.persistedChecksum == right.persistedChecksum and left.sourceVersion == right.sourceVersion
+end
+
+local function scheduleObservation()
+	if writingPayload then
+		return
+	end
+	writesSuspended = true
+	if activeTransaction ~= nil then
+		finishActiveTransaction(false)
+	end
+	observerRevision += 1
+	local requestedRevision = observerRevision
+	task.defer(function()
+		if requestedRevision ~= observerRevision or writingPayload then
 			return
 		end
-		revision += 1
-		local requestedRevision = revision
-		task.defer(function()
-			if requestedRevision ~= revision then
-				return
-			end
-			local decoded, loadError = storedProject(folder)
-			if decoded ~= nil then
-				project = StageSchema.migrateProject(decoded)
-				folder:SetAttribute("LoadError", nil)
-				callback()
-			else
-				folder:SetAttribute("LoadError", loadError)
-			end
-		end)
+		local planned = ProjectLoadPolicy.plan(ProjectStorage.projectSnapshot(), decodeJson)
+		applyObservedPlan(planned)
+		refreshObserverConnections()
+		if observerCallback ~= nil then
+			observerCallback()
+		end
 	end)
 end
 
-function ProjectStore.begin(name: string): boolean
+refreshObserverConnections = function()
+	ProjectStorage.refreshRelevantConnections(scheduleObservation)
+end
+
+function ProjectStore.observe(callback: () -> ())
+	observerCallback = callback
+	refreshObserverConnections()
+	local planned = ProjectLoadPolicy.plan(ProjectStorage.projectSnapshot(), decodeJson)
+	if not isSamePersistedRevision(loadResult, planned) then
+		applyObservedPlan(planned)
+	end
+	callback()
+end
+
+function ProjectStore.begin(name: string): Transaction?
+	if not ProjectStore.isWritable() then
+		return nil
+	end
 	if recording ~= nil then
-		return true
+		return nil
 	end
 	recording = ChangeHistoryService:TryBeginRecording(name, name)
-	return recording ~= nil
+	if recording ~= nil then
+		recordingSnapshot = clone(ProjectStore.get())
+		nextTransactionId += 1
+		activeTransaction = nextTransactionId
+	end
+	return activeTransaction
 end
 
-function ProjectStore.finish(commit: boolean)
-	if recording == nil then
+local function restoreRecordingProject(snapshot: any)
+	if snapshot == nil then
 		return
 	end
-	ProjectStore.save()
-	ChangeHistoryService:FinishRecording(
-		recording,
-		if commit then Enum.FinishRecordingOperation.Commit else Enum.FinishRecordingOperation.Cancel
-	)
-	recording = nil
+	project = snapshot
+	local state = loadResult
+	if state ~= nil and (state.kind == "Ready" or state.kind == "LegacyMigratedInMemory") then
+		state.project = snapshot
+	end
+	table.clear(previewCache)
 end
 
-function ProjectStore.mutate(name: string, callback: () -> ())
-	ProjectStore.begin(name)
+finishActiveTransaction = function(commit: boolean): boolean
+	if recording == nil or activeTransaction == nil then
+		return false
+	end
+	local activeRecording = recording
+	local snapshot = recordingSnapshot
+	if commit and not ProjectStore.isWritable() then
+		commit = false
+	end
+	recording = nil
+	recordingSnapshot = nil
+	activeTransaction = nil
+	if not commit then
+		restoreRecordingProject(snapshot)
+		ChangeHistoryService:FinishRecording(activeRecording, Enum.FinishRecordingOperation.Cancel)
+		return false
+	end
+	local success, message = pcall(saveUnchecked)
+	if not success then
+		restoreRecordingProject(snapshot)
+		ChangeHistoryService:FinishRecording(activeRecording, Enum.FinishRecordingOperation.Cancel)
+		error(message)
+	end
+	ChangeHistoryService:FinishRecording(activeRecording, Enum.FinishRecordingOperation.Commit)
+	return true
+end
+
+function ProjectStore.finish(transaction: Transaction, commit: boolean): boolean
+	if transaction ~= activeTransaction then
+		return false
+	end
+	return finishActiveTransaction(commit)
+end
+
+function ProjectStore.mutate(name: string, callback: () -> ()): boolean
+	local transaction = ProjectStore.begin(name)
+	if transaction == nil then
+		return false
+	end
 	local success, message = pcall(callback)
-	ProjectStore.finish(success)
+	local committed = ProjectStore.finish(transaction, success)
 	if not success then
 		error(message)
 	end
+	return committed
 end
 
 function ProjectStore.stageIds(): { string }
 	return StageHierarchy.sortedIds(ProjectStore.get().stages)
-end
-
-function ProjectStore.address(stageId: string): StageHierarchy.Address?
-	local definition = ProjectStore.get().stages[stageId]
-	return if definition ~= nil then StageHierarchy.address(definition) else nil
 end
 
 local function refreshDisplayOrder()
@@ -540,7 +593,7 @@ function ProjectStore.createLevel(copyFromId: string): string
 	return stage.id
 end
 
-function ProjectStore.ensureStarterLevels(levelCount: any): boolean
+ensureStarterLevels = function(levelCount: any): boolean
 	local requested = if type(levelCount) == "number" then math.clamp(math.floor(levelCount), 1, 100) else 1
 	local ids = ProjectStore.stageIds()
 	if #ids ~= 1 or requested <= 1 then
@@ -564,7 +617,7 @@ function ProjectStore.ensureStarterLevels(levelCount: any): boolean
 	return true
 end
 
-function ProjectStore.inboundReferences(stageId: string): { string }
+local function inboundReferences(stageId: string): { string }
 	local references: { string } = {}
 	for ownerId, stage in project.stages do
 		for _, requirement in stage.unlockRequirements do
@@ -585,7 +638,7 @@ function ProjectStore.deleteStage(stageId: string): (boolean, string)
 	if #ProjectStore.stageIds() <= 1 then
 		return false, "A project must contain at least one stage"
 	end
-	local inbound = ProjectStore.inboundReferences(stageId)
+	local inbound = inboundReferences(stageId)
 	if #inbound > 0 then
 		return false, `Stage has inbound references: {table.concat(inbound, ", ")}`
 	end
@@ -626,29 +679,71 @@ function ProjectStore.validate(): { StageSchema.Issue }
 end
 
 function ProjectStore.export(): StageExport.ExportResult
+	assert(ProjectStore.isWritable(), "Stagewright export is disabled during recovery")
 	return StageExport.bake(ProjectStore.get())
 end
 
-function ProjectStore.importPayload(encoded: string): (boolean, string)
-	local success, decoded = pcall(function()
-		return HttpService:JSONDecode(encoded)
+local function validatedImportPlan(encoded: string, expectedChecksum: string?): (any?, string?)
+	local planned = ProjectLoadPolicy.planEncoded(encoded, expectedChecksum, decodeJson)
+	if planned.kind == "Corrupt" or planned.kind == "UnsupportedFutureVersion" then
+		return nil, planned.message
+	end
+	local candidate = planned.project
+	local bakeSuccess, baked = pcall(function()
+		return StageExport.bake(candidate)
 	end)
-	if not success or type(decoded) ~= "table" or type(decoded.stages) ~= "table" then
-		return false, "Selected bundle has invalid authoring JSON"
+	if not bakeSuccess or type(baked) ~= "table" or baked.bundle == nil then
+		return nil, "Selected bundle did not pass Stagewright validation"
 	end
-	local previous = project
-	project = StageSchema.migrateProject(decoded)
-	local result = StageExport.bake(project)
-	if result.bundle == nil then
-		project = previous
-		return false, "Selected bundle did not pass Stagewright validation"
+	return planned, nil
+end
+
+function ProjectStore.importIdentity(encoded: string, expectedChecksum: string?): (string?, string?)
+	local planned, message = validatedImportPlan(encoded, expectedChecksum)
+	if planned == nil then
+		return nil, message
 	end
-	ProjectStore.save()
+	return planned.persistedChecksum, nil
+end
+
+function ProjectStore.importPayload(encoded: string, expectedChecksum: string?): (boolean, string)
+	local planned, validationMessage = validatedImportPlan(encoded, expectedChecksum)
+	if planned == nil then
+		return false, validationMessage or "Selected bundle did not pass Stagewright validation"
+	end
+	local candidate = planned.project
+	if recording ~= nil then
+		return false, "Finish the active Stagewright edit before importing a bundle"
+	end
+
+	local activeRecording =
+		ChangeHistoryService:TryBeginRecording("ImportStagewrightBundle", "Import Stagewright bundle")
+	if activeRecording == nil then
+		return false, "Studio could not start an import recording"
+	end
+	local previousProject = project
+	local previousLoadResult = loadResult
+	project = candidate
+	loadResult = planned
+	local saveSuccess, saveMessage = pcall(saveUnchecked)
+	if not saveSuccess then
+		project = previousProject
+		loadResult = previousLoadResult
+		ChangeHistoryService:FinishRecording(activeRecording, Enum.FinishRecordingOperation.Cancel)
+		return false, `Stagewright could not save the imported bundle: {tostring(saveMessage)}`
+	end
+	ChangeHistoryService:FinishRecording(activeRecording, Enum.FinishRecordingOperation.Commit)
 	return true, `Imported {#ProjectStore.stageIds()} stage(s)`
 end
 
 function ProjectStore.cleanup()
-	ProjectStore.finish(true)
+	if activeTransaction ~= nil then
+		finishActiveTransaction(false)
+	end
+	observerCallback = nil
+	observerRevision += 1
+	writesSuspended = false
+	ProjectStorage.disconnectRelevantConnections()
 end
 
 return ProjectStore

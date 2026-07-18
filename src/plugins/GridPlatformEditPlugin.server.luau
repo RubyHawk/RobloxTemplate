@@ -1,11 +1,9 @@
 --!strict
 
-local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 local Selection = game:GetService("Selection")
 local ServerStorage = game:GetService("ServerStorage")
 local UserInputService = game:GetService("UserInputService")
-local Workspace = game:GetService("Workspace")
 
 if RunService:IsRunning() then
 	return
@@ -15,6 +13,7 @@ local AuthoringArea = require(script.AuthoringArea)
 local GraphOperations = require(script.Graph.Operations)
 local PredicateFields = require(script.Graph.PredicateFields)
 local Brushes = require(script.Paint.Brushes)
+local ProjectStorage = require(script.Persistence.ProjectStorage)
 local ProjectStore = require(script.ProjectStore)
 local RouteOverview = require(script.RouteOverview)
 local StageSettings = require(script.Stage.Settings)
@@ -27,9 +26,9 @@ local HeaderController = require(script.UI.HeaderController)
 local PaintAppearance = require(script.UI.PaintAppearance)
 local Toolbar = require(script.UI.Toolbar)
 local IssueModel = require(script.Validation.IssueModel)
+local WorkspacePreview = require(script.WorkspacePreview)
 
 local PLUGIN_NAME = "Stagewright"
-local PREVIEW_TAG = "StagewrightTransientPreview"
 local paintCellPixels = 22
 local COLORS = require(script.UI.Theme).colors
 local create = Factory.create
@@ -38,7 +37,6 @@ local sectionLabel = Factory.sectionLabel
 local setButtonSelected = Factory.setSelected
 
 type Mode = "Paint" | "Graph" | "Stage" | "Validate"
-type GraphToolMode = "Build" | "Rules" | "Test"
 type GraphViewMode = "World" | "Logic"
 type WorldPathController = {
 	preview: any?,
@@ -48,6 +46,7 @@ type WorldPathController = {
 	showConflicts: boolean,
 	render: (WorldPathController, any?, any?, any?, string?, string?, { [string]: boolean }) -> (),
 	rerender: (WorldPathController) -> (),
+	cancelInteraction: (WorldPathController) -> (),
 	destroy: (WorldPathController) -> (),
 }
 type FlowRuntime = {
@@ -69,7 +68,9 @@ type FlowRuntime = {
 	refreshStageSelector: () -> (),
 	toggleAction: (string, number, () -> ()) -> TextButton,
 	setToggleSelected: (TextButton, boolean) -> (),
-	workspacePreviewEnabled: boolean,
+	refreshRecoveryBanner: () -> (),
+	reportBlocked: (string) -> (),
+	cancelInteraction: () -> (),
 }
 type PaintRuntime = {
 	mode: string,
@@ -79,7 +80,6 @@ type PaintRuntime = {
 	routeRail: GuiObject,
 	routeInspector: GuiObject,
 	legend: GuiObject,
-	graphLevelStrip: ScrollingFrame,
 	modeButtons: { [string]: TextButton },
 	routeToolButtons: { [string]: TextButton },
 	routeDraggingNodeId: string?,
@@ -87,6 +87,7 @@ type PaintRuntime = {
 	routeDraggingHandle: string?,
 	routeDragStartScreen: Vector2?,
 	routeDragMoved: boolean,
+	routeDragTransaction: ProjectStore.Transaction?,
 	cellAt: (Vector2) -> (number?, number?),
 	localPositionAt: (Vector2) -> any?,
 	hitRoute: (Vector2) -> (string?, string?, string?),
@@ -96,7 +97,7 @@ type PaintRuntime = {
 	deleteRouteSelection: () -> (),
 }
 
-local authoringPlatform = AuthoringArea.ensure()
+local authoringPlatform = AuthoringArea.findPlatform()
 local project = ProjectStore.load(authoringPlatform)
 local stageIds = ProjectStore.stageIds()
 local selectedStageId = project.startingStageId or stageIds[1]
@@ -107,18 +108,15 @@ local selectedCellKey: string? = nil
 local tracedEdgeIds: { [string]: boolean } = {}
 local connectFromNodeId: string? = nil
 local activeMode: Mode = "Graph"
-local graphToolMode: GraphToolMode = "Build"
 local activeBrushId = "terrain_ground"
 local activePaintTool = "Pencil"
 local paintBrushSize = 1
 local validationFilter = "Overview"
-local predicateKindIndex = 1
 local painting = false
+local paintTransaction: ProjectStore.Transaction? = nil
 local paintedKeys: { [string]: boolean } = {}
-local previewFolder: Folder? = nil
-local previewMoveRevision = 0
 local pendingConfirmation: { id: string, expires: number }? = nil
-local islandOutlinesEnabled = true
+local islandOutlinesEnabled = false
 local validationIssues: { any } = {}
 local flowRuntime: FlowRuntime = {
 	viewModule = require(script.WorldPathView),
@@ -141,7 +139,9 @@ local flowRuntime: FlowRuntime = {
 		return nil :: any
 	end,
 	setToggleSelected = function() end,
-	workspacePreviewEnabled = false,
+	refreshRecoveryBanner = function() end,
+	reportBlocked = function() end,
+	cancelInteraction = function() end,
 }
 
 local toolbar = plugin:CreateToolbar(PLUGIN_NAME)
@@ -169,6 +169,61 @@ local workspace = shell.workspace
 local rightSidebar = shell.rightSidebar
 local sidebarTitle = shell.sidebarTitle
 
+do
+	local recoveryBanner = create("Frame", {
+		Name = "RecoveryBanner",
+		Active = true,
+		BackgroundColor3 = Color3.fromRGB(64, 31, 36),
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(0, 52),
+		Size = UDim2.new(1, 0, 0, 62),
+		Visible = false,
+		ZIndex = 390,
+	}, root) :: Frame
+	create("UIStroke", { Color = Color3.fromRGB(145, 68, 79), Thickness = 1 }, recoveryBanner)
+	local recoveryLabel = create("TextLabel", {
+		BackgroundTransparency = 1,
+		Font = Enum.Font.BuilderSansMedium,
+		Position = UDim2.fromOffset(16, 7),
+		Size = UDim2.new(1, -32, 1, -14),
+		Text = "",
+		TextColor3 = Color3.fromRGB(255, 219, 224),
+		TextSize = 11,
+		TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Center,
+		ZIndex = 391,
+	}, recoveryBanner) :: TextLabel
+	flowRuntime.refreshRecoveryBanner = function()
+		local message = ProjectStore.recoveryMessage()
+		recoveryBanner.Visible = message ~= nil
+		if message == nil then
+			return
+		end
+		recoveryLabel.Text =
+			`RECOVERY MODE - {message}\nStagewright will not overwrite project storage. Any loaded working copy remains in this Studio session. Editing, save, preview, export, focus/setup, and undo/redo are disabled. A confirmed valid import can replace it.`
+		headerValidation.Text = "Recovery mode"
+		headerValidation.TextColor3 = COLORS.danger
+		headerValidation.BackgroundColor3 = Color3.fromRGB(64, 31, 36)
+		local outline = headerValidation:FindFirstChild("Outline")
+			or headerValidation:FindFirstChildOfClass("UIStroke")
+		if outline ~= nil and outline:IsA("UIStroke") then
+			outline.Color = Color3.fromRGB(145, 68, 79)
+		end
+		Toolbar.addVectorIcon(headerValidation, "warning", COLORS.danger, 12)
+	end
+	flowRuntime.reportBlocked = function(action: string)
+		if ProjectStore.recoveryMessage() == nil then
+			status.Text = `{action} is waiting for the current edit to finish.`
+			status.TextColor3 = COLORS.warning
+			return
+		end
+		status.Text = `{action} is disabled to avoid overwriting project storage during recovery.`
+		status.TextColor3 = COLORS.danger
+		flowRuntime.refreshRecoveryBanner()
+	end
+end
+
 local function applyResponsiveShell()
 	shell:applyResponsive(activeMode)
 end
@@ -179,9 +234,7 @@ local contentByMode: { [Mode]: Frame } = {} :: any
 local rerenderAll: () -> ()
 local renderAll: () -> ()
 local mutate: (string, () -> ()) -> ()
-local renderGraphList: () -> ()
 local renderStageList: () -> ()
-local renderGraphTools: () -> ()
 local routeOverview: RouteOverview.Controller
 local renderCanvas: () -> ()
 do
@@ -227,6 +280,10 @@ do
 		onFocusAuthoring = function()
 			AuthoringArea.focus()
 		end,
+		canMutate = function()
+			return ProjectStore.isWritable()
+		end,
+		onBlocked = flowRuntime.reportBlocked,
 	})
 	flowRuntime.refreshStageSelector = function()
 		controller:refreshStageSelector()
@@ -238,6 +295,10 @@ local function stage(): any
 end
 
 local function renderIslandOutlines()
+	if not ProjectStore.isWritable() then
+		AuthoringArea.clearIslandOutlines()
+		return
+	end
 	if not islandOutlinesEnabled then
 		AuthoringArea.clearIslandOutlines()
 		return
@@ -303,271 +364,65 @@ end
 
 local brushes = Brushes.all
 
-local function localOrigin(): CFrame
-	return AuthoringArea.origin()
-end
-
-local function clearPreview()
-	if previewFolder ~= nil then
-		previewFolder:Destroy()
-		previewFolder = nil
-	end
-	for _, tagged in CollectionService:GetTagged(PREVIEW_TAG) do
-		if tagged:IsDescendantOf(Workspace) then
-			tagged:Destroy()
-		end
-	end
-end
-
--- World Path is a GUI-only authoring surface. Old tagged previews are removed
--- once when the plugin loads; route edits must never synthesize Workspace Parts.
-clearPreview()
-
-local function rebuildPreview()
-	if not flowRuntime.workspacePreviewEnabled then
-		return
-	end
-	clearPreview()
-	local currentGraph = graph()
-	if currentGraph == nil then
-		return
-	end
-	local bakedStage = ProjectStore.preview(selectedStageId)
-	if bakedStage == nil then
-		return
-	end
-	local bakedGraph = bakedStage.pathGraphs[currentGraph.id]
-	if bakedGraph == nil then
-		return
-	end
-	local folder = Instance.new("Folder")
-	folder.Name = "StagewrightPreview"
-	folder.Parent = AuthoringArea.container() or Workspace
-	CollectionService:AddTag(folder, PREVIEW_TAG)
-	previewFolder = folder
-	local origin = localOrigin()
-	local function previewPoint(sample: any, laneOffset: number): Vector3
-		local position =
-			origin:PointToWorldSpace(Vector3.new(sample.position.x, sample.position.y, sample.position.z))
-		local tangent =
-			origin:VectorToWorldSpace(Vector3.new(sample.tangent.x, sample.tangent.y, sample.tangent.z))
-		local up = origin:VectorToWorldSpace(Vector3.new(sample.up.x, sample.up.y, sample.up.z))
-		local frame = CFrame.lookAt(position, position + tangent, up)
-		return frame.Position + frame.RightVector * laneOffset
-	end
-	local function bindPosition(part: BasePart, applyPosition: (Vector3) -> ())
-		part:GetPropertyChangedSignal("CFrame"):Connect(function()
-			if part.Parent == nil then
-				return
-			end
-			previewMoveRevision += 1
-			local revision = previewMoveRevision
-			ProjectStore.begin("Move Stagewright graph control")
-			applyPosition(origin:PointToObjectSpace(part.Position))
-			task.delay(0.2, function()
-				if revision == previewMoveRevision then
-					ProjectStore.finish(true)
-					setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
-					rebuildPreview()
-				end
-			end)
-		end)
-	end
-	local routeMask = bakedStage.routeNoBuildMask or {}
-	for key in routeMask do
-		local authoredCell = bakedStage.grid.cells[key]
-		local traversalPolicy = if authoredCell ~= nil and authoredCell.enemyTraversalPolicy ~= nil
-			then authoredCell.enemyTraversalPolicy
-			else bakedStage.grid.defaultCell.enemyTraversalPolicy
-		if traversalPolicy == "Blocked" then
-			local columnText, rowText = string.match(key, "^(%d+):(%d+)$")
-			local column = if columnText ~= nil then tonumber(columnText) else nil
-			local row = if rowText ~= nil then tonumber(rowText) else nil
-			if column == nil or row == nil then
-				continue
-			end
-			local grid = bakedStage.grid
-			local x = -(grid.columns * grid.cellSize) * 0.5 + (column - 0.5) * grid.cellSize
-			local z = -(grid.rows * grid.cellSize) * 0.5 + (row - 0.5) * grid.cellSize
-			local cell = Instance.new("Part")
-			cell.Name = `RouteConflict_{column}_{row}`
-			cell.Anchored = true
-			cell.CanCollide = false
-			cell.CanQuery = false
-			cell.CanTouch = false
-			cell.CastShadow = false
-			cell.Color = Color3.fromRGB(255, 154, 64)
-			cell.Material = Enum.Material.Neon
-			cell.Transparency = 0.38
-			cell.Size = Vector3.new(grid.cellSize - 0.2, 0.12, grid.cellSize - 0.2)
-			cell.CFrame = origin * CFrame.new(x, 0.42, z)
-			cell:SetAttribute("StagewrightRouteConflict", true)
-			cell.Parent = folder
-		end
-	end
-	for nodeId, node in currentGraph.nodes do
-		local part = Instance.new("Part")
-		part.Name = `Node_{node.name}`
-		part.Shape = Enum.PartType.Ball
-		local selected = selectedNodeId == nodeId
-		part.Size = if selected then Vector3.new(2.15, 2.15, 2.15) else Vector3.new(1.45, 1.45, 1.45)
-		part.Anchored = true
-		part.CanCollide = false
-		part.Color = if node.kind == "Spawn"
-			then Color3.fromRGB(57, 185, 104)
-			elseif node.kind == "Goal" then COLORS.goal
-			else Color3.fromRGB(60, 139, 214)
-		part.Material = if selected then Enum.Material.Neon else Enum.Material.SmoothPlastic
-		part.CFrame = origin * CFrame.new(node.position.x, node.position.y, node.position.z)
-		part:SetAttribute("StagewrightNodeId", nodeId)
-		part.Parent = folder
-		bindPosition(part, function(localPosition)
+local workspacePreview = WorkspacePreview.new({
+	canEdit = ProjectStore.isWritable,
+	beginMove = function(): ProjectStore.Transaction?
+		return ProjectStore.begin("Move Stagewright graph control")
+	end,
+	moveNode = function(nodeId: string, localPosition: Vector3)
+		local currentGraph = graph()
+		local node = if currentGraph ~= nil then currentGraph.nodes[nodeId] else nil
+		if node ~= nil then
 			node.position = { x = localPosition.X, y = localPosition.Y, z = localPosition.Z }
-		end)
-	end
-	for edgeId, edge in bakedGraph.edges do
-		local laneProfile = bakedGraph.laneProfiles[edge.laneProfileId]
-		local samples = edge.samples or {}
-		local laneOffsets = if laneProfile ~= nil and #laneProfile.offsets > 0
-			then laneProfile.offsets
-			else { 0 }
-		local corridorWidth = math.max(
-			if laneProfile ~= nil then laneProfile.clearanceRadius * 2 else bakedStage.grid.cellSize,
-			0.4
-		)
-		for index = 2, #samples do
-			local a = previewPoint(samples[index - 1], 0)
-			local b = previewPoint(samples[index], 0)
-			local distance = (b - a).Magnitude
-			if distance <= 0.001 then
-				continue
-			end
-			local pathFrame = CFrame.lookAt((a + b) * 0.5, b)
-			if selectedEdgeId == edgeId then
-				local outline = Instance.new("Part")
-				outline.Name = `Edge_{edgeId}_SelectedOutline_{index}`
-				outline.Anchored = true
-				outline.CanCollide = false
-				outline.CanQuery = false
-				outline.CanTouch = false
-				outline.CastShadow = false
-				outline.Color = Color3.fromRGB(62, 214, 235)
-				outline.Material = Enum.Material.Neon
-				outline.Transparency = 0.25
-				outline.Size = Vector3.new(corridorWidth + 0.55, 0.12, distance + 0.16)
-				outline.CFrame = pathFrame * CFrame.new(0, -0.07, 0)
-				outline.Parent = folder
-			end
-			local corridor = Instance.new("Part")
-			corridor.Name = `Edge_{edgeId}_Gravel_{index}`
-			corridor.Anchored = true
-			corridor.CanCollide = false
-			corridor.CanQuery = true
-			corridor.CanTouch = false
-			corridor.CastShadow = false
-			corridor.Color = Color3.fromRGB(142, 119, 86)
-			corridor.Material = Enum.Material.Pebble
-			corridor.Transparency = 0.08
-			corridor.Size = Vector3.new(corridorWidth, 0.16, distance + 0.14)
-			corridor.CFrame = pathFrame
-			corridor:SetAttribute("StagewrightEdgeId", edgeId)
-			corridor:SetAttribute("StagewrightPathAsset", "gravel")
-			corridor.Parent = folder
 		end
-		if selectedEdgeId == edgeId or tracedEdgeIds[edgeId] then
-			for laneIndex, laneOffset in laneOffsets do
-				for index = 2, #samples do
-					local a = previewPoint(samples[index - 1], laneOffset) + Vector3.new(0, 0.14, 0)
-					local b = previewPoint(samples[index], laneOffset) + Vector3.new(0, 0.14, 0)
-					local distance = (b - a).Magnitude
-					if distance <= 0.001 then
-						continue
-					end
-					local segment = Instance.new("Part")
-					segment.Name = `Edge_{edgeId}_Lane_{laneIndex}_{index}`
-					segment.Anchored = true
-					segment.CanCollide = false
-					segment.CanQuery = false
-					segment.CanTouch = false
-					segment.CastShadow = false
-					segment.Color = if tracedEdgeIds[edgeId]
-						then Color3.fromRGB(96, 220, 132)
-						else Color3.fromRGB(237, 244, 247)
-					segment.Material = Enum.Material.Neon
-					segment.Transparency = 0.12
-					segment.Size = Vector3.new(0.14, 0.08, distance)
-					segment.CFrame = CFrame.lookAt((a + b) * 0.5, b)
-					segment.Parent = folder
-				end
-			end
+	end,
+	moveHandle = function(edgeId: string, handleName: string, localPosition: Vector3)
+		local currentGraph = graph()
+		local edge = if currentGraph ~= nil then currentGraph.edges[edgeId] else nil
+		if currentGraph == nil or edge == nil then
+			return
 		end
-	end
-	local selectedEdge = if selectedEdgeId ~= nil then currentGraph.edges[selectedEdgeId] else nil
-	if selectedEdge ~= nil then
-		local from = currentGraph.nodes[selectedEdge.fromNodeId]
-		local to = currentGraph.nodes[selectedEdge.toNodeId]
-		if from ~= nil and to ~= nil then
-			for handleName, handleData in
-				{
-					Out = { node = from, offset = selectedEdge.outHandleOffset },
-					In = { node = to, offset = selectedEdge.inHandleOffset },
-				}
-			do
-				local handle = Instance.new("Part")
-				handle.Name = `{handleName}Handle_{selectedEdge.id}`
-				handle.Shape = Enum.PartType.Ball
-				handle.Size = Vector3.new(1.2, 1.2, 1.2)
-				handle.Anchored = true
-				handle.CanCollide = false
-				handle.Material = Enum.Material.Neon
-				handle.Color = Color3.fromRGB(62, 214, 235)
-				local position = {
-					x = handleData.node.position.x + handleData.offset.x,
-					y = handleData.node.position.y + handleData.offset.y,
-					z = handleData.node.position.z + handleData.offset.z,
-				}
-				handle.CFrame = origin * CFrame.new(position.x, position.y, position.z)
-				handle.Parent = folder
-				local connector = Instance.new("Part")
-				connector.Name = `{handleName}HandleGuide_{selectedEdge.id}`
-				connector.Anchored = true
-				connector.CanCollide = false
-				connector.CanQuery = false
-				connector.CanTouch = false
-				connector.CastShadow = false
-				connector.Color = Color3.fromRGB(62, 214, 235)
-				connector.Material = Enum.Material.Neon
-				connector.Transparency = 0.18
-				connector.Parent = folder
-				local anchor = origin:PointToWorldSpace(
-					Vector3.new(
-						handleData.node.position.x,
-						handleData.node.position.y,
-						handleData.node.position.z
-					)
-				)
-				local function updateConnector()
-					local distance = (handle.Position - anchor).Magnitude
-					connector.Size = Vector3.new(0.08, 0.08, math.max(distance, 0.01))
-					connector.CFrame = CFrame.lookAt((anchor + handle.Position) * 0.5, handle.Position)
-				end
-				updateConnector()
-				handle:GetPropertyChangedSignal("CFrame"):Connect(updateConnector)
-				bindPosition(handle, function(localPosition)
-					local nextOffset = {
-						x = localPosition.X - handleData.node.position.x,
-						y = localPosition.Y - handleData.node.position.y,
-						z = localPosition.Z - handleData.node.position.z,
-					}
-					if handleName == "Out" then
-						selectedEdge.outHandleOffset = nextOffset
-					else
-						selectedEdge.inHandleOffset = nextOffset
-					end
-				end)
-			end
+		local nodeId = if handleName == "Out" then edge.fromNodeId else edge.toNodeId
+		local node = currentGraph.nodes[nodeId]
+		if node == nil then
+			return
 		end
-	end
+		local offset = {
+			x = localPosition.X - node.position.x,
+			y = localPosition.Y - node.position.y,
+			z = localPosition.Z - node.position.z,
+		}
+		if handleName == "Out" then
+			edge.outHandleOffset = offset
+		else
+			edge.inHandleOffset = offset
+		end
+	end,
+	finishMove = function(transaction: ProjectStore.Transaction, commit: boolean): boolean
+		local committed = ProjectStore.finish(transaction, commit)
+		if not commit then
+			project = ProjectStore.get()
+			stageIds = ProjectStore.stageIds()
+		end
+		return committed
+	end,
+	onMoveCommitted = function()
+		project = ProjectStore.get()
+		setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
+		renderAll()
+	end,
+})
+
+local function renderWorkspacePreview()
+	workspacePreview:render({
+		parent = AuthoringArea.container(),
+		origin = AuthoringArea.origin(),
+		graph = graph(),
+		bakedStage = ProjectStore.preview(selectedStageId),
+		selectedNodeId = selectedNodeId,
+		selectedEdgeId = selectedEdgeId,
+		tracedEdgeIds = tracedEdgeIds,
+	})
 end
 
 for order, modeName in { "Graph", "Paint", "Stage", "Validate" } :: { Mode } do
@@ -598,7 +453,33 @@ local paintRuntime = {
 	routeToolButtons = {},
 	routeDragStartScreen = nil,
 	routeDragMoved = false,
+	routeDragTransaction = nil,
 } :: PaintRuntime
+
+local function finishEditorTransaction(transaction: ProjectStore.Transaction?, commit: boolean): boolean
+	if transaction == nil then
+		return false
+	end
+	local committed = ProjectStore.finish(transaction, commit)
+	if not commit then
+		project = ProjectStore.get()
+		stageIds = ProjectStore.stageIds()
+	end
+	return committed
+end
+
+local function finishRouteDragTransaction(commit: boolean): boolean
+	local transaction = paintRuntime.routeDragTransaction
+	paintRuntime.routeDragTransaction = nil
+	return finishEditorTransaction(transaction, commit)
+end
+
+local function finishPaintTransaction(commit: boolean): boolean
+	local transaction = paintTransaction
+	paintTransaction = nil
+	return finishEditorTransaction(transaction, commit)
+end
+
 local paintPage = contentByMode.Paint
 local paintToolbar = create("Frame", {
 	BackgroundColor3 = COLORS.panel,
@@ -620,6 +501,8 @@ do
 	do
 		local modeId = definition.id
 		local modeButton = button(modeBar, definition.label, 132, function()
+			finishPaintTransaction(false)
+			finishRouteDragTransaction(false)
 			paintRuntime.mode = modeId
 			paintRuntime.routeDraggingNodeId = nil
 			paintRuntime.routeDraggingEdgeId = nil
@@ -700,17 +583,6 @@ do
 	deleteButton.Position = UDim2.fromOffset(584, 11)
 	deleteButton.Size = UDim2.fromOffset(72, 32)
 end
-create("TextLabel", {
-	BackgroundTransparency = 1,
-	Font = Enum.Font.BuilderSansBold,
-	Position = UDim2.fromOffset(14, 8),
-	Size = UDim2.new(0.5, -14, 0, 20),
-	Text = "Build blocked",
-	TextColor3 = COLORS.text,
-	TextSize = 13,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	Visible = false,
-}, paintToolbar)
 local paintHint = create("TextLabel", {
 	AnchorPoint = Vector2.new(0.5, 1),
 	BackgroundColor3 = COLORS.surface,
@@ -995,18 +867,6 @@ paintZoomLabel = create("TextLabel", {
 }, paintToolbar) :: TextLabel
 create("UICorner", { CornerRadius = UDim.new(0, 6) }, paintZoomLabel)
 do
-	local zoomOut = button(paintToolbar, "-", 30, function()
-		paintCellPixels = math.max(paintCellPixels - 2, 10)
-		renderPaintChrome()
-		renderCanvas()
-	end)
-	zoomOut.Visible = false
-	local zoomIn = button(paintToolbar, "+", 30, function()
-		paintCellPixels = math.min(paintCellPixels + 2, 40)
-		renderPaintChrome()
-		renderCanvas()
-	end)
-	zoomIn.Visible = false
 	local fit = button(paintToolbar, "Fit", 42, function()
 		local current = stage()
 		if current ~= nil then
@@ -1654,7 +1514,11 @@ paintRuntime.beginInteraction = function(column: number, row: number)
 		return
 	end
 	paintedKeys = {}
-	ProjectStore.begin("Paint Stagewright cells")
+	paintTransaction = ProjectStore.begin("Paint Stagewright cells")
+	if paintTransaction == nil then
+		flowRuntime.reportBlocked("Paint")
+		return
+	end
 	if activePaintTool == "Fill" then
 		local fillStage = stage()
 		local authoredCell = fillStage.grid.cells[`{column}:{row}`]
@@ -1693,7 +1557,7 @@ paintRuntime.beginInteraction = function(column: number, row: number)
 			end
 		end
 		paintBrushSize = previousBrushSize
-		ProjectStore.finish(true)
+		finishPaintTransaction(true)
 		setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
 	elseif activePaintTool == "Rect" then
 		painting = true
@@ -2284,11 +2148,18 @@ do
 end
 
 function mutate(name: string, callback: () -> ())
-	ProjectStore.mutate(name, callback)
+	if not ProjectStore.isWritable() then
+		flowRuntime.reportBlocked(name)
+		return
+	end
+	if not ProjectStore.mutate(name, callback) then
+		flowRuntime.reportBlocked(name)
+		return
+	end
 	project = ProjectStore.get()
 	stageIds = ProjectStore.stageIds()
 	renderCanvas()
-	rebuildPreview()
+	renderWorkspacePreview()
 	setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
 end
 
@@ -2335,11 +2206,19 @@ for _, move in { { "Up", -1 }, { "Down", 1 } } do
 	end)
 end
 stageAction("Open 3D", function()
+	if not ProjectStore.isWritable() then
+		flowRuntime.reportBlocked("Focus authoring area")
+		return
+	end
 	AuthoringArea.focus()
 	setStatus("Focused the separate Stagewright admin authoring area.")
 end)
 local islandGuideButton: TextButton
 islandGuideButton = stageAction("Guides", function()
+	if not ProjectStore.isWritable() then
+		flowRuntime.reportBlocked("Island guides")
+		return
+	end
 	islandOutlinesEnabled = not islandOutlinesEnabled
 	islandGuideButton.Text = "Guides"
 	renderIslandOutlines()
@@ -2488,333 +2367,12 @@ function renderStageList()
 		end
 	end
 	stageList.CanvasSize = UDim2.fromOffset(0, layoutOrder * 33 + 14)
-	local graphLevelStrip = paintRuntime.graphLevelStrip
-	for _, child in graphLevelStrip:GetChildren() do
-		if child:IsA("GuiButton") then
-			child:Destroy()
-		end
-	end
-	local selectedStripIndex = 1
-	for order, stageId in stageIds do
-		local definition = project.stages[stageId]
-		local address = StageHierarchy.address(definition)
-		local issueCount = 0
-		local hasError = false
-		for _, issue in validationIssues do
-			if issue.stageId == stageId then
-				issueCount += 1
-				hasError = hasError or issue.severity == "Error"
-			end
-		end
-		local levelButton = button(
-			graphLevelStrip,
-			`S{address.stageNumber}  /  L{address.levelNumber}{if issueCount > 0
-				then `  -  {issueCount}`
-				else ""}`,
-			118,
-			function()
-				selectedStageId = stageId
-				selectedGraphId = nil
-				selectedNodeId = nil
-				selectedEdgeId = nil
-				tracedEdgeIds = {}
-				renderAll()
-			end
-		)
-		levelButton.Name = `GraphLevel_{stageId}`
-		levelButton.LayoutOrder = order
-		levelButton.Size = UDim2.fromOffset(118, 32)
-		levelButton.TextColor3 = if hasError then Color3.fromRGB(255, 151, 161) else COLORS.text
-		setButtonSelected(levelButton, stageId == selectedStageId)
-		if stageId == selectedStageId then
-			selectedStripIndex = order
-		end
-	end
-	graphLevelStrip.CanvasSize = UDim2.fromOffset(#stageIds * 124 + 12, 0)
-	graphLevelStrip.CanvasPosition = Vector2.new(
-		math.max((selectedStripIndex - 1) * 124 - graphLevelStrip.AbsoluteWindowSize.X * 0.4, 0),
-		0
-	)
 end
 
 -- Graph page: stable node/edge IDs, directed connections, predicates, lanes, and priorities.
 local graphPage = contentByMode.Graph
 graphPage.ClipsDescendants = true
-do
-	local graphLevelBar = create("Frame", {
-		Name = "GraphLevelBar",
-		BackgroundColor3 = COLORS.panel,
-		BorderSizePixel = 0,
-		Position = UDim2.fromOffset(0, 46),
-		Size = UDim2.new(1, 0, 0, 48),
-	}, graphPage) :: Frame
-	create("TextLabel", {
-		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSansBold,
-		Position = UDim2.fromOffset(14, 0),
-		Size = UDim2.fromOffset(78, 48),
-		Text = "LEVEL",
-		TextColor3 = COLORS.muted,
-		TextSize = 10,
-		TextXAlignment = Enum.TextXAlignment.Left,
-	}, graphLevelBar)
-	paintRuntime.graphLevelStrip = create("ScrollingFrame", {
-		Name = "GraphLevelStrip",
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		CanvasSize = UDim2.fromOffset(0, 0),
-		Position = UDim2.fromOffset(84, 0),
-		ScrollBarImageColor3 = COLORS.borderStrong,
-		ScrollBarThickness = 3,
-		ScrollingDirection = Enum.ScrollingDirection.X,
-		Size = UDim2.new(1, -94, 1, 0),
-	}, graphLevelBar)
-	create("UIListLayout", {
-		FillDirection = Enum.FillDirection.Horizontal,
-		Padding = UDim.new(0, 6),
-		SortOrder = Enum.SortOrder.LayoutOrder,
-		VerticalAlignment = Enum.VerticalAlignment.Center,
-	}, paintRuntime.graphLevelStrip)
-	create("UIPadding", {
-		PaddingLeft = UDim.new(0, 4),
-		PaddingRight = UDim.new(0, 4),
-	}, paintRuntime.graphLevelStrip)
-end
-local graphSummary = create("Frame", {
-	BackgroundColor3 = COLORS.panel,
-	BorderSizePixel = 0,
-	Position = UDim2.fromOffset(0, 38),
-	Size = UDim2.new(1, 0, 0, 76),
-}, rightSidebar) :: Frame
-local graphSelectionTitle = create("TextLabel", {
-	BackgroundTransparency = 1,
-	Font = Enum.Font.BuilderSansBold,
-	Position = UDim2.fromOffset(14, 8),
-	Size = UDim2.new(1, -28, 0, 24),
-	Text = "Route graph",
-	TextColor3 = COLORS.text,
-	TextSize = 13,
-	TextTruncate = Enum.TextTruncate.AtEnd,
-	TextXAlignment = Enum.TextXAlignment.Left,
-}, graphSummary) :: TextLabel
-local graphSelectionHint = create("TextLabel", {
-	BackgroundTransparency = 1,
-	Font = Enum.Font.BuilderSans,
-	Position = UDim2.fromOffset(14, 32),
-	Size = UDim2.new(1, -28, 0, 34),
-	Text = "Add nodes, connect them, then shape handles directly in the 3D editor.",
-	TextColor3 = COLORS.muted,
-	TextSize = 11,
-	TextTruncate = Enum.TextTruncate.AtEnd,
-	TextXAlignment = Enum.TextXAlignment.Left,
-}, graphSummary) :: TextLabel
-local graphProperties = create("Frame", {
-	AnchorPoint = Vector2.new(0.5, 1),
-	BackgroundColor3 = COLORS.surface,
-	BorderSizePixel = 0,
-	Position = UDim2.new(0.5, 0, 1, -122),
-	Size = UDim2.new(1, -28, 0, 148),
-	ZIndex = 20,
-}, graphPage) :: Frame
-graphProperties.Name = "GraphInspectorDock"
-create("UICorner", { CornerRadius = UDim.new(0, 9) }, graphProperties)
-create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, graphProperties)
-local emptyGraphProperties = create("TextLabel", {
-	BackgroundColor3 = COLORS.surface,
-	BorderSizePixel = 0,
-	Font = Enum.Font.BuilderSans,
-	Position = UDim2.fromOffset(10, 4),
-	Size = UDim2.new(1, -20, 0, 72),
-	Text = "Select a node or edge in the overview to edit its properties.",
-	TextColor3 = COLORS.muted,
-	TextSize = 11,
-	TextWrapped = true,
-}, graphProperties) :: TextLabel
-create("UICorner", { CornerRadius = UDim.new(0, 7) }, emptyGraphProperties)
-local nodeProperties = create("Frame", {
-	BackgroundTransparency = 1,
-	Size = UDim2.fromScale(1, 1),
-	Visible = false,
-}, graphProperties) :: Frame
-local function graphPropertyField(
-	parent: Instance,
-	placeholder: string,
-	position: UDim2,
-	size: UDim2
-): TextBox
-	local field = create("TextBox", {
-		BackgroundColor3 = COLORS.field,
-		BorderSizePixel = 0,
-		ClearTextOnFocus = false,
-		Font = Enum.Font.BuilderSans,
-		PlaceholderColor3 = COLORS.muted,
-		PlaceholderText = placeholder,
-		Position = position,
-		Size = size,
-		Text = "",
-		TextColor3 = COLORS.text,
-		TextSize = 11,
-		TextXAlignment = Enum.TextXAlignment.Left,
-	}, parent) :: TextBox
-	create("UICorner", { CornerRadius = UDim.new(0, 5) }, field)
-	create("UIStroke", { Color = COLORS.border, Thickness = 1 }, field)
-	create("UIPadding", { PaddingLeft = UDim.new(0, 7), PaddingRight = UDim.new(0, 7) }, field)
-	return field
-end
-local nodeNameField =
-	graphPropertyField(nodeProperties, "Node name", UDim2.fromOffset(10, 4), UDim2.new(1, -20, 0, 30))
-create("TextLabel", {
-	BackgroundTransparency = 1,
-	Font = Enum.Font.BuilderSansBold,
-	Position = UDim2.fromOffset(10, 42),
-	Size = UDim2.new(1, -20, 0, 18),
-	Text = "LOCAL POSITION  X / Y / Z",
-	TextColor3 = COLORS.muted,
-	TextSize = 9,
-	TextXAlignment = Enum.TextXAlignment.Left,
-}, nodeProperties)
-local nodeXField =
-	graphPropertyField(nodeProperties, "X", UDim2.fromOffset(10, 64), UDim2.new(1 / 3, -10, 0, 30))
-local nodeYField =
-	graphPropertyField(nodeProperties, "Y", UDim2.new(1 / 3, 2, 0, 64), UDim2.new(1 / 3, -10, 0, 30))
-local nodeZField =
-	graphPropertyField(nodeProperties, "Z", UDim2.new(2 / 3, 4, 0, 64), UDim2.new(1 / 3, -14, 0, 30))
-local applyNodeButton = button(nodeProperties, "Apply node", 112, function()
-	local currentGraph = graph()
-	local node = if currentGraph ~= nil and selectedNodeId ~= nil
-		then currentGraph.nodes[selectedNodeId]
-		else nil
-	local x = tonumber(nodeXField.Text)
-	local y = tonumber(nodeYField.Text)
-	local z = tonumber(nodeZField.Text)
-	if node == nil or x == nil or y == nil or z == nil then
-		setStatus("Node position needs numeric X, Y, and Z values.", true)
-		return
-	end
-	mutate("Update Stagewright graph node", function()
-		node.name = if nodeNameField.Text ~= "" then nodeNameField.Text else node.name
-		node.position = { x = x, y = y, z = z }
-	end)
-	renderAll()
-end)
-applyNodeButton.Position = UDim2.fromOffset(10, 106)
-local focusNodeButton = button(nodeProperties, "Open World Path", 112, function()
-	activeMode = "Graph"
-	flowRuntime.mode = "World"
-	renderAll()
-end)
-focusNodeButton.Position = UDim2.fromOffset(130, 106)
-local edgeProperties = create("Frame", {
-	BackgroundTransparency = 1,
-	Size = UDim2.fromScale(1, 1),
-	Visible = false,
-}, graphProperties) :: Frame
-local edgePropertiesText = create("TextLabel", {
-	BackgroundColor3 = COLORS.surface,
-	BorderSizePixel = 0,
-	Font = Enum.Font.BuilderSans,
-	Position = UDim2.fromOffset(10, 4),
-	Size = UDim2.new(1, -20, 0, 96),
-	Text = "Priority 1\n2 lanes\nFallback edge",
-	TextColor3 = COLORS.text,
-	TextSize = 11,
-	TextWrapped = true,
-	TextXAlignment = Enum.TextXAlignment.Left,
-}, edgeProperties) :: TextLabel
-create("UICorner", { CornerRadius = UDim.new(0, 7) }, edgePropertiesText)
-create("UIPadding", { PaddingLeft = UDim.new(0, 10) }, edgePropertiesText)
-local editRulesButton = button(edgeProperties, "Edit rules", 112, function()
-	graphToolMode = "Rules"
-	renderGraphTools()
-end)
-editRulesButton.Position = UDim2.fromOffset(10, 112)
-local centerEdgeButton = button(edgeProperties, "Center in graph", 122, function()
-	routeOverview:focusSelection()
-end)
-centerEdgeButton.Position = UDim2.fromOffset(130, 112)
-local graphList = create("ScrollingFrame", {
-	BackgroundColor3 = COLORS.background,
-	BorderSizePixel = 0,
-	CanvasSize = UDim2.fromOffset(0, 0),
-	Position = UDim2.fromOffset(0, 322),
-	ScrollBarThickness = 6,
-	Size = UDim2.new(1, 0, 1, -510),
-}, rightSidebar) :: ScrollingFrame
-create("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, graphList)
-create("UIPadding", {
-	PaddingLeft = UDim.new(0, 8),
-	PaddingRight = UDim.new(0, 8),
-	PaddingTop = UDim.new(0, 8),
-}, graphList)
-do
-	local graphMiniPreview = create("Frame", {
-		Name = "GraphMiniPreview",
-		AnchorPoint = Vector2.new(0, 1),
-		BackgroundColor3 = COLORS.surface,
-		BorderSizePixel = 0,
-		Position = UDim2.new(0, 10, 1, -10),
-		Size = UDim2.new(1, -20, 0, 168),
-	}, rightSidebar) :: Frame
-	create("UICorner", { CornerRadius = UDim.new(0, 7) }, graphMiniPreview)
-	create("UIStroke", { Color = COLORS.border, Thickness = 1 }, graphMiniPreview)
-	create("TextLabel", {
-		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSansBold,
-		Position = UDim2.fromOffset(10, 7),
-		Size = UDim2.new(1, -20, 0, 22),
-		Text = "STAGE PREVIEW",
-		TextColor3 = COLORS.muted,
-		TextSize = 9,
-		TextXAlignment = Enum.TextXAlignment.Left,
-	}, graphMiniPreview)
-	create("Frame", {
-		Name = "GraphMiniPreviewCanvas",
-		BackgroundColor3 = COLORS.background,
-		BorderSizePixel = 0,
-		ClipsDescendants = true,
-		Position = UDim2.fromOffset(10, 32),
-		Size = UDim2.new(1, -20, 1, -42),
-	}, graphMiniPreview)
-end
-
-do
-	local graphToolbar = create("Frame", {
-		BackgroundColor3 = COLORS.panel,
-		BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 0, 46),
-	}, graphPage) :: Frame
-	create("TextLabel", {
-		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSansBold,
-		Position = UDim2.fromOffset(14, 0),
-		Size = UDim2.fromOffset(132, 46),
-		Text = "ROUTE OVERVIEW",
-		TextColor3 = COLORS.muted,
-		TextSize = 10,
-		TextXAlignment = Enum.TextXAlignment.Left,
-	}, graphToolbar)
-	create("TextLabel", {
-		Name = "GraphSelectionHeader",
-		AnchorPoint = Vector2.new(1, 0),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSans,
-		Position = UDim2.fromScale(1, 0),
-		Size = UDim2.fromOffset(300, 46),
-		Text = "Select a node or connection to edit it",
-		TextColor3 = COLORS.muted,
-		TextSize = 10,
-		TextXAlignment = Enum.TextXAlignment.Right,
-	}, graphToolbar)
-end
-
-local routeOverviewHost = create("Frame", {
-	BackgroundColor3 = COLORS.background,
-	BorderSizePixel = 0,
-	ClipsDescendants = true,
-	Position = UDim2.fromOffset(0, 95),
-	Size = UDim2.new(1, 0, 1, -310),
-}, graphPage) :: Frame
-routeOverview = RouteOverview.new(routeOverviewHost, COLORS, {
+routeOverview = RouteOverview.new(graphPage, COLORS, {
 	selectNode = function(nodeId: string)
 		if connectFromNodeId ~= nil and connectFromNodeId ~= nodeId then
 			local fromId = connectFromNodeId
@@ -2841,167 +2399,6 @@ routeOverview = RouteOverview.new(routeOverviewHost, COLORS, {
 		renderAll()
 	end,
 })
-local graphActions = create("Frame", {
-	AnchorPoint = Vector2.new(0.5, 1),
-	BackgroundColor3 = COLORS.surface,
-	BorderSizePixel = 0,
-	Position = UDim2.new(0.5, 0, 1, -10),
-	Size = UDim2.fromOffset(760, 102),
-}, graphPage) :: Frame
-create("UICorner", { CornerRadius = UDim.new(0, 9) }, graphActions)
-create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, graphActions)
-local graphToolTabs = create("Frame", {
-	BackgroundTransparency = 1,
-	Position = UDim2.fromOffset(10, 8),
-	Size = UDim2.new(1, -20, 0, 30),
-}, graphActions) :: Frame
-local graphTabsLayout = create("UIGridLayout", {
-	CellPadding = UDim2.fromOffset(6, 0),
-	CellSize = UDim2.new(1 / 3, -4, 1, 0),
-	SortOrder = Enum.SortOrder.LayoutOrder,
-}, graphToolTabs) :: UIGridLayout
-local graphActionPages: { [GraphToolMode]: Frame } = {} :: any
-local graphToolButtons: { [GraphToolMode]: TextButton } = {} :: any
-local graphPageHelp = {
-	Build = "Choose a node or edge to reveal only the tools that apply.",
-	Rules = "All conditions use AND. Branches still require one fallback edge.",
-	Test = "Preview server-authoritative branch choices without starting Play mode.",
-}
-local function graphActionPage(mode: GraphToolMode, columns: number): Frame
-	local page = create("Frame", {
-		BackgroundTransparency = 1,
-		Position = if mode == "Build" then UDim2.fromOffset(10, 8) else UDim2.fromOffset(10, 44),
-		Size = if mode == "Build" then UDim2.new(1, -20, 1, -16) else UDim2.new(1, -20, 1, -52),
-		Visible = mode == graphToolMode,
-	}, graphActions) :: Frame
-	graphActionPages[mode] = page
-	create("TextLabel", {
-		Name = "Help",
-		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSans,
-		Size = UDim2.new(1, 0, 0, 30),
-		Text = graphPageHelp[mode],
-		TextColor3 = COLORS.muted,
-		TextSize = 10,
-		TextTruncate = Enum.TextTruncate.AtEnd,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextYAlignment = Enum.TextYAlignment.Top,
-		Visible = true,
-	}, page)
-	local controls = create("Frame", {
-		Name = "Controls",
-		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(0, 30),
-		Size = UDim2.new(1, 0, 1, -30),
-	}, page) :: Frame
-	create("UIGridLayout", {
-		CellPadding = UDim2.fromOffset(6, 6),
-		CellSize = UDim2.new(1 / columns, -4, 0, 29),
-		FillDirectionMaxCells = columns,
-		SortOrder = Enum.SortOrder.LayoutOrder,
-	}, controls)
-	return controls
-end
-local buildControls = graphActionPage("Build", 6)
-local rulesControls = graphActionPage("Rules", 2)
-local testControls = graphActionPage("Test", 2)
-local buildCreationButtons: { TextButton } = {}
-local nodeBuildButtons: { TextButton } = {}
-local edgeBuildButtons: { TextButton } = {}
-for order, modeName in { "Build", "Rules", "Test" } :: { GraphToolMode } do
-	local mode = modeName :: GraphToolMode
-	local tab = button(
-		graphToolTabs,
-		if mode == "Build" then "Build" elseif mode == "Rules" then "Rules" else "Test",
-		90,
-		function()
-			graphToolMode = mode
-			renderGraphTools()
-		end
-	)
-	tab.LayoutOrder = order
-	graphToolButtons[mode] = tab
-end
-function renderGraphTools()
-	if graphToolMode == "Rules" and selectedEdgeId == nil then
-		graphToolMode = "Build"
-	end
-	graphToolButtons.Rules.Visible = selectedEdgeId ~= nil
-	graphTabsLayout.CellSize = if selectedEdgeId ~= nil
-		then UDim2.new(1 / 3, -4, 1, 0)
-		else UDim2.new(1 / 2, -3, 1, 0)
-	for mode, page in graphActionPages do
-		page.Visible = mode == graphToolMode
-		setButtonSelected(graphToolButtons[mode], mode == graphToolMode)
-	end
-	for _, action in buildCreationButtons do
-		action.Visible = true
-		local needsNode = action.Name == "GraphPrimaryConnect"
-		local needsEdge = action.Name == "GraphPrimarySplit"
-			or action.Name == "GraphPrimaryLanes"
-			or action.Name == "GraphPrimaryCondition"
-		local needsSelection = action.Name == "GraphPrimaryDelete"
-		action.Active = if needsNode
-			then selectedNodeId ~= nil
-			elseif needsEdge then selectedEdgeId ~= nil
-			elseif needsSelection then selectedNodeId ~= nil or selectedEdgeId ~= nil
-			else true
-		action.TextColor3 = if action.Active then COLORS.text else COLORS.muted
-	end
-	for _, action in nodeBuildButtons do
-		action.Visible = false
-	end
-	for _, action in edgeBuildButtons do
-		action.Visible = false
-	end
-	graphToolTabs.Visible = graphToolMode ~= "Build"
-	local height = if graphToolMode == "Build" then 102 elseif graphToolMode == "Rules" then 196 else 224
-	local preferredWidth = if graphToolMode == "Build" then 1_080 else 980
-	graphActions.Size =
-		UDim2.fromOffset(math.min(math.max(graphPage.AbsoluteSize.X - 28, 330), preferredWidth), height)
-	graphActions.ZIndex = 20
-	for _, descendant in graphActions:GetDescendants() do
-		if descendant:IsA("GuiObject") then
-			descendant.ZIndex = 21
-		end
-	end
-	local inspectorHeight = if selectedNodeId ~= nil or selectedEdgeId ~= nil then 148 else 82
-	graphProperties.Position = UDim2.new(0.5, 0, 1, -(height + 20))
-	graphProperties.Size =
-		UDim2.fromOffset(math.min(math.max(graphPage.AbsoluteSize.X - 28, 330), 1_100), inspectorHeight)
-	graphProperties.ZIndex = 20
-	for _, descendant in graphProperties:GetDescendants() do
-		if descendant:IsA("GuiObject") then
-			descendant.ZIndex = 21
-		end
-	end
-	routeOverviewHost.Size = UDim2.new(1, 0, 1, -(height + inspectorHeight + 124))
-end
-graphPage:GetPropertyChangedSignal("AbsoluteSize"):Connect(renderGraphTools)
-
-local function actionField(parent: Instance, placeholder: string): TextBox
-	local field = create("TextBox", {
-		BackgroundColor3 = COLORS.field,
-		BorderSizePixel = 0,
-		ClearTextOnFocus = false,
-		Font = Enum.Font.BuilderSans,
-		LayoutOrder = #parent:GetChildren() + 1,
-		PlaceholderColor3 = COLORS.muted,
-		PlaceholderText = placeholder,
-		Text = "",
-		TextColor3 = COLORS.text,
-		TextSize = 11,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextTruncate = Enum.TextTruncate.AtEnd,
-	}, parent) :: TextBox
-	create("UIPadding", { PaddingLeft = UDim.new(0, 5), PaddingRight = UDim.new(0, 5) }, field)
-	create("UICorner", { CornerRadius = UDim.new(0, 5) }, field)
-	create("UIStroke", { Color = COLORS.border, Thickness = 1 }, field)
-	return field
-end
-
-local PREDICATE_KINDS = PredicateFields.KINDS
-
 local function newNode(kind: string, requestedPosition: any?)
 	local currentGraph = graph()
 	if currentGraph == nil then
@@ -3011,319 +2408,93 @@ local function newNode(kind: string, requestedPosition: any?)
 	selectedNodeId = id
 	selectedEdgeId = nil
 end
-do
-	local nodeMenu = create("Frame", {
-		AnchorPoint = Vector2.new(0.5, 1),
-		BackgroundColor3 = COLORS.surface,
-		BorderSizePixel = 0,
-		Position = UDim2.new(0.5, -205, 1, -92),
-		Size = UDim2.fromOffset(132, 112),
-		Visible = false,
-		ZIndex = 30,
-	}, graphPage) :: Frame
-	create("UICorner", { CornerRadius = UDim.new(0, 7) }, nodeMenu)
-	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, nodeMenu)
-	create("UIListLayout", {
-		Padding = UDim.new(0, 5),
+
+local function createRulesControls(parent: Instance): Frame
+	local rulesControls = create("Frame", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+	}, parent) :: Frame
+	create("UIGridLayout", {
+		CellPadding = UDim2.fromOffset(6, 6),
+		CellSize = UDim2.new(0.5, -4, 0, 29),
+		FillDirectionMaxCells = 2,
 		SortOrder = Enum.SortOrder.LayoutOrder,
-	}, nodeMenu)
-	create("UIPadding", {
-		PaddingBottom = UDim.new(0, 7),
-		PaddingLeft = UDim.new(0, 7),
-		PaddingRight = UDim.new(0, 7),
-		PaddingTop = UDim.new(0, 7),
-	}, nodeMenu)
-	for _, kind in { "Spawn", "Junction", "Goal" } do
-		local addKind = button(nodeMenu, kind, 118, function()
-			nodeMenu.Visible = false
-			mutate(`Add {kind} node`, function()
-				newNode(kind)
-			end)
-			renderAll()
-		end)
-		addKind.ZIndex = 31
+	}, rulesControls)
+
+	local function actionField(placeholder: string): TextBox
+		local field = create("TextBox", {
+			BackgroundColor3 = COLORS.field,
+			BorderSizePixel = 0,
+			ClearTextOnFocus = false,
+			Font = Enum.Font.BuilderSans,
+			LayoutOrder = #rulesControls:GetChildren() + 1,
+			PlaceholderColor3 = COLORS.muted,
+			PlaceholderText = placeholder,
+			Text = "",
+			TextColor3 = COLORS.text,
+			TextSize = 11,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			TextXAlignment = Enum.TextXAlignment.Left,
+		}, rulesControls) :: TextBox
+		create("UIPadding", { PaddingLeft = UDim.new(0, 5), PaddingRight = UDim.new(0, 5) }, field)
+		create("UICorner", { CornerRadius = UDim.new(0, 5) }, field)
+		create("UIStroke", { Color = COLORS.border, Thickness = 1 }, field)
+		return field
 	end
-	local addNode = button(buildControls, "+  Add node", 112, function()
-		nodeMenu.Visible = not nodeMenu.Visible
+
+	local predicateKinds = PredicateFields.KINDS
+	local predicateKindIndex = 1
+	local conditionKindButton: TextButton
+	conditionKindButton = button(rulesControls, predicateKinds[predicateKindIndex], 112, function()
+		predicateKindIndex = (predicateKindIndex % #predicateKinds) + 1
+		conditionKindButton.Text = predicateKinds[predicateKindIndex]
 	end)
-	addNode.Name = "GraphPrimaryAdd"
-	table.insert(buildCreationButtons, addNode)
-	local connect = button(buildControls, "->  Connect", 112, function()
-		connectFromNodeId = selectedNodeId
-		setStatus(if connectFromNodeId ~= nil then "Select a destination node." else "Select a node first.")
-	end)
-	connect.Name = "GraphPrimaryConnect"
-	table.insert(buildCreationButtons, connect)
-	local split = button(buildControls, "/  Split edge", 112, function()
-		local currentGraph = graph()
-		local edgeId = selectedEdgeId
-		if currentGraph == nil or edgeId == nil then
-			return
-		end
-		mutate("Split Stagewright graph edge", function()
-			selectedNodeId = GraphOperations.splitEdge(currentGraph, edgeId)
-			if selectedNodeId ~= nil then
-				selectedEdgeId = nil
-			end
-		end)
-		renderAll()
-	end)
-	split.Name = "GraphPrimarySplit"
-	table.insert(buildCreationButtons, split)
-	local lanes = button(buildControls, "1|2|3  Lanes", 112, function()
-		local currentGraph = graph()
-		local edgeId = selectedEdgeId
-		if currentGraph == nil or edgeId == nil then
-			return
-		end
-		mutate("Cycle Stagewright edge lanes", function()
-			GraphOperations.cycleLaneCount(currentGraph, edgeId)
-		end)
-		renderAll()
-	end)
-	lanes.Name = "GraphPrimaryLanes"
-	table.insert(buildCreationButtons, lanes)
-	local condition = button(buildControls, "?  Condition", 112, function()
-		if selectedEdgeId ~= nil then
-			graphToolMode = "Rules"
-			renderGraphTools()
-		end
-	end)
-	condition.Name = "GraphPrimaryCondition"
-	table.insert(buildCreationButtons, condition)
-	local deleteSelection = button(buildControls, "X  Delete", 112, function()
-		local currentGraph = graph()
-		if currentGraph == nil then
-			return
-		end
-		if selectedNodeId ~= nil then
-			if not confirm(`node_{selectedNodeId}`, "Delete node and all incident edges?") then
-				return
-			end
-			mutate("Delete Stagewright graph node", function()
-				currentGraph.nodes[selectedNodeId :: string] = nil
-				for edgeId, edge in currentGraph.edges do
-					if edge.fromNodeId == selectedNodeId or edge.toNodeId == selectedNodeId then
-						currentGraph.edges[edgeId] = nil
-					end
-				end
-				selectedNodeId = nil
-			end)
-		elseif selectedEdgeId ~= nil then
-			if not confirm(`edge_{selectedEdgeId}`, "Delete the selected directed edge?") then
-				return
-			end
-			mutate("Delete Stagewright graph edge", function()
-				currentGraph.edges[selectedEdgeId :: string] = nil
-				selectedEdgeId = nil
-			end)
-		end
-		renderAll()
-	end)
-	deleteSelection.Name = "GraphPrimaryDelete"
-	table.insert(buildCreationButtons, deleteSelection)
-end
-table.insert(
-	nodeBuildButtons,
-	button(buildControls, "Connect", 112, function()
-		connectFromNodeId = selectedNodeId
-		setStatus(if connectFromNodeId ~= nil then "Select a destination node." else "Select a node first.")
-	end)
-)
-table.insert(
-	nodeBuildButtons,
-	button(buildControls, "Delete node", 112, function()
-		local currentGraph = graph()
-		if currentGraph == nil or selectedNodeId == nil then
-			return
-		end
-		if not confirm(`node_{selectedNodeId}`, "Delete node and all incident edges?") then
-			return
-		end
-		mutate("Delete Stagewright graph node", function()
-			currentGraph.nodes[selectedNodeId :: string] = nil
-			for edgeId, edge in currentGraph.edges do
-				if edge.fromNodeId == selectedNodeId or edge.toNodeId == selectedNodeId then
-					currentGraph.edges[edgeId] = nil
-				end
-			end
-			selectedNodeId = nil
-		end)
-		renderAll()
-	end)
-)
-table.insert(
-	edgeBuildButtons,
-	button(buildControls, "Delete edge", 112, function()
+	local conditionKeyField = actionField("condition key / ID")
+	local conditionValueField = actionField("minimum / value")
+	local conditionMaximumField = actionField("maximum")
+
+	local function predicateFromFields(edge: any): (any?, string?)
+		return PredicateFields.fromText(
+			predicateKinds[predicateKindIndex],
+			conditionKeyField.Text,
+			conditionValueField.Text,
+			conditionMaximumField.Text,
+			edge
+		)
+	end
+
+	button(rulesControls, "Add condition", 112, function()
 		local currentGraph = graph()
 		if currentGraph == nil or selectedEdgeId == nil then
-			setStatus("Select an edge before deleting it.", true)
+			setStatus("Select an edge before adding a condition.", true)
 			return
 		end
-		if not confirm(`edge_{selectedEdgeId}`, "Delete the selected directed edge?") then
+		local edge = currentGraph.edges[selectedEdgeId]
+		local predicate, message = predicateFromFields(edge)
+		if predicate == nil then
+			setStatus(message or "Invalid condition", true)
 			return
 		end
-		mutate("Delete Stagewright graph edge", function()
-			currentGraph.edges[selectedEdgeId :: string] = nil
-			selectedEdgeId = nil
+		mutate("Add route condition", function()
+			table.insert(edge.predicates, predicate)
 		end)
 		renderAll()
 	end)
-)
-table.insert(
-	edgeBuildButtons,
-	button(buildControls, "Priority +", 112, function()
+	button(rulesControls, "Remove condition", 112, function()
 		local currentGraph = graph()
 		if currentGraph == nil or selectedEdgeId == nil then
 			return
 		end
-		mutate("Change edge priority", function()
-			currentGraph.edges[selectedEdgeId :: string].priority += 1
-		end)
-		renderAll()
-	end)
-)
-table.insert(
-	edgeBuildButtons,
-	button(buildControls, "Priority -", 112, function()
-		local currentGraph = graph()
-		if currentGraph == nil or selectedEdgeId == nil then
+		local edge = currentGraph.edges[selectedEdgeId]
+		if #edge.predicates == 0 then
 			return
 		end
-		mutate("Change edge priority", function()
-			currentGraph.edges[selectedEdgeId :: string].priority =
-				math.max(currentGraph.edges[selectedEdgeId :: string].priority - 1, 0)
+		mutate("Remove route condition", function()
+			table.remove(edge.predicates, #edge.predicates)
 		end)
 		renderAll()
 	end)
-)
-table.insert(
-	edgeBuildButtons,
-	button(buildControls, "Set fallback", 112, function()
-		local currentGraph = graph()
-		if currentGraph == nil or selectedEdgeId == nil then
-			return
-		end
-		mutate("Set route fallback", function()
-			currentGraph.edges[selectedEdgeId :: string].predicates = {}
-		end)
-		renderAll()
-	end)
-)
-
-local conditionKindButton: TextButton
-conditionKindButton = button(rulesControls, PREDICATE_KINDS[predicateKindIndex], 112, function()
-	predicateKindIndex = (predicateKindIndex % #PREDICATE_KINDS) + 1
-	conditionKindButton.Text = PREDICATE_KINDS[predicateKindIndex]
-end)
-local conditionKeyField = actionField(rulesControls, "condition key / ID")
-local conditionValueField = actionField(rulesControls, "minimum / value")
-local conditionMaximumField = actionField(rulesControls, "maximum")
-
-local function predicateFromFields(edge: any): (any?, string?)
-	return PredicateFields.fromText(
-		PREDICATE_KINDS[predicateKindIndex],
-		conditionKeyField.Text,
-		conditionValueField.Text,
-		conditionMaximumField.Text,
-		edge
-	)
-end
-
-button(rulesControls, "Add condition", 112, function()
-	local currentGraph = graph()
-	if currentGraph == nil or selectedEdgeId == nil then
-		setStatus("Select an edge before adding a condition.", true)
-		return
-	end
-	local edge = currentGraph.edges[selectedEdgeId]
-	local predicate, message = predicateFromFields(edge)
-	if predicate == nil then
-		setStatus(message or "Invalid condition", true)
-		return
-	end
-	mutate("Add route condition", function()
-		table.insert(edge.predicates, predicate)
-	end)
-	renderAll()
-end)
-button(rulesControls, "Remove condition", 112, function()
-	local currentGraph = graph()
-	if currentGraph == nil or selectedEdgeId == nil then
-		return
-	end
-	local edge = currentGraph.edges[selectedEdgeId]
-	if #edge.predicates == 0 then
-		return
-	end
-	mutate("Remove route condition", function()
-		table.remove(edge.predicates, #edge.predicates)
-	end)
-	renderAll()
-end)
-
-local traceWaveField = actionField(testControls, "trace wave (1)")
-local traceTagsField = actionField(testControls, "tags: Ground,Boss")
-local traceFlagsField = actionField(testControls, "flags: hard=true")
-local traceCurrenciesField = actionField(testControls, "currency: coins=500")
-local traceUpgradesField = actionField(testControls, "upgrades: range=4")
-local traceUnlockedField = actionField(testControls, "unlocked stage IDs")
-
-button(testControls, "Trace route", 112, function()
-	local currentGraph = graph()
-	if currentGraph == nil then
-		return
-	end
-	local spawnIds: { string } = {}
-	for nodeId, node in currentGraph.nodes do
-		if node.kind == "Spawn" then
-			table.insert(spawnIds, nodeId)
-		end
-	end
-	table.sort(spawnIds)
-	if spawnIds[1] == nil then
-		setStatus("Trace needs a spawn node.", true)
-		return
-	end
-	local selectedTraceNode = if selectedNodeId ~= nil then currentGraph.nodes[selectedNodeId] else nil
-	local traceSpawnId = if selectedTraceNode ~= nil and selectedTraceNode.kind == "Spawn"
-		then selectedNodeId :: string
-		else spawnIds[1]
-	local trace = StageTrace.trace(currentGraph, traceSpawnId, {
-		wave = tonumber(traceWaveField.Text) or 1,
-		stageFlags = PredicateFields.assignmentMap(traceFlagsField.Text, true),
-		enemyTags = PredicateFields.commaSet(traceTagsField.Text),
-		nodeVisits = {},
-		unlockedStages = PredicateFields.commaSet(traceUnlockedField.Text),
-		upgradeLevels = PredicateFields.assignmentMap(traceUpgradesField.Text, false),
-		currencies = PredicateFields.assignmentMap(traceCurrenciesField.Text, false),
-	})
-	tracedEdgeIds = {}
-	for _, edgeId in trace.edgeIds do
-		tracedEdgeIds[edgeId] = true
-	end
-	selectedEdgeId = trace.edgeIds[1]
-	local path: { string } = {}
-	for _, edgeId in trace.edgeIds do
-		table.insert(path, string.sub(edgeId, -8))
-	end
-	setStatus(`Trace {table.concat(path, " > ")} - {trace.stoppedReason}`, not trace.reachedGoal)
-	rebuildPreview()
-end)
-for laneCount, laneLabel in { "1 Lane", "2 Lanes", "3 Lanes" } do
-	local laneButton = button(buildControls, laneLabel, 112, function()
-		local currentGraph = graph()
-		if currentGraph == nil or selectedEdgeId == nil then
-			setStatus("Select an edge before changing its lane profile.", true)
-			return
-		end
-		mutate(`Set route to {laneCount} lanes`, function()
-			GraphOperations.setLaneCount(currentGraph, selectedEdgeId :: string, laneCount)
-		end)
-		setStatus(`Route profile uses {laneCount} {if laneCount == 1 then "lane" else "lanes"}.`)
-		renderAll()
-	end)
-	table.insert(edgeBuildButtons, laneButton)
+	return rulesControls
 end
 
 flowRuntime.connect = function(fromId: string, toId: string)
@@ -3339,10 +2510,7 @@ flowRuntime.connect = function(fromId: string, toId: string)
 	selectedNodeId = nil
 end
 
--- The approved Flow + Graph shell keeps real-world spline geometry and route
--- decision logic as synchronized views. The older controls remain behind this
--- opaque surface during rollout so existing undo/action callbacks are not
--- discarded while the new workflow is exercised in Studio.
+-- World Path and Route Logic are synchronized views over the same authored graph.
 do
 	local flowUi = {} :: any
 
@@ -3403,21 +2571,6 @@ do
 		viewButton.TextSize = 14
 		flowUi.viewButtons[mode] = viewButton
 	end
-	flowUi.flowLevel = create("TextLabel", {
-		AnchorPoint = Vector2.new(1, 0),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSansMedium,
-		Position = UDim2.fromScale(1, 0),
-		Size = UDim2.fromOffset(260, 52),
-		Text = "Stage 1 / Level 1",
-		TextColor3 = COLORS.muted,
-		TextSize = 10,
-		TextXAlignment = Enum.TextXAlignment.Right,
-		Visible = false,
-		ZIndex = 62,
-	}, flowUi.viewBar) :: TextLabel
-	create("UIPadding", { PaddingRight = UDim.new(0, 14) }, flowUi.flowLevel)
-
 	flowUi.actionBar = create("Frame", {
 		BackgroundColor3 = COLORS.surface,
 		BorderSizePixel = 0,
@@ -3503,21 +2656,6 @@ do
 		)
 	end)
 	flowUi.action("Split", "split", COLORS.text, 82, flowUi.splitSelected)
-	flowUi.toolHint = create("TextLabel", {
-		AnchorPoint = Vector2.new(1, 0),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSans,
-		Position = UDim2.fromScale(1, 0),
-		Size = UDim2.fromOffset(360, 56),
-		Text = "Gravel preview   •   Conflicts only   •   Select a path to reveal lanes and handles",
-		TextColor3 = COLORS.muted,
-		TextSize = 10,
-		TextXAlignment = Enum.TextXAlignment.Right,
-		Visible = false,
-		ZIndex = 62,
-	}, flowUi.actionBar) :: TextLabel
-	create("UIPadding", { PaddingRight = UDim.new(0, 14) }, flowUi.toolHint)
-
 	flowRuntime.worldControls = create("Frame", {
 		AnchorPoint = Vector2.new(1, 0),
 		BackgroundTransparency = 1,
@@ -3646,22 +2784,18 @@ do
 			flowRuntime.refreshOptions()
 		end
 	end)
-	flowRuntime.optionButtons.top = flowRuntime.modeAction(flowRuntime.worldControls, "Top", 58, function()
-		Toolbar.setNavigationSelected(flowRuntime.optionButtons.top, true)
-		Toolbar.setNavigationSelected(flowRuntime.optionButtons.perspective, false)
-		setStatus("Top view keeps authored positions aligned to the platform grid.")
-	end)
-	flowRuntime.optionButtons.perspective = flowRuntime.modeAction(
-		flowRuntime.worldControls,
-		"Perspective",
-		86,
-		function()
-			Toolbar.setNavigationSelected(flowRuntime.optionButtons.top, false)
-			Toolbar.setNavigationSelected(flowRuntime.optionButtons.perspective, true)
-			setStatus("Perspective preview selected. Route edits remain in stage-local coordinates.")
+	flowRuntime.optionButtons.workspacePreview = flowRuntime.toggleAction("Preview in World", 170, function()
+		local requested = not workspacePreview:isEnabled()
+		local enabled = workspacePreview:setEnabled(requested)
+		if requested and enabled then
+			setStatus("World preview enabled. Move its nodes or curve handles with Studio tools.")
+		elseif requested then
+			setStatus("World preview is unavailable while the project is read-only.", true)
+		else
+			setStatus("World preview disabled; authored route data is unchanged.")
 		end
-	)
-	Toolbar.setNavigationSelected(flowRuntime.optionButtons.top, true)
+		flowRuntime.refreshOptions()
+	end)
 	flowUi.fitAction = flowRuntime.modeAction(flowRuntime.worldControls, "Fit", 68, function()
 		local worldView = flowRuntime.view
 		if worldView ~= nil then
@@ -3679,10 +2813,6 @@ do
 			flowRuntime.refreshOptions()
 		end
 	)
-	flowRuntime.optionButtons.snap = flowRuntime.modeAction(flowRuntime.logicControls, "Snap", 58, function()
-		routeOverview.snapToGrid = not routeOverview.snapToGrid
-		flowRuntime.refreshOptions()
-	end)
 	flowRuntime.modeAction(flowRuntime.logicControls, "-", 38, function()
 		routeOverview:zoomBy(-0.1)
 	end)
@@ -3709,8 +2839,11 @@ do
 			flowRuntime.setToggleSelected(flowRuntime.optionButtons.buildMask, worldView.showBuildMask)
 			flowRuntime.setToggleSelected(flowRuntime.optionButtons.conflicts, worldView.showConflicts)
 		end
+		flowRuntime.setToggleSelected(
+			flowRuntime.optionButtons.workspacePreview,
+			workspacePreview:isEnabled()
+		)
 		setButtonSelected(flowRuntime.optionButtons.logicLanes, routeOverview.showLanes)
-		setButtonSelected(flowRuntime.optionButtons.snap, routeOverview.snapToGrid)
 		flowRuntime.optionButtons.logicZoom.Text = `{math.round(routeOverview.zoom * 100)}%`
 	end
 
@@ -3791,7 +2924,7 @@ do
 	flowUi.closeRules.Position = UDim2.new(1, -78, 0, 10)
 	flowUi.closeRules.Size = UDim2.fromOffset(64, 28)
 	flowUi.closeRules.ZIndex = 88
-	rulesControls.Parent = flowUi.rulesPanel
+	local rulesControls = createRulesControls(flowUi.rulesPanel)
 	rulesControls.Position = UDim2.fromOffset(14, 88)
 	rulesControls.Size = UDim2.new(1, -28, 1, -102)
 	rulesControls.Visible = true
@@ -3953,7 +3086,18 @@ do
 		ZIndex = 66,
 	}, flowUi.routeTest)
 
-	flowUi.dragRecording = false
+	flowUi.dragTransaction = nil
+	flowRuntime.cancelInteraction = function()
+		local transaction = flowUi.dragTransaction
+		flowUi.dragTransaction = nil
+		finishEditorTransaction(transaction, false)
+		connectFromNodeId = nil
+		local worldView = flowRuntime.view
+		if worldView ~= nil then
+			worldView:cancelInteraction()
+		end
+		routeOverview:cancelInteraction()
+	end
 	flowRuntime.view = flowRuntime.viewModule.new(flowUi.worldHost, COLORS, {
 		selectNode = function(nodeId: string)
 			if connectFromNodeId ~= nil and connectFromNodeId ~= nodeId then
@@ -3975,14 +3119,22 @@ do
 			renderAll()
 		end,
 		moveNode = function(nodeId: string, position: any, finished: boolean)
+			if not ProjectStore.isWritable() then
+				flowRuntime.reportBlocked("Move route node")
+				return
+			end
 			local currentGraph = graph()
 			local node = if currentGraph ~= nil then currentGraph.nodes[nodeId] else nil
 			if node == nil then
 				return
 			end
-			if not flowUi.dragRecording then
-				ProjectStore.begin("Move Stagewright route node")
-				flowUi.dragRecording = true
+			if flowUi.dragTransaction == nil then
+				local transaction = ProjectStore.begin("Move Stagewright route node")
+				if transaction == nil then
+					flowRuntime.reportBlocked("Move route node")
+					return
+				end
+				flowUi.dragTransaction = transaction
 			end
 			node.position = { x = position.x, y = node.position.y, z = position.z }
 			local worldView = flowRuntime.view
@@ -3990,21 +3142,32 @@ do
 				worldView.preview = ProjectStore.preview(selectedStageId)
 			end
 			if finished then
-				ProjectStore.finish(true)
-				flowUi.dragRecording = false
+				local transaction = flowUi.dragTransaction
+				flowUi.dragTransaction = nil
+				if transaction ~= nil then
+					ProjectStore.finish(transaction, true)
+				end
 				setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
 				renderAll()
 			end
 		end,
 		moveHandle = function(edgeId: string, handleId: string, offset: any, finished: boolean)
+			if not ProjectStore.isWritable() then
+				flowRuntime.reportBlocked("Shape route spline")
+				return
+			end
 			local currentGraph = graph()
 			local edge = if currentGraph ~= nil then currentGraph.edges[edgeId] else nil
 			if edge == nil then
 				return
 			end
-			if not flowUi.dragRecording then
-				ProjectStore.begin("Shape Stagewright route spline")
-				flowUi.dragRecording = true
+			if flowUi.dragTransaction == nil then
+				local transaction = ProjectStore.begin("Shape Stagewright route spline")
+				if transaction == nil then
+					flowRuntime.reportBlocked("Shape route spline")
+					return
+				end
+				flowUi.dragTransaction = transaction
 			end
 			if handleId == "Out" then
 				edge.outHandleOffset = offset
@@ -4016,8 +3179,11 @@ do
 				worldView.preview = ProjectStore.preview(selectedStageId)
 			end
 			if finished then
-				ProjectStore.finish(true)
-				flowUi.dragRecording = false
+				local transaction = flowUi.dragTransaction
+				flowUi.dragTransaction = nil
+				if transaction ~= nil then
+					ProjectStore.finish(transaction, true)
+				end
 				setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
 				renderAll()
 			end
@@ -4035,7 +3201,7 @@ do
 		end,
 		focusWorld = function(edgeId: string?)
 			selectedEdgeId = edgeId
-			setStatus("Edit the selected spline inside World Path. Workspace remains unchanged.")
+			setStatus("Edit here, or enable Preview in World to use Studio move handles.")
 			renderAll()
 		end,
 		testSegment = function(edgeId: string)
@@ -4283,10 +3449,6 @@ do
 		local currentStage = stage()
 		local currentGraph = graph()
 		local preview = ProjectStore.preview(selectedStageId)
-		if currentStage ~= nil then
-			local address = StageHierarchy.address(currentStage)
-			flowUi.flowLevel.Text = `Stage {address.stageNumber} / Level {address.levelNumber}`
-		end
 		flowUi.worldHost.Visible = flowRuntime.mode == "World"
 		flowUi.logicHost.Visible = flowRuntime.mode == "Logic"
 		flowRuntime.worldControls.Visible = flowRuntime.mode == "World"
@@ -4466,175 +3628,6 @@ paintRuntime.beginRouteInteraction = function(position: Vector2)
 	renderPaintChrome()
 end
 
-function renderGraphList()
-	for _, child in graphList:GetChildren() do
-		if child:IsA("GuiButton") or child:IsA("TextLabel") then
-			child:Destroy()
-		end
-	end
-	local currentGraph = graph()
-	if currentGraph == nil then
-		graphSelectionTitle.Text = "No route graph"
-		graphSelectionHint.Text = "Create or import a graph before editing routes."
-		emptyGraphProperties.Visible = true
-		nodeProperties.Visible = false
-		edgeProperties.Visible = false
-		routeOverview:render(nil, nil, nil, {})
-		local selectionHeader = graphPage:FindFirstChild("GraphSelectionHeader", true)
-		if selectionHeader ~= nil and selectionHeader:IsA("TextLabel") then
-			selectionHeader.Text = graphSelectionTitle.Text
-		end
-		return
-	end
-	local order = 0
-	local nodeIds: { string } = {}
-	for nodeId in currentGraph.nodes do
-		table.insert(nodeIds, nodeId)
-	end
-	local kindOrder = { Spawn = 1, Junction = 2, Goal = 3 }
-	table.sort(nodeIds, function(left, right)
-		local leftNode = currentGraph.nodes[left]
-		local rightNode = currentGraph.nodes[right]
-		local leftKind = kindOrder[leftNode.kind] or 99
-		local rightKind = kindOrder[rightNode.kind] or 99
-		if leftKind ~= rightKind then
-			return leftKind < rightKind
-		end
-		if leftNode.name ~= rightNode.name then
-			return leftNode.name < rightNode.name
-		end
-		return left < right
-	end)
-	local edgeIds: { string } = {}
-	for edgeId in currentGraph.edges do
-		table.insert(edgeIds, edgeId)
-	end
-	table.sort(edgeIds, function(left, right)
-		local leftEdge = currentGraph.edges[left]
-		local rightEdge = currentGraph.edges[right]
-		if leftEdge.priority ~= rightEdge.priority then
-			return leftEdge.priority < rightEdge.priority
-		end
-		return left < right
-	end)
-
-	local selectedNode = if selectedNodeId ~= nil then currentGraph.nodes[selectedNodeId] else nil
-	local selectedEdge = if selectedEdgeId ~= nil then currentGraph.edges[selectedEdgeId] else nil
-	emptyGraphProperties.Visible = selectedNode == nil and selectedEdge == nil
-	nodeProperties.Visible = selectedNode ~= nil
-	edgeProperties.Visible = selectedEdge ~= nil
-	if selectedNode ~= nil then
-		graphSelectionTitle.Text = `{selectedNode.kind} - {selectedNode.name}`
-		graphSelectionHint.Text =
-			`Drag its 3D control to reposition it - ID {string.sub(selectedNode.id, -8)}`
-		if not nodeNameField:IsFocused() then
-			nodeNameField.Text = selectedNode.name
-		end
-		if not nodeXField:IsFocused() then
-			nodeXField.Text = string.format("%.2f", selectedNode.position.x)
-		end
-		if not nodeYField:IsFocused() then
-			nodeYField.Text = string.format("%.2f", selectedNode.position.y)
-		end
-		if not nodeZField:IsFocused() then
-			nodeZField.Text = string.format("%.2f", selectedNode.position.z)
-		end
-	elseif selectedEdge ~= nil then
-		local from = currentGraph.nodes[selectedEdge.fromNodeId]
-		local to = currentGraph.nodes[selectedEdge.toNodeId]
-		local profile = currentGraph.laneProfiles[selectedEdge.laneProfileId]
-		local laneCount = if profile ~= nil and type(profile.offsets) == "table" then #profile.offsets else 0
-		local ruleNames: { string } = {}
-		for _, predicate in selectedEdge.predicates do
-			table.insert(ruleNames, predicate.kind)
-		end
-		graphSelectionTitle.Text =
-			`{if from ~= nil then from.name else "Missing"}  >  {if to ~= nil then to.name else "Missing"}`
-		graphSelectionHint.Text = `P{selectedEdge.priority} - {laneCount} lane{if laneCount == 1
-			then ""
-			else "s"} - {if #ruleNames == 0 then "unconditional fallback" else table.concat(ruleNames, " + ")}`
-		edgePropertiesText.Text =
-			`Priority: {selectedEdge.priority}\nLanes: {laneCount}\nRules: {if #ruleNames == 0
-				then "Fallback (always available)"
-				else table.concat(ruleNames, " + ")}`
-	else
-		graphSelectionTitle.Text = `{#nodeIds} nodes - {#edgeIds} edges`
-		graphSelectionHint.Text = "Select an item below, or add a spawn, junction, or goal from Build tools."
-	end
-
-	order += 1
-	sectionLabel(graphList, "Nodes", order)
-	for _, nodeId in nodeIds do
-		local node = currentGraph.nodes[nodeId]
-		order += 1
-		local nodeButton = button(
-			graphList,
-			`{string.upper(node.kind)}  -  {node.name}  -  {string.sub(nodeId, -8)}`,
-			300,
-			function()
-				if connectFromNodeId ~= nil then
-					local from = connectFromNodeId
-					connectFromNodeId = nil
-					mutate("Connect Stagewright graph nodes", function()
-						flowRuntime.connect(from, nodeId)
-					end)
-					renderAll()
-				else
-					selectedNodeId = nodeId
-					selectedEdgeId = nil
-					local part = if previewFolder ~= nil
-						then previewFolder:FindFirstChild(`Node_{node.name}`)
-						else nil
-					if part ~= nil then
-						Selection:Set({ part })
-					end
-					renderGraphList()
-					rebuildPreview()
-				end
-			end
-		)
-		nodeButton.LayoutOrder = order
-		nodeButton.Size = UDim2.new(1, -16, 0, 34)
-		nodeButton.TextXAlignment = Enum.TextXAlignment.Left
-		create("UIPadding", { PaddingLeft = UDim.new(0, 10) }, nodeButton)
-		setButtonSelected(nodeButton, selectedNodeId == nodeId)
-	end
-	order += 1
-	sectionLabel(graphList, "Directed edges", order)
-	for _, edgeId in edgeIds do
-		local edge = currentGraph.edges[edgeId]
-		local from = currentGraph.nodes[edge.fromNodeId]
-		local to = currentGraph.nodes[edge.toNodeId]
-		order += 1
-		local edgeButton = button(
-			graphList,
-			`{if from ~= nil then from.name else "Missing"}  >  {if to ~= nil then to.name else "Missing"}  -  P{edge.priority}  -  {if #edge.predicates
-					== 0
-				then "Fallback"
-				else `{#edge.predicates} condition(s)`}`,
-			300,
-			function()
-				selectedEdgeId = edgeId
-				selectedNodeId = nil
-				tracedEdgeIds = {}
-				renderGraphList()
-				rebuildPreview()
-			end
-		)
-		edgeButton.LayoutOrder = order
-		edgeButton.Size = UDim2.new(1, -16, 0, 34)
-		edgeButton.TextXAlignment = Enum.TextXAlignment.Left
-		create("UIPadding", { PaddingLeft = UDim.new(0, 10) }, edgeButton)
-		setButtonSelected(edgeButton, selectedEdgeId == edgeId)
-	end
-	graphList.CanvasSize = UDim2.fromOffset(0, (#nodeIds + #edgeIds) * 38 + 68)
-	local selectionHeader = graphPage:FindFirstChild("GraphSelectionHeader", true)
-	if selectionHeader ~= nil and selectionHeader:IsA("TextLabel") then
-		selectionHeader.Text = graphSelectionTitle.Text
-	end
-	routeOverview:render(currentGraph, selectedNodeId, selectedEdgeId, tracedEdgeIds)
-end
-
 -- Validate/export page.
 local validatePage = contentByMode.Validate
 do
@@ -4707,19 +3700,6 @@ local validateTitle = create("TextLabel", {
 	TextColor3 = COLORS.text,
 	TextSize = 11,
 	TextXAlignment = Enum.TextXAlignment.Left,
-}, validateSummary) :: TextLabel
-local validateHint = create("TextLabel", {
-	BackgroundTransparency = 1,
-	Font = Enum.Font.BuilderSans,
-	Position = UDim2.fromOffset(14, 34),
-	Size = UDim2.new(1, -28, 0, 28),
-	Text = "Select an issue to jump to its level or route object.",
-	TextColor3 = COLORS.muted,
-	TextSize = 11,
-	TextWrapped = true,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	TextYAlignment = Enum.TextYAlignment.Top,
-	Visible = false,
 }, validateSummary) :: TextLabel
 do
 	local cards = create("Frame", {
@@ -4825,7 +3805,16 @@ local function renderIssues()
 			child:Destroy()
 		end
 	end
-	validationIssues = ProjectStore.validate()
+	local recoveryMessage = ProjectStore.recoveryMessage()
+	validationIssues = if recoveryMessage ~= nil
+		then {
+			{
+				severity = "Error",
+				code = "RecoveryMode",
+				message = recoveryMessage,
+			},
+		}
+		else ProjectStore.validate()
 	local summary = IssueModel.summarize(validationIssues, stageIds, selectedStageId)
 	local errorCount = summary.errorCount
 	local warningCount = summary.warningCount
@@ -4895,12 +3884,10 @@ local function renderIssues()
 	if #validationIssues == 0 then
 		validateTitle.Text = "Ready to export"
 		validateTitle.TextColor3 = COLORS.success
-		validateHint.Text = "No errors or warnings. The deployable bundle can be exported safely."
 	else
 		validateTitle.Text =
 			`{errorCount} errors across {blockedLevelCount} level{if blockedLevelCount == 1 then "" else "s"}`
 		validateTitle.TextColor3 = if errorCount > 0 then COLORS.danger else COLORS.warning
-		validateHint.Text = "Select an issue to jump to its level or route object. Errors block export."
 	end
 	exportButton.Active = errorCount == 0
 	exportButton.BackgroundColor3 = if errorCount == 0 then COLORS.accent else COLORS.field
@@ -5012,6 +3999,10 @@ local function renderIssues()
 end
 
 local function exportBundle()
+	if not ProjectStore.isWritable() then
+		flowRuntime.reportBlocked("Export")
+		return
+	end
 	ProjectStore.save()
 	local result = ProjectStore.export()
 	if result.bundle == nil then
@@ -5025,13 +4016,18 @@ local function exportBundle()
 	local schema = require(script.Shared.StageSchema)
 	local authoring = schema.encodeCanonical(ProjectStore.get())
 	local runtime = schema.encodeCanonical(result.bundle)
-	ProjectStore.writePayload(
+	ProjectStorage.writePayload(
 		model,
 		StagePayload.AUTHORING_VALUE_NAME,
 		authoring,
 		schema.checksum(ProjectStore.get())
 	)
-	ProjectStore.writePayload(model, StagePayload.RUNTIME_VALUE_NAME, runtime, schema.checksum(result.bundle))
+	ProjectStorage.writePayload(
+		model,
+		StagePayload.RUNTIME_VALUE_NAME,
+		runtime,
+		schema.checksum(result.bundle)
+	)
 	model:SetAttribute("SchemaVersion", result.bundle.schemaVersion)
 	model:SetAttribute("Checksum", result.bundle.checksum)
 	model.Parent = ServerStorage
@@ -5064,9 +4060,11 @@ button(exportActions, "Import selected", 128, function()
 		then selected.Parent
 		else selected
 	local encoded: string? = nil
+	local expectedChecksum: string? = nil
 	local readError: string? = "No bundle selected"
 	if bundle ~= nil then
-		encoded, readError = ProjectStore.readPayload(bundle, StagePayload.AUTHORING_VALUE_NAME)
+		encoded, readError, expectedChecksum =
+			ProjectStorage.readPayload(bundle, StagePayload.AUTHORING_VALUE_NAME)
 	end
 	if encoded == nil then
 		setStatus("Select a StagewrightBundle model first.", true)
@@ -5075,13 +4073,26 @@ button(exportActions, "Import selected", 128, function()
 		end
 		return
 	end
+	local payloadIdentity, validationMessage = ProjectStore.importIdentity(encoded, expectedChecksum)
+	if payloadIdentity == nil then
+		setStatus(`Import failed: {validationMessage or "Selected bundle is invalid"}`, true)
+		return
+	end
+	if
+		not confirm(
+			`ImportStagewrightBundle:{payloadIdentity}`,
+			"Replace the current Stagewright project with this validated bundle?"
+		)
+	then
+		return
+	end
 	local ok, message = false, "Import failed"
-	ProjectStore.mutate("Import Stagewright bundle", function()
-		ok, message = ProjectStore.importPayload(encoded)
-	end)
+	ok, message = ProjectStore.importPayload(encoded, expectedChecksum)
 	if ok then
 		project = ProjectStore.get()
 		selectedStageId = project.startingStageId
+		stageIds = ProjectStore.stageIds()
+		flowRuntime.refreshRecoveryBanner()
 		renderAll()
 	end
 	setStatus(message, not ok)
@@ -5118,13 +4129,6 @@ function rerenderAll()
 		paintInspectorView.Visible = activeMode == "Paint" and paintRuntime.mode == "Cells"
 	end
 	paintRuntime.routeInspector.Visible = activeMode == "Paint" and paintRuntime.mode == "Route"
-	graphSummary.Visible = false
-	graphProperties.Visible = activeMode == "Graph"
-	local graphMiniPreviewView = rightSidebar:FindFirstChild("GraphMiniPreview", true)
-	if graphMiniPreviewView ~= nil and graphMiniPreviewView:IsA("GuiObject") then
-		graphMiniPreviewView.Visible = false
-	end
-	graphList.Visible = false
 	shell.inspectorTitle.Text = if activeMode == "Graph"
 		then if selectedEdgeId ~= nil then "EDGE" elseif selectedNodeId ~= nil then "NODE" else "INSPECTOR"
 		elseif activeMode == "Paint" then if paintRuntime.mode == "Route"
@@ -5132,15 +4136,12 @@ function rerenderAll()
 			else "BRUSH INSPECTOR"
 		elseif activeMode == "Stage" then "LEVEL PROPERTIES"
 		else ""
-	renderGraphTools()
 	renderPaintChrome()
 	renderIssues()
 	local current = stage()
 	if current ~= nil then
 		local address = StageHierarchy.address(current)
 		shell.title.Text = "Stagewright"
-		status.Text = `Stage {address.stageNumber} / Level {address.levelNumber}        ⌄`
-		status.TextColor3 = COLORS.text
 		shell.footerStage.Text =
 			`Stage {address.stageNumber} / Level {address.levelNumber}    Theme: {current.themeId}    Wave set: {current.waveSetId}`
 		levelOverviewName.Text = "Level overview"
@@ -5174,49 +4175,6 @@ function rerenderAll()
 				then ""
 				else "s"}`
 		levelHealthText.TextColor3 = if currentIssueCount > 0 then COLORS.warning else COLORS.success
-		if activeMode == "Graph" then
-			local previewCanvas = rightSidebar:FindFirstChild("GraphMiniPreviewCanvas", true)
-			if previewCanvas ~= nil and previewCanvas:IsA("Frame") then
-				for _, child in previewCanvas:GetChildren() do
-					if child:IsA("GuiObject") then
-						child:Destroy()
-					end
-				end
-				local sampleColumns = math.min(current.grid.columns, 20)
-				local sampleRows = math.min(current.grid.rows, 12)
-				local available = previewCanvas.AbsoluteSize
-				local sampleWidth = available.X / math.max(sampleColumns, 1)
-				local sampleHeight = available.Y / math.max(sampleRows, 1)
-				for sampleRow = 1, sampleRows do
-					for sampleColumn = 1, sampleColumns do
-						local column = math.clamp(
-							math.floor((sampleColumn - 0.5) * current.grid.columns / sampleColumns) + 1,
-							1,
-							current.grid.columns
-						)
-						local row = math.clamp(
-							math.floor((sampleRow - 0.5) * current.grid.rows / sampleRows) + 1,
-							1,
-							current.grid.rows
-						)
-						local authoredCell = current.grid.cells[`{column}:{row}`]
-						local resolvedCell = authoredCell or current.grid.defaultCell
-						local color =
-							PaintAppearance.resolve(resolvedCell, authoredCell, current.grid.defaultCell)
-						create("Frame", {
-							BackgroundColor3 = color,
-							BorderColor3 = COLORS.background,
-							BorderSizePixel = 1,
-							Position = UDim2.fromOffset(
-								(sampleColumn - 1) * sampleWidth,
-								(sampleRow - 1) * sampleHeight
-							),
-							Size = UDim2.fromOffset(math.ceil(sampleWidth), math.ceil(sampleHeight)),
-						}, previewCanvas)
-					end
-				end
-			end
-		end
 		if activeMode == "Stage" then
 			local previewCanvas = stagePage:FindFirstChild("LevelPreviewCanvas", true)
 			if previewCanvas ~= nil and previewCanvas:IsA("Frame") then
@@ -5358,17 +4316,17 @@ function rerenderAll()
 	flowRuntime.refreshStageSelector()
 	renderCanvas()
 	renderStageList()
-	renderGraphList()
 	if activeMode == "Graph" then
 		flowRuntime.render()
 	end
 	renderIslandOutlines()
 	applyResponsiveShell()
 	if activeMode == "Graph" or activeMode == "Paint" then
-		rebuildPreview()
+		renderWorkspacePreview()
 	else
-		clearPreview()
+		workspacePreview:clear()
 	end
+	flowRuntime.refreshRecoveryBanner()
 end
 renderAll = rerenderAll
 headerValidation.Activated:Connect(function()
@@ -5382,6 +4340,10 @@ UserInputService.InputBegan:Connect(function(input)
 		or not widget.Enabled
 		or input.UserInputType ~= Enum.UserInputType.MouseButton1
 	then
+		return
+	end
+	if not ProjectStore.isWritable() then
+		flowRuntime.reportBlocked("Paint and route editing")
 		return
 	end
 	local position = Vector2.new(input.Position.X, input.Position.Y)
@@ -5403,6 +4365,9 @@ UserInputService.InputChanged:Connect(function(input)
 	then
 		return
 	end
+	if not ProjectStore.isWritable() then
+		return
+	end
 	local position = Vector2.new(input.Position.X, input.Position.Y)
 	if paintRuntime.mode == "Route" then
 		local routeDragActive = paintRuntime.routeDraggingNodeId ~= nil
@@ -5410,7 +4375,7 @@ UserInputService.InputChanged:Connect(function(input)
 			or paintRuntime.routeDraggingHandle ~= nil
 		if routeDragActive and not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
 			if paintRuntime.routeDragMoved then
-				ProjectStore.finish(true)
+				finishRouteDragTransaction(true)
 			end
 			paintRuntime.routeDraggingNodeId = nil
 			paintRuntime.routeDraggingEdgeId = nil
@@ -5438,11 +4403,15 @@ UserInputService.InputChanged:Connect(function(input)
 		end
 		if routeDragActive and not paintRuntime.routeDragMoved then
 			paintRuntime.routeDragMoved = true
-			ProjectStore.begin(
+			paintRuntime.routeDragTransaction = ProjectStore.begin(
 				if paintRuntime.routeDraggingNodeId ~= nil
 					then "Move Stagewright route node"
 					else "Shape Stagewright route spline"
 			)
+			if paintRuntime.routeDragTransaction == nil then
+				paintRuntime.routeDragMoved = false
+				return
+			end
 		end
 		if paintRuntime.routeDraggingEdgeId ~= nil and paintRuntime.routeDraggingHandle ~= nil then
 			local localPosition = paintRuntime.localPositionAt(position)
@@ -5495,6 +4464,17 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 UserInputService.InputEnded:Connect(function(input)
+	if not ProjectStore.isWritable() then
+		painting = false
+		paintRuntime.routeDraggingNodeId = nil
+		paintRuntime.routeDraggingEdgeId = nil
+		paintRuntime.routeDraggingHandle = nil
+		paintRuntime.routeDragStartScreen = nil
+		paintRuntime.routeDragMoved = false
+		finishPaintTransaction(false)
+		finishRouteDragTransaction(false)
+		return
+	end
 	if
 		input.UserInputType == Enum.UserInputType.MouseButton1
 		and (
@@ -5508,7 +4488,7 @@ UserInputService.InputEnded:Connect(function(input)
 		paintRuntime.routeDraggingHandle = nil
 		paintRuntime.routeDragStartScreen = nil
 		if paintRuntime.routeDragMoved then
-			ProjectStore.finish(true)
+			finishRouteDragTransaction(true)
 			setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
 		else
 			setStatus("Route item selected. Hold and drag to move it.")
@@ -5543,7 +4523,7 @@ UserInputService.InputEnded:Connect(function(input)
 			renderCanvas()
 		end
 		painting = false
-		ProjectStore.finish(true)
+		finishPaintTransaction(true)
 		setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
 	end
 end)
@@ -5583,6 +4563,10 @@ do
 		true
 	)
 	action.Triggered:Connect(function()
+		if not ProjectStore.isWritable() then
+			flowRuntime.reportBlocked("Focus authoring area")
+			return
+		end
 		AuthoringArea.focus()
 	end)
 end
@@ -5595,6 +4579,10 @@ do
 		true
 	)
 	action.Triggered:Connect(function()
+		if not ProjectStore.isWritable() then
+			flowRuntime.reportBlocked("Island guides")
+			return
+		end
 		islandOutlinesEnabled = not islandOutlinesEnabled
 		islandGuideButton.Text = "Guides"
 		renderIslandOutlines()
@@ -5638,6 +4626,9 @@ widget:GetPropertyChangedSignal("Enabled"):Connect(function()
 	openButton:SetActive(widget.Enabled)
 	if widget.Enabled then
 		rerenderAll()
+	else
+		workspacePreview:cancelInteraction()
+		workspacePreview:clear()
 	end
 end)
 Selection.SelectionChanged:Connect(function()
@@ -5655,31 +4646,69 @@ Selection.SelectionChanged:Connect(function()
 		selectedEdgeId = nil
 		tracedEdgeIds = {}
 		renderAll()
+		local replacement = workspacePreview:nodePart(nodeId)
+		if replacement ~= nil then
+			Selection:Set({ replacement })
+		end
 	elseif type(edgeId) == "string" and edgeId ~= selectedEdgeId then
 		selectedEdgeId = edgeId
 		selectedNodeId = nil
 		tracedEdgeIds = {}
 		renderAll()
+		local replacement = workspacePreview:edgePart(edgeId)
+		if replacement ~= nil then
+			Selection:Set({ replacement })
+		end
 	end
 end)
 plugin.Unloading:Connect(function()
-	ProjectStore.cleanup()
+	workspacePreview:destroy()
 	routeOverview:destroy()
 	if flowRuntime.view ~= nil then
 		flowRuntime.view:destroy()
 	end
-	clearPreview()
+	ProjectStore.cleanup()
 	AuthoringArea.clearIslandOutlines()
 end)
 ProjectStore.observe(function()
+	pendingConfirmation = nil
+	painting = false
+	paintTransaction = nil
+	paintRuntime.routeDraggingNodeId = nil
+	paintRuntime.routeDraggingEdgeId = nil
+	paintRuntime.routeDraggingHandle = nil
+	paintRuntime.routeDragStartScreen = nil
+	paintRuntime.routeDragMoved = false
+	paintRuntime.routeDragTransaction = nil
+	gridCanvas:SetAttribute("RectangleColumn", nil)
+	gridCanvas:SetAttribute("RectangleRow", nil)
+	workspacePreview:cancelInteraction()
+	flowRuntime.cancelInteraction()
+	if not ProjectStore.isWritable() then
+		workspacePreview:setEnabled(false)
+		AuthoringArea.clearIslandOutlines()
+	else
+		workspacePreview:clear()
+	end
 	project = ProjectStore.get()
 	stageIds = ProjectStore.stageIds()
 	if project.stages[selectedStageId] == nil then
 		selectedStageId = project.startingStageId or stageIds[1]
 	end
-	setStatus("Undo/redo synchronized from the saved working copy.")
+	local recoveryMessage = ProjectStore.recoveryMessage()
+	setStatus(
+		if recoveryMessage ~= nil
+			then `Recovery mode - {recoveryMessage}`
+			else "Undo/redo synchronized from the saved working copy.",
+		recoveryMessage ~= nil
+	)
 	rerenderAll()
 end)
 
-setStatus(`Working changes - {ProjectStore.save()}`)
-rerenderAll()
+local initialRecoveryMessage = ProjectStore.recoveryMessage()
+setStatus(
+	if initialRecoveryMessage ~= nil
+		then `Recovery mode - {initialRecoveryMessage}`
+		else `Working copy loaded - {ProjectStore.workingChecksum()}`,
+	initialRecoveryMessage ~= nil
+)

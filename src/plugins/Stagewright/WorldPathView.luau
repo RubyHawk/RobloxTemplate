@@ -59,6 +59,7 @@ export type Controller = {
 	connections: { RBXScriptConnection },
 	render: (Controller, any?, any?, any?, string?, string?, { [string]: boolean }) -> (),
 	rerender: (Controller) -> (),
+	cancelInteraction: (Controller) -> (),
 	destroy: (Controller) -> (),
 }
 
@@ -282,6 +283,16 @@ local function displayName(node: any?): string
 	return if node ~= nil and type(node.name) == "string" then node.name else "Missing node"
 end
 
+function WorldPathView.cancelInteraction(self: Controller)
+	self.dragKind = nil
+	self.dragId = nil
+	self.dragHandle = nil
+	self.dragStartScreen = nil
+	self.dragMoved = false
+	self.lastDragRenderAt = 0
+	self.lastDragValue = nil
+end
+
 function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks): Controller
 	local root = create("Frame", {
 		Active = true,
@@ -335,12 +346,7 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 	end
 
 	local function resetDrag()
-		self.dragKind = nil
-		self.dragId = nil
-		self.dragHandle = nil
-		self.dragStartScreen = nil
-		self.dragMoved = false
-		self.lastDragValue = nil
+		self:cancelInteraction()
 	end
 
 	local function updateDrag(pointer: Vector2): boolean
@@ -1142,6 +1148,7 @@ function WorldPathView.rerender(self: Controller)
 end
 
 function WorldPathView.destroy(self: Controller)
+	self:cancelInteraction()
 	for _, connection in self.connections do
 		connection:Disconnect()
 	end

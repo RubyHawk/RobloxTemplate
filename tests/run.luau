@@ -18,6 +18,7 @@ local StageStarterProject = require("../src/shared/StageStarterProject")
 local StageExport = require("../src/shared/StageExport")
 local StageTrace = require("../src/shared/StageTrace")
 local PaintBrushes = require("../src/plugins/Stagewright/Paint/Brushes")
+local ProjectLoadPolicy = require("../src/plugins/Stagewright/Persistence/ProjectLoadPolicy")
 local StageSettings = require("../src/plugins/Stagewright/Stage/Settings")
 local DataStoreNames = require("../src/shared/DataStoreNames")
 local DataStoreKeys = require("../src/shared/DataStoreKeys")
@@ -143,6 +144,9 @@ do
 	expectEqual(#payloadChunks, 3, "large Stagewright payload splits below the StringValue limit")
 	expectEqual(#payloadChunks[1], 180_000, "Stagewright payload chunk uses the safe byte limit")
 	local payloadManifest = StagePayload.manifest("fnv1a32-deadbeef", #payloadChunks, #largePayload)
+	local oversizedManifestAccepted =
+		pcall(StagePayload.manifest, "fnv1a32-deadbeef", 1, StagePayload.MAX_PAYLOAD_SIZE + 1)
+	expectEqual(oversizedManifestAccepted, false, "oversized Stagewright payload manifests are rejected")
 	local parsedPayloadManifest = StagePayload.parseManifest(payloadManifest)
 	expectEqual(parsedPayloadManifest ~= nil, true, "Stagewright chunk manifest parses")
 	expectEqual(
@@ -166,6 +170,599 @@ do
 		nil,
 		"impossible Stagewright chunk count is rejected before allocation"
 	)
+end
+
+do
+	local StagePayload = require("../src/shared/StagePayload")
+
+	local function decodeJson(encoded: string): any
+		return serde.decode("json", encoded)
+	end
+
+	local function snapshotFingerprint(snapshot: any): string
+		return StageSchema.encodeCanonical(snapshot)
+	end
+
+	local function directSnapshot(encoded: string): any
+		return {
+			containerState = "Present",
+			containerClassName = "Folder",
+			valueState = "Present",
+			valueClassName = "StringValue",
+			value = encoded,
+			chunksState = "Missing",
+			chunks = {},
+		}
+	end
+
+	local function planWithoutMutation(snapshot: any, label: string): any
+		local before = snapshotFingerprint(snapshot)
+		local result = ProjectLoadPolicy.plan(snapshot, decodeJson)
+		expectEqual(snapshotFingerprint(snapshot), before, `{label} preserves the complete input snapshot`)
+		return result
+	end
+
+	local function expectCorrupt(snapshot: any, code: string, label: string): any
+		local result = planWithoutMutation(snapshot, label)
+		expectEqual(result.kind, "Corrupt", `{label} is classified as corrupt`)
+		expectEqual(result.code, code, `{label} reports {code}`)
+		return result
+	end
+
+	local function cloneJson(value: any): any
+		return serde.decode("json", StageSchema.encodeCanonical(value))
+	end
+
+	local starterGuid = 0
+	local renderableProject = StageStarterProject.build(1, function(prefix: string): string
+		starterGuid += 1
+		return `{prefix}_{starterGuid}`
+	end, "stage_renderable", "stage_group_renderable")
+	local currentProject = cloneJson(renderableProject)
+	currentProject.unknownProjectField = { preserved = true }
+	local currentEncoded = StageSchema.encodeCanonical(currentProject)
+	local currentChecksum = StageSchema.checksum(currentProject)
+	local readySnapshot = directSnapshot(currentEncoded)
+	readySnapshot.workingChecksumAttribute = currentChecksum
+	readySnapshot.schemaVersionAttribute = StageSchema.AUTHORING_VERSION
+	local ready = planWithoutMutation(readySnapshot, "current direct payload")
+	expectEqual(ready.kind, "Ready", "current authoring schema is ready without migration")
+	expectEqual(ready.sourceVersion, StageSchema.AUTHORING_VERSION, "ready payload reports its source schema")
+	expectEqual(ready.persistedChecksum, currentChecksum, "ready payload reports the persisted checksum")
+	expectEqual(
+		ready.project.unknownProjectField.preserved,
+		true,
+		"ready payload preserves unknown project fields"
+	)
+	local missingSchemaAttribute = planWithoutMutation(
+		directSnapshot(currentEncoded),
+		"backward-compatible store without root schema attribute"
+	)
+	expectEqual(
+		missingSchemaAttribute.kind,
+		"Ready",
+		"embedded payload schema stays authoritative when legacy root metadata is absent"
+	)
+	local mismatchedSchemaAttribute = directSnapshot(currentEncoded)
+	mismatchedSchemaAttribute.schemaVersionAttribute = StageSchema.AUTHORING_VERSION - 1
+	expectCorrupt(mismatchedSchemaAttribute, "SchemaVersionMismatch", "root schema attribute mismatch")
+	local invalidSchemaAttribute = directSnapshot(currentEncoded)
+	invalidSchemaAttribute.schemaVersionAttribute = "three"
+	expectCorrupt(invalidSchemaAttribute, "InvalidSchemaAttribute", "invalid root schema attribute")
+	local renderableReady = planWithoutMutation(
+		directSnapshot(StageSchema.encodeCanonical(renderableProject)),
+		"renderable current project"
+	)
+	expectEqual(renderableReady.kind, "Ready", "complete current project shape is ready")
+	local repositoryProjectReady = planWithoutMutation(
+		directSnapshot(fs.readFile("stage-data/stagewright-project.json")),
+		"repository Stagewright project"
+	)
+	expectEqual(
+		repositoryProjectReady.kind,
+		"Ready",
+		"repository Stagewright authoring data satisfies the safe editor shape"
+	)
+
+	local malformedStageMap = {
+		schemaVersion = StageSchema.AUTHORING_VERSION,
+		startingStageId = "bad",
+		stages = { bad = "not a stage" },
+	}
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(malformedStageMap)),
+		"InvalidProjectShape",
+		"current project with a non-table stage"
+	)
+	local malformedProjectMetadata = cloneJson(renderableProject)
+	malformedProjectMetadata.metadata = "not metadata"
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(malformedProjectMetadata)),
+		"InvalidProjectShape",
+		"current project with non-table root metadata"
+	)
+	local malformedModifier = cloneJson(renderableProject)
+	malformedModifier.stages[malformedModifier.startingStageId].modifierIds = { "double_health", 42 }
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(malformedModifier)),
+		"InvalidProjectShape",
+		"current project with a non-string modifier ID"
+	)
+	local mappedModifiers = cloneJson(renderableProject)
+	mappedModifiers.stages[mappedModifiers.startingStageId].modifierIds = { primary = "double_health" }
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(mappedModifiers)),
+		"InvalidProjectShape",
+		"current project with a mapped modifier collection"
+	)
+	local malformedUnlockAmount = cloneJson(renderableProject)
+	malformedUnlockAmount.stages[malformedUnlockAmount.startingStageId].unlockRequirements = {
+		{ kind = "CurrencyAtLeast", currencyId = "coins", amount = "many" },
+	}
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(malformedUnlockAmount)),
+		"InvalidProjectShape",
+		"current project with a non-numeric currency unlock amount"
+	)
+	local unknownUnlockKind = cloneJson(renderableProject)
+	unknownUnlockKind.stages[unknownUnlockKind.startingStageId].unlockRequirements = {
+		{ kind = "AlwaysUnlocked" },
+	}
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(unknownUnlockKind)),
+		"InvalidProjectShape",
+		"current project with an unknown unlock requirement kind"
+	)
+	local mappedUnlockRequirements = cloneJson(renderableProject)
+	mappedUnlockRequirements.stages[mappedUnlockRequirements.startingStageId].unlockRequirements = {
+		gate = { kind = "StageUnlocked", stageId = renderableProject.startingStageId },
+	}
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(mappedUnlockRequirements)),
+		"InvalidProjectShape",
+		"current project with a mapped unlock requirement collection"
+	)
+	local missingGrid = serde.decode("json", StageSchema.encodeCanonical(renderableProject))
+	missingGrid.stages[missingGrid.startingStageId].grid = nil
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(missingGrid)),
+		"InvalidProjectShape",
+		"current project with a missing grid"
+	)
+	local malformedGraph = serde.decode("json", StageSchema.encodeCanonical(renderableProject))
+	malformedGraph.stages[malformedGraph.startingStageId].pathGraphs = { bad = "not a graph" }
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(malformedGraph)),
+		"InvalidProjectShape",
+		"current project with a malformed graph"
+	)
+
+	-- ProjectStore.createStage clones an existing definition and deleteStage preserves the final one,
+	-- so persisted editable projects must uphold the same nonempty-stage invariant.
+	local emptyCurrentProject = {
+		schemaVersion = StageSchema.AUTHORING_VERSION,
+		startingStageId = "",
+		stages = {},
+	}
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(emptyCurrentProject)),
+		"InvalidProjectShape",
+		"current project without a source stage"
+	)
+	local danglingStartingStage = cloneJson(renderableProject)
+	danglingStartingStage.startingStageId = "stage_missing"
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(danglingStartingStage)),
+		"InvalidProjectShape",
+		"current project with a dangling starting stage"
+	)
+
+	local malformedDefaultRoles = cloneJson(renderableProject)
+	malformedDefaultRoles.stages[malformedDefaultRoles.startingStageId].grid.defaultCell.roles = "EnemySpawn"
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(malformedDefaultRoles)),
+		"InvalidProjectShape",
+		"current project with non-table default cell roles"
+	)
+	local malformedDefaultMetadata = cloneJson(renderableProject)
+	malformedDefaultMetadata.stages[malformedDefaultMetadata.startingStageId].grid.defaultCell.metadata =
+		"not metadata"
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(malformedDefaultMetadata)),
+		"InvalidProjectShape",
+		"current project with non-table default cell metadata"
+	)
+
+	local function firstValue(values: any): any
+		for _, value in values do
+			return value
+		end
+		error("expected a populated fixture map")
+	end
+
+	local hugeCoordinate = cloneJson(renderableProject)
+	local hugeStage = hugeCoordinate.stages[hugeCoordinate.startingStageId]
+	firstValue(firstValue(hugeStage.pathGraphs).nodes).position.x = 1e200
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(hugeCoordinate)),
+		"InvalidProjectShape",
+		"current project with a finite but unsafe graph coordinate"
+	)
+	local mappedNodeTags = cloneJson(renderableProject)
+	local mappedTagsStage = mappedNodeTags.stages[mappedNodeTags.startingStageId]
+	firstValue(firstValue(mappedTagsStage.pathGraphs).nodes).tags = { role = "Spawn" }
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(mappedNodeTags)),
+		"InvalidProjectShape",
+		"current project with a mapped node tag collection"
+	)
+	local mappedLaneOffsets = cloneJson(renderableProject)
+	local mappedOffsetsStage = mappedLaneOffsets.stages[mappedLaneOffsets.startingStageId]
+	firstValue(firstValue(mappedOffsetsStage.pathGraphs).laneProfiles).offsets = { center = 0 }
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(mappedLaneOffsets)),
+		"InvalidProjectShape",
+		"current project with a mapped lane offset collection"
+	)
+	local unsafeRouteRadius = cloneJson(renderableProject)
+	local unsafeRadiusStage = unsafeRouteRadius.stages[unsafeRouteRadius.startingStageId]
+	firstValue(firstValue(unsafeRadiusStage.pathGraphs).laneProfiles).clearanceRadius = unsafeRadiusStage.grid.cellSize
+		* 65
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(unsafeRouteRadius)),
+		"InvalidProjectShape",
+		"current project with a route mask radius too large for its grid cells"
+	)
+
+	local function projectWithPredicate(predicate: any): any
+		local value = cloneJson(renderableProject)
+		local stage = value.stages[value.startingStageId]
+		firstValue(firstValue(stage.pathGraphs).edges).predicates = { predicate }
+		return value
+	end
+	local mappedPredicates = cloneJson(renderableProject)
+	local mappedPredicateStage = mappedPredicates.stages[mappedPredicates.startingStageId]
+	firstValue(firstValue(mappedPredicateStage.pathGraphs).edges).predicates = {
+		rule = { kind = "WaveRange", minimum = 1, maximum = 10 },
+	}
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(mappedPredicates)),
+		"InvalidProjectShape",
+		"current project with a mapped predicate collection"
+	)
+
+	local malformedPredicateCases: { any } = {
+		{ predicate = { kind = "WaveRange", minimum = "5" }, label = "string wave minimum" },
+		{ predicate = { kind = "WaveRange", maximum = "10" }, label = "string wave maximum" },
+		{
+			predicate = { kind = "StageFlagEquals", key = 7, value = true },
+			label = "non-string stage flag key",
+		},
+		{
+			predicate = { kind = "StageFlagEquals", key = "boss", value = "true" },
+			label = "non-boolean stage flag value",
+		},
+		{ predicate = { kind = "EnemyTag", tag = 7 }, label = "non-string enemy tag" },
+		{
+			predicate = { kind = "VisitCountBelow", nodeId = 7, maximum = 3 },
+			label = "non-string visit node ID",
+		},
+		{
+			predicate = { kind = "VisitCountBelow", nodeId = "spawn", maximum = "3" },
+			label = "non-numeric visit maximum",
+		},
+		{ predicate = { kind = "StageUnlocked", stageId = 7 }, label = "non-string stage ID" },
+		{
+			predicate = { kind = "UpgradeLevelAtLeast", upgradeId = 7, level = 4 },
+			label = "non-string upgrade ID",
+		},
+		{
+			predicate = { kind = "UpgradeLevelAtLeast", upgradeId = "range", level = "4" },
+			label = "non-numeric upgrade level",
+		},
+		{
+			predicate = { kind = "CurrencyAtLeast", currencyId = 7, amount = 250 },
+			label = "non-string currency ID",
+		},
+		{
+			predicate = { kind = "CurrencyAtLeast", currencyId = "coins", amount = "250" },
+			label = "non-numeric currency amount",
+		},
+	}
+	for _, case in malformedPredicateCases do
+		expectCorrupt(
+			directSnapshot(StageSchema.encodeCanonical(projectWithPredicate(case.predicate))),
+			"InvalidProjectShape",
+			case.label
+		)
+	end
+
+	local missingContainer = directSnapshot("")
+	missingContainer.containerState = "Missing"
+	missingContainer.containerClassName = nil
+	missingContainer.valueState = "Missing"
+	missingContainer.valueClassName = nil
+	missingContainer.value = nil
+	local initialize = planWithoutMutation(missingContainer, "missing project container")
+	expectEqual(initialize.kind, "Initialize", "only a missing project container initializes new storage")
+
+	local missingPayload = directSnapshot(currentEncoded)
+	missingPayload.valueState = "Missing"
+	missingPayload.valueClassName = nil
+	missingPayload.value = nil
+	expectCorrupt(missingPayload, "MissingPayload", "missing payload value")
+	expectCorrupt(directSnapshot(""), "EmptyPayload", "empty payload value")
+
+	local invalidContainer = directSnapshot(currentEncoded)
+	invalidContainer.containerState = "Invalid"
+	invalidContainer.containerClassName = "Model"
+	expectCorrupt(invalidContainer, "InvalidContainer", "wrong-class project container")
+
+	local invalidValue = directSnapshot(currentEncoded)
+	invalidValue.valueState = "Invalid"
+	invalidValue.valueClassName = "Folder"
+	expectCorrupt(invalidValue, "InvalidPayloadValue", "wrong-class payload value")
+
+	expectCorrupt(directSnapshot("{not-json"), "InvalidJson", "malformed raw JSON")
+	expectCorrupt(directSnapshot("[]"), "InvalidProjectShape", "raw JSON without a stages map")
+
+	for _, case in
+		{
+			{ value = "three", label = "string schema version" },
+			{ value = -1, label = "negative schema version" },
+			{ value = 1.5, label = "fractional schema version" },
+		}
+	do
+		local encoded = StageSchema.encodeCanonical({ schemaVersion = case.value, stages = {} })
+		expectCorrupt(directSnapshot(encoded), "InvalidSchemaVersion", case.label)
+	end
+
+	local nanSchema = ProjectLoadPolicy.planEncoded("ignored", nil, function(_encoded: string): any
+		return { schemaVersion = 0 / 0, stages = {} }
+	end)
+	expectEqual(nanSchema.kind, "Corrupt", "non-finite schema version is corrupt")
+	expectEqual(nanSchema.code, "InvalidSchemaVersion", "non-finite schema version reports its cause")
+
+	local futureProject = {
+		schemaVersion = StageSchema.AUTHORING_VERSION + 1,
+		startingStageId = "",
+		stages = {},
+	}
+	local future = planWithoutMutation(
+		directSnapshot(StageSchema.encodeCanonical(futureProject)),
+		"future authoring schema"
+	)
+	expectEqual(future.kind, "UnsupportedFutureVersion", "future schema is preserved without migration")
+	expectEqual(
+		future.foundVersion,
+		StageSchema.AUTHORING_VERSION + 1,
+		"future schema reports the found version"
+	)
+	expectEqual(
+		future.supportedVersion,
+		StageSchema.AUTHORING_VERSION,
+		"future schema reports the supported version"
+	)
+
+	local unversionedProject = cloneJson(renderableProject)
+	unversionedProject.schemaVersion = nil
+	unversionedProject.unknownRoot = "keep"
+	local unversioned = planWithoutMutation(
+		directSnapshot(StageSchema.encodeCanonical(unversionedProject)),
+		"unversioned legacy project"
+	)
+	expectEqual(unversioned.kind, "LegacyMigratedInMemory", "unversioned project migrates in memory")
+	expectEqual(unversioned.sourceVersion, 0, "unversioned project reports schema zero")
+	expectEqual(unversioned.project.unknownRoot, "keep", "unversioned migration preserves unknown fields")
+
+	for _, version in { 0, 2 } do
+		local legacyProjectForVersion = cloneJson(renderableProject)
+		legacyProjectForVersion.schemaVersion = version
+		local legacy = planWithoutMutation(
+			directSnapshot(StageSchema.encodeCanonical(legacyProjectForVersion)),
+			`schema {version} legacy project`
+		)
+		expectEqual(legacy.kind, "LegacyMigratedInMemory", `schema {version} migrates in memory`)
+		expectEqual(legacy.sourceVersion, version, `schema {version} retains its source version`)
+		expectEqual(
+			legacy.project.schemaVersion,
+			StageSchema.AUTHORING_VERSION,
+			`schema {version} reaches the current authoring schema`
+		)
+	end
+
+	local legacyProject = {
+		schemaVersion = 1,
+		startingStageId = "legacy",
+		unknownRoot = { preserved = "root" },
+		stages = {
+			legacy = {
+				id = "legacy",
+				name = "Legacy",
+				waveSetId = "default",
+				themeId = "default",
+				displayOrder = 1,
+				unknownStage = { preserved = "stage" },
+				grid = {
+					columns = 1,
+					rows = 1,
+					cellSize = 4,
+					cells = {},
+					unknownGrid = { preserved = "grid" },
+				},
+				pathGraphs = {},
+			},
+		},
+	}
+	local migratedLegacy = planWithoutMutation(
+		directSnapshot(StageSchema.encodeCanonical(legacyProject)),
+		"schema one legacy project"
+	)
+	expectEqual(migratedLegacy.kind, "LegacyMigratedInMemory", "schema one project migrates in memory")
+	expectEqual(
+		migratedLegacy.project.unknownRoot.preserved,
+		"root",
+		"legacy migration preserves unknown root data"
+	)
+	expectEqual(
+		migratedLegacy.project.stages.legacy.unknownStage.preserved,
+		"stage",
+		"legacy migration preserves unknown stage data"
+	)
+	expectEqual(
+		migratedLegacy.project.stages.legacy.grid.unknownGrid.preserved,
+		"grid",
+		"legacy migration preserves unknown nested data"
+	)
+
+	local nestedMigrationFailure = {
+		schemaVersion = 1,
+		startingStageId = "broken",
+		stages = {
+			broken = {
+				id = "broken",
+				displayOrder = 1,
+				pathGraphs = {},
+			},
+		},
+	}
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(nestedMigrationFailure)),
+		"MigrationFailed",
+		"nested migration failure"
+	)
+
+	local largeProject = cloneJson(renderableProject)
+	largeProject.preservedBlob = string.rep("stagewright", StagePayload.CHUNK_SIZE / 5)
+	local largeEncoded = StageSchema.encodeCanonical(largeProject)
+	local largeChecksum = StageSchema.checksum(largeProject)
+	local largeChunks = StagePayload.split(largeEncoded)
+	expectEqual(#largeChunks > 1, true, "chunk policy fixture spans multiple chunks")
+
+	local function chunkedSnapshot(storedChecksum: string?): any
+		local checksum = storedChecksum or largeChecksum
+		local snapshot = directSnapshot(StagePayload.manifest(checksum, #largeChunks, #largeEncoded))
+		snapshot.chunksState = "Present"
+		snapshot.chunksClassName = "Folder"
+		snapshot.chunkCountAttribute = #largeChunks
+		snapshot.payloadLengthAttribute = #largeEncoded
+		snapshot.payloadChecksumAttribute = checksum
+		for index = #largeChunks, 1, -1 do
+			table.insert(snapshot.chunks, {
+				name = StagePayload.chunkName(index),
+				className = "StringValue",
+				value = largeChunks[index],
+			})
+		end
+		return snapshot
+	end
+
+	local shuffledChunks = planWithoutMutation(chunkedSnapshot(), "valid shuffled chunks")
+	expectEqual(shuffledChunks.kind, "Ready", "chunk order does not affect a valid payload")
+	expectEqual(
+		shuffledChunks.persistedChecksum,
+		largeChecksum,
+		"valid shuffled chunks retain their checksum"
+	)
+	expectEqual(
+		shuffledChunks.project.preservedBlob,
+		largeProject.preservedBlob,
+		"valid shuffled chunks reconstruct the exact project"
+	)
+
+	local missingChunksFolder = chunkedSnapshot()
+	missingChunksFolder.chunksState = "Missing"
+	missingChunksFolder.chunksClassName = nil
+	missingChunksFolder.chunks = {}
+	expectCorrupt(missingChunksFolder, "MissingChunks", "missing chunks folder")
+
+	local invalidChunksFolder = chunkedSnapshot()
+	invalidChunksFolder.chunksState = "Invalid"
+	invalidChunksFolder.chunksClassName = "Model"
+	expectCorrupt(invalidChunksFolder, "InvalidChunks", "wrong-class chunks folder")
+
+	local missingChunk = chunkedSnapshot()
+	table.remove(missingChunk.chunks, 1)
+	expectCorrupt(missingChunk, "MissingChunk", "missing indexed chunk")
+
+	local duplicateChunk = chunkedSnapshot()
+	table.insert(duplicateChunk.chunks, {
+		name = duplicateChunk.chunks[1].name,
+		className = "StringValue",
+		value = duplicateChunk.chunks[1].value,
+	})
+	expectCorrupt(duplicateChunk, "DuplicateChunk", "duplicate indexed chunk")
+
+	local extraChunk = chunkedSnapshot()
+	table.insert(extraChunk.chunks, {
+		name = StagePayload.chunkName(#largeChunks + 1),
+		className = "StringValue",
+		value = "extra",
+	})
+	expectCorrupt(extraChunk, "UnexpectedChunk", "extra indexed chunk")
+
+	local wrongClassChunk = chunkedSnapshot()
+	wrongClassChunk.chunks[1].className = "Folder"
+	expectCorrupt(wrongClassChunk, "InvalidChunkClass", "wrong-class chunk child")
+
+	local truncatedChunk = chunkedSnapshot()
+	for _, chunk in truncatedChunk.chunks do
+		if chunk.name == StagePayload.chunkName(1) then
+			chunk.value = string.sub(chunk.value, 1, #chunk.value - 1)
+			break
+		end
+	end
+	expectCorrupt(truncatedChunk, "InvalidChunkLength", "truncated non-final chunk")
+
+	local wrongStoredChecksum = "fnv1a32-deadbeef"
+	expectEqual(wrongStoredChecksum == largeChecksum, false, "checksum mismatch fixture differs from payload")
+	expectCorrupt(
+		chunkedSnapshot(wrongStoredChecksum),
+		"ChecksumMismatch",
+		"chunk manifest checksum mismatch"
+	)
+
+	local directChecksumMismatch = directSnapshot(currentEncoded)
+	directChecksumMismatch.workingChecksumAttribute = wrongStoredChecksum
+	expectCorrupt(directChecksumMismatch, "ChecksumMismatch", "direct payload checksum mismatch")
+
+	for _, case in
+		{
+			{ field = "chunkCountAttribute", value = #largeChunks + 1, label = "chunk-count metadata" },
+			{
+				field = "payloadLengthAttribute",
+				value = #largeEncoded + 1,
+				label = "payload-length metadata",
+			},
+			{
+				field = "payloadChecksumAttribute",
+				value = wrongStoredChecksum,
+				label = "payload-checksum metadata",
+			},
+		}
+	do
+		local metadataMismatch = chunkedSnapshot()
+		metadataMismatch[case.field] = case.value
+		expectCorrupt(metadataMismatch, "ChunkMetadataMismatch", case.label)
+	end
+
+	local malformedManifest =
+		directSnapshot(`{StagePayload.FORMAT}:{#largeChunks + 1}:{#largeEncoded}:{largeChecksum}`)
+	expectCorrupt(malformedManifest, "InvalidManifest", "malformed chunk manifest")
+
+	local invalidWorkingChecksum = directSnapshot(currentEncoded)
+	invalidWorkingChecksum.workingChecksumAttribute = 42
+	expectCorrupt(invalidWorkingChecksum, "InvalidWorkingChecksum", "non-string working checksum")
+
+	local unexpectedDirectChunks = directSnapshot(currentEncoded)
+	unexpectedDirectChunks.chunksState = "Present"
+	unexpectedDirectChunks.chunksClassName = "Folder"
+	table.insert(unexpectedDirectChunks.chunks, {
+		name = StagePayload.chunkName(1),
+		className = "StringValue",
+		value = "orphaned",
+	})
+	expectCorrupt(unexpectedDirectChunks, "UnexpectedChunks", "raw payload with orphaned chunks")
 end
 
 local normalizedCurrencies = CurrencyConfig.normalize({
@@ -911,129 +1508,199 @@ expectEqual(
 	true,
 	"shared tower-defense patch includes generated Stagewright runtime data"
 )
-local gridPluginProject = fs.readFile("plugins/grid-platform-editor.project.json")
-local gridPluginSource = fs.readFile("src/plugins/GridPlatformEditPlugin.server.luau")
-local gridPluginTopLevelLocals = 0
-for line in string.gmatch(gridPluginSource, "[^\r\n]+") do
-	if string.match(line, "^local%s+") ~= nil then
-		gridPluginTopLevelLocals += 1
-	end
-end
-expectEqual(
-	gridPluginTopLevelLocals <= 185,
-	true,
-	"Stagewright bootstrap stays below Studio's top-level local-register danger zone"
-)
-local stagewrightStoreSource = fs.readFile("src/plugins/Stagewright/ProjectStore.luau")
-	.. fs.readFile("src/shared/StagePayload.luau")
-	.. fs.readFile("src/plugins/Stagewright/RouteOverview.luau")
-local stagewrightAuthoringAreaSource = fs.readFile("src/plugins/Stagewright/AuthoringArea.luau")
-local stagewrightAppShellSource = fs.readFile("src/plugins/Stagewright/UI/AppShell.luau")
-local stagewrightThemeSource = fs.readFile("src/plugins/Stagewright/UI/Theme.luau")
-local stagewrightFactorySource = fs.readFile("src/plugins/Stagewright/UI/Factory.luau")
-local stagewrightHeaderControllerSource = fs.readFile("src/plugins/Stagewright/UI/HeaderController.luau")
-local stagewrightPaintAppearanceSource = fs.readFile("src/plugins/Stagewright/UI/PaintAppearance.luau")
-local stagewrightToolbarSource = fs.readFile("src/plugins/Stagewright/UI/Toolbar.luau")
-local stagewrightGraphOperationsSource = fs.readFile("src/plugins/Stagewright/Graph/Operations.luau")
-local stagewrightPredicateFieldsSource = fs.readFile("src/plugins/Stagewright/Graph/PredicateFields.luau")
-local stagewrightPaintBrushesSource = fs.readFile("src/plugins/Stagewright/Paint/Brushes.luau")
-local stagewrightStageSettingsSource = fs.readFile("src/plugins/Stagewright/Stage/Settings.luau")
-local stagewrightIssueModelSource = fs.readFile("src/plugins/Stagewright/Validation/IssueModel.luau")
-local stagewrightUiSource = stagewrightAppShellSource
-	.. stagewrightThemeSource
-	.. stagewrightFactorySource
-	.. stagewrightHeaderControllerSource
-	.. stagewrightPaintAppearanceSource
-	.. stagewrightToolbarSource
-local stagewrightGraphSource = stagewrightGraphOperationsSource .. stagewrightPredicateFieldsSource
-local stagewrightPaintSource = stagewrightPaintBrushesSource
-local stagewrightStageSource = stagewrightStageSettingsSource
-expectCompiles(gridPluginSource, "modern Stagewright plugin shell compiles as Luau")
-expectCompiles(stagewrightAppShellSource, "Stagewright app shell compiles as Luau")
-expectCompiles(stagewrightThemeSource, "Stagewright UI theme compiles as Luau")
-expectCompiles(stagewrightFactorySource, "Stagewright UI factory compiles as Luau")
-expectCompiles(stagewrightHeaderControllerSource, "Stagewright header controller compiles as Luau")
-expectCompiles(stagewrightPaintAppearanceSource, "Stagewright paint appearance compiles as Luau")
-expectCompiles(stagewrightToolbarSource, "Stagewright toolbar compiles as Luau")
-expectCompiles(stagewrightGraphOperationsSource, "Stagewright graph operations compile as Luau")
-expectCompiles(stagewrightPredicateFieldsSource, "Stagewright predicate fields compile as Luau")
-expectCompiles(stagewrightPaintBrushesSource, "Stagewright paint brushes compile as Luau")
-expectCompiles(stagewrightStageSettingsSource, "Stagewright stage settings compile as Luau")
-expectCompiles(stagewrightIssueModelSource, "Stagewright validation issue model compiles as Luau")
-expectEqual(
-	string.find(stagewrightToolbarSource, "resolvedOffsetX -= padding.PaddingLeft.Offset", 1, true) ~= nil,
-	true,
-	"Stagewright toolbar icons compensate for padded button coordinates"
-)
-expectEqual(
-	string.find(stagewrightAppShellSource, 'Name = "PopupLayer"', 1, true) ~= nil
-		and string.find(stagewrightHeaderControllerSource, "config.popupLayer", 1, true) ~= nil
-		and string.find(stagewrightHeaderControllerSource, "stageDropdown.Visible = false", 1, true)
-			~= nil,
-	true,
-	"Stagewright header menus use an interactive overlay and close competing popovers"
-)
-expectEqual(
-	string.find(gridPluginSource, "require(script.UI.AppShell)", 1, true) ~= nil
-		and string.find(gridPluginSource, "require(script.UI.Theme)", 1, true) ~= nil
-		and string.find(gridPluginSource, "require(script.Graph.Operations)", 1, true) ~= nil,
-	true,
-	"Stagewright bootstrap composes dedicated UI and graph modules"
-)
-for _, forbiddenDependency in { "ProjectStore", "Workspace", "TextButton", "GuiObject" } do
-	expectEqual(
-		string.find(stagewrightGraphSource, forbiddenDependency, 1, true),
-		nil,
-		`Stagewright graph domain stays independent from {forbiddenDependency}`
-	)
-end
-for _, forbiddenDependency in { "ProjectStore", "Workspace", "TextButton", "Instance.new", "UI.Theme" } do
-	expectEqual(
-		string.find(stagewrightPaintSource, forbiddenDependency, 1, true),
-		nil,
-		`Stagewright paint domain stays independent from {forbiddenDependency}`
-	)
-end
-for _, forbiddenDependency in { "ProjectStore", "Workspace", "TextButton", "Instance.new", "UI.Theme" } do
-	expectEqual(
-		string.find(stagewrightStageSource, forbiddenDependency, 1, true),
-		nil,
-		`Stagewright stage settings stay independent from {forbiddenDependency}`
-	)
-end
-for _, forbiddenDependency in { "ProjectStore", "ServerStorage", "StagePayload", "Graph.Operations" } do
-	expectEqual(
-		string.find(stagewrightUiSource, forbiddenDependency, 1, true),
-		nil,
-		`Stagewright UI primitives stay independent from {forbiddenDependency}`
-	)
-end
-for _, forbiddenDependency in { "ProjectStore", "Workspace", "TextButton", "Instance.new" } do
-	expectEqual(
-		string.find(stagewrightIssueModelSource, forbiddenDependency, 1, true),
-		nil,
-		`Stagewright validation model stays independent from {forbiddenDependency}`
-	)
-end
-local gridPluginLineCount = 0
-for _ in string.gmatch(gridPluginSource, "[^\r\n]+") do
-	gridPluginLineCount += 1
-end
-expectEqual(gridPluginLineCount <= 6400, true, "Stagewright bootstrap does not absorb extracted module code")
 do
-	local routeOverviewSource = fs.readFile("src/plugins/Stagewright/RouteOverview.luau")
-	expectCompiles(routeOverviewSource, "Stagewright 2D route overview compiles as Luau")
+	local gridPluginProject = fs.readFile("plugins/grid-platform-editor.project.json")
+	local gridPluginSource = fs.readFile("src/plugins/GridPlatformEditPlugin.server.luau")
+	local stagewrightProjectStoreSource = fs.readFile("src/plugins/Stagewright/ProjectStore.luau")
+	local stagewrightAuthoringAreaSource = fs.readFile("src/plugins/Stagewright/AuthoringArea.luau")
+	local stagewrightStorageSource = fs.readFile("src/plugins/Stagewright/Persistence/ProjectStorage.luau")
+	local stagewrightWorkspacePreviewSource = fs.readFile("src/plugins/Stagewright/WorkspacePreview.luau")
+	local stagewrightRouteOverviewSource = fs.readFile("src/plugins/Stagewright/RouteOverview.luau")
+	local stagewrightWorldPathSource = fs.readFile("src/plugins/Stagewright/WorldPathView.luau")
+	local stagewrightAppShellSource = fs.readFile("src/plugins/Stagewright/UI/AppShell.luau")
+	local stagewrightThemeSource = fs.readFile("src/plugins/Stagewright/UI/Theme.luau")
+	local stagewrightFactorySource = fs.readFile("src/plugins/Stagewright/UI/Factory.luau")
+	local stagewrightHeaderControllerSource = fs.readFile("src/plugins/Stagewright/UI/HeaderController.luau")
+	local stagewrightPaintAppearanceSource = fs.readFile("src/plugins/Stagewright/UI/PaintAppearance.luau")
+	local stagewrightToolbarSource = fs.readFile("src/plugins/Stagewright/UI/Toolbar.luau")
+	local stagewrightGraphOperationsSource = fs.readFile("src/plugins/Stagewright/Graph/Operations.luau")
+	local stagewrightPredicateFieldsSource = fs.readFile("src/plugins/Stagewright/Graph/PredicateFields.luau")
+	local stagewrightPaintBrushesSource = fs.readFile("src/plugins/Stagewright/Paint/Brushes.luau")
+	local stagewrightStageSettingsSource = fs.readFile("src/plugins/Stagewright/Stage/Settings.luau")
+	local stagewrightIssueModelSource = fs.readFile("src/plugins/Stagewright/Validation/IssueModel.luau")
+	local stagewrightUiSource = stagewrightAppShellSource
+		.. stagewrightThemeSource
+		.. stagewrightFactorySource
+		.. stagewrightHeaderControllerSource
+		.. stagewrightPaintAppearanceSource
+		.. stagewrightToolbarSource
+	local stagewrightGraphSource = stagewrightGraphOperationsSource .. stagewrightPredicateFieldsSource
+	local stagewrightPaintSource = stagewrightPaintBrushesSource
+	local stagewrightStageSource = stagewrightStageSettingsSource
+	expectCompiles(gridPluginSource, "modern Stagewright plugin shell compiles as Luau")
+	expectCompiles(stagewrightProjectStoreSource, "Stagewright project store compiles as Luau")
+	expectCompiles(stagewrightStorageSource, "Stagewright storage adapter compiles as Luau")
+	expectCompiles(stagewrightWorkspacePreviewSource, "Stagewright Workspace preview compiles as Luau")
+	expectCompiles(stagewrightRouteOverviewSource, "Stagewright 2D route overview compiles as Luau")
+	expectCompiles(stagewrightWorldPathSource, "Stagewright real-world path view compiles as Luau")
+	expectCompiles(stagewrightAppShellSource, "Stagewright app shell compiles as Luau")
+	expectCompiles(stagewrightThemeSource, "Stagewright UI theme compiles as Luau")
+	expectCompiles(stagewrightFactorySource, "Stagewright UI factory compiles as Luau")
+	expectCompiles(stagewrightHeaderControllerSource, "Stagewright header controller compiles as Luau")
+	expectCompiles(stagewrightPaintAppearanceSource, "Stagewright paint appearance compiles as Luau")
+	expectCompiles(stagewrightToolbarSource, "Stagewright toolbar compiles as Luau")
+	expectCompiles(stagewrightGraphOperationsSource, "Stagewright graph operations compile as Luau")
+	expectCompiles(stagewrightPredicateFieldsSource, "Stagewright predicate fields compile as Luau")
+	expectCompiles(stagewrightPaintBrushesSource, "Stagewright paint brushes compile as Luau")
+	expectCompiles(stagewrightStageSettingsSource, "Stagewright stage settings compile as Luau")
+	expectCompiles(stagewrightIssueModelSource, "Stagewright validation issue model compiles as Luau")
+	expectEqual(
+		string.find(stagewrightToolbarSource, "resolvedOffsetX -= padding.PaddingLeft.Offset", 1, true) ~= nil,
+		true,
+		"Stagewright toolbar icons compensate for padded button coordinates"
+	)
+	expectEqual(
+		string.find(stagewrightAppShellSource, 'Name = "PopupLayer"', 1, true) ~= nil
+			and string.find(stagewrightHeaderControllerSource, "config.popupLayer", 1, true) ~= nil
+			and string.find(stagewrightHeaderControllerSource, "stageDropdown.Visible = false", 1, true)
+				~= nil,
+		true,
+		"Stagewright header menus use an interactive overlay and close competing popovers"
+	)
+	expectEqual(
+		string.find(gridPluginSource, "require(script.UI.AppShell)", 1, true) ~= nil
+			and string.find(gridPluginSource, "require(script.UI.Theme)", 1, true) ~= nil
+			and string.find(gridPluginSource, "require(script.Graph.Operations)", 1, true) ~= nil
+			and string.find(gridPluginSource, "require(script.WorkspacePreview)", 1, true) ~= nil,
+		true,
+		"Stagewright bootstrap composes dedicated UI, graph, and Workspace preview modules"
+	)
+	for _, forbiddenDependency in { "ServerStorage", "Instance.new", "GetAttributeChangedSignal(" } do
+		expectEqual(
+			string.find(stagewrightProjectStoreSource, forbiddenDependency, 1, true),
+			nil,
+			`Stagewright project store delegates {forbiddenDependency} access to its storage adapter`
+		)
+	end
+	for _, storageBoundaryCall in
+		{
+			"ProjectStorage.projectSnapshot()",
+			"ProjectStorage.writeProject(",
+			"ProjectStorage.refreshRelevantConnections(",
+			"ProjectStorage.disconnectRelevantConnections()",
+		}
+	do
+		expectEqual(
+			string.find(stagewrightProjectStoreSource, storageBoundaryCall, 1, true) ~= nil,
+			true,
+			`Stagewright project store delegates through {storageBoundaryCall}`
+		)
+	end
+	for _, payloadBoundaryCall in { "ProjectStorage.readPayload(", "ProjectStorage.writePayload(" } do
+		expectEqual(
+			string.find(gridPluginSource, payloadBoundaryCall, 1, true) ~= nil,
+			true,
+			`Stagewright bootstrap delegates generic payload access through {payloadBoundaryCall}`
+		)
+	end
+	for _, bootstrapCall in
+		{
+			"RouteOverview.new(",
+			"WorkspacePreview.new(",
+			"ProjectStore.export(",
+			"ProjectStore.preview(",
+			"ProjectStore.createStage(",
+			"ProjectStore.createLevel(",
+			"ProjectStore.deleteStage(",
+			"AuthoringArea.showIslandOutlines(",
+		}
+	do
+		expectEqual(
+			string.find(gridPluginSource, bootstrapCall, 1, true) ~= nil,
+			true,
+			`Stagewright bootstrap wires {bootstrapCall}`
+		)
+	end
+	expectEqual(
+		string.find(stagewrightProjectStoreSource, "StageExport.bake(", 1, true) ~= nil,
+		true,
+		"Stagewright project store delegates bundle baking to StageExport"
+	)
+	for _, forbiddenDependency in { "ProjectStore", "AuthoringArea", "UI.Theme" } do
+		expectEqual(
+			string.find(stagewrightWorkspacePreviewSource, forbiddenDependency, 1, true),
+			nil,
+			`Stagewright Workspace preview stays independent from {forbiddenDependency}`
+		)
+	end
+	for _, forbiddenDependency in { "ProjectStore", "Workspace", "TextButton", "GuiObject" } do
+		expectEqual(
+			string.find(stagewrightGraphSource, forbiddenDependency, 1, true),
+			nil,
+			`Stagewright graph domain stays independent from {forbiddenDependency}`
+		)
+	end
+	for _, forbiddenDependency in { "ProjectStore", "Workspace", "TextButton", "Instance.new", "UI.Theme" } do
+		expectEqual(
+			string.find(stagewrightPaintSource, forbiddenDependency, 1, true),
+			nil,
+			`Stagewright paint domain stays independent from {forbiddenDependency}`
+		)
+	end
+	for _, forbiddenDependency in { "ProjectStore", "Workspace", "TextButton", "Instance.new", "UI.Theme" } do
+		expectEqual(
+			string.find(stagewrightStageSource, forbiddenDependency, 1, true),
+			nil,
+			`Stagewright stage settings stay independent from {forbiddenDependency}`
+		)
+	end
+	for _, forbiddenDependency in { "ProjectStore", "ServerStorage", "StagePayload", "Graph.Operations" } do
+		expectEqual(
+			string.find(stagewrightUiSource, forbiddenDependency, 1, true),
+			nil,
+			`Stagewright UI primitives stay independent from {forbiddenDependency}`
+		)
+	end
+	for _, forbiddenDependency in { "ProjectStore", "Workspace", "TextButton", "Instance.new" } do
+		expectEqual(
+			string.find(stagewrightIssueModelSource, forbiddenDependency, 1, true),
+			nil,
+			`Stagewright validation model stays independent from {forbiddenDependency}`
+		)
+	end
+	local gridPluginLineCount = 0
+	for _ in string.gmatch(gridPluginSource, "[^\r\n]+") do
+		gridPluginLineCount += 1
+	end
+	expectEqual(
+		gridPluginLineCount <= 5000,
+		true,
+		"Stagewright bootstrap does not absorb extracted module code"
+	)
+	for _, removedLegacySurface in
+		{
+			"GraphToolMode",
+			"graphActionPages",
+			"GraphMiniPreviewCanvas",
+			"GraphLevelStrip",
+			"GraphInspectorDock",
+			'"Perspective"',
+			'"Snap"',
+		}
+	do
+		expectEqual(
+			string.find(gridPluginSource, removedLegacySurface, 1, true),
+			nil,
+			`Stagewright bootstrap does not recreate dead legacy control {removedLegacySurface}`
+		)
+	end
 	for _, behavior in { "connectionFromNodeId", "connectNodes", "outputPort", "positionEdgeLine" } do
 		expectEqual(
-			string.find(routeOverviewSource, behavior, 1, true) ~= nil,
+			string.find(stagewrightRouteOverviewSource, behavior, 1, true) ~= nil,
 			true,
 			`Stagewright route logic view includes {behavior}`
 		)
 	end
-end
-do
-	local worldPathSource = fs.readFile("src/plugins/Stagewright/WorldPathView.luau")
-	expectCompiles(worldPathSource, "Stagewright real-world path view compiles as Luau")
 	for _, behavior in
 		{
 			"GRAVEL",
@@ -1051,222 +1718,187 @@ do
 		}
 	do
 		expectEqual(
-			string.find(worldPathSource, behavior, 1, true) ~= nil,
+			string.find(stagewrightWorldPathSource, behavior, 1, true) ~= nil,
 			true,
 			`Stagewright world path view includes {behavior}`
 		)
 	end
-end
-expectEqual(
-	string.find(gridPluginSource, "RouteCell_", 1, true),
-	nil,
-	"Stagewright no longer floods every route-reserved cell with a cyan preview part"
-)
-expectEqual(
-	string.find(gridPluginSource, "workspacePreviewEnabled = true", 1, true),
-	nil,
-	"Stagewright never enables automatic Workspace route generation"
-)
-expectCompiles(stagewrightAuthoringAreaSource, "Stagewright admin authoring area compiles as Luau")
-for _, pluginObject in
-	{
-		"StagewrightPlugin",
-		"GridPlatformEditPlugin.server.luau",
-		"plugin:CreateToolbar",
-		"CreateDockWidgetPluginGuiAsync",
-		"StagewrightPanel",
-		"Stagewright - Tower Defense Stage Editor",
-		"StagewrightPanelV2",
-		"StagewrightProject",
-		"StagewrightPayload",
-		"StagewrightPayloadChunks",
-		"StagewrightRuntime",
-		"PromptSaveSelectionAsync",
-		"PluginAction",
-		"plugin.Unloading",
-		"TryBeginRecording",
-		"FinishRecording",
-		"ProjectStore.createStage",
-		"ProjectStore.createLevel",
-		"ensureStarterLevels",
-		"ProjectStore.deleteStage",
-		"ProjectStore.inboundReferences",
-		"GenerateGUID",
-		"StageLegacy.project",
-		"StageExport.bake",
-		"StagewrightTransientPreview",
-		"terrain_ground",
-		"build_blocked",
-		"traversal_blocked",
-		"EnemySpawn",
-		"StageTransition",
-		"Junction",
-		"Connect",
-		"Add condition",
-		"Trace route",
-		"Set fallback",
-		"1 Lane",
-		"2 Lanes",
-		"3 Lanes",
-		"+ Stage",
-		"+ Level",
-		"Apply changes",
-		"GraphToolMode",
-		"graphActionPages",
-		"buildControls",
-		"rulesControls",
-		"testControls",
-		"Delete edge",
-		"RouteOverview.new",
-		'local label = if mode == "Graph"',
-		"STAGES & LEVELS",
-		'else "LAYERS"',
-		'then "VALIDATION"',
-		"Search levels",
-		"Brush 1 x 1",
-		"Reset to default",
-		"Center in graph",
-		"paintCellPixels",
-		"LevelPreviewCanvas",
-		"ValidationErrorValue",
-		"StageMoreMenu",
-		"PROJECT MENU",
-		"StageSelector",
-		"StageDropdown",
-		"VectorIcon",
-		"ToggleExtra",
-		"setNavigationSelected",
-		"Focus authoring area",
-		"Hide editor",
-		"+  Add node",
-		"Split edge",
-		"GraphPrimaryLanes",
-		"PaintTool_",
-		'activePaintTool == "Rect"',
-		"HeaderSignature",
-		"Export bundle",
-		"applyResponsiveShell",
-		"paintBrushSize",
-		"paintModifierDown",
-		"Shift + drag to paint",
-		"EnemyRouteOverlay",
-		"Paint cells",
-		"Edit enemy route",
-		"ROUTE WORKFLOW",
-		"Connect ->",
-		"paintRuntime.beginRouteInteraction",
-		"paintRuntime.hitRoute",
-		"Move Stagewright route node",
-		"Shape Stagewright route spline",
-		"RouteAffected",
-		"RouteConflict_",
-		"World Path",
-		"Route Logic",
-		"Asset Preview",
-		"Perspective",
-		"Selected spline",
-		"Open World Path",
-		"workspacePreviewEnabled = false",
-		"Workspace remains unchanged",
-		"routeDragStartScreen",
-		"StagewrightPathAsset",
-		"Enum.Material.Pebble",
-		"ProjectStore.preview",
-		"UserInputService.InputChanged",
-		'GetAttribute("Column")',
-		"PaintValidationPanel",
-		"PaintInspectorBrushName",
-		"GraphMiniPreviewCanvas",
-		"GraphLevelStrip",
-		"GraphInspectorDock",
-		'activeMode == "Graph"',
-		"matching issues",
-		"selectedCellKey",
-		"Apply node",
-		"Select an issue to jump",
-		"AutomaticCanvasSize",
-		"setButtonSelected",
-		"STAGE {address.stageNumber}",
-		"StageLanes.offsets",
-		"outHandleOffset",
-		"inHandleOffset",
-		"Working changes",
-		"Export hash matched",
-		"CanvasPosition",
-		"AbsoluteWindowSize",
-		"AuthoringArea",
-		"StagewrightAdminArea",
-		"WhiteRoom",
-		"Focus Stagewright Admin Area",
-		"StagewrightFocusAdminArea",
-		"StagewrightToggleIslandOutlines",
-		"Guides",
-		"showIslandOutlines",
-		"StagewrightIslandOutlinePreview",
-		"StagePlatformLayout",
-		"developmentOutlines",
-		"centerFacingLocalDirection",
-		"GridColumn_",
-		"GridRow_",
-		"gridLineThickness",
-		"lineThickness = 0.16",
-		"routeWidth = 2.4",
-		"starterLevelsPerStage = 10",
-		"AlwaysOnTop",
-		"RunService:IsRunning()",
-	}
-do
 	expectEqual(
 		string.find(
-			gridPluginProject
-				.. gridPluginSource
-				.. stagewrightStoreSource
-				.. stagewrightAuthoringAreaSource
-				.. stagewrightUiSource
-				.. stagewrightGraphSource
-				.. stagewrightPaintSource
-				.. stagewrightStageSource
-				.. stagewrightIssueModelSource
-				.. templateConfigSource,
-			pluginObject,
+			gridPluginSource .. stagewrightWorkspacePreviewSource .. stagewrightWorldPathSource,
+			"RouteCell_",
 			1,
 			true
-		) ~= nil,
+		),
+		nil,
+		"Stagewright no longer floods every route-reserved cell with a cyan preview part"
+	)
+	local workspacePreviewConstructorStart =
+		string.find(stagewrightWorkspacePreviewSource, "function WorkspacePreview.new", 1, true)
+	local workspacePreviewConstructorEnd = if workspacePreviewConstructorStart ~= nil
+		then string.find(
+			stagewrightWorkspacePreviewSource,
+			"return WorkspacePreview",
+			workspacePreviewConstructorStart,
+			true
+		)
+		else nil
+	local workspacePreviewConstructor = if workspacePreviewConstructorStart ~= nil
+			and workspacePreviewConstructorEnd ~= nil
+		then string.sub(
+			stagewrightWorkspacePreviewSource,
+			workspacePreviewConstructorStart,
+			workspacePreviewConstructorEnd - 1
+		)
+		else ""
+	expectEqual(
+		string.find(gridPluginSource, "workspacePreviewEnabled", 1, true) == nil
+			and string.find(workspacePreviewConstructor, "enabled = false", 1, true) ~= nil,
 		true,
-		`edit-mode grid plugin includes {pluginObject}`
+		"Stagewright Workspace preview defaults off in its constructor"
 	)
-end
-for _, obsoleteToolbarGlyph in { "⌁", "▦", "✋", "⊕", "⌘", "↖" } do
+	for _, workspacePreviewWiring in
+		{
+			"local workspacePreview = WorkspacePreview.new({",
+			'toggleAction("Preview in World"',
+			"workspacePreview:setEnabled(requested)",
+			"renderWorkspacePreview()",
+			"workspacePreview:cancelInteraction()",
+			"workspacePreview:clear()",
+			"workspacePreview:destroy()",
+		}
+	do
+		expectEqual(
+			string.find(gridPluginSource, workspacePreviewWiring, 1, true) ~= nil,
+			true,
+			`Stagewright bootstrap wires Workspace preview through {workspacePreviewWiring}`
+		)
+	end
 	expectEqual(
-		string.find(gridPluginSource .. stagewrightUiSource, obsoleteToolbarGlyph, 1, true),
-		nil,
-		`Stagewright toolbar no longer depends on the {obsoleteToolbarGlyph} text glyph`
+		string.find(stagewrightProjectStoreSource, "if recording ~= nil then\n\t\treturn nil", 1, true) ~= nil
+			and string.find(
+				stagewrightProjectStoreSource,
+				"if transaction ~= activeTransaction then",
+				1,
+				true
+			) ~= nil
+			and string.find(stagewrightWorkspacePreviewSource, "moveTransaction: MoveTransaction?", 1, true) ~= nil
+			and string.find(gridPluginSource, "dragRecording", 1, true) == nil,
+		true,
+		"Stagewright recordings reject foreign begins and require the owning transaction to finish"
 	)
-end
-expectEqual(
-	string.find(gridPluginSource, "UDim2.fromOffset(414, 23)", 1, true),
-	nil,
-	"Stagewright level settings no longer depend on the clipped fixed-width form"
-)
-for _, removedPluginObject in
-	{
-		"DEFAULT_STAGE_PROFILES",
-		"catmullRomPosition",
-		"PATH_GRID_RADIUS",
-		"Runtime: any",
-	}
-do
+	for _, ownerlessFinish in
+		{ "ProjectStore.finish(true)", "ProjectStore.finish(false)", "ProjectStore.finish(commit)" }
+	do
+		expectEqual(
+			string.find(gridPluginSource, ownerlessFinish, 1, true),
+			nil,
+			`Stagewright bootstrap does not use ownerless recording finish {ownerlessFinish}`
+		)
+	end
+	do
+		local writePayloadStart =
+			string.find(stagewrightStorageSource, "function ProjectStorage.writePayload", 1, true)
+		local writePayloadEnd = if writePayloadStart ~= nil
+			then string.find(
+				stagewrightStorageSource,
+				"function ProjectStorage.readPayload",
+				writePayloadStart,
+				true
+			)
+			else nil
+		local writePayloadSource = if writePayloadStart ~= nil and writePayloadEnd ~= nil
+			then string.sub(stagewrightStorageSource, writePayloadStart, writePayloadEnd - 1)
+			else ""
+		local manifestPosition =
+			string.find(writePayloadSource, "local manifest = StagePayload.manifest", 1, true)
+		local mutationPosition = string.find(writePayloadSource, "local value = ensureStringValue", 1, true)
+		expectEqual(
+			manifestPosition ~= nil and mutationPosition ~= nil and manifestPosition < mutationPosition,
+			true,
+			"Stagewright validates payload size before mutating saved Instances"
+		)
+	end
+	expectCompiles(stagewrightAuthoringAreaSource, "Stagewright admin authoring area compiles as Luau")
+	local stagewrightCapabilitySource = gridPluginProject
+		.. gridPluginSource
+		.. stagewrightProjectStoreSource
+		.. stagewrightAuthoringAreaSource
+		.. stagewrightWorkspacePreviewSource
+		.. stagewrightUiSource
+		.. stagewrightGraphSource
+		.. stagewrightPaintSource
+		.. stagewrightStageSource
+		.. stagewrightIssueModelSource
+		.. templateConfigSource
+	for _, capabilityMarker in
+		{
+			"PromptSaveSelectionAsync",
+			"plugin.Unloading",
+			"TryBeginRecording",
+			"FinishRecording",
+			"StagewrightTransientPreview",
+			"+ Stage",
+			"+ Level",
+			"Apply changes",
+			"Delete spline",
+			"Add Junction",
+			"Paint cells",
+			"Edit enemy route",
+			"Play Trace",
+			"Preview in World",
+			"Export bundle",
+			"Focus authoring area",
+			"Guides",
+			"showIslandOutlines",
+			"StagewrightIslandOutlinePreview",
+			"Brush 1 x 1",
+			"Shift + drag to paint",
+			"World Path",
+			"Route Logic",
+			"RouteConflict_",
+			"StagewrightPathAsset",
+			"Enum.Material.Pebble",
+		}
+	do
+		expectEqual(
+			string.find(stagewrightCapabilitySource, capabilityMarker, 1, true) ~= nil,
+			true,
+			`edit-mode grid plugin includes {capabilityMarker}`
+		)
+	end
+	for _, obsoleteToolbarGlyph in { "⌁", "▦", "✋", "⊕", "⌘", "↖" } do
+		expectEqual(
+			string.find(gridPluginSource .. stagewrightUiSource, obsoleteToolbarGlyph, 1, true),
+			nil,
+			`Stagewright toolbar no longer depends on the {obsoleteToolbarGlyph} text glyph`
+		)
+	end
 	expectEqual(
-		string.find(gridPluginSource, removedPluginObject, 1, true),
+		string.find(gridPluginSource, "UDim2.fromOffset(414, 23)", 1, true),
 		nil,
-		`edit-mode grid plugin no longer uses separate {removedPluginObject} targeting`
+		"Stagewright level settings no longer depend on the clipped fixed-width form"
+	)
+	for _, removedPluginObject in
+		{
+			"DEFAULT_STAGE_PROFILES",
+			"catmullRomPosition",
+			"PATH_GRID_RADIUS",
+			"Runtime: any",
+		}
+	do
+		expectEqual(
+			string.find(gridPluginSource, removedPluginObject, 1, true),
+			nil,
+			`edit-mode grid plugin no longer uses separate {removedPluginObject} targeting`
+		)
+	end
+	expectEqual(
+		string.find(stagewrightAuthoringAreaSource, "CenterFacingGuide", 1, true),
+		nil,
+		"edit-mode island guides no longer draw a misleading orientation bar"
 	)
 end
-expectEqual(
-	string.find(stagewrightAuthoringAreaSource, "CenterFacingGuide", 1, true),
-	nil,
-	"edit-mode island guides no longer draw a misleading orientation bar"
-)
 local runePluginProject = fs.readFile("plugins/rune-config-editor.project.json")
 local runePluginSource = fs.readFile("src/plugins/RunewrightPlugin.server.luau")
 for _, runePluginObject in

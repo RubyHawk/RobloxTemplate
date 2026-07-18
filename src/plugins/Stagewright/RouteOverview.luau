@@ -30,12 +30,10 @@ export type Controller = typeof(setmetatable(
 		root: Frame,
 		viewport: ScrollingFrame,
 		canvas: Frame,
-		zoomLabel: TextLabel,
 		theme: Theme,
 		callbacks: Callbacks,
 		zoom: number,
 		showLanes: boolean,
-		snapToGrid: boolean,
 		graph: any?,
 		selectedNodeId: string?,
 		selectedEdgeId: string?,
@@ -61,24 +59,6 @@ local function create(className: string, properties: { [string]: any }, parent: 
 	end
 	instance.Parent = parent
 	return instance
-end
-
-local function controlButton(parent: Instance, text: string, theme: Theme, callback: () -> ()): TextButton
-	local result = create("TextButton", {
-		AutoButtonColor = false,
-		BackgroundColor3 = theme.field,
-		BorderSizePixel = 0,
-		Font = Enum.Font.BuilderSansMedium,
-		Size = UDim2.fromOffset(34, 28),
-		Text = text,
-		TextColor3 = theme.text,
-		TextSize = 12,
-		ZIndex = 21,
-	}, parent) :: TextButton
-	create("UICorner", { CornerRadius = UDim.new(0, 5) }, result)
-	create("UIStroke", { Color = theme.border, Thickness = 1 }, result)
-	result.Activated:Connect(callback)
-	return result
 end
 
 local function edgeLine(
@@ -294,31 +274,6 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		ClipsDescendants = true,
 		Size = UDim2.fromScale(1, 1),
 	}, parent) :: Frame
-	local toolbar = create("Frame", {
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		Size = UDim2.fromScale(1, 1),
-		ZIndex = 20,
-	}, root) :: Frame
-	local controls = create("Frame", {
-		AnchorPoint = Vector2.new(1, 1),
-		BackgroundColor3 = theme.panel,
-		BorderSizePixel = 0,
-		Position = UDim2.new(1, -12, 1, -12),
-		Size = UDim2.fromOffset(64, 158),
-		Visible = false,
-		ZIndex = 20,
-	}, toolbar) :: Frame
-	create("UICorner", { CornerRadius = UDim.new(0, 7) }, controls)
-	create("UIStroke", { Color = theme.border, Thickness = 1 }, controls)
-	create("UIListLayout", {
-		FillDirection = Enum.FillDirection.Vertical,
-		HorizontalAlignment = Enum.HorizontalAlignment.Center,
-		Padding = UDim.new(0, 5),
-		SortOrder = Enum.SortOrder.LayoutOrder,
-		VerticalAlignment = Enum.VerticalAlignment.Top,
-	}, controls)
-	create("UIPadding", { PaddingTop = UDim.new(0, 7) }, controls)
 	local viewport = create("ScrollingFrame", {
 		BackgroundColor3 = theme.background,
 		BorderSizePixel = 0,
@@ -369,12 +324,10 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		root = root,
 		viewport = viewport,
 		canvas = canvas,
-		zoomLabel = nil :: any,
 		theme = theme,
 		callbacks = callbacks,
 		zoom = 1,
 		showLanes = true,
-		snapToGrid = true,
 		graph = nil,
 		selectedNodeId = nil,
 		selectedEdgeId = nil,
@@ -430,11 +383,7 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 					break
 				end
 			end
-			controller.connectionFromNodeId = nil
-			if controller.connectionPreview ~= nil then
-				controller.connectionPreview:Destroy()
-				controller.connectionPreview = nil
-			end
+			controller:cancelInteraction()
 			if destinationId ~= nil then
 				controller.callbacks.connectNodes(fromNodeId, destinationId)
 			else
@@ -442,43 +391,6 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 			end
 		end)
 	)
-	controlButton(controls, "-", theme, function()
-		controller.zoom = math.max(0.65, controller.zoom - 0.15)
-		controller:rerender()
-	end)
-	local zoomLabel = create("TextLabel", {
-		BackgroundColor3 = theme.surface,
-		BorderSizePixel = 0,
-		Font = Enum.Font.BuilderSansMedium,
-		Size = UDim2.fromOffset(54, 28),
-		Text = "100%",
-		TextColor3 = theme.text,
-		TextSize = 11,
-		ZIndex = 21,
-	}, controls) :: TextLabel
-	create("UICorner", { CornerRadius = UDim.new(0, 5) }, zoomLabel)
-	controller.zoomLabel = zoomLabel
-	controlButton(controls, "+", theme, function()
-		controller.zoom = math.min(1.6, controller.zoom + 0.15)
-		controller:rerender()
-	end)
-	local centerButton = controlButton(controls, "Center", theme, function()
-		controller:focusSelection()
-	end)
-	centerButton.Size = UDim2.fromOffset(50, 28)
-	local fitButton = controlButton(controls, "Fit", theme, function()
-		local available = viewport.AbsoluteWindowSize
-		if available.X > 0 and available.Y > 0 then
-			controller.zoom = math.clamp(
-				math.min(available.X / controller.layoutSize.X, available.Y / controller.layoutSize.Y),
-				0.55,
-				1.35
-			)
-		end
-		controller:rerender()
-		controller.viewport.CanvasPosition = Vector2.zero
-	end)
-	fitButton.Size = UDim2.fromOffset(50, 28)
 	viewport:GetPropertyChangedSignal("AbsoluteWindowSize"):Connect(function()
 		local available = viewport.AbsoluteWindowSize
 		if
@@ -562,7 +474,6 @@ function RouteOverview.rerender(self: Controller)
 		math.max(canvasSize.X + canvasOffset.X * 2, window.X),
 		math.max(canvasSize.Y + canvasOffset.Y * 2, window.Y)
 	)
-	self.zoomLabel.Text = `{math.round(zoom * 100)}%`
 	for x = 12, canvasSize.X, 32 * zoom do
 		for y = 12, canvasSize.Y, 32 * zoom do
 			create("Frame", {
@@ -875,7 +786,16 @@ function RouteOverview.focusSelection(self: Controller)
 	end
 end
 
+function RouteOverview.cancelInteraction(self: Controller)
+	self.connectionFromNodeId = nil
+	if self.connectionPreview ~= nil then
+		self.connectionPreview:Destroy()
+		self.connectionPreview = nil
+	end
+end
+
 function RouteOverview.destroy(self: Controller)
+	self:cancelInteraction()
 	for _, connection in self.connections do
 		connection:Disconnect()
 	end

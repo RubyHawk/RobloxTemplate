@@ -25,6 +25,7 @@ type AuthoringConfig = {
 
 local warnedMissingConfig = false
 local warnedMissingCenter = false
+local sessionOutlineFolder: Folder? = nil
 
 local function config(): (any?, AuthoringConfig?)
 	local template = ReplicatedStorage:FindFirstChild("Template")
@@ -313,6 +314,11 @@ local function outlinePart(
 end
 
 function AuthoringArea.clearIslandOutlines()
+	local folder = sessionOutlineFolder
+	sessionOutlineFolder = nil
+	if folder ~= nil then
+		folder:Destroy()
+	end
 	for _, tagged in CollectionService:GetTagged(OUTLINE_TAG) do
 		if tagged:IsDescendantOf(Workspace) then
 			tagged:Destroy()
@@ -343,6 +349,7 @@ function AuthoringArea.showIslandOutlines(columns: number, rows: number, cellSiz
 	folder:SetAttribute("GridRows", rows)
 	folder:SetAttribute("CellSize", cellSize)
 	folder.Parent = Workspace
+	sessionOutlineFolder = folder
 	CollectionService:AddTag(folder, OUTLINE_TAG)
 	local width = columns * cellSize
 	local depth = rows * cellSize

@@ -14,8 +14,6 @@ export type Controller = {
 	title: TextLabel,
 	status: TextLabel,
 	modes: Frame,
-	body: Frame,
-	footer: Frame,
 	footerStage: TextLabel,
 	headerValidation: TextButton,
 	popupLayer: Frame,
@@ -28,6 +26,7 @@ export type Controller = {
 }
 
 local AppShell = {}
+local FOOTER_HEIGHT = 28
 
 function AppShell.new(widget: DockWidgetPluginGui): Controller
 	local root = create("Frame", {
@@ -61,18 +60,6 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 		TextSize = 17,
 		TextXAlignment = Enum.TextXAlignment.Left,
 	}, header) :: TextLabel
-	local status = create("TextLabel", {
-		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSansMedium,
-		Position = UDim2.fromOffset(0, 0),
-		Size = UDim2.fromOffset(1, 1),
-		Text = "Loading your versioned stage project...",
-		TextColor3 = COLORS.muted,
-		TextSize = 11,
-		TextTruncate = Enum.TextTruncate.AtEnd,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		Visible = false,
-	}, header) :: TextLabel
 	local modes = create("Frame", {
 		AnchorPoint = Vector2.new(1, 0.5),
 		BackgroundTransparency = 1,
@@ -87,25 +74,36 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 	local body = create("Frame", {
 		BackgroundTransparency = 1,
 		Position = UDim2.fromOffset(0, Theme.metrics.headerHeight),
-		Size = UDim2.new(1, 0, 1, -Theme.metrics.headerHeight),
+		Size = UDim2.new(1, 0, 1, -(Theme.metrics.headerHeight + FOOTER_HEIGHT)),
 		ZIndex = 1,
 	}, root) :: Frame
 	local footer = create("Frame", {
+		AnchorPoint = Vector2.new(0, 1),
 		BackgroundColor3 = COLORS.panel,
 		BorderSizePixel = 0,
 		Position = UDim2.fromScale(0, 1),
-		Size = UDim2.fromScale(1, 0),
-		Visible = false,
+		Size = UDim2.new(1, 0, 0, FOOTER_HEIGHT),
 		ZIndex = 2,
 	}, root) :: Frame
 	local footerStage = create("TextLabel", {
 		BackgroundTransparency = 1,
 		Font = Enum.Font.BuilderSans,
 		Position = UDim2.fromOffset(14, 0),
-		Size = UDim2.new(0.65, -14, 1, 0),
+		Size = UDim2.new(0.34, -14, 1, 0),
 		Text = "Stage 1 / Level 1",
 		TextColor3 = COLORS.muted,
 		TextSize = 11,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, footer) :: TextLabel
+	local status = create("TextLabel", {
+		BackgroundTransparency = 1,
+		Font = Enum.Font.BuilderSansMedium,
+		Position = UDim2.fromScale(0.34, 0),
+		Size = UDim2.new(0.66, -190, 1, 0),
+		Text = "Loading your versioned stage project...",
+		TextColor3 = COLORS.muted,
+		TextSize = 11,
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
 	}, footer) :: TextLabel
 	create("TextLabel", {
@@ -192,8 +190,6 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 	controller.title = title
 	controller.status = status
 	controller.modes = modes
-	controller.body = body
-	controller.footer = footer
 	controller.footerStage = footerStage
 	controller.headerValidation = headerValidation
 	controller.popupLayer = popupLayer
@@ -217,7 +213,6 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 			self.workspace.Position = UDim2.fromOffset(0, 0)
 			self.workspace.Size = UDim2.fromScale(1, 1)
 			self.title.Visible = true
-			self.status.Visible = false
 			self.modes.AnchorPoint = Vector2.new(1, 0.5)
 			self.modes.Position = UDim2.new(1, -96, 0.5, 0)
 			self.modes.Size = UDim2.fromOffset(500, 34)
@@ -235,7 +230,6 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 			)
 			self.rightSidebar.Size = UDim2.new(0, inspectorWidth, 1, 0)
 			self.title.Visible = true
-			self.status.Visible = false
 			self.modes.AnchorPoint = Vector2.new(1, 0.5)
 			self.modes.Position = UDim2.new(1, -96, 0.5, 0)
 			self.modes.Size = UDim2.fromOffset(500, 34)
@@ -246,7 +240,6 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 			self.workspace.Position = UDim2.fromOffset(0, 0)
 			self.workspace.Size = UDim2.fromScale(1, 1)
 			self.title.Visible = false
-			self.status.Visible = false
 			self.modes.AnchorPoint = Vector2.new(0, 0.5)
 			self.modes.Position = UDim2.new(0, 10, 0.5, 0)
 			self.modes.Size = UDim2.new(1, -20, 0, 30)
