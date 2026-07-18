@@ -226,6 +226,16 @@ local renderCanvas: () -> ()
 local cancelActiveEditorInteraction: (boolean?) -> boolean = function(): boolean
 	return false
 end
+
+local function selectStage(stageId: string)
+	selectedStageId = stageId
+	selectedGraphId = nil
+	selectedNodeId = nil
+	selectedEdgeId = nil
+	tracedEdgeIds = {}
+	renderAll()
+end
+
 do
 	local controller = HeaderController.new({
 		header = shell.header,
@@ -248,14 +258,7 @@ do
 			end
 			return options
 		end,
-		onSelectStage = function(stageId: string)
-			selectedStageId = stageId
-			selectedGraphId = nil
-			selectedNodeId = nil
-			selectedEdgeId = nil
-			tracedEdgeIds = {}
-			renderAll()
-		end,
+		onSelectStage = selectStage,
 		onRender = function()
 			renderAll()
 		end,
@@ -2312,12 +2315,7 @@ function renderStageList()
 				`Level {level.number}  {string.sub(stageId, -8)}`,
 				200,
 				function()
-					selectedStageId = stageId
-					selectedGraphId = nil
-					selectedNodeId = nil
-					selectedEdgeId = nil
-					tracedEdgeIds = {}
-					renderAll()
+					selectStage(stageId)
 				end
 			)
 			stageButton.LayoutOrder = layoutOrder
