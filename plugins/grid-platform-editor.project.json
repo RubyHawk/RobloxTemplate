@@ -5,6 +5,15 @@
     "AuthoringArea": {
       "$path": "../src/plugins/Stagewright/AuthoringArea.luau"
     },
+    "Controllers": {
+      "$className": "Folder",
+      "WorldPathEditSession": {
+        "$path": "../src/plugins/Stagewright/Controllers/WorldPathEditSession.luau"
+      },
+      "WorldPathController": {
+        "$path": "../src/plugins/Stagewright/Controllers/WorldPathController.luau"
+      }
+    },
     "Graph": {
       "$className": "Folder",
       "Operations": {

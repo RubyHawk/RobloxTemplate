@@ -32,7 +32,6 @@ export type Callbacks = {
 	moveNode: (string, any, boolean) -> (),
 	moveHandle: (string, string, any, boolean) -> (),
 	setLanes: (string, number) -> (),
-	smoothEdge: (string) -> (),
 	focusWorld: (string?) -> (),
 	testSegment: (string) -> (),
 }

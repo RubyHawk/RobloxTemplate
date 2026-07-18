@@ -21,6 +21,7 @@ local StageTrace = require("../src/shared/StageTrace")
 local CanvasTransform = require("../src/plugins/Stagewright/Interaction/CanvasTransform")
 local HitTest = require("../src/plugins/Stagewright/Interaction/HitTest")
 local PointerDrag = require("../src/plugins/Stagewright/Interaction/PointerDrag")
+local WorldPathEditSession = require("../src/plugins/Stagewright/Controllers/WorldPathEditSession")
 local PaintBrushes = require("../src/plugins/Stagewright/Paint/Brushes")
 local ProjectLoadPolicy = require("../src/plugins/Stagewright/Persistence/ProjectLoadPolicy")
 local StageSettings = require("../src/plugins/Stagewright/Stage/Settings")
@@ -469,6 +470,173 @@ do
 	expectEqual(invalidTargetKindAccepted, false, "pointer drag rejects unknown target kinds")
 	expectEqual(missingHandleIdAccepted, false, "pointer drag requires handle target ids")
 	expectEqual(invalidCancelReasonAccepted, false, "pointer drag rejects empty cancellation reasons")
+end
+
+do
+	local writable = false
+	local allowBegin = true
+	local commitSucceeds = true
+	local finishThrows = false
+	local applyNodeSucceeds = true
+	local beginCount = 0
+	local finishCommits: { boolean } = {}
+	local finishSawInactive: { boolean } = {}
+	local nodeApplyCount = 0
+	local handleApplyCount = 0
+	local previewCount = 0
+	local committedCount = 0
+	local failedCount = 0
+	local blockedCount = 0
+	local nextTransaction = 0
+	local session: WorldPathEditSession.Session
+	session = WorldPathEditSession.new({
+		beginEdit = function(): number?
+			beginCount += 1
+			if not writable or not allowBegin then
+				return nil
+			end
+			nextTransaction += 1
+			return nextTransaction
+		end,
+		finishEdit = function(_transaction: number, commit: boolean): boolean
+			table.insert(finishCommits, commit)
+			table.insert(finishSawInactive, not session:isActive())
+			if finishThrows then
+				error("simulated persistence failure")
+			end
+			return if commit then commitSucceeds else false
+		end,
+		applyNode = function(nodeId: string, position: any): boolean
+			expectEqual(nodeId, "node_1", "world-path edit session forwards the node id")
+			expectEqual(position.y, 7, "world-path edit session forwards the complete node position")
+			nodeApplyCount += 1
+			return applyNodeSucceeds
+		end,
+		applyHandle = function(edgeId: string, handleId: string, offset: any): boolean
+			expectEqual(edgeId, "edge_1", "world-path edit session forwards the edge id")
+			expectEqual(handleId, "Out", "world-path edit session forwards the handle id")
+			expectEqual(offset.z, 9, "world-path edit session forwards the handle offset")
+			handleApplyCount += 1
+			return true
+		end,
+		currentPreview = function()
+			return { revision = nodeApplyCount + handleApplyCount }
+		end,
+		onPreview = function(preview: any?)
+			expectEqual(type(preview), "table", "accepted world-path edits publish a fresh preview")
+			previewCount += 1
+		end,
+		reportBlocked = function()
+			blockedCount += 1
+		end,
+		onCommitted = function()
+			committedCount += 1
+		end,
+		onFailed = function()
+			failedCount += 1
+		end,
+	})
+
+	expectEqual(
+		session:moveNode("node_1", { x = 1, y = 7, z = 2 }, false),
+		false,
+		"read-only world-path edits are rejected"
+	)
+	expectEqual(beginCount, 1, "read-only world-path edits consult the transaction gate once")
+	expectEqual(nodeApplyCount, 0, "read-only world-path edits do not mutate the graph")
+	expectEqual(blockedCount, 1, "read-only world-path edits report the blocked action")
+
+	writable = true
+	expectEqual(
+		session:moveNode("node_1", { x = 2, y = 7, z = 3 }, false),
+		true,
+		"first valid node move begins an edit"
+	)
+	expectEqual(
+		session:moveNode("node_1", { x = 3, y = 7, z = 4 }, false),
+		true,
+		"subsequent node movement reuses the edit"
+	)
+	expectEqual(beginCount, 2, "one captured drag begins exactly one additional transaction")
+	expectEqual(#finishCommits, 0, "preview movement does not finish the transaction")
+	expectEqual(previewCount, 2, "every accepted preview movement refreshes the baked preview")
+	expectEqual(session:isActive(), true, "node preview keeps its edit transaction active")
+	expectEqual(
+		session:moveNode("node_1", { x = 4, y = 7, z = 5 }, true),
+		true,
+		"finished node movement commits"
+	)
+	expectEqual(beginCount, 2, "the final node update does not begin a second transaction")
+	expectEqual(finishCommits[1], true, "the captured node drag commits once")
+	expectEqual(committedCount, 1, "successful commit emits one committed callback")
+	expectEqual(session:isActive(), false, "successful commit clears the active edit")
+	expectEqual(finishSawInactive[1], true, "transaction identity clears before the finish adapter runs")
+	expectEqual(session:cancel(), false, "cancel after commit is idempotent")
+	expectEqual(#finishCommits, 1, "idle cancellation does not finish twice")
+
+	session:moveHandle("edge_1", "Out", { x = 5, y = 0, z = 9 }, false)
+	expectEqual(handleApplyCount, 1, "handle movement uses the same edit coordinator")
+	expectEqual(session:cancel(), true, "active handle movement can be cancelled")
+	expectEqual(finishCommits[2], false, "cancelling a handle drag rolls back its transaction")
+	expectEqual(finishSawInactive[2], true, "rollback clears transaction identity before the adapter")
+	expectEqual(session:cancel(), false, "repeated handle cancellation is idempotent")
+
+	allowBegin = false
+	expectEqual(
+		session:moveNode("node_1", { x = 6, y = 7, z = 7 }, false),
+		false,
+		"failed transaction begin rejects the mutation"
+	)
+	expectEqual(nodeApplyCount, 3, "failed transaction begin does not apply a node mutation")
+	expectEqual(blockedCount, 2, "failed transaction begin reports the blocked action")
+	allowBegin = true
+
+	applyNodeSucceeds = false
+	expectEqual(
+		session:moveNode("node_1", { x = 7, y = 7, z = 8 }, false),
+		false,
+		"missing edit targets fail through the mutation adapter"
+	)
+	expectEqual(finishCommits[#finishCommits], false, "failed mutation adapters roll back")
+	expectEqual(failedCount, 1, "failed mutation adapters request one failure refresh")
+	expectEqual(session:isActive(), false, "failed mutation adapter does not leak a transaction")
+	applyNodeSucceeds = true
+
+	commitSucceeds = false
+	expectEqual(
+		session:moveNode("node_1", { x = 8, y = 7, z = 9 }, true),
+		false,
+		"failed store commit is not reported as success"
+	)
+	expectEqual(committedCount, 1, "failed store commit does not emit a committed callback")
+	expectEqual(failedCount, 2, "failed store commit requests a rollback refresh")
+	expectEqual(session:isActive(), false, "failed store commit clears the transaction")
+
+	commitSucceeds = true
+	finishThrows = true
+	local throwingCommitRaised, throwingCommitResult = pcall(function(): boolean
+		return session:moveNode("node_1", { x = 9, y = 7, z = 10 }, true)
+	end)
+	expectEqual(throwingCommitRaised, true, "throwing store commits do not escape the input callback")
+	expectEqual(throwingCommitResult, false, "throwing store commits are reported as failed")
+	expectEqual(committedCount, 1, "throwing store commits do not emit a committed callback")
+	expectEqual(failedCount, 3, "throwing store commits request a rollback refresh")
+	expectEqual(session:isActive(), false, "throwing store commits clear the transaction")
+	finishThrows = false
+
+	writable = true
+	session:moveNode("node_1", { x = 10, y = 7, z = 11 }, false)
+	local finishesBeforeLostWrite = #finishCommits
+	writable = false
+	commitSucceeds = false
+	session:moveNode("node_1", { x = 11, y = 7, z = 12 }, true)
+	expectEqual(
+		#finishCommits,
+		finishesBeforeLostWrite + 1,
+		"an active edit still reaches the finish adapter after writability is lost"
+	)
+	expectEqual(session:isActive(), false, "lost writability cannot strand an active edit transaction")
+	expectEqual(failedCount, 4, "lost writability follows the failed-commit refresh path")
 end
 
 do
@@ -2085,6 +2253,10 @@ do
 	local stagewrightWorkspacePreviewSource = fs.readFile("src/plugins/Stagewright/WorkspacePreview.luau")
 	local stagewrightRouteOverviewSource = fs.readFile("src/plugins/Stagewright/RouteOverview.luau")
 	local stagewrightWorldPathSource = fs.readFile("src/plugins/Stagewright/WorldPathView.luau")
+	local stagewrightWorldPathControllerSource =
+		fs.readFile("src/plugins/Stagewright/Controllers/WorldPathController.luau")
+	local stagewrightWorldPathEditSessionSource =
+		fs.readFile("src/plugins/Stagewright/Controllers/WorldPathEditSession.luau")
 	local stagewrightAppShellSource = fs.readFile("src/plugins/Stagewright/UI/AppShell.luau")
 	local stagewrightThemeSource = fs.readFile("src/plugins/Stagewright/UI/Theme.luau")
 	local stagewrightFactorySource = fs.readFile("src/plugins/Stagewright/UI/Factory.luau")
@@ -2111,6 +2283,11 @@ do
 	expectCompiles(stagewrightWorkspacePreviewSource, "Stagewright Workspace preview compiles as Luau")
 	expectCompiles(stagewrightRouteOverviewSource, "Stagewright 2D route overview compiles as Luau")
 	expectCompiles(stagewrightWorldPathSource, "Stagewright real-world path view compiles as Luau")
+	expectCompiles(stagewrightWorldPathControllerSource, "Stagewright world-path controller compiles as Luau")
+	expectCompiles(
+		stagewrightWorldPathEditSessionSource,
+		"Stagewright world-path edit session compiles as Luau"
+	)
 	expectCompiles(stagewrightAppShellSource, "Stagewright app shell compiles as Luau")
 	expectCompiles(stagewrightThemeSource, "Stagewright UI theme compiles as Luau")
 	expectCompiles(stagewrightFactorySource, "Stagewright UI factory compiles as Luau")
@@ -2137,11 +2314,47 @@ do
 	)
 	expectEqual(
 		string.find(gridPluginSource, "require(script.UI.AppShell)", 1, true) ~= nil
+			and string.find(gridPluginSource, "require(script.Controllers.WorldPathController)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.UI.Theme)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.Graph.Operations)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.WorkspacePreview)", 1, true) ~= nil,
 		true,
-		"Stagewright bootstrap composes dedicated UI, graph, and Workspace preview modules"
+		"Stagewright bootstrap composes dedicated controllers, UI, graph, and Workspace preview modules"
+	)
+	for _, forbiddenDependency in
+		{ "ProjectStore", "Workspace", "UserInputService", "GraphOperations", "Instance.new" }
+	do
+		expectEqual(
+			string.find(stagewrightWorldPathControllerSource, forbiddenDependency, 1, true),
+			nil,
+			`Stagewright world-path controller stays independent from {forbiddenDependency}`
+		)
+	end
+	for _, forbiddenDependency in { "game", "Instance", "ProjectStore", "WorldPathView" } do
+		expectEqual(
+			string.find(stagewrightWorldPathEditSessionSource, forbiddenDependency, 1, true),
+			nil,
+			`Stagewright world-path edit session stays independent from {forbiddenDependency}`
+		)
+	end
+	for _, retiredControllerPlumbing in { "viewModule", "flowUi.dragTransaction" } do
+		expectEqual(
+			string.find(gridPluginSource, retiredControllerPlumbing, 1, true),
+			nil,
+			`Stagewright bootstrap retires duplicate controller plumbing {retiredControllerPlumbing}`
+		)
+	end
+	expectEqual(
+		string.find(
+			stagewrightWorldPathSource
+				.. stagewrightWorldPathControllerSource
+				.. stagewrightGraphOperationsSource,
+			"smoothEdge",
+			1,
+			true
+		),
+		nil,
+		"Stagewright does not retain the unreachable world-path smoothing surface"
 	)
 	for _, forbiddenDependency in { "ServerStorage", "Instance.new", "GetAttributeChangedSignal(" } do
 		expectEqual(

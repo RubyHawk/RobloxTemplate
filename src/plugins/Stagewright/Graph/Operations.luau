@@ -167,17 +167,4 @@ function Operations.cycleLaneCount(graph: any, edgeId: string): number?
 	return nextCount
 end
 
-function Operations.smoothEdge(graph: any, edgeId: string): boolean
-	local edge = graph.edges[edgeId]
-	local from = if edge ~= nil then graph.nodes[edge.fromNodeId] else nil
-	local to = if edge ~= nil then graph.nodes[edge.toNodeId] else nil
-	if edge == nil or from == nil or to == nil then
-		return false
-	end
-	local delta = deltaBetween(from, to, 3)
-	edge.outHandleOffset = delta
-	edge.inHandleOffset = { x = -delta.x, y = -delta.y, z = -delta.z }
-	return true
-end
-
 return table.freeze(Operations)

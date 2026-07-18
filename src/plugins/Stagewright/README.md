@@ -9,7 +9,12 @@ domain logic or reusable UI primitives should not be added to the bootstrap.
 - `ProjectStore.luau`: project persistence, working-copy mutations, and undo
   recordings.
 - `AuthoringArea.luau`: transient Studio authoring model and 3D selection.
-- `WorldPathView.luau`: world-path canvas rendering and input.
+- `Controllers/WorldPathController.luau`: world-path view lifecycle and options,
+  wired to semantic mutation adapters from the composition root.
+- `Controllers/WorldPathEditSession.luau`: pure begin/apply/commit/cancel
+  coordination for one world-path gesture, with no Roblox service dependency.
+- `WorldPathView.luau`: world-path canvas rendering and pointer input; it does
+  not own persistence or undo.
 - `RouteOverview.luau`: route-logic graph rendering and input.
 - `UI/AppShell.luau`: dock-widget chrome and responsive page layout.
 - `UI/HeaderController.luau`: stage selector, project menu, and history actions.
@@ -34,8 +39,9 @@ domain logic or reusable UI primitives should not be added to the bootstrap.
 ## Dependency direction
 
 ```text
-bootstrap / views -> UI
-bootstrap / views -> ProjectStore
+bootstrap -> controllers / views / UI
+bootstrap -> ProjectStore
+controllers -> views / Shared
 bootstrap -> Graph
 bootstrap -> Paint
 bootstrap -> Stage
@@ -52,8 +58,8 @@ changes independent from route behavior and project data.
 
 ## Mutation flow
 
-UI callback -> bootstrap controller -> `ProjectStore.mutate()` -> graph or grid
-operation -> render refresh.
+UI callback -> focused controller -> injected bootstrap adapter ->
+`ProjectStore` transaction -> graph or grid operation -> render refresh.
 
 All authored data lives in versioned project payload. Workspace objects are
 transient previews. Expensive preview/build work must happen only on explicit

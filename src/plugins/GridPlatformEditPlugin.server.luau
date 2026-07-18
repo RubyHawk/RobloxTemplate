@@ -10,6 +10,7 @@ if RunService:IsRunning() then
 end
 
 local AuthoringArea = require(script.AuthoringArea)
+local WorldPathController = require(script.Controllers.WorldPathController)
 local GraphOperations = require(script.Graph.Operations)
 local PredicateFields = require(script.Graph.PredicateFields)
 local Brushes = require(script.Paint.Brushes)
@@ -38,24 +39,8 @@ local setButtonSelected = Factory.setSelected
 
 type Mode = "Paint" | "Graph" | "Stage" | "Validate"
 type GraphViewMode = "World" | "Logic"
-type WorldPathController = {
-	preview: any?,
-	assetPreview: boolean,
-	showLanes: boolean,
-	showBuildMask: boolean,
-	showConflicts: boolean,
-	render: (WorldPathController, any?, any?, any?, string?, string?, { [string]: boolean }) -> (),
-	rerender: (WorldPathController) -> (),
-	fitToView: (WorldPathController) -> (),
-	cancelInteraction: (WorldPathController) -> boolean,
-	destroy: (WorldPathController) -> (),
-}
 type FlowRuntime = {
-	viewModule: {
-		new: (Instance, any, any) -> WorldPathController,
-	},
 	mode: GraphViewMode,
-	view: WorldPathController?,
 	render: () -> (),
 	connect: (string, string) -> (),
 	inspectorLabel: (Instance, string, number, Color3?, number?) -> (),
@@ -119,10 +104,9 @@ local paintedKeys: { [string]: boolean } = {}
 local pendingConfirmation: { id: string, expires: number }? = nil
 local islandOutlinesEnabled = false
 local validationIssues: { any } = {}
+local worldPathController: WorldPathController.Controller
 local flowRuntime: FlowRuntime = {
-	viewModule = require(script.WorldPathView),
 	mode = "World",
-	view = nil,
 	render = function() end,
 	connect = function() end,
 	inspectorLabel = function() end,
@@ -467,7 +451,7 @@ local function finishEditorTransaction(transaction: ProjectStore.Transaction?, c
 		return false
 	end
 	local committed = ProjectStore.finish(transaction, commit)
-	if not commit then
+	if not committed then
 		project = ProjectStore.get()
 		stageIds = ProjectStore.stageIds()
 	end
@@ -2762,36 +2746,20 @@ do
 		end
 	end
 	flowRuntime.optionButtons.asset = flowRuntime.toggleAction("Asset Preview", 148, function()
-		local worldView = flowRuntime.view
-		if worldView ~= nil then
-			worldView.assetPreview = not worldView.assetPreview
-			worldView:rerender()
-			flowRuntime.refreshOptions()
-		end
+		worldPathController:toggleOption("AssetPreview")
+		flowRuntime.refreshOptions()
 	end)
 	flowRuntime.optionButtons.worldLanes = flowRuntime.toggleAction("Lanes", 108, function()
-		local worldView = flowRuntime.view
-		if worldView ~= nil then
-			worldView.showLanes = not worldView.showLanes
-			worldView:rerender()
-			flowRuntime.refreshOptions()
-		end
+		worldPathController:toggleOption("Lanes")
+		flowRuntime.refreshOptions()
 	end)
 	flowRuntime.optionButtons.buildMask = flowRuntime.toggleAction("Build Mask", 126, function()
-		local worldView = flowRuntime.view
-		if worldView ~= nil then
-			worldView.showBuildMask = not worldView.showBuildMask
-			worldView:rerender()
-			flowRuntime.refreshOptions()
-		end
+		worldPathController:toggleOption("BuildMask")
+		flowRuntime.refreshOptions()
 	end)
 	flowRuntime.optionButtons.conflicts = flowRuntime.toggleAction("Conflicts", 122, function()
-		local worldView = flowRuntime.view
-		if worldView ~= nil then
-			worldView.showConflicts = not worldView.showConflicts
-			worldView:rerender()
-			flowRuntime.refreshOptions()
-		end
+		worldPathController:toggleOption("Conflicts")
+		flowRuntime.refreshOptions()
 	end)
 	flowRuntime.optionButtons.workspacePreview = flowRuntime.toggleAction("Preview in World", 170, function()
 		local requested = not workspacePreview:isEnabled()
@@ -2806,10 +2774,7 @@ do
 		flowRuntime.refreshOptions()
 	end)
 	flowUi.fitAction = flowRuntime.modeAction(flowRuntime.worldControls, "Fit", 68, function()
-		local worldView = flowRuntime.view
-		if worldView ~= nil then
-			worldView:fitToView()
-		end
+		worldPathController:fitToView()
 	end)
 	Toolbar.styleIconButton(flowUi.fitAction, "Fit", "fit", COLORS.muted)
 	flowRuntime.optionButtons.logicLanes = flowRuntime.modeAction(
@@ -2841,13 +2806,22 @@ do
 		routeOverview:fitToView()
 	end)
 	flowRuntime.refreshOptions = function()
-		local worldView = flowRuntime.view
-		if worldView ~= nil then
-			flowRuntime.setToggleSelected(flowRuntime.optionButtons.asset, worldView.assetPreview)
-			flowRuntime.setToggleSelected(flowRuntime.optionButtons.worldLanes, worldView.showLanes)
-			flowRuntime.setToggleSelected(flowRuntime.optionButtons.buildMask, worldView.showBuildMask)
-			flowRuntime.setToggleSelected(flowRuntime.optionButtons.conflicts, worldView.showConflicts)
-		end
+		flowRuntime.setToggleSelected(
+			flowRuntime.optionButtons.asset,
+			worldPathController:getOption("AssetPreview")
+		)
+		flowRuntime.setToggleSelected(
+			flowRuntime.optionButtons.worldLanes,
+			worldPathController:getOption("Lanes")
+		)
+		flowRuntime.setToggleSelected(
+			flowRuntime.optionButtons.buildMask,
+			worldPathController:getOption("BuildMask")
+		)
+		flowRuntime.setToggleSelected(
+			flowRuntime.optionButtons.conflicts,
+			worldPathController:getOption("Conflicts")
+		)
 		flowRuntime.setToggleSelected(
 			flowRuntime.optionButtons.workspacePreview,
 			workspacePreview:isEnabled()
@@ -3095,23 +3069,67 @@ do
 		ZIndex = 66,
 	}, flowUi.routeTest)
 
-	flowUi.dragTransaction = nil
 	flowRuntime.cancelInteraction = function(): boolean
-		local transaction = flowUi.dragTransaction
-		local canceled = transaction ~= nil or connectFromNodeId ~= nil
-		flowUi.dragTransaction = nil
-		finishEditorTransaction(transaction, false)
+		local canceled = connectFromNodeId ~= nil
 		connectFromNodeId = nil
-		local worldView = flowRuntime.view
-		if worldView ~= nil then
-			canceled = worldView:cancelInteraction() or canceled
-		end
+		canceled = worldPathController:cancelInteraction() or canceled
 		canceled = routeOverview:cancelInteraction() or canceled
 		return canceled
 	end
-	flowRuntime.view = flowRuntime.viewModule.new(flowUi.worldHost, COLORS, {
-		cancelInteraction = function()
+	worldPathController = WorldPathController.new({
+		parent = flowUi.worldHost,
+		theme = COLORS,
+		currentPreview = function()
+			return ProjectStore.preview(selectedStageId)
+		end,
+		beginEdit = ProjectStore.begin,
+		finishEdit = function(transaction: number, commit: boolean)
+			return finishEditorTransaction(transaction, commit)
+		end,
+		applyNode = function(nodeId: string, position: any): boolean
+			local currentGraph = graph()
+			local node = if currentGraph ~= nil then currentGraph.nodes[nodeId] else nil
+			if node == nil then
+				return false
+			end
+			node.position = {
+				x = position.x,
+				y = node.position.y,
+				z = position.z,
+			}
+			return true
+		end,
+		applyHandle = function(edgeId: string, handleId: string, offset: any): boolean
+			local currentGraph = graph()
+			local edge = if currentGraph ~= nil then currentGraph.edges[edgeId] else nil
+			if edge == nil then
+				return false
+			end
+			local currentOffset = if handleId == "Out" then edge.outHandleOffset else edge.inHandleOffset
+			local nextOffset = {
+				x = offset.x,
+				y = currentOffset.y,
+				z = offset.z,
+			}
+			if handleId == "Out" then
+				edge.outHandleOffset = nextOffset
+			else
+				edge.inHandleOffset = nextOffset
+			end
+			return true
+		end,
+		cancelActiveInteraction = function()
 			cancelActiveEditorInteraction(true)
+		end,
+		reportBlocked = flowRuntime.reportBlocked,
+		onCommitted = function()
+			setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
+			renderAll()
+		end,
+		onFailed = function(action: string)
+			setStatus(`{action} was cancelled because the edit could not be committed.`, true)
+			cancelActiveEditorInteraction(false)
+			renderAll()
 		end,
 		selectNode = function(nodeId: string)
 			if connectFromNodeId ~= nil and connectFromNodeId ~= nodeId then
@@ -3132,87 +3150,7 @@ do
 			tracedEdgeIds = {}
 			renderAll()
 		end,
-		moveNode = function(nodeId: string, position: any, finished: boolean)
-			if not ProjectStore.isWritable() then
-				flowRuntime.reportBlocked("Move route node")
-				return
-			end
-			local currentGraph = graph()
-			local node = if currentGraph ~= nil then currentGraph.nodes[nodeId] else nil
-			if node == nil then
-				return
-			end
-			if flowUi.dragTransaction == nil then
-				local transaction = ProjectStore.begin("Move Stagewright route node")
-				if transaction == nil then
-					flowRuntime.reportBlocked("Move route node")
-					return
-				end
-				flowUi.dragTransaction = transaction
-			end
-			node.position = { x = position.x, y = node.position.y, z = position.z }
-			local worldView = flowRuntime.view
-			if worldView ~= nil then
-				worldView.preview = ProjectStore.preview(selectedStageId)
-			end
-			if finished then
-				local transaction = flowUi.dragTransaction
-				flowUi.dragTransaction = nil
-				if transaction ~= nil then
-					ProjectStore.finish(transaction, true)
-				end
-				setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
-				renderAll()
-			end
-		end,
-		moveHandle = function(edgeId: string, handleId: string, offset: any, finished: boolean)
-			if not ProjectStore.isWritable() then
-				flowRuntime.reportBlocked("Shape route spline")
-				return
-			end
-			local currentGraph = graph()
-			local edge = if currentGraph ~= nil then currentGraph.edges[edgeId] else nil
-			if edge == nil then
-				return
-			end
-			if flowUi.dragTransaction == nil then
-				local transaction = ProjectStore.begin("Shape Stagewright route spline")
-				if transaction == nil then
-					flowRuntime.reportBlocked("Shape route spline")
-					return
-				end
-				flowUi.dragTransaction = transaction
-			end
-			if handleId == "Out" then
-				edge.outHandleOffset = offset
-			else
-				edge.inHandleOffset = offset
-			end
-			local worldView = flowRuntime.view
-			if worldView ~= nil then
-				worldView.preview = ProjectStore.preview(selectedStageId)
-			end
-			if finished then
-				local transaction = flowUi.dragTransaction
-				flowUi.dragTransaction = nil
-				if transaction ~= nil then
-					ProjectStore.finish(transaction, true)
-				end
-				setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
-				renderAll()
-			end
-		end,
 		setLanes = flowUi.setLaneCount,
-		smoothEdge = function(edgeId: string)
-			local currentGraph = graph()
-			if currentGraph == nil then
-				return
-			end
-			mutate("Smooth Stagewright route spline", function()
-				GraphOperations.smoothEdge(currentGraph, edgeId)
-			end)
-			renderAll()
-		end,
 		focusWorld = function(edgeId: string?)
 			selectedEdgeId = edgeId
 			setStatus("Edit here, or enable Preview in World to use Studio move handles.")
@@ -3475,17 +3413,14 @@ do
 			flowUi.rulesPanel.Visible = false
 		end
 		if currentStage ~= nil then
-			local worldView = flowRuntime.view
-			if worldView ~= nil then
-				worldView:render(
-					currentStage,
-					currentGraph,
-					preview,
-					selectedNodeId,
-					selectedEdgeId,
-					tracedEdgeIds
-				)
-			end
+			worldPathController:render({
+				stage = currentStage,
+				graph = currentGraph,
+				preview = preview,
+				selectedNodeId = selectedNodeId,
+				selectedEdgeId = selectedEdgeId,
+				tracedEdgeIds = tracedEdgeIds,
+			})
 		end
 		routeOverview:render(currentGraph, selectedNodeId, selectedEdgeId, tracedEdgeIds)
 		flowRuntime.renderInspector()
@@ -4746,9 +4681,7 @@ plugin.Unloading:Connect(function()
 	cancelActiveEditorInteraction(false)
 	workspacePreview:destroy()
 	routeOverview:destroy()
-	if flowRuntime.view ~= nil then
-		flowRuntime.view:destroy()
-	end
+	worldPathController:destroy()
 	ProjectStore.cleanup()
 	AuthoringArea.clearIslandOutlines()
 end)

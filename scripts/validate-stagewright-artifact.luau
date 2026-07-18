@@ -61,6 +61,8 @@ for _, requiredName in
 		"StageExport",
 		"StageTrace",
 		"StageTypes",
+		"WorldPathController",
+		"WorldPathEditSession",
 		"WorkspacePreview",
 	}
 do
