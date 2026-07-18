@@ -45,6 +45,7 @@ for _, requiredName in
 		"HitTest",
 		"Persistence",
 		"PaintRouteDragSession",
+		"PaintStrokeSession",
 		"PointerDrag",
 		"ProjectLoadPolicy",
 		"ProjectStore",

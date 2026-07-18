@@ -11,6 +11,7 @@ end
 
 local AuthoringArea = require(script.AuthoringArea)
 local PaintRouteDragSession = require(script.Controllers.PaintRouteDragSession)
+local PaintStrokeSession = require(script.Controllers.PaintStrokeSession)
 local WorldPathController = require(script.Controllers.WorldPathController)
 local GraphOperations = require(script.Graph.Operations)
 local PredicateFields = require(script.Graph.PredicateFields)
@@ -67,14 +68,12 @@ type PaintRuntime = {
 	routeToolbar: Frame,
 	routeRail: GuiObject,
 	routeInspector: GuiObject,
-	legend: GuiObject,
 	modeButtons: { [string]: TextButton },
 	routeToolButtons: { [string]: TextButton },
 	cellAt: (Vector2) -> (number?, number?),
 	localPositionAt: (Vector2) -> any?,
 	hitRoute: (Vector2) -> (string?, string?, string?),
 	renderRoute: (any?) -> (),
-	beginInteraction: (number, number) -> (),
 	beginRouteInteraction: (Vector2) -> (),
 	deleteRouteSelection: () -> (),
 }
@@ -94,14 +93,12 @@ local activeBrushId = "terrain_ground"
 local activePaintTool = "Pencil"
 local paintBrushSize = 1
 local validationFilter = "Overview"
-local painting = false
-local paintTransaction: ProjectStore.Transaction? = nil
-local paintedKeys: { [string]: boolean } = {}
 local pendingConfirmation: { id: string, expires: number }? = nil
 local islandOutlinesEnabled = false
 local validationIssues: { any } = {}
 local worldPathController: WorldPathController.Controller
 local routeDragSession: PaintRouteDragSession.Session
+local paintStrokeSession: PaintStrokeSession.Session
 local flowRuntime: FlowRuntime = {
 	mode = "World",
 	render = function() end,
@@ -462,12 +459,6 @@ local function routePoint(position: Vector2): PaintRouteDragSession.Point2
 	}
 end
 
-local function finishPaintTransaction(commit: boolean): boolean
-	local transaction = paintTransaction
-	paintTransaction = nil
-	return finishEditorTransaction(transaction, commit)
-end
-
 local function reportEditorCommit(committed: boolean, action: string): boolean
 	if committed then
 		setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
@@ -476,6 +467,62 @@ local function reportEditorCommit(committed: boolean, action: string): boolean
 	setStatus(`{action} was cancelled because the edit could not be committed.`, true)
 	return false
 end
+
+paintStrokeSession = PaintStrokeSession.new({
+	beginEdit = function(label: string): number?
+		return ProjectStore.begin(label)
+	end,
+	finishEdit = function(transaction: number, commit: boolean): boolean
+		return finishEditorTransaction(transaction, commit)
+	end,
+	dimensions = function(): (number, number)
+		local current = stage()
+		if current == nil then
+			return 0, 0
+		end
+		return current.grid.columns, current.grid.rows
+	end,
+	fillToken = function(column: number, row: number): any
+		local current = stage()
+		if current == nil then
+			return nil
+		end
+		local authoredCell = current.grid.cells[`{column}:{row}`]
+		local resolvedCell = authoredCell or current.grid.defaultCell
+		return PaintAppearance.resolve(resolvedCell, authoredCell, current.grid.defaultCell)
+	end,
+	applyArea = function(
+		brushId: string,
+		column: number,
+		row: number,
+		brushSize: number,
+		visited: PaintStrokeSession.Visited
+	): boolean
+		local current = stage()
+		if current == nil then
+			return false
+		end
+		Brushes.applyArea(current.grid, Brushes.find(brushId), column, row, brushSize, visited)
+		return true
+	end,
+	onPreview = function()
+		renderCanvas()
+	end,
+	reportBlocked = function(action: string)
+		flowRuntime.reportBlocked(action)
+	end,
+	onCommitted = function(action: string)
+		reportEditorCommit(true, action)
+	end,
+	onFailed = function(action: string, phase: PaintStrokeSession.FailurePhase)
+		if phase == "Apply" then
+			setStatus(`{action} was cancelled because the paint target became unavailable.`, true)
+		else
+			reportEditorCommit(false, action)
+		end
+		renderAll()
+	end,
+})
 
 routeDragSession = PaintRouteDragSession.new({
 	beginEdit = function(label: string): number?
@@ -540,10 +587,9 @@ do
 	do
 		local modeId = definition.id
 		local modeButton = button(modeBar, definition.label, 132, function()
-			finishPaintTransaction(false)
+			paintStrokeSession:cancel("Paint mode changed")
 			routeDragSession:cancel("Paint mode changed")
 			paintRuntime.mode = modeId
-			painting = false
 			connectFromNodeId = nil
 			renderAll()
 		end)
@@ -935,7 +981,6 @@ do
 		Size = UDim2.fromOffset(154, 180),
 		ZIndex = 30,
 	}, paintPage) :: Frame
-	paintRuntime.legend = legend
 	create("UICorner", { CornerRadius = UDim.new(0, 7) }, legend)
 	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, legend)
 	for order, entry in
@@ -1529,13 +1574,7 @@ paintRuntime.renderRoute = function(preview: any?)
 	end
 end
 
-local function paintCell(column: number, row: number)
-	local current = stage()
-	local brushId = if activePaintTool == "Erase" then Brushes.RESET_ID else activeBrushId
-	Brushes.applyArea(current.grid, Brushes.find(brushId), column, row, paintBrushSize, paintedKeys)
-end
-
-paintRuntime.beginInteraction = function(column: number, row: number)
+local function beginPaintInteraction(column: number, row: number)
 	selectedCellKey = `{column}:{row}`
 	local preview = ProjectStore.preview(selectedStageId)
 	local routeAffected = preview ~= nil and preview.routeNoBuildMask[column .. ":" .. row] == true
@@ -1549,63 +1588,12 @@ paintRuntime.beginInteraction = function(column: number, row: number)
 		renderCanvas()
 		return
 	end
-	paintedKeys = {}
-	paintTransaction = ProjectStore.begin("Paint Stagewright cells")
-	if paintTransaction == nil then
-		flowRuntime.reportBlocked("Paint")
-		return
-	end
-	if activePaintTool == "Fill" then
-		local fillStage = stage()
-		local authoredCell = fillStage.grid.cells[`{column}:{row}`]
-		local resolvedCell = authoredCell or fillStage.grid.defaultCell
-		local targetColor = PaintAppearance.resolve(resolvedCell, authoredCell, fillStage.grid.defaultCell)
-		local queue = { Vector2.new(column, row) }
-		local visited: { [string]: boolean } = {}
-		local head = 1
-		local previousBrushSize = paintBrushSize
-		paintBrushSize = 1
-		while queue[head] ~= nil do
-			local point = queue[head]
-			head += 1
-			local pointColumn = math.floor(point.X)
-			local pointRow = math.floor(point.Y)
-			local key = `{pointColumn}:{pointRow}`
-			if
-				not visited[key]
-				and pointColumn >= 1
-				and pointColumn <= fillStage.grid.columns
-				and pointRow >= 1
-				and pointRow <= fillStage.grid.rows
-			then
-				visited[key] = true
-				local candidateOverride = fillStage.grid.cells[key]
-				local candidate = candidateOverride or fillStage.grid.defaultCell
-				local candidateColor =
-					PaintAppearance.resolve(candidate, candidateOverride, fillStage.grid.defaultCell)
-				if candidateColor == targetColor then
-					paintCell(pointColumn, pointRow)
-					table.insert(queue, Vector2.new(pointColumn - 1, pointRow))
-					table.insert(queue, Vector2.new(pointColumn + 1, pointRow))
-					table.insert(queue, Vector2.new(pointColumn, pointRow - 1))
-					table.insert(queue, Vector2.new(pointColumn, pointRow + 1))
-				end
-			end
-		end
-		paintBrushSize = previousBrushSize
-		if not reportEditorCommit(finishPaintTransaction(true), "Paint fill") then
-			renderAll()
-			return
-		end
-	elseif activePaintTool == "Rect" then
-		painting = true
-		gridCanvas:SetAttribute("RectangleColumn", column)
-		gridCanvas:SetAttribute("RectangleRow", row)
-	else
-		painting = true
-		paintCell(column, row)
-	end
-	renderCanvas()
+	local brushId = if activePaintTool == "Erase" then Brushes.RESET_ID else activeBrushId
+	paintStrokeSession:begin({
+		tool = activePaintTool :: PaintStrokeSession.Tool,
+		brushId = brushId,
+		brushSize = paintBrushSize,
+	}, column, row)
 end
 
 function renderCanvas()
@@ -4130,14 +4118,10 @@ button(exportActions, "Import selected", 128, function()
 end)
 
 cancelActiveEditorInteraction = function(refresh: boolean?): boolean
-	local canceled = painting or paintTransaction ~= nil or routeDragSession:isActive()
+	local canceled = paintStrokeSession:isActive() or routeDragSession:isActive()
 
-	painting = false
-	finishPaintTransaction(false)
+	canceled = paintStrokeSession:cancel("Editor context changed") or canceled
 	canceled = routeDragSession:cancel("Editor context changed") or canceled
-	table.clear(paintedKeys)
-	gridCanvas:SetAttribute("RectangleColumn", nil)
-	gridCanvas:SetAttribute("RectangleRow", nil)
 
 	canceled = workspacePreview:cancelInteraction() or canceled
 	canceled = flowRuntime.cancelInteraction() or canceled
@@ -4431,7 +4415,7 @@ UserInputService.InputBegan:Connect(function(input)
 	end
 	local column, row = paintRuntime.cellAt(position)
 	if column ~= nil and row ~= nil then
-		paintRuntime.beginInteraction(column, row)
+		beginPaintInteraction(column, row)
 	end
 end)
 
@@ -4469,6 +4453,16 @@ UserInputService.InputChanged:Connect(function(input)
 		return
 	end
 	local column, row = paintRuntime.cellAt(position)
+	if
+		paintStrokeSession:isActive()
+		and not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+	then
+		paintStrokeSession:release(column, row)
+		if column == nil or row == nil then
+			showHoveredCell(nil, nil)
+		end
+		return
+	end
 	if column == nil or row == nil then
 		showHoveredCell(nil, nil)
 		return
@@ -4476,21 +4470,14 @@ UserInputService.InputChanged:Connect(function(input)
 	local preview = ProjectStore.preview(selectedStageId)
 	local routeAffected = preview ~= nil and preview.routeNoBuildMask[`{column}:{row}`] == true
 	showHoveredCell(column, row, routeAffected)
-	if painting and (activePaintTool == "Pencil" or activePaintTool == "Erase") and paintModifierDown() then
-		paintCell(column, row)
-		renderCanvas()
-	end
+	paintStrokeSession:move(column, row, paintModifierDown())
 end)
 
 UserInputService.InputEnded:Connect(function(input)
 	if not ProjectStore.isWritable() then
-		local hadActiveInteraction = painting or paintTransaction ~= nil or routeDragSession:isActive()
-		painting = false
-		finishPaintTransaction(false)
+		local hadActiveInteraction = paintStrokeSession:isActive() or routeDragSession:isActive()
+		paintStrokeSession:cancel("Editing became unavailable")
 		routeDragSession:cancel("Editing became unavailable")
-		gridCanvas:SetAttribute("RectangleColumn", nil)
-		gridCanvas:SetAttribute("RectangleRow", nil)
-		table.clear(paintedKeys)
 		if hadActiveInteraction then
 			setStatus("Active edit was cancelled because editing became unavailable.", true)
 			renderAll()
@@ -4503,35 +4490,10 @@ UserInputService.InputEnded:Connect(function(input)
 		renderAll()
 		return
 	end
-	if input.UserInputType == Enum.UserInputType.MouseButton1 and painting then
-		if activePaintTool == "Rect" then
-			local startColumn = gridCanvas:GetAttribute("RectangleColumn")
-			local startRow = gridCanvas:GetAttribute("RectangleRow")
-			local endColumn = gridCanvas:GetAttribute("HoverColumn")
-			local endRow = gridCanvas:GetAttribute("HoverRow")
-			if
-				type(startColumn) == "number"
-				and type(startRow) == "number"
-				and type(endColumn) == "number"
-				and type(endRow) == "number"
-			then
-				local previousBrushSize = paintBrushSize
-				paintBrushSize = 1
-				for row = math.min(startRow, endRow), math.max(startRow, endRow) do
-					for column = math.min(startColumn, endColumn), math.max(startColumn, endColumn) do
-						paintCell(column, row)
-					end
-				end
-				paintBrushSize = previousBrushSize
-			end
-			gridCanvas:SetAttribute("RectangleColumn", nil)
-			gridCanvas:SetAttribute("RectangleRow", nil)
-			renderCanvas()
-		end
-		painting = false
-		if not reportEditorCommit(finishPaintTransaction(true), "Paint stroke") then
-			renderAll()
-		end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 and paintStrokeSession:isActive() then
+		local position = Vector2.new(input.Position.X, input.Position.Y)
+		local column, row = paintRuntime.cellAt(position)
+		paintStrokeSession:release(column, row)
 	end
 end)
 

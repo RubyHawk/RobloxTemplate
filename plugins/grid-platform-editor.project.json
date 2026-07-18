@@ -10,6 +10,9 @@
       "PaintRouteDragSession": {
         "$path": "../src/plugins/Stagewright/Controllers/PaintRouteDragSession.luau"
       },
+      "PaintStrokeSession": {
+        "$path": "../src/plugins/Stagewright/Controllers/PaintStrokeSession.luau"
+      },
       "WorldPathEditSession": {
         "$path": "../src/plugins/Stagewright/Controllers/WorldPathEditSession.luau"
       },

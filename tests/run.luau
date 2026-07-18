@@ -22,6 +22,7 @@ local CanvasTransform = require("../src/plugins/Stagewright/Interaction/CanvasTr
 local HitTest = require("../src/plugins/Stagewright/Interaction/HitTest")
 local PointerDrag = require("../src/plugins/Stagewright/Interaction/PointerDrag")
 local PaintRouteDragSession = require("../src/plugins/Stagewright/Controllers/PaintRouteDragSession")
+local PaintStrokeSession = require("../src/plugins/Stagewright/Controllers/PaintStrokeSession")
 local WorldPathEditSession = require("../src/plugins/Stagewright/Controllers/WorldPathEditSession")
 local GraphOperations = require("../src/plugins/Stagewright/Graph/Operations")
 local PaintBrushes = require("../src/plugins/Stagewright/Paint/Brushes")
@@ -677,6 +678,219 @@ do
 	expectEqual(appliedTargets[#appliedTargets].kind, "Handle", "replacement drag targets the new handle")
 	expectEqual(finishCommits[#finishCommits], true, "replacement drag commits its own transaction")
 	expectEqual(session:isActive(), false, "replacement drag finishes without stale capture")
+end
+
+do
+	local nextTransaction = 0
+	local beginLabels: { string } = {}
+	local finishCommits: { boolean } = {}
+	local finishSawInactive: { boolean } = {}
+	local applications: { any } = {}
+	local previews = 0
+	local committedActions: { string } = {}
+	local failedActions: { string } = {}
+	local failedPhases: { PaintStrokeSession.FailurePhase } = {}
+	local blockedActions: { string } = {}
+	local allowBegin = true
+	local beginThrows = false
+	local applySucceeds = true
+	local applyThrows = false
+	local commitSucceeds = true
+	local finishThrows = false
+	local tokens: { [string]: string } = {
+		["1:1"] = "A",
+		["2:1"] = "A",
+		["3:1"] = "B",
+		["1:2"] = "A",
+		["2:2"] = "B",
+		["3:2"] = "B",
+	}
+	local session: PaintStrokeSession.Session
+	session = PaintStrokeSession.new({
+		beginEdit = function(label: string): number?
+			table.insert(beginLabels, label)
+			if beginThrows then
+				error("simulated paint begin failure")
+			end
+			if not allowBegin then
+				return nil
+			end
+			nextTransaction += 1
+			return nextTransaction
+		end,
+		finishEdit = function(_transaction: number, commit: boolean): boolean
+			table.insert(finishCommits, commit)
+			table.insert(finishSawInactive, not session:isActive())
+			if finishThrows then
+				error("simulated paint finish failure")
+			end
+			return if commit then commitSucceeds else true
+		end,
+		dimensions = function(): (number, number)
+			return 3, 2
+		end,
+		fillToken = function(column: number, row: number): string
+			return tokens[`{column}:{row}`]
+		end,
+		applyArea = function(
+			brushId: string,
+			column: number,
+			row: number,
+			brushSize: number,
+			visited: PaintStrokeSession.Visited
+		): boolean
+			if applyThrows then
+				error("simulated paint apply failure")
+			end
+			if not applySucceeds then
+				return false
+			end
+			local key = `{column}:{row}`
+			if visited[key] then
+				return true
+			end
+			visited[key] = true
+			table.insert(applications, {
+				brushId = brushId,
+				column = column,
+				row = row,
+				brushSize = brushSize,
+			})
+			if brushId == "fill_brush" then
+				tokens[key] = "X"
+			end
+			return true
+		end,
+		onPreview = function()
+			previews += 1
+		end,
+		reportBlocked = function(action: string)
+			table.insert(blockedActions, action)
+		end,
+		onCommitted = function(action: string)
+			table.insert(committedActions, action)
+		end,
+		onFailed = function(action: string, phase: PaintStrokeSession.FailurePhase)
+			table.insert(failedActions, action)
+			table.insert(failedPhases, phase)
+		end,
+	})
+
+	local pencilSpec: PaintStrokeSession.Spec = {
+		tool = "Pencil",
+		brushId = "ground",
+		brushSize = 3,
+	}
+	expectEqual(session:begin(pencilSpec, 1, 1), true, "paint stroke begins from a valid cell")
+	expectEqual(beginLabels[1], "Paint Stagewright cells", "paint stroke uses the stable undo label")
+	pencilSpec.brushId = "changed_mid_stroke"
+	pencilSpec.brushSize = 5
+	expectEqual(session:move(1, 1, true), true, "paint stroke consumes repeated visited movement")
+	expectEqual(#applications, 1, "paint stroke shares visited cells across movement")
+	expectEqual(session:move(2, 1, false), false, "paint stroke pauses when Shift is released")
+	expectEqual(#applications, 1, "Shift-off movement does not mutate cells")
+	expectEqual(session:move(2, 1, true), true, "paint stroke resumes while Shift is held")
+	expectEqual(applications[2].brushId, "ground", "paint stroke snapshots the starting brush")
+	expectEqual(applications[2].brushSize, 3, "paint stroke snapshots the starting brush size")
+	expectEqual(session:release(2, 1), true, "paint stroke release commits")
+	expectEqual(finishCommits[1], true, "paint stroke requests one committed transaction")
+	expectEqual(finishSawInactive[1], true, "paint stroke clears state before commit")
+	expectEqual(committedActions[1], "Paint stroke", "paint stroke reports its stable action")
+	expectEqual(session:release(2, 1), false, "stale paint release cannot commit twice")
+	local applicationsAfterRelease = #applications
+	expectEqual(session:move(3, 1, true), false, "movement after a missed paint release stays inactive")
+	expectEqual(#applications, applicationsAfterRelease, "movement without a held paint stroke cannot mutate")
+
+	local rectangleStart = #applications
+	session:begin({ tool = "Rect", brushId = "blocked", brushSize = 5 }, 3, 2)
+	session:release(1, 1)
+	expectEqual(#applications - rectangleStart, 6, "reversed rectangle paints inclusive bounds")
+	for index = rectangleStart + 1, #applications do
+		expectEqual(applications[index].brushSize, 1, "rectangle ignores the configured area brush size")
+	end
+	expectEqual(previews, 4, "pencil begin, accepted moves, and rectangle each preview once")
+
+	local fillStart = #applications
+	expectEqual(
+		session:begin({ tool = "Fill", brushId = "fill_brush", brushSize = 5 }, 1, 1),
+		true,
+		"paint fill completes from begin"
+	)
+	expectEqual(session:isActive(), false, "paint fill commits immediately")
+	expectEqual(#applications - fillStart, 3, "paint fill visits one connected color region")
+	for index = fillStart + 1, #applications do
+		expectEqual(applications[index].brushSize, 1, "paint fill never mutates configured brush size")
+	end
+	expectEqual(committedActions[#committedActions], "Paint fill", "paint fill reports its action")
+
+	session:begin({ tool = "Erase", brushId = "reset", brushSize = 1 }, 3, 2)
+	expectEqual(session:cancel("Escape"), true, "active paint stroke can be cancelled")
+	expectEqual(finishCommits[#finishCommits], false, "paint cancellation rolls back once")
+	expectEqual(
+		finishSawInactive[#finishSawInactive],
+		true,
+		"paint cancellation clears state before rollback"
+	)
+	expectEqual(session:cancel("Escape"), false, "repeated paint cancellation is idempotent")
+
+	allowBegin = false
+	expectEqual(
+		session:begin({ tool = "Pencil", brushId = "ground", brushSize = 1 }, 1, 1),
+		false,
+		"rejected paint begin returns false"
+	)
+	expectEqual(blockedActions[#blockedActions], "Paint stroke", "rejected paint begin reports its action")
+	allowBegin = true
+	beginThrows = true
+	local beginEscaped = not pcall(function()
+		session:begin({ tool = "Fill", brushId = "ground", brushSize = 1 }, 1, 1)
+	end)
+	expectEqual(beginEscaped, false, "paint session contains a throwing begin adapter")
+	expectEqual(blockedActions[#blockedActions], "Paint fill", "throwing paint begin reports its action")
+	beginThrows = false
+
+	applySucceeds = false
+	session:begin({ tool = "Pencil", brushId = "ground", brushSize = 1 }, 1, 1)
+	expectEqual(finishCommits[#finishCommits], false, "rejected paint apply rolls back")
+	expectEqual(failedActions[#failedActions], "Paint stroke", "rejected paint apply reports its action")
+	expectEqual(failedPhases[#failedPhases], "Apply", "rejected paint apply identifies its phase")
+	expectEqual(session:isActive(), false, "rejected paint apply clears state")
+	applySucceeds = true
+	applyThrows = true
+	local applyEscaped = not pcall(function()
+		session:begin({ tool = "Erase", brushId = "reset", brushSize = 1 }, 1, 1)
+	end)
+	expectEqual(applyEscaped, false, "paint session contains a throwing apply adapter")
+	expectEqual(failedPhases[#failedPhases], "Apply", "throwing paint apply identifies its phase")
+	applyThrows = false
+
+	commitSucceeds = false
+	session:begin({ tool = "Pencil", brushId = "ground", brushSize = 1 }, 1, 1)
+	session:release(1, 1)
+	expectEqual(failedPhases[#failedPhases], "Commit", "rejected paint commit identifies its phase")
+	expectEqual(session:isActive(), false, "rejected paint commit leaves no stale state")
+	commitSucceeds = true
+	finishThrows = true
+	session:begin({ tool = "Pencil", brushId = "ground", brushSize = 1 }, 1, 1)
+	local finishEscaped = not pcall(function()
+		session:release(1, 1)
+	end)
+	expectEqual(finishEscaped, false, "paint session contains a throwing finish adapter")
+	expectEqual(failedPhases[#failedPhases], "Commit", "throwing paint finish identifies its phase")
+	expectEqual(session:isActive(), false, "throwing paint finish leaves the session idle")
+	finishThrows = false
+
+	local finishesBeforeReplacement = #finishCommits
+	session:begin({ tool = "Pencil", brushId = "ground", brushSize = 1 }, 1, 1)
+	session:begin({ tool = "Rect", brushId = "blocked", brushSize = 3 }, 2, 2)
+	expectEqual(
+		#finishCommits,
+		finishesBeforeReplacement + 1,
+		"new paint press rolls back a stale transaction once"
+	)
+	expectEqual(finishCommits[#finishCommits], false, "replacement paint press rolls back the old stroke")
+	session:release(nil, nil)
+	expectEqual(session:isActive(), false, "replacement paint stroke finishes without stale state")
 end
 
 do
@@ -2553,6 +2767,8 @@ do
 		fs.readFile("src/plugins/Stagewright/Controllers/WorldPathEditSession.luau")
 	local stagewrightPaintRouteDragSessionSource =
 		fs.readFile("src/plugins/Stagewright/Controllers/PaintRouteDragSession.luau")
+	local stagewrightPaintStrokeSessionSource =
+		fs.readFile("src/plugins/Stagewright/Controllers/PaintStrokeSession.luau")
 	local stagewrightAppShellSource = fs.readFile("src/plugins/Stagewright/UI/AppShell.luau")
 	local stagewrightThemeSource = fs.readFile("src/plugins/Stagewright/UI/Theme.luau")
 	local stagewrightFactorySource = fs.readFile("src/plugins/Stagewright/UI/Factory.luau")
@@ -2590,6 +2806,7 @@ do
 		stagewrightPaintRouteDragSessionSource,
 		"Stagewright paint-route drag session compiles as Luau"
 	)
+	expectCompiles(stagewrightPaintStrokeSessionSource, "Stagewright paint-stroke session compiles as Luau")
 	expectCompiles(stagewrightAppShellSource, "Stagewright app shell compiles as Luau")
 	expectCompiles(stagewrightThemeSource, "Stagewright UI theme compiles as Luau")
 	expectCompiles(stagewrightFactorySource, "Stagewright UI factory compiles as Luau")
@@ -2618,6 +2835,7 @@ do
 	expectEqual(
 		string.find(gridPluginSource, "require(script.UI.AppShell)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.Controllers.PaintRouteDragSession)", 1, true) ~= nil
+			and string.find(gridPluginSource, "require(script.Controllers.PaintStrokeSession)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.Controllers.WorldPathController)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.UI.Theme)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.Graph.Operations)", 1, true) ~= nil
@@ -2634,11 +2852,38 @@ do
 			`Stagewright world-path controller stays independent from {forbiddenDependency}`
 		)
 	end
+	for _, forbiddenDependency in
+		{ "game", "Instance", "ProjectStore", "UserInputService", "Brushes", "PaintAppearance" }
+	do
+		expectEqual(
+			string.find(stagewrightPaintStrokeSessionSource, forbiddenDependency, 1, true),
+			nil,
+			`Stagewright paint-stroke session stays independent from {forbiddenDependency}`
+		)
+	end
 	for _, forbiddenDependency in { "game", "Instance", "ProjectStore", "WorldPathView" } do
 		expectEqual(
 			string.find(stagewrightWorldPathEditSessionSource, forbiddenDependency, 1, true),
 			nil,
 			`Stagewright world-path edit session stays independent from {forbiddenDependency}`
+		)
+	end
+	for _, retiredPaintState in
+		{
+			"local painting =",
+			"paintTransaction",
+			"paintedKeys",
+			"finishPaintTransaction",
+			"RectangleColumn",
+			"RectangleRow",
+			"paintRuntime.legend",
+			"previousBrushSize",
+		}
+	do
+		expectEqual(
+			string.find(gridPluginSource, retiredPaintState, 1, true),
+			nil,
+			`Stagewright bootstrap retires paint gesture state {retiredPaintState}`
 		)
 	end
 	for _, forbiddenDependency in
@@ -2677,7 +2922,7 @@ do
 		{
 			"local succeeded, result = pcall(ProjectStore.finish",
 			"onMoveFailed = function()",
-			'reportEditorCommit(finishPaintTransaction(true), "Paint stroke")',
+			"onFailed = function(action: string, phase: PaintStrokeSession.FailurePhase)",
 		}
 	do
 		expectEqual(
@@ -2687,9 +2932,24 @@ do
 		)
 	end
 	expectEqual(
+		string.find(
+			gridPluginSource,
+			"not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)",
+			1,
+			true
+		) ~= nil,
+		true,
+		"Stagewright paint and route interactions stop when the primary button is no longer held"
+	)
+	expectEqual(
 		string.find(stagewrightPaintRouteDragSessionSource, "pcall(config.finishEdit", 1, true) ~= nil,
 		true,
 		"Stagewright paint-route drag session contains a rejected or throwing commit"
+	)
+	expectEqual(
+		string.find(stagewrightPaintStrokeSessionSource, "pcall(config.finishEdit", 1, true) ~= nil,
+		true,
+		"Stagewright paint-stroke session contains a rejected or throwing commit"
 	)
 	expectEqual(
 		string.find(stagewrightWorkspacePreviewSource, "self.config.onMoveFailed()", 1, true) ~= nil,

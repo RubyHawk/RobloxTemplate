@@ -15,6 +15,9 @@ domain logic or reusable UI primitives should not be added to the bootstrap.
   coordination for one world-path gesture, with no Roblox service dependency.
 - `Controllers/PaintRouteDragSession.luau`: pure route-canvas pointer and undo
   lifecycle; it composes the shared drag reducer and owns no graph or UI state.
+- `Controllers/PaintStrokeSession.luau`: pure cell-paint transaction and gesture
+  lifecycle for pencil, erase, rectangle, and fill tools. It snapshots brush
+  settings and owns no GUI, brush catalog, or project-store dependency.
 - `WorldPathView.luau`: world-path canvas rendering and pointer input; it does
   not own persistence or undo.
 - `RouteOverview.luau`: route-logic graph rendering and input.
