@@ -18,6 +18,12 @@
       "$className": "Folder",
       "CanvasTransform": {
         "$path": "../src/plugins/Stagewright/Interaction/CanvasTransform.luau"
+      },
+      "HitTest": {
+        "$path": "../src/plugins/Stagewright/Interaction/HitTest.luau"
+      },
+      "PointerDrag": {
+        "$path": "../src/plugins/Stagewright/Interaction/PointerDrag.luau"
       }
     },
     "Paint": {

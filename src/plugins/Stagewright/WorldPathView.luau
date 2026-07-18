@@ -4,6 +4,8 @@ local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local CanvasTransform = require(script.Parent.Interaction.CanvasTransform)
+local HitTest = require(script.Parent.Interaction.HitTest)
+local PointerDrag = require(script.Parent.Interaction.PointerDrag)
 
 export type Theme = {
 	background: Color3,
@@ -24,6 +26,7 @@ export type Theme = {
 }
 
 export type Callbacks = {
+	cancelInteraction: () -> (),
 	selectNode: (string) -> (),
 	selectEdge: (string) -> (),
 	moveNode: (string, any, boolean) -> (),
@@ -51,11 +54,11 @@ export type Controller = {
 	showLanes: boolean,
 	showBuildMask: boolean,
 	showConflicts: boolean,
-	dragKind: string?,
-	dragId: string?,
-	dragHandle: string?,
-	dragStartScreen: Vector2?,
-	dragMoved: boolean,
+	pointerState: PointerDrag.State,
+	hitPrimitives: { HitTest.Primitive },
+	hitBlockers: { GuiObject },
+	touchPointerIds: { [InputObject]: string },
+	nextTouchPointerId: number,
 	lastDragRenderAt: number,
 	lastDragValue: any?,
 	panLastScreen: Vector2?,
@@ -78,6 +81,8 @@ local SELECTED = Color3.fromRGB(69, 207, 230)
 local WATER = Color3.fromRGB(22, 68, 95)
 local CANVAS_PADDING = 18
 local INSPECTOR_HEIGHT = 216
+local NODE_HIT_RADIUS = 16
+local HANDLE_HIT_RADIUS = 14
 
 local function backdropSource(): Instance?
 	local firstIsland = Workspace:FindFirstChild("FirstPrivateIsland")
@@ -246,23 +251,6 @@ local function line(
 	return result
 end
 
-local function lineButton(parent: Instance, from: Vector2, to: Vector2, thickness: number, callback: () -> ())
-	local delta = to - from
-	local hitTarget = create("TextButton", {
-		Active = true,
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		AutoButtonColor = false,
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		Position = UDim2.fromOffset((from.X + to.X) * 0.5, (from.Y + to.Y) * 0.5),
-		Rotation = math.deg(math.atan2(delta.Y, delta.X)),
-		Size = UDim2.fromOffset(math.max(delta.Magnitude + 3, 3), math.max(thickness, 12)),
-		Text = "",
-		ZIndex = 15,
-	}, parent) :: TextButton
-	hitTarget.Activated:Connect(callback)
-end
-
 local function resolvedCell(grid: any, key: string): any
 	local override = grid.cells[key]
 	if override == nil then
@@ -290,12 +278,10 @@ local function displayName(node: any?): string
 end
 
 function WorldPathView.cancelInteraction(self: Controller): boolean
-	local canceled = self.dragKind ~= nil or self.panLastScreen ~= nil
-	self.dragKind = nil
-	self.dragId = nil
-	self.dragHandle = nil
-	self.dragStartScreen = nil
-	self.dragMoved = false
+	local pointerResult = PointerDrag.cancel(self.pointerState, "Editor interaction cancelled")
+	local canceled = #pointerResult.actions > 0 or self.panLastScreen ~= nil
+	self.pointerState = pointerResult.state
+	table.clear(self.touchPointerIds)
 	self.lastDragRenderAt = 0
 	self.lastDragValue = nil
 	self.panLastScreen = nil
@@ -327,11 +313,11 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		showLanes = true,
 		showBuildMask = false,
 		showConflicts = true,
-		dragKind = nil,
-		dragId = nil,
-		dragHandle = nil,
-		dragStartScreen = nil,
-		dragMoved = false,
+		pointerState = PointerDrag.idle(),
+		hitPrimitives = {},
+		hitBlockers = {},
+		touchPointerIds = {},
+		nextTouchPointerId = 0,
 		lastDragRenderAt = 0,
 		lastDragValue = nil,
 		panLastScreen = nil,
@@ -372,68 +358,123 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		}
 	end
 
-	local function resetDrag()
-		self:cancelInteraction()
-	end
-
-	local function updateDrag(pointer: Vector2): boolean
+	local function updateDrag(target: PointerDrag.Target, pointer: Vector2, finished: boolean): boolean
 		local localPosition = pointToLocal(pointer)
-		if localPosition == nil or self.graph == nil or self.dragId == nil then
+		local graph = self.graph
+		if graph == nil then
 			return false
 		end
-		if self.dragKind == "Node" then
-			local node = self.graph.nodes[self.dragId]
+		if target.kind == "Node" then
+			local node = graph.nodes[target.id]
 			if node == nil then
 				return false
 			end
-			localPosition.y = node.position.y
-			self.lastDragValue = localPosition
-			self.callbacks.moveNode(self.dragId, localPosition, false)
+			local value = localPosition
+			if value ~= nil then
+				value.y = node.position.y
+				self.lastDragValue = value
+			elseif finished then
+				value = self.lastDragValue
+			end
+			if value == nil then
+				return false
+			end
+			self.callbacks.moveNode(target.id, value, finished)
 			return true
-		elseif self.dragKind == "Handle" and self.dragHandle ~= nil then
-			local edge = self.graph.edges[self.dragId]
+		elseif target.kind == "Handle" and target.handleId ~= nil then
+			local edge = graph.edges[target.id]
 			if edge == nil then
 				return false
 			end
-			local anchorId = if self.dragHandle == "Out" then edge.fromNodeId else edge.toNodeId
-			local anchor = self.graph.nodes[anchorId]
+			local anchorId = if target.handleId == "Out" then edge.fromNodeId else edge.toNodeId
+			local anchor = graph.nodes[anchorId]
 			if anchor == nil then
 				return false
 			end
-			local offset = {
-				x = localPosition.x - anchor.position.x,
-				y = if self.dragHandle == "Out" then edge.outHandleOffset.y else edge.inHandleOffset.y,
-				z = localPosition.z - anchor.position.z,
-			}
-			self.lastDragValue = offset
-			self.callbacks.moveHandle(self.dragId, self.dragHandle, offset, false)
+			local value = nil
+			if localPosition ~= nil then
+				value = {
+					x = localPosition.x - anchor.position.x,
+					y = if target.handleId == "Out" then edge.outHandleOffset.y else edge.inHandleOffset.y,
+					z = localPosition.z - anchor.position.z,
+				}
+				self.lastDragValue = value
+			elseif finished then
+				value = self.lastDragValue
+			end
+			if value == nil then
+				return false
+			end
+			self.callbacks.moveHandle(target.id, target.handleId, value, finished)
 			return true
 		end
 		return false
 	end
 
-	local function finishDrag(pointer: Vector2)
-		local dragKind = self.dragKind
-		local dragId = self.dragId
-		local dragHandle = self.dragHandle
-		local moved = self.dragMoved
-		if moved then
-			updateDrag(pointer)
+	local function seedDragValue(target: PointerDrag.Target): any?
+		local graph = self.graph
+		if graph == nil then
+			return nil
+		elseif target.kind == "Node" then
+			local node = graph.nodes[target.id]
+			if node == nil then
+				return nil
+			end
+			return {
+				x = node.position.x,
+				y = node.position.y,
+				z = node.position.z,
+			}
+		elseif target.kind == "Handle" then
+			local edge = graph.edges[target.id]
+			if edge == nil then
+				return nil
+			end
+			local offset = if target.handleId == "Out" then edge.outHandleOffset else edge.inHandleOffset
+			return {
+				x = offset.x,
+				y = offset.y,
+				z = offset.z,
+			}
 		end
-		local finalValue = self.lastDragValue
-		resetDrag()
-		if moved and dragKind == "Node" and dragId ~= nil and finalValue ~= nil then
-			self.callbacks.moveNode(dragId, finalValue, true)
-		elseif
-			moved
-			and dragKind == "Handle"
-			and dragId ~= nil
-			and dragHandle ~= nil
-			and finalValue ~= nil
-		then
-			self.callbacks.moveHandle(dragId, dragHandle, finalValue, true)
-		else
-			self:rerender()
+		return nil
+	end
+
+	local function dispatchPointerActions(actions: { PointerDrag.Action })
+		for _, action in actions do
+			if action.kind == "DragStarted" then
+				self.lastDragRenderAt = os.clock()
+				if updateDrag(action.target, Vector2.new(action.position.x, action.position.y), false) then
+					self:rerender()
+				end
+			elseif action.kind == "DragMoved" then
+				local now = os.clock()
+				if now - self.lastDragRenderAt >= 0.05 then
+					self.lastDragRenderAt = now
+					if
+						updateDrag(action.target, Vector2.new(action.position.x, action.position.y), false)
+					then
+						self:rerender()
+					end
+				end
+			elseif action.kind == "Committed" then
+				local committed =
+					updateDrag(action.target, Vector2.new(action.position.x, action.position.y), true)
+				self.lastDragRenderAt = 0
+				self.lastDragValue = nil
+				if not committed then
+					self:rerender()
+				end
+			elseif action.kind == "Clicked" then
+				self.lastDragRenderAt = 0
+				self.lastDragValue = nil
+				if action.target.kind == "Edge" then
+					self.callbacks.selectEdge(action.target.id)
+				end
+			elseif action.kind == "Cancelled" then
+				self.lastDragRenderAt = 0
+				self.lastDragValue = nil
+			end
 		end
 	end
 
@@ -467,20 +508,112 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		return { x = point.X, y = point.Y }, transform
 	end
 
-	table.insert(
-		self.connections,
-		UserInputService.InputBegan:Connect(function(input)
+	local function pointerId(input: InputObject, createTouchId: boolean): string?
+		if
+			input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.MouseMovement
+		then
+			return "mouse-primary"
+		elseif input.UserInputType ~= Enum.UserInputType.Touch then
+			return nil
+		end
+		local existing = self.touchPointerIds[input]
+		if existing ~= nil or not createTouchId then
+			return existing
+		end
+		self.nextTouchPointerId += 1
+		local created = `touch-{self.nextTouchPointerId}`
+		self.touchPointerIds[input] = created
+		return created
+	end
+
+	local function beginPrimaryPointer(input: InputObject, pointer: Vector2)
+		if self.panLastScreen ~= nil or PointerDrag.isActive(self.pointerState) then
+			return
+		end
+		local canvas = self.canvas
+		if viewportPoint(pointer) == nil or canvas == nil or canvas.Parent == nil then
+			return
+		end
+		for _, blocker in self.hitBlockers do
+			local blockerPosition = blocker.AbsolutePosition
+			local blockerSize = blocker.AbsoluteSize
 			if
-				not isVisible()
-				or self.dragKind ~= nil
-				or input.UserInputType ~= Enum.UserInputType.MouseButton3
+				blocker.Visible
+				and pointer.X >= blockerPosition.X
+				and pointer.Y >= blockerPosition.Y
+				and pointer.X <= blockerPosition.X + blockerSize.X
+				and pointer.Y <= blockerPosition.Y + blockerSize.Y
 			then
 				return
 			end
+		end
+		local canvasPosition = pointer - canvas.AbsolutePosition
+		local canvasSize = canvas.AbsoluteSize
+		if
+			canvasPosition.X < 0
+			or canvasPosition.Y < 0
+			or canvasPosition.X > canvasSize.X
+			or canvasPosition.Y > canvasSize.Y
+		then
+			return
+		end
+		local hit = HitTest.resolve({ x = canvasPosition.X, y = canvasPosition.Y }, self.hitPrimitives)
+		if hit == nil then
+			return
+		end
+		local resolvedPointerId = pointerId(input, true)
+		if resolvedPointerId == nil then
+			return
+		end
+		local target: PointerDrag.Target
+		if hit.kind == "Handle" then
+			local handleId = hit.handleId
+			if handleId == nil then
+				return
+			end
+			target = {
+				kind = "Handle",
+				id = hit.id,
+				handleId = handleId,
+			}
+		elseif hit.kind == "Node" then
+			target = {
+				kind = "Node",
+				id = hit.id,
+			}
+		else
+			target = {
+				kind = "Edge",
+				id = hit.id,
+			}
+		end
+		self.lastDragRenderAt = 0
+		self.lastDragValue = seedDragValue(target)
+		local result =
+			PointerDrag.press(self.pointerState, resolvedPointerId, target, { x = pointer.X, y = pointer.Y })
+		self.pointerState = result.state
+		if hit.kind == "Node" then
+			self.callbacks.selectNode(hit.id)
+		end
+	end
+
+	table.insert(
+		self.connections,
+		UserInputService.InputBegan:Connect(function(input)
+			if not isVisible() then
+				return
+			end
 			local pointer = Vector2.new(input.Position.X, input.Position.Y)
-			local point = viewportPoint(pointer)
-			if point ~= nil then
-				self.panLastScreen = pointer
+			if input.UserInputType == Enum.UserInputType.MouseButton3 then
+				if not PointerDrag.isActive(self.pointerState) and viewportPoint(pointer) ~= nil then
+					self.panLastScreen = pointer
+				end
+			elseif
+				input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch
+			then
+				beginPrimaryPointer(input, pointer)
 			end
 		end)
 	)
@@ -493,7 +626,7 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 			end
 			local pointer = Vector2.new(input.Position.X, input.Position.Y)
 			if input.UserInputType == Enum.UserInputType.MouseWheel then
-				if self.dragKind ~= nil or self.panLastScreen ~= nil then
+				if PointerDrag.isActive(self.pointerState) or self.panLastScreen ~= nil then
 					return
 				end
 				local point, transform = viewportPoint(pointer)
@@ -507,14 +640,7 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 				end
 				return
 			end
-			if input.UserInputType ~= Enum.UserInputType.MouseMovement then
-				return
-			end
-			if self.panLastScreen ~= nil then
-				if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton3) then
-					self.panLastScreen = nil
-					return
-				end
+			if input.UserInputType == Enum.UserInputType.MouseMovement and self.panLastScreen ~= nil then
 				local transform = self.transform
 				local delta = pointer - self.panLastScreen
 				self.panLastScreen = pointer
@@ -533,24 +659,15 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 				end
 				return
 			end
-			if self.dragKind == nil then
+			if not PointerDrag.isActive(self.pointerState) then
 				return
 			end
-			if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-				finishDrag(pointer)
-				return
-			end
-			if self.dragStartScreen == nil or (pointer - self.dragStartScreen).Magnitude < 4 then
-				return
-			end
-			local now = os.clock()
-			if now - self.lastDragRenderAt < 0.05 then
-				return
-			end
-			self.dragMoved = true
-			self.lastDragRenderAt = now
-			if updateDrag(pointer) then
-				self:rerender()
+			local resolvedPointerId = pointerId(input, false)
+			if resolvedPointerId ~= nil then
+				local result =
+					PointerDrag.move(self.pointerState, resolvedPointerId, { x = pointer.X, y = pointer.Y })
+				self.pointerState = result.state
+				dispatchPointerActions(result.actions)
 			end
 		end)
 	)
@@ -562,16 +679,29 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 				self.panLastScreen = nil
 				return
 			end
-			if input.UserInputType ~= Enum.UserInputType.MouseButton1 or self.dragKind == nil then
+			local resolvedPointerId = pointerId(input, false)
+			if resolvedPointerId == nil then
 				return
 			end
-			finishDrag(Vector2.new(input.Position.X, input.Position.Y))
+			local result = PointerDrag.release(self.pointerState, resolvedPointerId, {
+				x = input.Position.X,
+				y = input.Position.Y,
+			})
+			self.pointerState = result.state
+			dispatchPointerActions(result.actions)
+			if input.UserInputType == Enum.UserInputType.Touch then
+				self.touchPointerIds[input] = nil
+			end
 		end)
 	)
 
 	table.insert(
 		self.connections,
 		root:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+			if PointerDrag.isActive(self.pointerState) or self.panLastScreen ~= nil then
+				self.callbacks.cancelInteraction()
+				return
+			end
 			self:rerender()
 		end)
 	)
@@ -610,6 +740,8 @@ end
 
 function WorldPathView.rerender(self: Controller)
 	self.canvas = nil
+	table.clear(self.hitPrimitives)
+	table.clear(self.hitBlockers)
 	for _, child in self.root:GetChildren() do
 		if child:IsA("GuiObject") then
 			child:Destroy()
@@ -728,13 +860,17 @@ function WorldPathView.rerender(self: Controller)
 		end
 		table.sort(edgeIds)
 		for _, edgeId in edgeIds do
-			local selectableEdgeId = edgeId
 			local edge = bakedGraph.edges[edgeId]
 			local profile = bakedGraph.laneProfiles[edge.laneProfileId]
 			local radius = if profile ~= nil then profile.clearanceRadius else grid.cellSize * 0.5
 			local routeScale = scale
 			local walkwayWidth = math.max(radius * 2 * routeScale, 8)
 			local samples = edge.samples or {}
+			local edgeHitPoints: { HitTest.Point2 } = {}
+			if #samples > 0 then
+				local firstPoint = worldPoint(samples[1].position)
+				table.insert(edgeHitPoints, { x = firstPoint.X, y = firstPoint.Y })
+			end
 			local step = math.max(math.floor(#samples / 72), 1)
 			local previousIndex = 1
 			local selected = self.selectedEdgeId == edgeId
@@ -777,13 +913,19 @@ function WorldPathView.rerender(self: Controller)
 					line(canvas, first, second, Color3.fromRGB(58, 77, 81), walkwayWidth, 5, 0.16)
 					line(canvas, first, second, LANE, 2, 7, 0.16)
 				end
-				lineButton(canvas, first, second, walkwayWidth + 10, function()
-					self.callbacks.selectEdge(selectableEdgeId)
-				end)
+				table.insert(edgeHitPoints, { x = second.X, y = second.Y })
 				previousIndex = resolvedIndex
 				if resolvedIndex == #samples then
 					break
 				end
+			end
+			if #edgeHitPoints > 0 then
+				table.insert(self.hitPrimitives, {
+					kind = "Edge",
+					id = edgeId,
+					points = edgeHitPoints,
+					radius = math.max(walkwayWidth * 0.5 + 5, 8),
+				})
 			end
 
 			if selected and profile ~= nil and self.showLanes then
@@ -940,6 +1082,12 @@ function WorldPathView.rerender(self: Controller)
 
 	for nodeId, node in graph.nodes do
 		local point = worldPoint(node.position)
+		table.insert(self.hitPrimitives, {
+			kind = "Node",
+			id = nodeId,
+			center = { x = point.X, y = point.Y },
+			radius = NODE_HIT_RADIUS,
+		})
 		if node.kind == "Spawn" or node.kind == "Goal" then
 			local glow = create("Frame", {
 				AnchorPoint = Vector2.new(0.5, 0.5),
@@ -953,9 +1101,9 @@ function WorldPathView.rerender(self: Controller)
 			rounded(glow, 24)
 			stroke(glow, nodeColor(node.kind), 3, 0.36)
 		end
-		local nodeButton = create("TextButton", {
+		local nodeButton = create("TextLabel", {
+			Active = false,
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			AutoButtonColor = false,
 			BackgroundColor3 = nodeColor(node.kind),
 			BorderSizePixel = 0,
 			Font = Enum.Font.BuilderSansBold,
@@ -968,7 +1116,8 @@ function WorldPathView.rerender(self: Controller)
 			TextColor3 = self.theme.text,
 			TextSize = 9,
 			ZIndex = 20,
-		}, canvas) :: TextButton
+			Selectable = false,
+		}, canvas) :: TextLabel
 		if node.kind == "Junction" then
 			local pinTail = create("Frame", {
 				AnchorPoint = Vector2.new(0.5, 0.5),
@@ -988,18 +1137,6 @@ function WorldPathView.rerender(self: Controller)
 			if self.selectedNodeId == nodeId then 3 else 1,
 			0.15
 		)
-		nodeButton.InputBegan:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 and self.panLastScreen == nil then
-				self.dragKind = "Node"
-				self.dragId = nodeId
-				self.dragHandle = nil
-				self.dragStartScreen = Vector2.new(input.Position.X, input.Position.Y)
-				self.dragMoved = false
-				self.lastDragRenderAt = 0
-				self.lastDragValue = nil
-				self.callbacks.selectNode(nodeId)
-			end
-		end)
 		local label = create("TextLabel", {
 			AnchorPoint = if node.kind == "Spawn" then Vector2.new(0.5, 1) else Vector2.new(0, 0.5),
 			BackgroundColor3 = Color3.fromRGB(17, 21, 24),
@@ -1036,32 +1173,25 @@ function WorldPathView.rerender(self: Controller)
 				}
 				local point = worldPoint(handlePosition)
 				line(canvas, anchor, point, SELECTED, 1, 21, 0.18)
-				local handle = create("TextButton", {
+				table.insert(self.hitPrimitives, {
+					kind = "Handle",
+					id = selectedEdge.id,
+					handleId = definition.id,
+					center = { x = point.X, y = point.Y },
+					radius = HANDLE_HIT_RADIUS,
+				})
+				local handle = create("Frame", {
+					Active = false,
 					AnchorPoint = Vector2.new(0.5, 0.5),
-					AutoButtonColor = false,
 					BackgroundColor3 = SELECTED,
 					BorderSizePixel = 0,
 					Position = UDim2.fromOffset(point.X, point.Y),
+					Selectable = false,
 					Size = UDim2.fromOffset(12, 12),
-					Text = "",
 					ZIndex = 22,
-				}, canvas) :: TextButton
+				}, canvas) :: Frame
 				rounded(handle, 8)
 				stroke(handle, self.theme.text, 1)
-				handle.InputBegan:Connect(function(input)
-					if
-						input.UserInputType == Enum.UserInputType.MouseButton1
-						and self.panLastScreen == nil
-					then
-						self.dragKind = "Handle"
-						self.dragId = selectedEdge.id
-						self.dragHandle = definition.id
-						self.dragStartScreen = Vector2.new(input.Position.X, input.Position.Y)
-						self.dragMoved = false
-						self.lastDragRenderAt = 0
-						self.lastDragValue = nil
-					end
-				end)
 			end
 		end
 	end
@@ -1075,6 +1205,7 @@ function WorldPathView.rerender(self: Controller)
 		Size = UDim2.fromOffset(156, 126),
 		ZIndex = 25,
 	}, mapHost) :: Frame
+	table.insert(self.hitBlockers, legend)
 	rounded(legend, 7)
 	stroke(legend, self.theme.border, 1)
 	local function legendLabel(text: string, row: number)

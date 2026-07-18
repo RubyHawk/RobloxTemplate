@@ -3110,6 +3110,9 @@ do
 		return canceled
 	end
 	flowRuntime.view = flowRuntime.viewModule.new(flowUi.worldHost, COLORS, {
+		cancelInteraction = function()
+			cancelActiveEditorInteraction(true)
+		end,
 		selectNode = function(nodeId: string)
 			if connectFromNodeId ~= nil and connectFromNodeId ~= nodeId then
 				local fromId = connectFromNodeId

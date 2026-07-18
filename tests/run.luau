@@ -19,6 +19,8 @@ local StageStarterProject = require("../src/shared/StageStarterProject")
 local StageExport = require("../src/shared/StageExport")
 local StageTrace = require("../src/shared/StageTrace")
 local CanvasTransform = require("../src/plugins/Stagewright/Interaction/CanvasTransform")
+local HitTest = require("../src/plugins/Stagewright/Interaction/HitTest")
+local PointerDrag = require("../src/plugins/Stagewright/Interaction/PointerDrag")
 local PaintBrushes = require("../src/plugins/Stagewright/Paint/Brushes")
 local ProjectLoadPolicy = require("../src/plugins/Stagewright/Persistence/ProjectLoadPolicy")
 local StageSettings = require("../src/plugins/Stagewright/Stage/Settings")
@@ -162,6 +164,311 @@ do
 	expectEqual(invalidWorldSizeAccepted, false, "canvas fit rejects zero-sized worlds")
 	expectEqual(invalidPaddingAccepted, false, "canvas fit rejects padding that consumes the viewport")
 	expectEqual(invalidZoomAccepted, false, "canvas zoom rejects non-positive factors")
+end
+
+do
+	local edge: any = {
+		kind = "Edge",
+		id = "edge_main",
+		points = { { x = -10, y = 0 }, { x = 10, y = 0 } },
+		radius = 6,
+	}
+	local node: any = {
+		kind = "Node",
+		id = "node_main",
+		center = { x = 1, y = 0 },
+		radius = 6,
+	}
+	local handle: any = {
+		kind = "Handle",
+		id = "edge_main",
+		handleId = "Out",
+		center = { x = 3, y = 0 },
+		radius = 6,
+	}
+
+	local handleHit = HitTest.resolve({ x = 0, y = 0 }, { edge, node, handle })
+	expectEqual(
+		handleHit and handleHit.kind,
+		"Handle",
+		"hit test prioritizes handles over closer nodes and edges"
+	)
+	expectEqual(handleHit and handleHit.id, "edge_main", "handle hit preserves its owning edge id")
+	expectEqual(handleHit and handleHit.handleId, "Out", "handle hit preserves its handle id")
+	expectEqual(handleHit and handleHit.distance, 3, "handle hit reports screen-space distance")
+
+	local nodeHit = HitTest.resolve({ x = 0, y = 0 }, { edge, node })
+	expectEqual(nodeHit and nodeHit.kind, "Node", "hit test prioritizes nodes over closer edges")
+	expectEqual(nodeHit and nodeHit.id, "node_main", "node hit preserves its stable id")
+
+	local nearestNodeHit = HitTest.resolve({ x = 0, y = 0 }, {
+		{ kind = "Node", id = "node_far", center = { x = 5, y = 0 }, radius = 8 },
+		{ kind = "Node", id = "node_near", center = { x = 2, y = 0 }, radius = 8 },
+	})
+	expectEqual(
+		nearestNodeHit and nearestNodeHit.id,
+		"node_near",
+		"hit test chooses the nearest same-kind target"
+	)
+
+	local tiedNodes = {
+		{ kind = "Node", id = "node_z", center = { x = 2, y = 0 }, radius = 8 },
+		{ kind = "Node", id = "node_a", center = { x = -2, y = 0 }, radius = 8 },
+	}
+	local tiedNodeHit = HitTest.resolve({ x = 0, y = 0 }, tiedNodes :: any)
+	local reversedTiedNodeHit = HitTest.resolve(
+		{ x = 0, y = 0 },
+		{
+			tiedNodes[2],
+			tiedNodes[1],
+		} :: any
+	)
+	expectEqual(tiedNodeHit and tiedNodeHit.id, "node_a", "equal-distance node hits use stable id order")
+	expectEqual(
+		reversedTiedNodeHit and reversedTiedNodeHit.id,
+		"node_a",
+		"node tie-breaking is independent of primitive order"
+	)
+
+	local tiedHandleHit = HitTest.resolve({ x = 0, y = 0 }, {
+		{ kind = "Handle", id = "edge_b", handleId = "Out", center = { x = 0, y = 2 }, radius = 5 },
+		{ kind = "Handle", id = "edge_a", handleId = "In", center = { x = 0, y = -2 }, radius = 5 },
+	})
+	expectEqual(
+		tiedHandleHit and tiedHandleHit.id,
+		"edge_a",
+		"equal-distance handles use owning edge id order"
+	)
+	expectEqual(
+		tiedHandleHit and tiedHandleHit.handleId,
+		"In",
+		"handle tie-breaking preserves the winning handle"
+	)
+	local sameEdgeHandles = {
+		{ kind = "Handle", id = "edge_same", handleId = "Out", center = { x = 0, y = 2 }, radius = 5 },
+		{ kind = "Handle", id = "edge_same", handleId = "In", center = { x = 0, y = -2 }, radius = 5 },
+	}
+	local sameEdgeHandleHit = HitTest.resolve({ x = 0, y = 0 }, sameEdgeHandles :: any)
+	local reversedSameEdgeHandleHit =
+		HitTest.resolve({ x = 0, y = 0 }, { sameEdgeHandles[2], sameEdgeHandles[1] } :: any)
+	expectEqual(
+		sameEdgeHandleHit and sameEdgeHandleHit.handleId,
+		"In",
+		"equal-distance handles on one edge use stable handle id order"
+	)
+	expectEqual(
+		reversedSameEdgeHandleHit and reversedSameEdgeHandleHit.handleId,
+		"In",
+		"same-edge handle tie-breaking is independent of primitive order"
+	)
+
+	local nearestEdgeHit = HitTest.resolve({ x = 4, y = 2 }, {
+		{
+			kind = "Edge",
+			id = "edge_far",
+			points = { { x = 0, y = 7 }, { x = 10, y = 7 } },
+			radius = 8,
+		},
+		{
+			kind = "Edge",
+			id = "edge_near",
+			points = { { x = 0, y = 0 }, { x = 10, y = 0 } },
+			radius = 8,
+		},
+	})
+	expectEqual(nearestEdgeHit and nearestEdgeHit.id, "edge_near", "edge hit uses nearest segment distance")
+	expectEqual(
+		nearestEdgeHit and nearestEdgeHit.distance,
+		2,
+		"edge hit reports perpendicular segment distance"
+	)
+
+	local tiedEdgeHit = HitTest.resolve({ x = 0, y = 0 }, {
+		{
+			kind = "Edge",
+			id = "edge_z",
+			points = { { x = -5, y = 2 }, { x = 5, y = 2 } },
+			radius = 3,
+		},
+		{
+			kind = "Edge",
+			id = "edge_a",
+			points = { { x = -5, y = -2 }, { x = 5, y = -2 } },
+			radius = 3,
+		},
+	})
+	expectEqual(tiedEdgeHit and tiedEdgeHit.id, "edge_a", "equal-distance edge hits use stable id order")
+
+	local singlePointEdgeHit = HitTest.resolve({ x = 13, y = 14 }, {
+		{ kind = "Edge", id = "edge_point", points = { { x = 10, y = 10 } }, radius = 5 },
+	})
+	expectEqual(
+		singlePointEdgeHit and singlePointEdgeHit.id,
+		"edge_point",
+		"single-point edge geometry remains hittable"
+	)
+	expectEqual(
+		singlePointEdgeHit and singlePointEdgeHit.distance,
+		5,
+		"edge radius includes its exact boundary"
+	)
+
+	local noHit = HitTest.resolve({ x = 20, y = 20 }, {
+		{ kind = "Edge", id = "edge_empty", points = {}, radius = 100 },
+		{ kind = "Node", id = "node_outside", center = { x = 0, y = 0 }, radius = 5 },
+	})
+	expectEqual(noHit, nil, "empty and out-of-radius primitives do not create hidden hits")
+
+	local invalidRadiusAccepted = pcall(function()
+		HitTest.resolve({ x = 0, y = 0 }, {
+			{ kind = "Node", id = "node_bad", center = { x = 0, y = 0 }, radius = -1 },
+		})
+	end)
+	local invalidPointAccepted = pcall(function()
+		HitTest.resolve({ x = math.huge, y = 0 }, {})
+	end)
+	expectEqual(invalidRadiusAccepted, false, "hit test rejects negative target radii")
+	expectEqual(invalidPointAccepted, false, "hit test rejects non-finite pointer positions")
+end
+
+do
+	local target: any = { kind = "Node", id = "node_1" }
+	local idle = PointerDrag.idle()
+	expectEqual(PointerDrag.isActive(idle), false, "pointer drag starts idle")
+	expectEqual(PointerDrag.isDragging(idle), false, "idle pointer is not dragging")
+
+	local idleMove = PointerDrag.move(idle, "mouse-primary", { x = 100, y = 100 })
+	expectEqual(idleMove.state, idle, "pointer movement before a press preserves idle state")
+	expectEqual(#idleMove.actions, 0, "pointer movement before a press emits no action")
+	local invalidPress = PointerDrag.press(idle, "mouse-primary", nil, { x = 10, y = 10 })
+	expectEqual(invalidPress.state, idle, "press without a hit target remains idle")
+	expectEqual(#invalidPress.actions, 0, "press without a hit target emits no action")
+
+	local pressed = PointerDrag.press(idle, "mouse-primary", target, { x = 10, y = 10 })
+	expectEqual(pressed.state.phase, "Pressed", "valid primary press captures the pointer")
+	expectEqual(pressed.state.pointerId, "mouse-primary", "pressed state records pointer identity")
+	expectEqual(
+		pressed.state.target and pressed.state.target.id,
+		"node_1",
+		"pressed state records its target"
+	)
+	expectEqual(pressed.actions[1].kind, "Pressed", "valid press emits a pure pressed action")
+	target.id = "mutated_after_press"
+	expectEqual(
+		pressed.state.target and pressed.state.target.id,
+		"node_1",
+		"pressed state snapshots its target"
+	)
+
+	local secondPress = PointerDrag.press(
+		pressed.state,
+		"touch-2",
+		{ kind = "Node", id = "node_2" },
+		{ x = 12, y = 12 }
+	)
+	expectEqual(secondPress.state, pressed.state, "captured pointer ignores a second press")
+	expectEqual(#secondPress.actions, 0, "second press emits no action while captured")
+
+	local wrongPointerMove = PointerDrag.move(pressed.state, "touch-2", { x = 100, y = 100 })
+	expectEqual(wrongPointerMove.state, pressed.state, "captured drag ignores movement from another pointer")
+	expectEqual(#wrongPointerMove.actions, 0, "wrong-pointer movement emits no action")
+
+	local belowThreshold = PointerDrag.move(pressed.state, "mouse-primary", { x = 12.8, y = 12.8 })
+	expectEqual(belowThreshold.state.phase, "Pressed", "movement below four pixels remains a press")
+	expectEqual(#belowThreshold.actions, 0, "movement below threshold emits no drag action")
+	expectEqual(
+		belowThreshold.state.lastPosition and belowThreshold.state.lastPosition.x,
+		12.8,
+		"pressed state tracks its latest point"
+	)
+
+	local dragStarted = PointerDrag.move(belowThreshold.state, "mouse-primary", { x = 14, y = 10 })
+	expectEqual(dragStarted.state.phase, "Dragging", "movement at four pixels starts dragging")
+	expectEqual(PointerDrag.isDragging(dragStarted.state), true, "dragging state is reported explicitly")
+	expectEqual(dragStarted.actions[1].kind, "DragStarted", "threshold crossing emits one drag-start action")
+	expectEqual(dragStarted.actions[1].position.x, 14, "drag-start action carries the current point")
+
+	local dragMoved = PointerDrag.move(dragStarted.state, "mouse-primary", { x = 18, y = 16 })
+	expectEqual(dragMoved.state.phase, "Dragging", "captured movement remains dragging")
+	expectEqual(dragMoved.actions[1].kind, "DragMoved", "captured movement emits a drag action")
+	expectEqual(dragMoved.actions[1].startPosition.x, 10, "drag actions retain the original press point")
+
+	local wrongRelease = PointerDrag.release(dragMoved.state, "touch-2", { x = 18, y = 16 })
+	expectEqual(wrongRelease.state, dragMoved.state, "wrong pointer cannot release the captured drag")
+	expectEqual(#wrongRelease.actions, 0, "wrong-pointer release emits no action")
+
+	local committed = PointerDrag.release(dragMoved.state, "mouse-primary", { x = 20, y = 18 })
+	expectEqual(committed.state.phase, "Idle", "captured release returns to idle")
+	expectEqual(committed.actions[1].kind, "Committed", "drag release emits one commit action")
+	expectEqual(committed.actions[1].position.x, 20, "commit action carries the final release point")
+	expectEqual(PointerDrag.isActive(committed.state), false, "committed drag releases pointer capture")
+	local staleRelease = PointerDrag.release(committed.state, "mouse-primary", { x = 30, y = 30 })
+	expectEqual(#staleRelease.actions, 0, "release after commit cannot commit twice")
+
+	local clickPress = PointerDrag.press(
+		idle,
+		"mouse-primary",
+		{ kind = "Edge", id = "edge_1" },
+		{ x = 0, y = 0 }
+	)
+	local clickMove = PointerDrag.move(clickPress.state, "mouse-primary", { x = 2, y = 2 })
+	local clicked = PointerDrag.release(clickMove.state, "mouse-primary", { x = 2, y = 2 })
+	expectEqual(clicked.state.phase, "Idle", "short click releases pointer capture")
+	expectEqual(clicked.actions[1].kind, "Clicked", "release below threshold emits click instead of commit")
+
+	local farReleasePress = PointerDrag.press(
+		idle,
+		"mouse-primary",
+		{ kind = "Handle", id = "edge_1", handleId = "In" },
+		{ x = 0, y = 0 }
+	)
+	local farRelease = PointerDrag.release(farReleasePress.state, "mouse-primary", { x = 5, y = 0 })
+	expectEqual(#farRelease.actions, 2, "far release without a move still crosses the drag threshold")
+	expectEqual(farRelease.actions[1].kind, "DragStarted", "far release first emits drag start")
+	expectEqual(farRelease.actions[2].kind, "Committed", "far release then commits exactly once")
+
+	local pressedCancel = PointerDrag.cancel(clickPress.state, "Escape")
+	expectEqual(pressedCancel.state.phase, "Idle", "cancelling a press releases pointer capture")
+	expectEqual(pressedCancel.actions[1].kind, "Cancelled", "cancelling a press emits cancellation")
+	expectEqual(pressedCancel.actions[1].reason, "Escape", "cancellation records its lifecycle reason")
+
+	local draggingCancel = PointerDrag.cancel(dragMoved.state, "WidgetFocusReleased")
+	expectEqual(draggingCancel.state.phase, "Idle", "cancelling a drag returns to idle")
+	expectEqual(draggingCancel.actions[1].kind, "Cancelled", "active drag cancellation is explicit")
+	expectEqual(draggingCancel.actions[1].position.x, 18, "cancellation reports the last captured point")
+	local releaseAfterCancel = PointerDrag.release(draggingCancel.state, "mouse-primary", { x = 20, y = 18 })
+	expectEqual(#releaseAfterCancel.actions, 0, "release after cancellation cannot commit")
+
+	local invalidPointerAccepted = pcall(function()
+		PointerDrag.press(idle, "", { kind = "Node", id = "node_bad" }, { x = 0, y = 0 })
+	end)
+	local invalidTargetAccepted = pcall(function()
+		PointerDrag.press(idle, "mouse-primary", { kind = "Node", id = "" }, { x = 0, y = 0 })
+	end)
+	local invalidTargetKindAccepted = pcall(function()
+		PointerDrag.press(
+			idle,
+			"mouse-primary",
+			{ kind = "Hnadle", id = "edge_bad" } :: any,
+			{ x = 0, y = 0 }
+		)
+	end)
+	local missingHandleIdAccepted = pcall(function()
+		PointerDrag.press(
+			idle,
+			"mouse-primary",
+			{ kind = "Handle", id = "edge_bad" } :: any,
+			{ x = 0, y = 0 }
+		)
+	end)
+	local invalidCancelReasonAccepted = pcall(function()
+		PointerDrag.cancel(clickPress.state, "")
+	end)
+	expectEqual(invalidPointerAccepted, false, "pointer drag rejects empty pointer ids")
+	expectEqual(invalidTargetAccepted, false, "pointer drag rejects empty target ids")
+	expectEqual(invalidTargetKindAccepted, false, "pointer drag rejects unknown target kinds")
+	expectEqual(missingHandleIdAccepted, false, "pointer drag requires handle target ids")
+	expectEqual(invalidCancelReasonAccepted, false, "pointer drag rejects empty cancellation reasons")
 end
 
 do
@@ -1971,11 +2278,15 @@ do
 			"Selected spline",
 			"Test segment",
 			"Build mask derived automatically",
-			"lineButton",
 			"setLanes",
-			"IsMouseButtonPressed",
-			"dragStartScreen",
-			".Magnitude < 4",
+			"require(script.Parent.Interaction.HitTest)",
+			"require(script.Parent.Interaction.PointerDrag)",
+			"HitTest.resolve",
+			"PointerDrag.press",
+			"PointerDrag.move",
+			"PointerDrag.release",
+			"PointerDrag.cancel",
+			"seedDragValue",
 		}
 	do
 		expectEqual(
@@ -2007,10 +2318,30 @@ do
 			`Stagewright world path retires duplicate transform field {retiredTransformField}`
 		)
 	end
+	for _, retiredPointerPlumbing in
+		{
+			"lineButton",
+			"dragKind",
+			"dragId",
+			"dragHandle",
+			"dragStartScreen",
+			"dragMoved",
+			"IsMouseButtonPressed",
+		}
+	do
+		expectEqual(
+			string.find(stagewrightWorldPathSource, retiredPointerPlumbing, 1, true),
+			nil,
+			`Stagewright world path retires duplicate pointer plumbing {retiredPointerPlumbing}`
+		)
+	end
 	for _, navigationSafety in
 		{
 			'current:IsA("LayerCollector") and not current.Enabled',
-			"self.dragKind ~= nil or self.panLastScreen ~= nil",
+			"PointerDrag.isActive(self.pointerState) or self.panLastScreen ~= nil",
+			"canvasPosition.X < 0",
+			"for _, blocker in self.hitBlockers do",
+			"self.callbacks.cancelInteraction()",
 			"canvas.Position = UDim2.new(",
 			"visibleDepth = math.max(worldHeight, worldWidth / aspect)",
 			"local inspectorHeight = INSPECTOR_HEIGHT",
