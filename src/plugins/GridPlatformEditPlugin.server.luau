@@ -354,6 +354,20 @@ local function confirm(id: string, prompt: string): boolean
 	return false
 end
 
+local function finishEditorTransaction(transaction: ProjectStore.Transaction?, commit: boolean): boolean
+	if transaction == nil then
+		return false
+	end
+	local succeeded, result = pcall(ProjectStore.finish, transaction, commit)
+	project = ProjectStore.get()
+	stageIds = ProjectStore.stageIds()
+	if not succeeded then
+		warn(`Stagewright editor transaction finish failed: {tostring(result)}`)
+		return false
+	end
+	return result == true
+end
+
 local brushes = Brushes.all
 
 local workspacePreview = WorkspacePreview.new({
@@ -391,16 +405,15 @@ local workspacePreview = WorkspacePreview.new({
 		end
 	end,
 	finishMove = function(transaction: ProjectStore.Transaction, commit: boolean): boolean
-		local committed = ProjectStore.finish(transaction, commit)
-		if not commit then
-			project = ProjectStore.get()
-			stageIds = ProjectStore.stageIds()
-		end
-		return committed
+		return finishEditorTransaction(transaction, commit)
 	end,
 	onMoveCommitted = function()
 		project = ProjectStore.get()
 		setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
+		renderAll()
+	end,
+	onMoveFailed = function()
+		setStatus("World preview move was cancelled because the edit could not be committed.", true)
 		renderAll()
 	end,
 })
@@ -448,18 +461,6 @@ local paintRuntime = {
 	routeDragTransaction = nil,
 } :: PaintRuntime
 
-local function finishEditorTransaction(transaction: ProjectStore.Transaction?, commit: boolean): boolean
-	if transaction == nil then
-		return false
-	end
-	local committed = ProjectStore.finish(transaction, commit)
-	if not committed then
-		project = ProjectStore.get()
-		stageIds = ProjectStore.stageIds()
-	end
-	return committed
-end
-
 local function finishRouteDragTransaction(commit: boolean): boolean
 	local transaction = paintRuntime.routeDragTransaction
 	paintRuntime.routeDragTransaction = nil
@@ -470,6 +471,15 @@ local function finishPaintTransaction(commit: boolean): boolean
 	local transaction = paintTransaction
 	paintTransaction = nil
 	return finishEditorTransaction(transaction, commit)
+end
+
+local function reportEditorCommit(committed: boolean, action: string): boolean
+	if committed then
+		setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
+		return true
+	end
+	setStatus(`{action} was cancelled because the edit could not be committed.`, true)
+	return false
 end
 
 local paintPage = contentByMode.Paint
@@ -1549,8 +1559,10 @@ paintRuntime.beginInteraction = function(column: number, row: number)
 			end
 		end
 		paintBrushSize = previousBrushSize
-		finishPaintTransaction(true)
-		setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
+		if not reportEditorCommit(finishPaintTransaction(true), "Paint fill") then
+			renderAll()
+			return
+		end
 	elseif activePaintTool == "Rect" then
 		painting = true
 		gridCanvas:SetAttribute("RectangleColumn", column)
@@ -4366,15 +4378,21 @@ UserInputService.InputChanged:Connect(function(input)
 			or paintRuntime.routeDraggingEdgeId ~= nil
 			or paintRuntime.routeDraggingHandle ~= nil
 		if routeDragActive and not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-			if paintRuntime.routeDragMoved then
-				finishRouteDragTransaction(true)
+			local routeMoved = paintRuntime.routeDragMoved
+			local committed = true
+			if routeMoved then
+				committed = finishRouteDragTransaction(true)
 			end
 			paintRuntime.routeDraggingNodeId = nil
 			paintRuntime.routeDraggingEdgeId = nil
 			paintRuntime.routeDraggingHandle = nil
 			paintRuntime.routeDragStartScreen = nil
 			paintRuntime.routeDragMoved = false
-			setStatus("Route selection released. Workspace was not changed.")
+			if routeMoved then
+				reportEditorCommit(committed, "Route drag")
+			else
+				setStatus("Route selection released. Workspace was not changed.")
+			end
 			renderAll()
 			return
 		end
@@ -4457,6 +4475,12 @@ end)
 
 UserInputService.InputEnded:Connect(function(input)
 	if not ProjectStore.isWritable() then
+		local hadActiveInteraction = painting
+			or paintTransaction ~= nil
+			or paintRuntime.routeDragTransaction ~= nil
+			or paintRuntime.routeDraggingNodeId ~= nil
+			or paintRuntime.routeDraggingEdgeId ~= nil
+			or paintRuntime.routeDraggingHandle ~= nil
 		painting = false
 		paintRuntime.routeDraggingNodeId = nil
 		paintRuntime.routeDraggingEdgeId = nil
@@ -4465,6 +4489,13 @@ UserInputService.InputEnded:Connect(function(input)
 		paintRuntime.routeDragMoved = false
 		finishPaintTransaction(false)
 		finishRouteDragTransaction(false)
+		gridCanvas:SetAttribute("RectangleColumn", nil)
+		gridCanvas:SetAttribute("RectangleRow", nil)
+		table.clear(paintedKeys)
+		if hadActiveInteraction then
+			setStatus("Active edit was cancelled because editing became unavailable.", true)
+			renderAll()
+		end
 		return
 	end
 	if
@@ -4480,8 +4511,7 @@ UserInputService.InputEnded:Connect(function(input)
 		paintRuntime.routeDraggingHandle = nil
 		paintRuntime.routeDragStartScreen = nil
 		if paintRuntime.routeDragMoved then
-			finishRouteDragTransaction(true)
-			setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
+			reportEditorCommit(finishRouteDragTransaction(true), "Route drag")
 		else
 			setStatus("Route item selected. Hold and drag to move it.")
 		end
@@ -4515,8 +4545,9 @@ UserInputService.InputEnded:Connect(function(input)
 			renderCanvas()
 		end
 		painting = false
-		finishPaintTransaction(true)
-		setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
+		if not reportEditorCommit(finishPaintTransaction(true), "Paint stroke") then
+			renderAll()
+		end
 	end
 end)
 

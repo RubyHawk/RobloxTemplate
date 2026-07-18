@@ -2344,6 +2344,25 @@ do
 			`Stagewright bootstrap retires duplicate controller plumbing {retiredControllerPlumbing}`
 		)
 	end
+	for _, transactionFailureContract in
+		{
+			"local succeeded, result = pcall(ProjectStore.finish",
+			"onMoveFailed = function()",
+			'reportEditorCommit(finishRouteDragTransaction(true), "Route drag")',
+			'reportEditorCommit(finishPaintTransaction(true), "Paint stroke")',
+		}
+	do
+		expectEqual(
+			string.find(gridPluginSource, transactionFailureContract, 1, true) ~= nil,
+			true,
+			`Stagewright bootstrap preserves failed transaction handling through {transactionFailureContract}`
+		)
+	end
+	expectEqual(
+		string.find(stagewrightWorkspacePreviewSource, "self.config.onMoveFailed()", 1, true) ~= nil,
+		true,
+		"Stagewright Workspace preview reports a rejected delayed commit"
+	)
 	expectEqual(
 		string.find(
 			stagewrightWorldPathSource

@@ -25,6 +25,7 @@ export type Config = {
 	moveHandle: (string, string, Vector3) -> (),
 	finishMove: (MoveTransaction, boolean) -> boolean,
 	onMoveCommitted: () -> (),
+	onMoveFailed: () -> (),
 }
 
 type ControllerState = {
@@ -97,6 +98,9 @@ local function finishMove(self: Controller, revision: number)
 	end
 	if self.config.finishMove(transaction, true) then
 		self.config.onMoveCommitted()
+	else
+		self:clear()
+		self.config.onMoveFailed()
 	end
 end
 
