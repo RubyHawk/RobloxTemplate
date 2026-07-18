@@ -19,6 +19,7 @@ Runtime decisions:
 
 - One Stagewright stage definition is authored and reused for all six players.
 - `StagePlatformService` assigns one authoritative slot per player and supplies the transformed origin to `StageRuntimeService`.
+- `StageRuntimeService` has no independent Workspace-geometry fallback; server bootstrap injects the authoritative platform origin provider before player loading, and an uninitialized service fails closed off-map.
 - No runtime cloning of the grid's SurfaceGui objects is performed. Stage data, towers, and client enemy visuals are transformed through the assigned origin.
 - The attachment name mentioned as `ccenter_grass` is supported as an alias, while the supplied model's actual part name is `center_grass`.
 - A seventh player receives no tower-defense platform; placement, stage activation, and wave actions fail instead of overlapping another player.

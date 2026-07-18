@@ -5266,6 +5266,27 @@ do
 		`runtime stage service consumes the shared DTO contract: {typedRuntimeMarker}`
 	)
 end
+for _, retiredRuntimeOriginDependency in
+	{ "Workspace", "defaultPlatformOrigin", "firstPlatformIslandName", "platformOriginName" }
+do
+	expectEqual(
+		string.find(stageRuntimeSource, retiredRuntimeOriginDependency, 1, true),
+		nil,
+		`runtime stage transforms do not discover Workspace geometry: {retiredRuntimeOriginDependency}`
+	)
+end
+expectEqual(
+	string.find(stageRuntimeSource, "UNAVAILABLE_ORIGIN", 1, true) ~= nil
+		and string.find(
+				stageRuntimeSource,
+				"local availabilityProvider: StageAvailabilityProvider = function(_player: Player): boolean\n\treturn false\nend",
+				1,
+				true
+			)
+			~= nil,
+	true,
+	"stage runtime fails closed until its authoritative platform provider is injected"
+)
 for _, authorityMarker in
 	{
 		'type(stageId) ~= "string"',

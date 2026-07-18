@@ -1,9 +1,6 @@
 --!strict
 
-local Workspace = game:GetService("Workspace")
-
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
-local Config = require(Shared.TemplateConfig)
 local StageCatalog = require(Shared.StageCatalog)
 local StageGraph = require(Shared.StageGraph)
 local StagePath = require(Shared.StagePath)
@@ -30,12 +27,15 @@ type StageAvailabilityProvider = (player: Player) -> boolean
 type StageActivationPublisher = (player: Player, stageId: string) -> boolean
 
 local activeStageIds: { [Player]: string } = {}
+local UNAVAILABLE_ORIGIN = CFrame.new(0, -10_000, 0)
 local upgradeLevelProvider: UpgradeLevelProvider = function(_player: Player, _upgradeId: string): number
 	return 0
 end
-local originProvider: StageOriginProvider? = nil
+local originProvider: StageOriginProvider = function(_player: Player, _stageId: string): CFrame
+	return UNAVAILABLE_ORIGIN
+end
 local availabilityProvider: StageAvailabilityProvider = function(_player: Player): boolean
-	return true
+	return false
 end
 local activationPublisher: StageActivationPublisher = function(_player: Player, _stageId: string): boolean
 	return true
@@ -45,27 +45,8 @@ local function stageById(stageId: string): RuntimeStageDefinition?
 	return StageCatalog.get(stageId)
 end
 
-local function defaultPlatformOrigin(): BasePart?
-	local island = Workspace:FindFirstChild(Config.towerDefense.firstPlatformIslandName)
-	local platform = if island ~= nil
-		then island:FindFirstChild(Config.towerDefense.platformModelName)
-		else nil
-	local origin = if platform ~= nil
-		then platform:FindFirstChild(Config.towerDefense.platformOriginName)
-		else nil
-	if origin ~= nil and origin:IsA("BasePart") then
-		return origin
-	end
-	local base = if platform ~= nil then platform:FindFirstChild("PlatformBase") else nil
-	return if base ~= nil and base:IsA("BasePart") then base else nil
-end
-
 function StageRuntimeService.originFor(player: Player, stage: RuntimeStageDefinition): CFrame
-	if originProvider ~= nil then
-		return originProvider(player, stage.id)
-	end
-	local origin = defaultPlatformOrigin()
-	return if origin ~= nil then origin.CFrame else CFrame.new()
+	return originProvider(player, stage.id)
 end
 
 function StageRuntimeService.hasPlatform(player: Player): boolean
