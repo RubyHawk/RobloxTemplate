@@ -46,7 +46,8 @@ type WorldPathController = {
 	showConflicts: boolean,
 	render: (WorldPathController, any?, any?, any?, string?, string?, { [string]: boolean }) -> (),
 	rerender: (WorldPathController) -> (),
-	cancelInteraction: (WorldPathController) -> (),
+	fitToView: (WorldPathController) -> (),
+	cancelInteraction: (WorldPathController) -> boolean,
 	destroy: (WorldPathController) -> (),
 }
 type FlowRuntime = {
@@ -70,7 +71,7 @@ type FlowRuntime = {
 	setToggleSelected: (TextButton, boolean) -> (),
 	refreshRecoveryBanner: () -> (),
 	reportBlocked: (string) -> (),
-	cancelInteraction: () -> (),
+	cancelInteraction: () -> boolean,
 }
 type PaintRuntime = {
 	mode: string,
@@ -141,7 +142,9 @@ local flowRuntime: FlowRuntime = {
 	setToggleSelected = function() end,
 	refreshRecoveryBanner = function() end,
 	reportBlocked = function() end,
-	cancelInteraction = function() end,
+	cancelInteraction = function(): boolean
+		return false
+	end,
 }
 
 local toolbar = plugin:CreateToolbar(PLUGIN_NAME)
@@ -237,6 +240,9 @@ local mutate: (string, () -> ()) -> ()
 local renderStageList: () -> ()
 local routeOverview: RouteOverview.Controller
 local renderCanvas: () -> ()
+local cancelActiveEditorInteraction: (boolean?) -> boolean = function(): boolean
+	return false
+end
 do
 	local controller = HeaderController.new({
 		header = shell.header,
@@ -2561,6 +2567,9 @@ do
 	do
 		local mode = definition.id :: GraphViewMode
 		local viewButton = button(flowUi.viewBar, definition.label, 112, function()
+			if flowRuntime.mode ~= mode then
+				cancelActiveEditorInteraction(false)
+			end
 			flowRuntime.mode = mode
 			flowRuntime.render()
 		end)
@@ -2799,7 +2808,7 @@ do
 	flowUi.fitAction = flowRuntime.modeAction(flowRuntime.worldControls, "Fit", 68, function()
 		local worldView = flowRuntime.view
 		if worldView ~= nil then
-			worldView:rerender()
+			worldView:fitToView()
 		end
 	end)
 	Toolbar.styleIconButton(flowUi.fitAction, "Fit", "fit", COLORS.muted)
@@ -3087,16 +3096,18 @@ do
 	}, flowUi.routeTest)
 
 	flowUi.dragTransaction = nil
-	flowRuntime.cancelInteraction = function()
+	flowRuntime.cancelInteraction = function(): boolean
 		local transaction = flowUi.dragTransaction
+		local canceled = transaction ~= nil or connectFromNodeId ~= nil
 		flowUi.dragTransaction = nil
 		finishEditorTransaction(transaction, false)
 		connectFromNodeId = nil
 		local worldView = flowRuntime.view
 		if worldView ~= nil then
-			worldView:cancelInteraction()
+			canceled = worldView:cancelInteraction() or canceled
 		end
-		routeOverview:cancelInteraction()
+		canceled = routeOverview:cancelInteraction() or canceled
+		return canceled
 	end
 	flowRuntime.view = flowRuntime.viewModule.new(flowUi.worldHost, COLORS, {
 		selectNode = function(nodeId: string)
@@ -3275,6 +3286,7 @@ do
 				40
 			)
 			local showWorld = button(flowUi.logicInspectorContent, "Open World Path", 248, function()
+				cancelActiveEditorInteraction(false)
 				flowRuntime.mode = "World"
 				flowRuntime.render()
 			end)
@@ -3418,6 +3430,7 @@ do
 				ZIndex = 82,
 			}, flowUi.logicInspectorContent)
 			local showWorld = button(flowUi.logicInspectorContent, "◉  Open World Path", 156, function()
+				cancelActiveEditorInteraction(false)
 				flowRuntime.mode = "World"
 				flowRuntime.render()
 			end)
@@ -4098,7 +4111,55 @@ button(exportActions, "Import selected", 128, function()
 	setStatus(message, not ok)
 end)
 
+cancelActiveEditorInteraction = function(refresh: boolean?): boolean
+	local canceled = painting
+		or paintTransaction ~= nil
+		or paintRuntime.routeDragTransaction ~= nil
+		or paintRuntime.routeDraggingNodeId ~= nil
+		or paintRuntime.routeDraggingEdgeId ~= nil
+		or paintRuntime.routeDraggingHandle ~= nil
+
+	painting = false
+	finishPaintTransaction(false)
+	finishRouteDragTransaction(false)
+	paintRuntime.routeDraggingNodeId = nil
+	paintRuntime.routeDraggingEdgeId = nil
+	paintRuntime.routeDraggingHandle = nil
+	paintRuntime.routeDragStartScreen = nil
+	paintRuntime.routeDragMoved = false
+	table.clear(paintedKeys)
+	gridCanvas:SetAttribute("RectangleColumn", nil)
+	gridCanvas:SetAttribute("RectangleRow", nil)
+
+	canceled = workspacePreview:cancelInteraction() or canceled
+	canceled = flowRuntime.cancelInteraction() or canceled
+	project = ProjectStore.get()
+	stageIds = ProjectStore.stageIds()
+
+	if refresh == true and canceled then
+		renderAll()
+	end
+	return canceled
+end
+
+local renderedActiveMode = activeMode
+local renderedPaintMode = paintRuntime.mode
+local renderedStageId = selectedStageId
+local renderedGraphId = selectedGraphId
+
 function rerenderAll()
+	local contextChanged = renderedActiveMode ~= activeMode
+		or renderedPaintMode ~= paintRuntime.mode
+		or renderedStageId ~= selectedStageId
+		or renderedGraphId ~= selectedGraphId
+	if contextChanged then
+		cancelActiveEditorInteraction(false)
+	end
+	renderedActiveMode = activeMode
+	renderedPaintMode = paintRuntime.mode
+	renderedStageId = selectedStageId
+	renderedGraphId = selectedGraphId
+
 	for mode, page in contentByMode do
 		page.Visible = mode == activeMode
 		Toolbar.setNavigationSelected(modeButtons[mode], mode == activeMode)
@@ -4335,6 +4396,16 @@ headerValidation.Activated:Connect(function()
 end)
 
 UserInputService.InputBegan:Connect(function(input)
+	if
+		widget.Enabled
+		and input.KeyCode == Enum.KeyCode.Escape
+		and UserInputService:GetFocusedTextBox() == nil
+	then
+		if cancelActiveEditorInteraction(true) then
+			setStatus("Active edit canceled; previous values restored.")
+		end
+		return
+	end
 	if
 		activeMode ~= "Paint"
 		or not widget.Enabled
@@ -4627,10 +4698,17 @@ widget:GetPropertyChangedSignal("Enabled"):Connect(function()
 	if widget.Enabled then
 		rerenderAll()
 	else
-		workspacePreview:cancelInteraction()
+		cancelActiveEditorInteraction(false)
 		workspacePreview:clear()
 	end
 end)
+local function cancelForFocusLoss()
+	if widget.Enabled and cancelActiveEditorInteraction(true) then
+		setStatus("Active edit canceled because Stagewright lost focus.")
+	end
+end
+widget.WindowFocusReleased:Connect(cancelForFocusLoss)
+UserInputService.WindowFocusReleased:Connect(cancelForFocusLoss)
 Selection.SelectionChanged:Connect(function()
 	if not widget.Enabled or (activeMode ~= "Graph" and activeMode ~= "Paint") then
 		return
@@ -4662,6 +4740,7 @@ Selection.SelectionChanged:Connect(function()
 	end
 end)
 plugin.Unloading:Connect(function()
+	cancelActiveEditorInteraction(false)
 	workspacePreview:destroy()
 	routeOverview:destroy()
 	if flowRuntime.view ~= nil then
@@ -4672,18 +4751,7 @@ plugin.Unloading:Connect(function()
 end)
 ProjectStore.observe(function()
 	pendingConfirmation = nil
-	painting = false
-	paintTransaction = nil
-	paintRuntime.routeDraggingNodeId = nil
-	paintRuntime.routeDraggingEdgeId = nil
-	paintRuntime.routeDraggingHandle = nil
-	paintRuntime.routeDragStartScreen = nil
-	paintRuntime.routeDragMoved = false
-	paintRuntime.routeDragTransaction = nil
-	gridCanvas:SetAttribute("RectangleColumn", nil)
-	gridCanvas:SetAttribute("RectangleRow", nil)
-	workspacePreview:cancelInteraction()
-	flowRuntime.cancelInteraction()
+	cancelActiveEditorInteraction(false)
 	if not ProjectStore.isWritable() then
 		workspacePreview:setEnabled(false)
 		AuthoringArea.clearIslandOutlines()

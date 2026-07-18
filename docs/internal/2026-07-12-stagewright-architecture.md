@@ -37,3 +37,19 @@ The World Path / Route Logic implementation re-checked the exact Studio APIs use
 - `Selection.SelectionChanged`, `Selection:Get()`, and `Selection:Set()`: https://create.roblox.com/docs/reference/engine/classes/Selection
 
 The dock widget uses sibling Z-order so nested route controls remain above their opaque view surfaces. Workspace gravel and node previews expose stable ID attributes; Studio selection changes resolve those IDs back to the selected graph object. This remains edit-mode-only and does not grant runtime authority to Workspace instances.
+
+## World Path interaction API re-check - 2026-07-18
+
+Official Roblox API references reviewed before changing pointer capture, keyboard cancellation, and dock-widget focus behavior:
+
+- `UserInputService.InputBegan`, `InputChanged`, `InputEnded`, and `WindowFocusReleased`: https://create.roblox.com/docs/reference/engine/classes/UserInputService
+- `GuiObject.InputBegan`, `InputChanged`, and `InputEnded`: https://create.roblox.com/docs/reference/engine/classes/GuiObject
+- `PluginGui.WindowFocusReleased` and `BindToClose`: https://create.roblox.com/docs/reference/engine/classes/PluginGui
+- `LayerCollector.Enabled`: https://create.roblox.com/docs/reference/engine/classes/LayerCollector
+
+Decisions:
+
+- An edit begins only from a primary pointer press on a declared hit target and crosses a fixed movement threshold before mutating authored data.
+- The initiating input object identifies touch drags; mouse drags use the initiating button plus the global input end event so release outside the canvas is still observed.
+- Escape, widget focus loss, widget close, mode/view changes, and plugin unload all roll back an active interaction through one idempotent cancellation path.
+- Drawing and hit-testing share one uniform canvas transform so non-square dock widgets do not distort route geometry.

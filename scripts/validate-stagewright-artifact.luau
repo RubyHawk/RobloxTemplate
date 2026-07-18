@@ -40,6 +40,7 @@ for _, requiredName in
 	{
 		"AuthoringArea",
 		"AppShell",
+		"CanvasTransform",
 		"HeaderController",
 		"Persistence",
 		"ProjectLoadPolicy",

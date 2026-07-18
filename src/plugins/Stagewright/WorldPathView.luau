@@ -3,6 +3,8 @@
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
+local CanvasTransform = require(script.Parent.Interaction.CanvasTransform)
+
 export type Theme = {
 	background: Color3,
 	panel: Color3,
@@ -42,9 +44,9 @@ export type Controller = {
 	selectedNodeId: string?,
 	selectedEdgeId: string?,
 	tracedEdgeIds: { [string]: boolean },
-	mapTopLeft: Vector2,
-	mapScale: Vector2,
-	mapSize: Vector2,
+	transform: CanvasTransform.Transform?,
+	transformStageId: string?,
+	canvas: Frame?,
 	assetPreview: boolean,
 	showLanes: boolean,
 	showBuildMask: boolean,
@@ -56,10 +58,12 @@ export type Controller = {
 	dragMoved: boolean,
 	lastDragRenderAt: number,
 	lastDragValue: any?,
+	panLastScreen: Vector2?,
 	connections: { RBXScriptConnection },
 	render: (Controller, any?, any?, any?, string?, string?, { [string]: boolean }) -> (),
 	rerender: (Controller) -> (),
-	cancelInteraction: (Controller) -> (),
+	fitToView: (Controller) -> (),
+	cancelInteraction: (Controller) -> boolean,
 	destroy: (Controller) -> (),
 }
 
@@ -72,6 +76,8 @@ local GRAVEL_LIGHT = Color3.fromRGB(205, 181, 139)
 local LANE = Color3.fromRGB(239, 236, 224)
 local SELECTED = Color3.fromRGB(69, 207, 230)
 local WATER = Color3.fromRGB(22, 68, 95)
+local CANVAS_PADDING = 18
+local INSPECTOR_HEIGHT = 216
 
 local function backdropSource(): Instance?
 	local firstIsland = Workspace:FindFirstChild("FirstPrivateIsland")
@@ -93,7 +99,7 @@ local function backdropSource(): Instance?
 	return if platform ~= nil and (platform:IsA("Model") or platform:IsA("BasePart")) then platform else nil
 end
 
-local function createWorldBackdrop(parent: Instance): boolean
+local function createWorldBackdrop(parent: Instance, worldWidth: number, worldHeight: number): boolean
 	local source = backdropSource()
 	if source == nil then
 		return false
@@ -149,7 +155,7 @@ local function createWorldBackdrop(parent: Instance): boolean
 		end
 	end
 
-	local boundsFrame, boundsSize = scene:GetBoundingBox()
+	local _, boundsSize = scene:GetBoundingBox()
 	if boundsSize.X <= 0 or boundsSize.Z <= 0 then
 		viewport:Destroy()
 		return false
@@ -159,9 +165,9 @@ local function createWorldBackdrop(parent: Instance): boolean
 	camera.Parent = viewport
 	viewport.CurrentCamera = camera
 	local aspect = math.max(parent.AbsoluteSize.X / math.max(parent.AbsoluteSize.Y, 1), 0.25)
-	local visibleDepth = math.max(boundsSize.Z * 1.08, boundsSize.X * 1.08 / aspect)
-	local cameraHeight = visibleDepth * 0.5 / math.tan(math.rad(camera.FieldOfView * 0.5)) + boundsSize.Y
-	local center = boundsFrame.Position
+	local visibleDepth = math.max(worldHeight, worldWidth / aspect)
+	local cameraHeight = visibleDepth * 0.5 / math.tan(math.rad(camera.FieldOfView * 0.5))
+	local center = Vector3.zero
 	camera.CFrame = CFrame.lookAt(center + Vector3.new(0, cameraHeight, 0), center, Vector3.new(0, 0, -1))
 	return true
 end
@@ -283,7 +289,8 @@ local function displayName(node: any?): string
 	return if node ~= nil and type(node.name) == "string" then node.name else "Missing node"
 end
 
-function WorldPathView.cancelInteraction(self: Controller)
+function WorldPathView.cancelInteraction(self: Controller): boolean
+	local canceled = self.dragKind ~= nil or self.panLastScreen ~= nil
 	self.dragKind = nil
 	self.dragId = nil
 	self.dragHandle = nil
@@ -291,6 +298,8 @@ function WorldPathView.cancelInteraction(self: Controller)
 	self.dragMoved = false
 	self.lastDragRenderAt = 0
 	self.lastDragValue = nil
+	self.panLastScreen = nil
+	return canceled
 end
 
 function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks): Controller
@@ -311,9 +320,9 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		selectedNodeId = nil,
 		selectedEdgeId = nil,
 		tracedEdgeIds = {},
-		mapTopLeft = Vector2.zero,
-		mapScale = Vector2.one,
-		mapSize = Vector2.zero,
+		transform = nil,
+		transformStageId = nil,
+		canvas = nil,
 		assetPreview = true,
 		showLanes = true,
 		showBuildMask = false,
@@ -325,23 +334,41 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		dragMoved = false,
 		lastDragRenderAt = 0,
 		lastDragValue = nil,
+		panLastScreen = nil,
 		connections = {},
 	}, WorldPathView)
 
 	local function pointToLocal(position: Vector2): any?
 		local stage = self.stage
-		if stage == nil or self.mapScale.X <= 0 or self.mapScale.Y <= 0 then
+		local transform = self.transform
+		if stage == nil or transform == nil then
 			return nil
 		end
-		local point = position - self.root.AbsolutePosition - self.mapTopLeft
-		if point.X < 0 or point.Y < 0 or point.X > self.mapSize.X or point.Y > self.mapSize.Y then
+		local point = position - self.root.AbsolutePosition
+		if
+			point.X < 0
+			or point.Y < 0
+			or point.X > transform.viewportSize.x
+			or point.Y > transform.viewportSize.y
+		then
 			return nil
 		end
 		local grid = stage.grid
+		local worldPoint = CanvasTransform.canvasToWorld(transform, { x = point.X, y = point.Y })
+		local halfWidth = grid.columns * grid.cellSize * 0.5
+		local halfHeight = grid.rows * grid.cellSize * 0.5
+		if
+			worldPoint.x < -halfWidth
+			or worldPoint.x > halfWidth
+			or worldPoint.y < -halfHeight
+			or worldPoint.y > halfHeight
+		then
+			return nil
+		end
 		return {
-			x = point.X / self.mapScale.X - grid.columns * grid.cellSize * 0.5,
+			x = worldPoint.x,
 			y = 0.48,
-			z = point.Y / self.mapScale.Y - grid.rows * grid.cellSize * 0.5,
+			z = worldPoint.y,
 		}
 	end
 
@@ -410,17 +437,105 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		end
 	end
 
+	local function isVisible(): boolean
+		local current: Instance? = self.root
+		while current ~= nil do
+			if current:IsA("GuiObject") and not current.Visible then
+				return false
+			elseif current:IsA("LayerCollector") and not current.Enabled then
+				return false
+			end
+			current = current.Parent
+		end
+		return true
+	end
+
+	local function viewportPoint(pointer: Vector2): (CanvasTransform.Point2?, CanvasTransform.Transform?)
+		local transform = self.transform
+		if transform == nil then
+			return nil, nil
+		end
+		local point = pointer - self.root.AbsolutePosition
+		if
+			point.X < 0
+			or point.Y < 0
+			or point.X > transform.viewportSize.x
+			or point.Y > transform.viewportSize.y
+		then
+			return nil, transform
+		end
+		return { x = point.X, y = point.Y }, transform
+	end
+
 	table.insert(
 		self.connections,
-		UserInputService.InputChanged:Connect(function(input)
+		UserInputService.InputBegan:Connect(function(input)
 			if
-				self.dragKind == nil
-				or not self.root.Visible
-				or input.UserInputType ~= Enum.UserInputType.MouseMovement
+				not isVisible()
+				or self.dragKind ~= nil
+				or input.UserInputType ~= Enum.UserInputType.MouseButton3
 			then
 				return
 			end
 			local pointer = Vector2.new(input.Position.X, input.Position.Y)
+			local point = viewportPoint(pointer)
+			if point ~= nil then
+				self.panLastScreen = pointer
+			end
+		end)
+	)
+
+	table.insert(
+		self.connections,
+		UserInputService.InputChanged:Connect(function(input)
+			if not isVisible() then
+				return
+			end
+			local pointer = Vector2.new(input.Position.X, input.Position.Y)
+			if input.UserInputType == Enum.UserInputType.MouseWheel then
+				if self.dragKind ~= nil or self.panLastScreen ~= nil then
+					return
+				end
+				local point, transform = viewportPoint(pointer)
+				if point ~= nil and transform ~= nil and input.Position.Z ~= 0 then
+					self.transform = CanvasTransform.zoomAt(
+						transform,
+						if input.Position.Z > 0 then 1.12 else 1 / 1.12,
+						point
+					)
+					self:rerender()
+				end
+				return
+			end
+			if input.UserInputType ~= Enum.UserInputType.MouseMovement then
+				return
+			end
+			if self.panLastScreen ~= nil then
+				if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton3) then
+					self.panLastScreen = nil
+					return
+				end
+				local transform = self.transform
+				local delta = pointer - self.panLastScreen
+				self.panLastScreen = pointer
+				if transform ~= nil and delta.Magnitude > 0 then
+					self.transform = CanvasTransform.pan(transform, { x = delta.X, y = delta.Y })
+					local canvas = self.canvas
+					if canvas ~= nil and canvas.Parent ~= nil then
+						local position = canvas.Position
+						canvas.Position = UDim2.new(
+							position.X.Scale,
+							position.X.Offset + delta.X,
+							position.Y.Scale,
+							position.Y.Offset + delta.Y
+						)
+					end
+				end
+				return
+			end
+			if self.dragKind == nil then
+				return
+			end
 			if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
 				finishDrag(pointer)
 				return
@@ -443,6 +558,10 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 	table.insert(
 		self.connections,
 		UserInputService.InputEnded:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton3 then
+				self.panLastScreen = nil
+				return
+			end
 			if input.UserInputType ~= Enum.UserInputType.MouseButton1 or self.dragKind == nil then
 				return
 			end
@@ -468,6 +587,11 @@ function WorldPathView.render(
 	selectedEdgeId: string?,
 	tracedEdgeIds: { [string]: boolean }
 )
+	local nextStageId = if stage ~= nil and type(stage.id) == "string" then stage.id else nil
+	if self.transformStageId ~= nextStageId then
+		self.transform = nil
+		self.transformStageId = nextStageId
+	end
 	self.stage = stage
 	self.graph = graph
 	self.preview = preview
@@ -477,7 +601,15 @@ function WorldPathView.render(
 	self:rerender()
 end
 
+function WorldPathView.fitToView(self: Controller)
+	if self.transform ~= nil then
+		self.transform = CanvasTransform.resetFit(self.transform)
+	end
+	self:rerender()
+end
+
 function WorldPathView.rerender(self: Controller)
+	self.canvas = nil
 	for _, child in self.root:GetChildren() do
 		if child:IsA("GuiObject") then
 			child:Destroy()
@@ -498,55 +630,69 @@ function WorldPathView.rerender(self: Controller)
 		return
 	end
 
-	local inspectorHeight = if self.selectedEdgeId ~= nil or self.selectedNodeId ~= nil then 216 else 54
+	local inspectorHeight = INSPECTOR_HEIGHT
 	local mapHost = create("Frame", {
 		BackgroundColor3 = WATER,
 		BorderSizePixel = 0,
 		ClipsDescendants = true,
 		Size = UDim2.new(1, 0, 1, -inspectorHeight - 4),
 	}, self.root) :: Frame
-	local hasWorldBackdrop = createWorldBackdrop(mapHost)
+	local grid = stage.grid
+	local available = mapHost.AbsoluteSize
+	if available.X <= CANVAS_PADDING * 2 or available.Y <= CANVAS_PADDING * 2 then
+		return
+	end
+	local worldWidth = math.max(grid.columns * grid.cellSize, 1)
+	local worldHeight = math.max(grid.rows * grid.cellSize, 1)
+	local viewportSize = { x = available.X, y = available.Y }
+	local worldSize = { x = worldWidth, y = worldHeight }
+	local transform = self.transform
+	if transform == nil or transform.worldSize.x ~= worldWidth or transform.worldSize.y ~= worldHeight then
+		transform = CanvasTransform.fit(viewportSize, worldSize, CANVAS_PADDING)
+	elseif transform.viewportSize.x ~= available.X or transform.viewportSize.y ~= available.Y then
+		transform = CanvasTransform.resize(transform, viewportSize)
+	end
+	local resolvedTransform = assert(transform, "World Path canvas transform was not initialized")
+	self.transform = resolvedTransform
+	local scale = CanvasTransform.scale(resolvedTransform)
+	local topLeftPoint = CanvasTransform.worldToCanvas(resolvedTransform, {
+		x = -worldWidth * 0.5,
+		y = -worldHeight * 0.5,
+	})
+	local bottomRightPoint = CanvasTransform.worldToCanvas(resolvedTransform, {
+		x = worldWidth * 0.5,
+		y = worldHeight * 0.5,
+	})
+	local topLeft = Vector2.new(topLeftPoint.x, topLeftPoint.y)
+	local mapSize = Vector2.new(bottomRightPoint.x - topLeftPoint.x, bottomRightPoint.y - topLeftPoint.y)
+
+	local canvas = create("Frame", {
+		BackgroundColor3 = Color3.fromRGB(50, 79, 54),
+		BackgroundTransparency = 0,
+		BorderSizePixel = 0,
+		ClipsDescendants = true,
+		Position = UDim2.fromOffset(topLeft.X, topLeft.Y),
+		Size = UDim2.fromOffset(mapSize.X, mapSize.Y),
+		ZIndex = 1,
+	}, mapHost) :: Frame
+	self.canvas = canvas
+	local hasWorldBackdrop = createWorldBackdrop(canvas, worldWidth, worldHeight)
+	canvas.BackgroundTransparency = if hasWorldBackdrop then 0.64 else 0
 	local tint = create("Frame", {
 		BackgroundColor3 = Color3.fromRGB(23, 42, 32),
 		BackgroundTransparency = if hasWorldBackdrop then 0.68 else 1,
 		BorderSizePixel = 0,
 		Size = UDim2.fromScale(1, 1),
 		ZIndex = 1,
-	}, mapHost) :: Frame
+	}, canvas) :: Frame
 	create("UIGradient", {
 		Color = ColorSequence.new(Color3.fromRGB(31, 55, 39), Color3.fromRGB(15, 31, 25)),
 		Rotation = 90,
 		Transparency = NumberSequence.new(0.15, 0.55),
 	}, tint)
-	local grid = stage.grid
-	local available = mapHost.AbsoluteSize
-	if available.X <= 8 or available.Y <= 8 then
-		return
-	end
-	local padding = 0
-	local worldWidth = math.max(grid.columns * grid.cellSize, 1)
-	local worldHeight = math.max(grid.rows * grid.cellSize, 1)
-	local scale = Vector2.new(
-		math.max((available.X - padding * 2) / worldWidth, 0.1),
-		math.max((available.Y - padding * 2) / worldHeight, 0.1)
-	)
-	local mapSize = Vector2.new(worldWidth * scale.X, worldHeight * scale.Y)
-	local topLeft = Vector2.new((available.X - mapSize.X) * 0.5, (available.Y - mapSize.Y) * 0.5)
-	self.mapTopLeft = topLeft
-	self.mapScale = scale
-	self.mapSize = mapSize
-
-	local canvas = create("Frame", {
-		BackgroundColor3 = Color3.fromRGB(50, 79, 54),
-		BackgroundTransparency = if hasWorldBackdrop then 0.64 else 0,
-		BorderSizePixel = 0,
-		ClipsDescendants = true,
-		Position = UDim2.fromOffset(topLeft.X, topLeft.Y),
-		Size = UDim2.fromOffset(mapSize.X, mapSize.Y),
-	}, mapHost) :: Frame
 	stroke(canvas, Color3.fromRGB(65, 98, 71), 1)
 
-	local cellPixel = Vector2.new(grid.cellSize * scale.X, grid.cellSize * scale.Y)
+	local cellPixel = Vector2.new(grid.cellSize * scale, grid.cellSize * scale)
 	if grid.columns * grid.rows <= 2_500 and math.min(cellPixel.X, cellPixel.Y) >= 3 then
 		for row = 1, grid.rows do
 			for column = 1, grid.columns do
@@ -560,17 +706,18 @@ function WorldPathView.rerender(self: Controller)
 					BorderSizePixel = 1,
 					Position = UDim2.fromOffset((column - 1) * cellPixel.X, (row - 1) * cellPixel.Y),
 					Size = UDim2.fromOffset(math.ceil(cellPixel.X), math.ceil(cellPixel.Y)),
-					ZIndex = 1,
+					ZIndex = 2,
 				}, canvas)
 			end
 		end
 	end
 
 	local function worldPoint(position: any): Vector2
-		return Vector2.new(
-			(position.x + worldWidth * 0.5) * scale.X,
-			(position.z + worldHeight * 0.5) * scale.Y
-		)
+		local canvasPoint = CanvasTransform.worldToCanvas(resolvedTransform, {
+			x = position.x,
+			y = position.z,
+		})
+		return Vector2.new(canvasPoint.x - topLeft.X, canvasPoint.y - topLeft.Y)
 	end
 
 	local bakedGraph = preview.pathGraphs[graph.id]
@@ -585,7 +732,7 @@ function WorldPathView.rerender(self: Controller)
 			local edge = bakedGraph.edges[edgeId]
 			local profile = bakedGraph.laneProfiles[edge.laneProfileId]
 			local radius = if profile ~= nil then profile.clearanceRadius else grid.cellSize * 0.5
-			local routeScale = math.sqrt(scale.X * scale.Y)
+			local routeScale = scale
 			local walkwayWidth = math.max(radius * 2 * routeScale, 8)
 			local samples = edge.samples or {}
 			local step = math.max(math.floor(#samples / 72), 1)
@@ -842,7 +989,7 @@ function WorldPathView.rerender(self: Controller)
 			0.15
 		)
 		nodeButton.InputBegan:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			if input.UserInputType == Enum.UserInputType.MouseButton1 and self.panLastScreen == nil then
 				self.dragKind = "Node"
 				self.dragId = nodeId
 				self.dragHandle = nil
@@ -902,7 +1049,10 @@ function WorldPathView.rerender(self: Controller)
 				rounded(handle, 8)
 				stroke(handle, self.theme.text, 1)
 				handle.InputBegan:Connect(function(input)
-					if input.UserInputType == Enum.UserInputType.MouseButton1 then
+					if
+						input.UserInputType == Enum.UserInputType.MouseButton1
+						and self.panLastScreen == nil
+					then
 						self.dragKind = "Handle"
 						self.dragId = selectedEdge.id
 						self.dragHandle = definition.id

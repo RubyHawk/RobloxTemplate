@@ -41,7 +41,7 @@ export type Controller = ControllerState & {
 	setEnabled: (Controller, boolean) -> boolean,
 	render: (Controller, RenderState) -> (),
 	clear: (Controller) -> (),
-	cancelInteraction: (Controller) -> (),
+	cancelInteraction: (Controller) -> boolean,
 	nodePart: (Controller, string) -> BasePart?,
 	edgePart: (Controller, string) -> BasePart?,
 	destroy: (Controller) -> (),
@@ -332,13 +332,15 @@ function Controller.setEnabled(self: Controller, enabled: boolean): boolean
 	return enabled
 end
 
-function Controller.cancelInteraction(self: Controller)
+function Controller.cancelInteraction(self: Controller): boolean
 	self.moveRevision += 1
 	local transaction = self.moveTransaction
 	if transaction ~= nil then
 		self.moveTransaction = nil
 		self.config.finishMove(transaction, false)
+		return true
 	end
+	return false
 end
 
 local function attributedPart(self: Controller, attribute: string, value: string): BasePart?

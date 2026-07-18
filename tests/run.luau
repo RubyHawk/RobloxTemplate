@@ -18,6 +18,7 @@ local StageSchema = require("../src/shared/StageSchema")
 local StageStarterProject = require("../src/shared/StageStarterProject")
 local StageExport = require("../src/shared/StageExport")
 local StageTrace = require("../src/shared/StageTrace")
+local CanvasTransform = require("../src/plugins/Stagewright/Interaction/CanvasTransform")
 local PaintBrushes = require("../src/plugins/Stagewright/Paint/Brushes")
 local ProjectLoadPolicy = require("../src/plugins/Stagewright/Persistence/ProjectLoadPolicy")
 local StageSettings = require("../src/plugins/Stagewright/Stage/Settings")
@@ -42,6 +43,125 @@ end
 local function expectCompiles(source: string, label: string)
 	local chunk, compileError = luau.load(source)
 	expectEqual(chunk ~= nil, true, `{label}: {tostring(compileError)}`)
+end
+
+do
+	local function expectNear(actual: number, expected: number, label: string)
+		expectEqual(math.abs(actual - expected) <= 1e-9, true, label)
+	end
+
+	local function expectPointNear(actual: any, expected: any, label: string)
+		expectNear(actual.x, expected.x, `{label} x`)
+		expectNear(actual.y, expected.y, `{label} y`)
+	end
+
+	local fitted = CanvasTransform.fit({ x = 1_000, y = 500 }, { x = 100, y = 100 }, 20)
+	expectNear(CanvasTransform.scale(fitted), 4.6, "canvas fit uses one uniform limiting-axis scale")
+	expectPointNear(
+		CanvasTransform.worldToCanvas(fitted, { x = 0, y = 0 }),
+		{ x = 500, y = 250 },
+		"canvas fit centers the world"
+	)
+	expectPointNear(
+		CanvasTransform.worldToCanvas(fitted, { x = -50, y = -50 }),
+		{ x = 270, y = 20 },
+		"canvas fit letterboxes the non-limiting axis"
+	)
+	expectPointNear(
+		CanvasTransform.worldToCanvas(fitted, { x = 50, y = 50 }),
+		{ x = 730, y = 480 },
+		"canvas fit preserves padding on the limiting axis"
+	)
+
+	local worldPoint = { x = 17.25, y = -31.5 }
+	local projectedPoint = CanvasTransform.worldToCanvas(fitted, worldPoint)
+	expectPointNear(
+		CanvasTransform.canvasToWorld(fitted, projectedPoint),
+		worldPoint,
+		"canvas forward and inverse transforms round trip"
+	)
+
+	local panned = CanvasTransform.pan(fitted, { x = 46, y = -92 })
+	expectPointNear(fitted.center, { x = 0, y = 0 }, "canvas pan does not mutate its input")
+	expectPointNear(panned.center, { x = -10, y = 20 }, "canvas pan converts pixel delta at current scale")
+	local fittedOrigin = CanvasTransform.worldToCanvas(fitted, { x = 0, y = 0 })
+	local pannedOrigin = CanvasTransform.worldToCanvas(panned, { x = 0, y = 0 })
+	expectPointNear(
+		{ x = pannedOrigin.x - fittedOrigin.x, y = pannedOrigin.y - fittedOrigin.y },
+		{ x = 46, y = -92 },
+		"canvas pan moves rendered content with the pointer"
+	)
+
+	local zoomAnchor = { x = 620, y = 310 }
+	local anchoredWorldPoint = CanvasTransform.canvasToWorld(panned, zoomAnchor)
+	local zoomed = CanvasTransform.zoomAt(panned, 2, zoomAnchor)
+	expectNear(zoomed.zoom, 2, "canvas zoom applies the requested factor")
+	expectNear(
+		CanvasTransform.scale(zoomed),
+		CanvasTransform.scale(panned) * 2,
+		"canvas zoom changes both axes by the same factor"
+	)
+	expectPointNear(
+		CanvasTransform.canvasToWorld(zoomed, zoomAnchor),
+		anchoredWorldPoint,
+		"canvas zoom preserves the world point beneath the cursor"
+	)
+
+	local resized = CanvasTransform.resize(zoomed, { x = 760, y = 900 })
+	expectNear(resized.zoom, zoomed.zoom, "canvas resize preserves user zoom")
+	expectPointNear(resized.center, zoomed.center, "canvas resize preserves the viewed world center")
+	expectPointNear(
+		CanvasTransform.canvasToWorld(resized, { x = 380, y = 450 }),
+		zoomed.center,
+		"canvas resize keeps the viewed center at the new viewport center"
+	)
+
+	local reset = CanvasTransform.resetFit(resized)
+	expectNear(reset.zoom, 1, "canvas fit reset restores default zoom")
+	expectPointNear(reset.center, { x = 0, y = 0 }, "canvas fit reset restores the authored world center")
+	expectPointNear(
+		CanvasTransform.worldToCanvas(reset, { x = 0, y = 0 }),
+		{ x = 380, y = 450 },
+		"canvas fit reset centers the authored world in the resized viewport"
+	)
+
+	local customFit = CanvasTransform.fit(
+		{ x = 800, y = 600 },
+		{ x = 200, y = 100 },
+		10,
+		{ x = 125, y = -40 }
+	)
+	local customMoved = CanvasTransform.pan(customFit, { x = -30, y = 60 })
+	local customReset =
+		CanvasTransform.resetFit(CanvasTransform.zoomAt(customMoved, 1.5, { x = 200, y = 200 }))
+	expectPointNear(
+		customReset.center,
+		{ x = 125, y = -40 },
+		"canvas fit reset honors a non-zero authored world center"
+	)
+
+	local maximumZoom = CanvasTransform.setZoomAt(fitted, 1_000, zoomAnchor)
+	local minimumZoom = CanvasTransform.setZoomAt(fitted, 0.001, zoomAnchor)
+	expectNear(maximumZoom.zoom, CanvasTransform.MAX_ZOOM, "canvas zoom clamps excessive magnification")
+	expectNear(minimumZoom.zoom, CanvasTransform.MIN_ZOOM, "canvas zoom clamps excessive reduction")
+	expectPointNear(
+		CanvasTransform.canvasToWorld(maximumZoom, zoomAnchor),
+		CanvasTransform.canvasToWorld(fitted, zoomAnchor),
+		"clamped canvas zoom still preserves its cursor anchor"
+	)
+
+	local invalidWorldSizeAccepted = pcall(function()
+		CanvasTransform.fit({ x = 800, y = 600 }, { x = 0, y = 100 }, 10)
+	end)
+	local invalidPaddingAccepted = pcall(function()
+		CanvasTransform.fit({ x = 100, y = 100 }, { x = 20, y = 20 }, 50)
+	end)
+	local invalidZoomAccepted = pcall(function()
+		CanvasTransform.zoomAt(fitted, 0, zoomAnchor)
+	end)
+	expectEqual(invalidWorldSizeAccepted, false, "canvas fit rejects zero-sized worlds")
+	expectEqual(invalidPaddingAccepted, false, "canvas fit rejects padding that consumes the viewport")
+	expectEqual(invalidZoomAccepted, false, "canvas zoom rejects non-positive factors")
 end
 
 do
@@ -1862,6 +1982,64 @@ do
 			string.find(stagewrightWorldPathSource, behavior, 1, true) ~= nil,
 			true,
 			`Stagewright world path view includes {behavior}`
+		)
+	end
+	for _, transformBehavior in
+		{
+			"require(script.Parent.Interaction.CanvasTransform)",
+			"CanvasTransform.worldToCanvas",
+			"CanvasTransform.canvasToWorld",
+			"CanvasTransform.zoomAt",
+			"CanvasTransform.pan",
+			"fitToView",
+		}
+	do
+		expectEqual(
+			string.find(stagewrightWorldPathSource, transformBehavior, 1, true) ~= nil,
+			true,
+			`Stagewright world path uses the shared uniform transform for {transformBehavior}`
+		)
+	end
+	for _, retiredTransformField in { "mapTopLeft", "mapScale" } do
+		expectEqual(
+			string.find(stagewrightWorldPathSource, retiredTransformField, 1, true),
+			nil,
+			`Stagewright world path retires duplicate transform field {retiredTransformField}`
+		)
+	end
+	for _, navigationSafety in
+		{
+			'current:IsA("LayerCollector") and not current.Enabled',
+			"self.dragKind ~= nil or self.panLastScreen ~= nil",
+			"canvas.Position = UDim2.new(",
+			"visibleDepth = math.max(worldHeight, worldWidth / aspect)",
+			"local inspectorHeight = INSPECTOR_HEIGHT",
+		}
+	do
+		expectEqual(
+			string.find(stagewrightWorldPathSource, navigationSafety, 1, true) ~= nil,
+			true,
+			`Stagewright world navigation includes {navigationSafety}`
+		)
+	end
+	expectEqual(
+		string.find(stagewrightWorldPathSource, "boundsSize.Z * 1.08", 1, true),
+		nil,
+		"Stagewright backdrop no longer uses a coordinate system independent from the grid"
+	)
+	for _, cancellationMarker in
+		{
+			"cancelActiveEditorInteraction",
+			"Enum.KeyCode.Escape",
+			"widget.WindowFocusReleased:Connect",
+			"UserInputService.WindowFocusReleased:Connect",
+			"plugin.Unloading:Connect",
+		}
+	do
+		expectEqual(
+			string.find(gridPluginSource, cancellationMarker, 1, true) ~= nil,
+			true,
+			`Stagewright central cancellation covers {cancellationMarker}`
 		)
 	end
 	expectEqual(

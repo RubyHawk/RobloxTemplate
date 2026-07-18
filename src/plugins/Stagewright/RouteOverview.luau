@@ -786,12 +786,14 @@ function RouteOverview.focusSelection(self: Controller)
 	end
 end
 
-function RouteOverview.cancelInteraction(self: Controller)
+function RouteOverview.cancelInteraction(self: Controller): boolean
+	local canceled = self.connectionFromNodeId ~= nil or self.connectionPreview ~= nil
 	self.connectionFromNodeId = nil
 	if self.connectionPreview ~= nil then
 		self.connectionPreview:Destroy()
 		self.connectionPreview = nil
 	end
+	return canceled
 end
 
 function RouteOverview.destroy(self: Controller)
