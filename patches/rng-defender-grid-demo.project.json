@@ -122,9 +122,6 @@
       "TemplateServer": {
         "$path": "../src/server"
       },
-      "GridNpcDemo": {
-        "$path": "../src/starter/GridNpcDemo.server.luau"
-      },
       "RuneCircle": {
         "$path": "../src/starter/RuneCircle.server.luau"
       }

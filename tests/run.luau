@@ -2654,7 +2654,6 @@ for _, patchObject in
 		'"Template"',
 		'"Shared"',
 		'"TemplateServer"',
-		'"GridNpcDemo"',
 		'"RuneCircle"',
 		'"RuneCircleSign"',
 		'"RuneCircleUI"',
@@ -2672,6 +2671,11 @@ do
 		`RNG Defender grid patch includes {patchObject}`
 	)
 end
+expectEqual(
+	string.find(gridPatchProject, '"GridNpcDemo"', 1, true),
+	nil,
+	"RNG Defender grid patch retires the unreachable duplicate NPC presenter"
+)
 local rngPatchDesignerConfig = fs.readFile("patches/rng-defender/DesignerConfig.luau")
 for _, patchConfigObject in
 	{
@@ -3509,37 +3513,22 @@ expectEqual(
 	true,
 	"check.ps1 builds the Runewright plugin package"
 )
-local gridNpcBinder = fs.readFile("src/starter/GridNpcDemo.server.luau")
-for _, sharedPathMarker in
-	{
-		"StageCatalog",
-		"StagePath.sample",
-		"edge.samples",
-		"sample.tangent",
-		"sample.up",
-		"Workspace:GetServerTimeNow",
-	}
-do
-	expectEqual(
-		string.find(gridNpcBinder, sharedPathMarker, 1, true) ~= nil,
-		true,
-		`grid NPC movement uses shared path marker {sharedPathMarker}`
-	)
-end
-for _, oldPathMarker in { "catmullRomPosition", "buildSplinePath", "sampleSplinePath", "PathPoints" } do
-	expectEqual(
-		string.find(gridNpcBinder, oldPathMarker, 1, true),
-		nil,
-		`grid NPC movement no longer uses boxy path marker {oldPathMarker}`
-	)
-end
-for _, forbiddenConstructor in { "Instance.new", ":Clone(", ":Destroy(" } do
-	expectEqual(
-		string.find(gridNpcBinder, forbiddenConstructor, 1, true),
-		nil,
-		`grid NPC binder does not use {forbiddenConstructor}`
-	)
-end
+expectEqual(
+	fs.isFile("src/starter/GridNpcDemo.server.luau"),
+	false,
+	"the unreachable duplicate grid NPC Heartbeat presenter stays retired"
+)
+local generatedStageCatalog = fs.readFile("src/shared/StageCatalog.generated.luau")
+expectEqual(
+	string.find(generatedStageCatalog, '"graph_main"', 1, true),
+	nil,
+	"the retired NPC demo graph is absent from the current runtime catalog"
+)
+expectEqual(
+	string.find(generatedStageCatalog, '"edge_main"', 1, true),
+	nil,
+	"the retired NPC demo edge is absent from the current runtime catalog"
+)
 expectEqual(
 	string.find(compactConnectedUi, '"AnchorPoint":[0.5,1]', 1, true) ~= nil,
 	true,

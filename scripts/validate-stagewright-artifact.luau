@@ -147,6 +147,7 @@ for _, requiredName in
 do
 	assert(runtimeNames[requiredName], `Tower-defense artifact is missing {requiredName}`)
 end
+assert(not runtimeNames.GridNpcDemo, "Tower-defense artifact retained the dead GridNpcDemo script")
 for _, marker in
 	{
 		expectedChecksum,
@@ -193,5 +194,6 @@ for _, requiredName in
 do
 	assert(safePatchNames[requiredName], `Shared-place safe patch is missing {requiredName}`)
 end
+assert(not safePatchNames.GridNpcDemo, "Shared-place safe patch retained the dead GridNpcDemo script")
 
 print("Stagewright plugin, player-test, and shared-place artifacts passed structural validation.")
