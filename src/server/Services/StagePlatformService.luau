@@ -14,9 +14,10 @@ local StagePlatformService = {}
 
 local slotsByPlayer: { [Player]: number } = {}
 local playersBySlot: { [number]: Player } = {}
-local warnedMissingCenter = false
 local cachedCenter: CFrame? = nil
 local cachedFirstRelative: CFrame? = nil
+local cachedLayoutSource = "Unresolved"
+local layoutAttempted = false
 local started = false
 
 local function publishedOrigin(slot: number): CFrameValue?
@@ -46,17 +47,24 @@ local function publishOwner(slot: number, player: Player?)
 	value:SetAttribute("OwnerUserId", if player ~= nil then player.UserId else 0)
 end
 
-local function descendantNamed(names: { string }): BasePart?
+local function uniqueCenterAnchor(names: { string }): (BasePart?, boolean)
 	local allowed: { [string]: boolean } = {}
 	for _, name in names do
 		allowed[name] = true
 	end
+	local found: BasePart? = nil
 	for _, descendant in Workspace:GetDescendants() do
 		if allowed[descendant.Name] and descendant:IsA("BasePart") then
-			return descendant
+			if found ~= nil then
+				warn(
+					`Stage platform layout is ambiguous: both {found:GetFullName()} and {descendant:GetFullName()} match the configured center anchor names`
+				)
+				return nil, false
+			end
+			found = descendant
 		end
 	end
-	return nil
+	return found, true
 end
 
 local function firstPlatformOrigin(): BasePart?
@@ -77,26 +85,37 @@ local function configuredRelativeFrame(): CFrame
 end
 
 local function layout(): (CFrame?, CFrame?)
-	if cachedCenter ~= nil and cachedFirstRelative ~= nil then
+	if layoutAttempted then
 		return cachedCenter, cachedFirstRelative
 	end
-	local center = descendantNamed(Config.towerDefense.centerPartNames)
+	layoutAttempted = true
+	local center, centerContractValid = uniqueCenterAnchor(Config.towerDefense.centerPartNames)
+	if not centerContractValid then
+		cachedLayoutSource = "AmbiguousCenter"
+		return nil, nil
+	end
 	if center ~= nil then
 		cachedCenter = center.CFrame
 		cachedFirstRelative = configuredRelativeFrame()
+		cachedLayoutSource = "CenterAnchor"
 		return cachedCenter, cachedFirstRelative
 	end
 	local firstOrigin = firstPlatformOrigin()
 	if firstOrigin == nil then
+		cachedLayoutSource = "Unavailable"
+		warn(
+			`Stage platform layout is unavailable: expected exactly one center anchor named {table.concat(
+				Config.towerDefense.centerPartNames,
+				", "
+			)} or the legacy slot-one platform origin`
+		)
 		return nil, nil
 	end
-	if not warnedMissingCenter then
-		warn("Stage platform center is missing; using the legacy slot-one GamePlatform origin")
-		warnedMissingCenter = true
-	end
+	warn("Stage platform center is missing; using the legacy slot-one GamePlatform origin")
 	local relative = configuredRelativeFrame()
 	cachedCenter = firstOrigin.CFrame * relative:Inverse()
 	cachedFirstRelative = relative
+	cachedLayoutSource = "LegacyPlatformOrigin"
 	return cachedCenter, cachedFirstRelative
 end
 
@@ -199,6 +218,7 @@ local function publishOrigins()
 	end
 	folder:SetAttribute("SlotCount", Config.towerDefense.platformSlotCount)
 	folder:SetAttribute("LayoutAvailable", published == Config.towerDefense.platformSlotCount)
+	folder:SetAttribute("LayoutSource", cachedLayoutSource)
 	folder:SetAttribute("ServerMaxPlayers", Players.MaxPlayers)
 	folder:SetAttribute(
 		"CapacityMatchesSlotCount",

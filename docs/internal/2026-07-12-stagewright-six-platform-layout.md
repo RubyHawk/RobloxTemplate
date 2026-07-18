@@ -22,6 +22,7 @@ Runtime decisions:
 - `StageRuntimeService` has no independent Workspace-geometry fallback; server bootstrap injects the authoritative platform origin provider before player loading, and an uninitialized service fails closed off-map.
 - No runtime cloning of the grid's SurfaceGui objects is performed. Stage data, towers, and client enemy visuals are transformed through the assigned origin.
 - The attachment name mentioned as `ccenter_grass` is supported as an alias, while the supplied model's actual part name is `center_grass`.
+- Runtime accepts a center anchor only when exactly one supported name resolves. Duplicate matching descendants fail the layout closed instead of choosing an arbitrary first match, and `StagePlatformOrigins.LayoutSource` reports the resolver path for Studio diagnostics.
 - A seventh player receives no tower-defense platform; placement, stage activation, and wave actions fail instead of overlapping another player.
 
 Legacy-source characterization result (superseded by the production layout below):
