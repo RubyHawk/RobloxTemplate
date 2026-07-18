@@ -5,11 +5,12 @@ local StageHierarchy = if script ~= nil
 	then require(script.Parent.StageHierarchy)
 	else require("./StageHierarchy")
 local StageSchema = if script ~= nil then require(script.Parent.StageSchema) else require("./StageSchema")
+local StageTypes = if script ~= nil then require(script.Parent.StageTypes) else require("./StageTypes")
 
 local StageExport = {}
 
 export type ExportResult = {
-	bundle: any?,
+	bundle: StageTypes.RuntimeStageBundle?,
 	issues: { StageSchema.Issue },
 }
 
@@ -110,7 +111,7 @@ end
 -- Builds the exact route data used by runtime export without requiring the
 -- entire project to validate. Editor previews must stay available while a
 -- designer is fixing invalid cells, predicates, or catalog references.
-function StageExport.preview(stage: any): any?
+function StageExport.preview(stage: StageTypes.StageDefinition): StageTypes.StagePreviewDefinition?
 	if type(stage) ~= "table" or type(stage.grid) ~= "table" or type(stage.pathGraphs) ~= "table" then
 		return nil
 	end
@@ -121,7 +122,7 @@ function StageExport.preview(stage: any): any?
 		end
 	end
 	preview.routeNoBuildMask = routeMask(preview)
-	return preview
+	return preview :: StageTypes.StagePreviewDefinition
 end
 
 function StageExport.bake(project: any): ExportResult
@@ -242,7 +243,10 @@ function StageExport.bake(project: any): ExportResult
 		stages = stages,
 	}
 	bundle.checksum = StageSchema.checksum(bundle)
-	return { bundle = if StageSchema.hasErrors(issues) then nil else bundle, issues = issues }
+	return {
+		bundle = if StageSchema.hasErrors(issues) then nil else bundle :: StageTypes.RuntimeStageBundle,
+		issues = issues,
+	}
 end
 
 return table.freeze(StageExport)

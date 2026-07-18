@@ -41,8 +41,8 @@ export type PathNode = {
 
 export type WaveRangePredicate = {
 	kind: "WaveRange",
-	minimum: number,
-	maximum: number,
+	minimum: number?,
+	maximum: number?,
 }
 
 export type StageFlagPredicate = {
@@ -97,6 +97,7 @@ export type PathEdge = {
 	laneProfileId: string,
 	priority: number,
 	predicates: { RoutePredicate },
+	metadata: { [string]: JsonValue }?,
 }
 
 export type LaneProfile = {
@@ -110,6 +111,7 @@ export type PathGraphDefinition = {
 	name: string,
 	nodes: { [string]: PathNode },
 	edges: { [string]: PathEdge },
+	outgoingEdgeIds: { [string]: { string } }?,
 	laneProfiles: { [string]: LaneProfile },
 	maxNodeVisitsPerEnemy: number,
 	maxTravelDistance: number,
@@ -137,6 +139,7 @@ export type StageDefinition = {
 export type StageProject = {
 	schemaVersion: number,
 	startingStageId: string,
+	selectedStageId: string?,
 	stages: { [string]: StageDefinition },
 	metadata: { [string]: JsonValue }?,
 }
@@ -155,12 +158,21 @@ export type BakedPathEdge = PathEdge & {
 
 export type RuntimePathGraph = {
 	id: string,
+	name: string,
 	nodes: { [string]: PathNode },
 	edges: { [string]: BakedPathEdge },
 	outgoingEdgeIds: { [string]: { string } },
 	laneProfiles: { [string]: LaneProfile },
 	maxNodeVisitsPerEnemy: number,
 	maxTravelDistance: number,
+}
+
+-- Editor previews use baked route geometry and a no-build mask, but they are
+-- intentionally not checksum-addressed runtime artifacts.
+export type StagePreviewDefinition = StageDefinition & {
+	pathGraphs: { [string]: RuntimePathGraph },
+	routeNoBuildMask: { [string]: boolean },
+	routePreviewSignature: string?,
 }
 
 export type RuntimeStageDefinition = {

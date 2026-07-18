@@ -94,6 +94,9 @@
       "StageTrace": {
         "$path": "../src/shared/StageTrace.luau"
       },
+      "StageTypes": {
+        "$path": "../src/shared/StageTypes.luau"
+      },
       "StageLegacy": {
         "$path": "../src/shared/StageLegacy.luau"
       },

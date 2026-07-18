@@ -8,12 +8,21 @@ local StageCatalog = require(Shared.StageCatalog)
 local StageGraph = require(Shared.StageGraph)
 local StagePath = require(Shared.StagePath)
 local StageSchema = require(Shared.StageSchema)
+local StageTypes = require(Shared.StageTypes)
 
 local ProfileService = require(script.Parent.ProfileService)
 
 local StageRuntimeService = {}
 
 export type RouteContext = StageGraph.Context
+
+type BakedPathEdge = StageTypes.BakedPathEdge
+type BakedPathSample = StageTypes.BakedPathSample
+type CellOverride = StageTypes.CellOverride
+type PathNode = StageTypes.PathNode
+type RuntimePathGraph = StageTypes.RuntimePathGraph
+type RuntimeStageDefinition = StageTypes.RuntimeStageDefinition
+type Vec3 = StageTypes.Vec3
 
 type UpgradeLevelProvider = (player: Player, upgradeId: string) -> number
 type StageOriginProvider = (player: Player, stageId: string) -> CFrame
@@ -32,7 +41,7 @@ local activationPublisher: StageActivationPublisher = function(_player: Player, 
 	return true
 end
 
-local function stageById(stageId: string): any?
+local function stageById(stageId: string): RuntimeStageDefinition?
 	return StageCatalog.get(stageId)
 end
 
@@ -51,7 +60,7 @@ local function defaultPlatformOrigin(): BasePart?
 	return if base ~= nil and base:IsA("BasePart") then base else nil
 end
 
-function StageRuntimeService.originFor(player: Player, stage: any): CFrame
+function StageRuntimeService.originFor(player: Player, stage: RuntimeStageDefinition): CFrame
 	if originProvider ~= nil then
 		return originProvider(player, stage.id)
 	end
@@ -80,7 +89,7 @@ local function unlockedStages(player: Player): { [string]: boolean }
 	return unlocked
 end
 
-local function requirementsPass(player: Player, stage: any): boolean
+local function requirementsPass(player: Player, stage: RuntimeStageDefinition): boolean
 	local progress, currencies = profileProgress(player)
 	for _, requirement in stage.unlockRequirements or {} do
 		if requirement.kind == "StageUnlocked" then
@@ -115,7 +124,11 @@ function StageRuntimeService.isUnlocked(player: Player, stageId: string): boolea
 end
 
 function StageRuntimeService.activate(player: Player, stageId: any): (boolean, string)
-	if type(stageId) ~= "string" or #stageId > 80 or stageById(stageId) == nil then
+	if type(stageId) ~= "string" or #stageId > 80 then
+		return false, "Unknown stage"
+	end
+	local stage = stageById(stageId)
+	if stage == nil then
 		return false, "Unknown stage"
 	end
 	if not StageRuntimeService.isUnlocked(player, stageId) then
@@ -129,7 +142,7 @@ function StageRuntimeService.activate(player: Player, stageId: any): (boolean, s
 	activationPublisher(player, stageId)
 	profile.towerDefense.selectedStageId = stageId
 	ProfileService.markDirty(player, "towerDefense:activateStage")
-	return true, `Activated {stageById(stageId).name}`
+	return true, `Activated {stage.name}`
 end
 
 function StageRuntimeService.activeStageId(player: Player): string
@@ -150,11 +163,11 @@ function StageRuntimeService.activeStageId(player: Player): string
 	return Config.towerDefense.startingStageId
 end
 
-function StageRuntimeService.activeStage(player: Player): any
+function StageRuntimeService.activeStage(player: Player): RuntimeStageDefinition?
 	return stageById(StageRuntimeService.activeStageId(player))
 end
 
-function StageRuntimeService.firstGraph(stage: any): any?
+function StageRuntimeService.firstGraph(stage: RuntimeStageDefinition): RuntimePathGraph?
 	local ids: { string } = {}
 	for graphId in stage.pathGraphs do
 		table.insert(ids, graphId)
@@ -163,7 +176,7 @@ function StageRuntimeService.firstGraph(stage: any): any?
 	return if ids[1] ~= nil then stage.pathGraphs[ids[1]] else nil
 end
 
-function StageRuntimeService.spawnNodes(graph: any): { any }
+function StageRuntimeService.spawnNodes(graph: RuntimePathGraph): { PathNode }
 	local ids: { string } = {}
 	for nodeId, node in graph.nodes do
 		if node.kind == "Spawn" then
@@ -171,14 +184,14 @@ function StageRuntimeService.spawnNodes(graph: any): { any }
 		end
 	end
 	table.sort(ids)
-	local nodes: { any } = {}
+	local nodes: { PathNode } = {}
 	for _, nodeId in ids do
 		table.insert(nodes, graph.nodes[nodeId])
 	end
 	return nodes
 end
 
-function StageRuntimeService.firstSpawnNode(graph: any): any?
+function StageRuntimeService.firstSpawnNode(graph: RuntimePathGraph): PathNode?
 	return StageRuntimeService.spawnNodes(graph)[1]
 end
 
@@ -195,11 +208,13 @@ function StageRuntimeService.context(
 	end
 	local upgrades: { [string]: number } = {}
 	local stage = StageRuntimeService.activeStage(player)
-	for _, graph in stage.pathGraphs do
-		for _, edge in graph.edges do
-			for _, predicate in edge.predicates do
-				if predicate.kind == "UpgradeLevelAtLeast" then
-					upgrades[predicate.upgradeId] = upgradeLevelProvider(player, predicate.upgradeId)
+	if stage ~= nil then
+		for _, graph in stage.pathGraphs do
+			for _, edge in graph.edges do
+				for _, predicate in edge.predicates do
+					if predicate.kind == "UpgradeLevelAtLeast" then
+						upgrades[predicate.upgradeId] = upgradeLevelProvider(player, predicate.upgradeId)
+					end
 				end
 			end
 		end
@@ -216,22 +231,27 @@ function StageRuntimeService.context(
 	}
 end
 
-function StageRuntimeService.chooseEdge(graph: any, nodeId: string, context: RouteContext): (any?, string?)
-	return StageGraph.chooseEdge(graph, nodeId, context)
+function StageRuntimeService.chooseEdge(
+	graph: RuntimePathGraph,
+	nodeId: string,
+	context: RouteContext
+): (BakedPathEdge?, string?)
+	local edge, reason = StageGraph.chooseEdge(graph, nodeId, context)
+	return edge :: BakedPathEdge?, reason
 end
 
-local function vector(value: any): Vector3
+local function vector(value: Vec3): Vector3
 	return Vector3.new(value.x, value.y, value.z)
 end
 
 function StageRuntimeService.sampleEdge(
 	player: Player,
-	_stage: any,
-	graph: any,
+	stage: RuntimeStageDefinition,
+	graph: RuntimePathGraph,
 	edgeId: string,
 	distance: number,
 	laneIndex: number
-): (CFrame?, any?)
+): (CFrame?, BakedPathSample?)
 	local edge = graph.edges[edgeId]
 	if edge == nil then
 		return nil, nil
@@ -240,7 +260,7 @@ function StageRuntimeService.sampleEdge(
 	if sample == nil then
 		return nil, nil
 	end
-	local origin = StageRuntimeService.originFor(player, _stage)
+	local origin = StageRuntimeService.originFor(player, stage)
 	local worldPosition = origin:PointToWorldSpace(vector(sample.position))
 	local worldTangent = origin:VectorToWorldSpace(vector(sample.tangent))
 	local worldUp = origin:VectorToWorldSpace(vector(sample.up))
@@ -251,12 +271,12 @@ function StageRuntimeService.sampleEdge(
 	return frame, sample
 end
 
-function StageRuntimeService.cell(stage: any, column: number, row: number): any
+function StageRuntimeService.cell(stage: RuntimeStageDefinition, column: number, row: number): CellOverride
 	local key = StageSchema.cellKey(column, row)
 	return stage.grid.cells[key] or stage.grid.defaultCell
 end
 
-function StageRuntimeService.isBuildable(stage: any, column: number, row: number): boolean
+function StageRuntimeService.isBuildable(stage: RuntimeStageDefinition, column: number, row: number): boolean
 	if column < 1 or column > stage.grid.columns or row < 1 or row > stage.grid.rows then
 		return false
 	end
@@ -268,7 +288,10 @@ function StageRuntimeService.isBuildable(stage: any, column: number, row: number
 	return cell.buildPolicy == nil or cell.buildPolicy == "Allowed" or cell.buildPolicy == "AutoOnly"
 end
 
-function StageRuntimeService.cellsWithRole(stage: any, role: string): { { column: number, row: number } }
+function StageRuntimeService.cellsWithRole(
+	stage: RuntimeStageDefinition,
+	role: string
+): { { column: number, row: number } }
 	local cells: { { column: number, row: number } } = {}
 	for key, cell in stage.grid.cells do
 		if cell.roles ~= nil and cell.roles[role] == true then
@@ -289,7 +312,7 @@ end
 
 function StageRuntimeService.cellWorldPosition(
 	player: Player,
-	stage: any,
+	stage: RuntimeStageDefinition,
 	column: number,
 	row: number,
 	verticalOffset: number

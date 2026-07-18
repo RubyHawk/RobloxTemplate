@@ -1,21 +1,13 @@
 --!strict
 
+local StageTypes = if script ~= nil then require(script.Parent.StageTypes) else require("./StageTypes")
+
 local StageGraph = {}
 
-export type Predicate = { [string]: any }
-export type Edge = {
-	id: string,
-	fromNodeId: string,
-	toNodeId: string,
-	priority: number,
-	predicates: { Predicate },
-}
-export type Node = { id: string, kind: string }
-export type Graph = {
-	nodes: { [string]: Node },
-	edges: { [string]: Edge },
-	outgoingEdgeIds: { [string]: { string } }?,
-}
+export type Predicate = StageTypes.RoutePredicate
+export type Edge = StageTypes.PathEdge | StageTypes.BakedPathEdge
+export type Node = StageTypes.PathNode
+export type Graph = StageTypes.PathGraphDefinition | StageTypes.RuntimePathGraph
 export type Context = {
 	wave: number,
 	stageFlags: { [string]: boolean },
@@ -25,12 +17,7 @@ export type Context = {
 	upgradeLevels: { [string]: number },
 	currencies: { [string]: number },
 }
-export type Issue = {
-	severity: "Error" | "Warning",
-	code: string,
-	message: string,
-	objectId: string?,
-}
+export type Issue = StageTypes.ValidationIssue
 
 local function predicatePasses(predicate: Predicate, context: Context): boolean
 	local kind = predicate.kind

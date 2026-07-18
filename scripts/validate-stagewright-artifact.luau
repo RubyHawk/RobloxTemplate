@@ -57,6 +57,7 @@ for _, requiredName in
 		"StageSchema",
 		"StageExport",
 		"StageTrace",
+		"StageTypes",
 		"WorkspacePreview",
 	}
 do
@@ -126,8 +127,10 @@ for _, requiredName in
 		"StagePlatformLayout",
 		"StagePlatformService",
 		"StageRuntimeService",
+		"StageTypes",
 		"StageEnemyRenderer",
 		"StageGridRenderer",
+		"TowerDefenseRequest",
 	}
 do
 	assert(runtimeNames[requiredName], `Tower-defense artifact is missing {requiredName}`)
@@ -168,6 +171,7 @@ for _, requiredName in
 		"RuneModeConfig",
 		"StagePlatformService",
 		"StagePlatformOwnerController",
+		"TowerDefenseRequest",
 	}
 do
 	assert(safePatchNames[requiredName], `Shared-place safe patch is missing {requiredName}`)

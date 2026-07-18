@@ -7,6 +7,7 @@ local Catalogs = require(Shared.Catalogs)
 local Config = require(Shared.TemplateConfig)
 local Calculations = require(Shared.Calculations)
 local RemoteNames = require(Shared.RemoteNames)
+local TowerDefenseRequest = require(Shared.TowerDefenseRequest)
 
 local RateLimiter = require(script.Parent.Parent.Util.RateLimiter)
 local AfkService = require(script.Parent.AfkService)
@@ -46,6 +47,20 @@ local requestFeatures: { [string]: string } = {
 	StartTowerWave = "towerDefense",
 	ResetTowerDefense = "towerDefense",
 	ActivateTowerStage = "towerDefense",
+}
+
+local queryActions: { [string]: boolean } = {
+	InitialState = true,
+	SearchProfile = true,
+	GlobalLeaderboard = true,
+}
+
+local towerDefenseNoPayloadActions: { [string]: boolean } = {
+	RollUnit = true,
+	EquipBestUnits = true,
+	AutoPlaceBestUnits = true,
+	StartTowerWave = true,
+	ResetTowerDefense = true,
 }
 
 local function getOrCreate(className: string, name: string, parent: Instance): Instance
@@ -143,13 +158,23 @@ local function handleRequest(player: Player, packet: any)
 	end
 	local action = packet.action
 	local payload = packet.payload
+	local requiredFeature = requestFeatures[action]
+	if requiredFeature == nil and action ~= "AfkRollover" then
+		if limiter:allow(player, "unknown-request", 2, 0.25) then
+			result(player, false, "Unknown request")
+		end
+		return
+	end
 	if not limiter:allow(player, action, 6, 1) then
 		result(player, false, "Please slow down")
 		return
 	end
-	local requiredFeature = requestFeatures[action]
 	if requiredFeature and Config.features[requiredFeature] ~= true then
 		result(player, false, "This system is not enabled in this game")
+		return
+	end
+	if towerDefenseNoPayloadActions[action] and not TowerDefenseRequest.acceptsNoPayload(payload) then
+		result(player, false, "Invalid request")
 		return
 	end
 
@@ -207,16 +232,24 @@ local function handleRequest(player: Player, packet: any)
 	elseif action == "RollUnit" then
 		result(player, TowerDefenseService.rollUnit(player))
 	elseif action == "SetTowerLoadout" then
-		local unitIds = if type(payload) == "table" then payload.unitIds else nil
-		result(player, TowerDefenseService.setLoadout(player, unitIds))
+		local loadout = TowerDefenseRequest.parseLoadout(payload, Config.towerDefense.loadoutSlots)
+		if loadout == nil then
+			result(player, false, "Invalid loadout")
+			return
+		end
+		result(player, TowerDefenseService.setLoadout(player, loadout.unitIds))
 	elseif action == "EquipBestUnits" then
 		result(player, TowerDefenseService.equipBest(player))
 	elseif action == "PlaceUnit" then
-		if type(payload) ~= "table" then
+		local placement = TowerDefenseRequest.parsePlacement(payload)
+		if placement == nil then
 			result(player, false, "Invalid placement")
 			return
 		end
-		result(player, TowerDefenseService.placeUnit(player, payload.unitId, payload.column, payload.row))
+		result(
+			player,
+			TowerDefenseService.placeUnit(player, placement.unitId, placement.column, placement.row)
+		)
 	elseif action == "AutoPlaceBestUnits" then
 		result(player, TowerDefenseService.autoPlaceBest(player))
 	elseif action == "StartTowerWave" then
@@ -224,8 +257,12 @@ local function handleRequest(player: Player, packet: any)
 	elseif action == "ResetTowerDefense" then
 		result(player, TowerDefenseService.resetMatch(player))
 	elseif action == "ActivateTowerStage" then
-		local stageId = if type(payload) == "table" then payload.stageId else nil
-		result(player, TowerDefenseService.activateStage(player, stageId))
+		local activation = TowerDefenseRequest.parseStageActivation(payload)
+		if activation == nil then
+			result(player, false, "Invalid stage")
+			return
+		end
+		result(player, TowerDefenseService.activateStage(player, activation.stageId))
 	elseif action == "AfkRollover" then
 		local profile = ProfileService.get(player)
 		if profile == nil or not profile.settings.afKRollOver then
@@ -233,13 +270,20 @@ local function handleRequest(player: Player, packet: any)
 			return
 		end
 		result(player, AfkService.rollOver(player))
-	else
-		result(player, false, "Unknown request")
 	end
 end
 
 local function handleQuery(player: Player, action: any, payload: any): any
-	if type(action) ~= "string" or not limiter:allow(player, `query:{action}`, 4, 0.5) then
+	if type(action) ~= "string" then
+		return { ok = false, message = "Request unavailable" }
+	end
+	if queryActions[action] ~= true then
+		if limiter:allow(player, "query:unknown", 2, 0.25) then
+			return { ok = false, message = "Unknown query" }
+		end
+		return { ok = false, message = "Request unavailable" }
+	end
+	if not limiter:allow(player, `query:{action}`, 4, 0.5) then
 		return { ok = false, message = "Request unavailable" }
 	end
 	if action == "InitialState" then
@@ -258,7 +302,7 @@ local function handleQuery(player: Player, action: any, payload: any): any
 		local ok, data = LeaderboardService.globalBoard()
 		return { ok = ok, data = if ok then data else nil, message = if ok then nil else data }
 	end
-	return { ok = false, message = "Unknown query" }
+	return { ok = false, message = "Request unavailable" }
 end
 
 function RemoteService.initialize()

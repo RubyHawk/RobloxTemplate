@@ -14,10 +14,15 @@ local StageLegacy = require(Shared.StageLegacy)
 local StageLanes = require(Shared.StageLanes)
 local StageSchema = require(Shared.StageSchema)
 local StageStarterProject = require(Shared.StageStarterProject)
+local StageTypes = require(Shared.StageTypes)
 
 local ProjectStore = {}
 
 type LoadResult = ProjectLoadPolicy.PlanResult
+type StagePreviewDefinition = StageTypes.StagePreviewDefinition
+type StageDefinition = StageTypes.StageDefinition
+type StageProject = StageTypes.StageProject
+type Vec3 = StageTypes.Vec3
 export type Transaction = number
 
 local project: any = nil
@@ -28,7 +33,7 @@ local activeTransaction: Transaction? = nil
 local nextTransactionId = 0
 local writingPayload = false
 local writesSuspended = false
-local previewCache: { [string]: { signature: string, stage: any } } = {}
+local previewCache: { [string]: { signature: string, stage: StagePreviewDefinition } } = {}
 local observerCallback: (() -> ())? = nil
 local observerRevision = 0
 local ensureStarterLevels: (any) -> boolean
@@ -98,8 +103,8 @@ local function legacyRows(platform: Instance?): ({ string }, number, number, num
 		intValue(platform, "CellSize", 4)
 end
 
-local function legacyControlPositions(platform: Instance?): { any }
-	local result: { any } = {}
+local function legacyControlPositions(platform: Instance?): { Vec3 }
+	local result: { Vec3 } = {}
 	local base = if platform ~= nil then platform:FindFirstChild("PlatformBase") else nil
 	local origin = if platform ~= nil then platform:FindFirstChild("PlatformOrigin") else nil
 	local points = if platform ~= nil then platform:FindFirstChild("PathPoints") else nil
@@ -126,7 +131,7 @@ local function legacyControlPositions(platform: Instance?): { any }
 	return result
 end
 
-local function defaultProject(platformOverride: Instance?): any
+local function defaultProject(platformOverride: Instance?): StageProject
 	local platform = platformOverride or AuthoringArea.findPlatform()
 	local rows, columns, rowCount, cellSize = legacyRows(platform)
 	local controls = legacyControlPositions(platform)
@@ -148,11 +153,11 @@ local function defaultProject(platformOverride: Instance?): any
 		stageName = "Level 1",
 		blankFallback = not hasAuthoredCells and #controls == 0,
 	})
-	return imported
+	return imported :: StageProject
 end
 
-local function recoveryPlaceholder(): any
-	return StageStarterProject.build(1, guid, "stage_recovery", "stage_group_recovery")
+local function recoveryPlaceholder(): StageProject
+	return StageStarterProject.build(1, guid, "stage_recovery", "stage_group_recovery") :: StageProject
 end
 
 local function initializeInMemory(platformOverride: Instance?, state: ProjectLoadPolicy.Initialize)
@@ -210,7 +215,7 @@ local function applyLoadedPlan(state: ProjectLoadPolicy.Ready | ProjectLoadPolic
 	end
 end
 
-function ProjectStore.load(platformOverride: Instance?): any
+function ProjectStore.load(platformOverride: Instance?): StageProject
 	local planned = ProjectLoadPolicy.plan(ProjectStorage.projectSnapshot(), decodeJson)
 	writesSuspended = false
 	if planned.kind == "Ready" or planned.kind == "LegacyMigratedInMemory" then
@@ -222,11 +227,11 @@ function ProjectStore.load(platformOverride: Instance?): any
 		loadResult = planned
 	end
 	table.clear(previewCache)
-	return project
+	return project :: StageProject
 end
 
-function ProjectStore.get(): any
-	return project or ProjectStore.load()
+function ProjectStore.get(): StageProject
+	return (project or ProjectStore.load()) :: StageProject
 end
 
 local function currentLoadState(): LoadResult
@@ -285,7 +290,7 @@ function ProjectStore.save(): string
 	return saveUnchecked()
 end
 
-function ProjectStore.preview(stageId: string): any?
+function ProjectStore.preview(stageId: string): StagePreviewDefinition?
 	if not ProjectStore.isWritable() then
 		return nil
 	end
@@ -305,7 +310,7 @@ function ProjectStore.preview(stageId: string): any?
 	if cached ~= nil and cached.signature == signature then
 		return cached.stage
 	end
-	local preview = StageExport.preview(source)
+	local preview = StageExport.preview(source) :: StagePreviewDefinition?
 	if preview ~= nil then
 		preview.routePreviewSignature = signature
 		previewCache[stageId] = { signature = signature, stage = preview }
@@ -482,13 +487,13 @@ local function refreshDisplayOrder()
 end
 
 local function copiedDefinition(
-	source: any,
+	source: StageDefinition,
 	blank: boolean,
 	groupId: string,
 	stageNumber: number,
 	levelNumber: number
-): any
-	local stage = clone(source)
+): StageDefinition
+	local stage = clone(source) :: StageDefinition
 	if blank then
 		local graphId = guid("graph")
 		local laneOffsets = StageLanes.offsets(StageLanes.DEFAULT_COUNT)

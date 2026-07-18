@@ -10,6 +10,7 @@ local StageCatalog = require(Shared.StageCatalog)
 local StageLanes = require(Shared.StageLanes)
 local TowerDefenseCatalog = require(Shared.TowerDefenseCatalog)
 local TowerDefenseLogic = require(Shared.TowerDefenseLogic)
+local TowerDefenseRequest = require(Shared.TowerDefenseRequest)
 local Types = require(Shared.Types)
 
 local EconomyService = require(script.Parent.EconomyService)
@@ -462,22 +463,15 @@ function TowerDefenseService.setLoadout(player: Player, unitIds: any): (boolean,
 	if td == nil then
 		return false, "Profile is not loaded"
 	end
-	if type(unitIds) ~= "table" then
+	local parsedUnitIds = TowerDefenseRequest.parseUnitIds(unitIds, Config.towerDefense.loadoutSlots)
+	if parsedUnitIds == nil then
 		return false, "Invalid loadout"
 	end
 	local nextLoadout: { string } = {}
-	local seen: { [string]: boolean } = {}
-	for _, unitId in unitIds do
-		if #nextLoadout >= Config.towerDefense.loadoutSlots then
-			break
-		end
-		if type(unitId) ~= "string" or #unitId > 64 or seen[unitId] then
-			return false, "Invalid unit"
-		end
+	for _, unitId in parsedUnitIds do
 		if TowerDefenseCatalog.unit(unitId) == nil or not hasUnit(player, unitId) then
 			return false, "Unit is not owned"
 		end
-		seen[unitId] = true
 		table.insert(nextLoadout, unitId)
 	end
 	td.loadout = nextLoadout
@@ -543,12 +537,17 @@ local function placeUnitInternal(
 end
 
 function TowerDefenseService.placeUnit(player: Player, unitId: any, column: any, row: any): (boolean, string)
-	if type(unitId) ~= "string" or #unitId > 64 or type(column) ~= "number" or type(row) ~= "number" then
+	local placement = TowerDefenseRequest.parsePlacement({
+		unitId = unitId,
+		column = column,
+		row = row,
+	})
+	if placement == nil then
 		return false, "Invalid placement"
 	end
-	return placeUnitInternal(player, unitId, {
-		column = math.floor(column),
-		row = math.floor(row),
+	return placeUnitInternal(player, placement.unitId, {
+		column = placement.column,
+		row = placement.row,
 	}, true)
 end
 
@@ -691,6 +690,10 @@ function TowerDefenseService.resetMatch(player: Player): (boolean, string)
 end
 
 function TowerDefenseService.activateStage(player: Player, stageId: any): (boolean, string)
+	local activation = TowerDefenseRequest.parseStageActivation({ stageId = stageId })
+	if activation == nil then
+		return false, "Invalid stage"
+	end
 	if not StageRuntimeService.hasPlatform(player) then
 		return false, "No tower-defense platform is available"
 	end
@@ -698,7 +701,7 @@ function TowerDefenseService.activateStage(player: Player, stageId: any): (boole
 	if match ~= nil and match.waveRunning then
 		return false, "Finish or reset the current wave before changing stages"
 	end
-	local ok, message = StageRuntimeService.activate(player, stageId)
+	local ok, message = StageRuntimeService.activate(player, activation.stageId)
 	if not ok then
 		return false, message
 	end

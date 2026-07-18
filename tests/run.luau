@@ -7,6 +7,7 @@ local RuneLogic = require("../src/shared/RuneLogic")
 local RuneModeConfig = require("../src/shared/RuneModeConfig")
 local TowerDefenseCatalog = require("../src/shared/TowerDefenseCatalog")
 local TowerDefenseLogic = require("../src/shared/TowerDefenseLogic")
+local TowerDefenseRequest = require("../src/shared/TowerDefenseRequest")
 local StageGraph = require("../src/shared/StageGraph")
 local StageHierarchy = require("../src/shared/StageHierarchy")
 local StageLanes = require("../src/shared/StageLanes")
@@ -41,6 +42,146 @@ end
 local function expectCompiles(source: string, label: string)
 	local chunk, compileError = luau.load(source)
 	expectEqual(chunk ~= nil, true, `{label}: {tostring(compileError)}`)
+end
+
+do
+	local placement = TowerDefenseRequest.parsePlacement({
+		unitId = "unit_scout",
+		column = 12,
+		row = 7,
+	})
+	expectEqual(placement ~= nil and placement.column, 12, "tower placement accepts an integer column")
+	expectEqual(placement ~= nil and placement.row, 7, "tower placement accepts an integer row")
+
+	for _, invalidCoordinate in
+		{
+			0,
+			TowerDefenseRequest.MAX_GRID_INDEX + 1,
+			1.5,
+			0 / 0,
+			math.huge,
+			-math.huge,
+			"2",
+		}
+	do
+		expectEqual(
+			TowerDefenseRequest.parsePlacement({
+				unitId = "unit_scout",
+				column = invalidCoordinate,
+				row = 1,
+			}),
+			nil,
+			`tower placement rejects invalid column {tostring(invalidCoordinate)}`
+		)
+		expectEqual(
+			TowerDefenseRequest.parsePlacement({
+				unitId = "unit_scout",
+				column = 1,
+				row = invalidCoordinate,
+			}),
+			nil,
+			`tower placement rejects invalid row {tostring(invalidCoordinate)}`
+		)
+	end
+
+	for _, invalidUnitId in
+		{
+			"",
+			string.rep("u", TowerDefenseRequest.MAX_UNIT_ID_LENGTH + 1),
+			123,
+		}
+	do
+		expectEqual(
+			TowerDefenseRequest.parsePlacement({
+				unitId = invalidUnitId,
+				column = 1,
+				row = 1,
+			}),
+			nil,
+			`tower placement rejects invalid unit ID {tostring(invalidUnitId)}`
+		)
+	end
+	expectEqual(
+		TowerDefenseRequest.parsePlacement({
+			unitId = "unit_scout",
+			column = 1,
+			row = 1,
+			clientPrice = 0,
+		}),
+		nil,
+		"tower placement rejects undeclared client fields"
+	)
+
+	local activation = TowerDefenseRequest.parseStageActivation({ stageId = "stage_default" })
+	expectEqual(
+		activation ~= nil and activation.stageId,
+		"stage_default",
+		"tower stage activation accepts a bounded ID"
+	)
+	for _, invalidStagePayload in
+		{
+			{},
+			{ stageId = "" },
+			{ stageId = string.rep("s", TowerDefenseRequest.MAX_STAGE_ID_LENGTH + 1) },
+			{ stageId = 1 },
+			{ stageId = "stage_default", unlocked = true },
+		}
+	do
+		expectEqual(
+			TowerDefenseRequest.parseStageActivation(invalidStagePayload),
+			nil,
+			"tower stage activation rejects malformed or unauthorized fields"
+		)
+	end
+
+	expectEqual(TowerDefenseRequest.acceptsNoPayload(nil), true, "tower wave accepts omitted payload")
+	expectEqual(TowerDefenseRequest.acceptsNoPayload({}), true, "tower wave accepts an empty payload")
+	expectEqual(TowerDefenseRequest.acceptsNoPayload(1), false, "tower wave rejects wrong payload type")
+	expectEqual(
+		TowerDefenseRequest.acceptsNoPayload({ wave = 2 }),
+		false,
+		"tower wave rejects a client-selected wave"
+	)
+	expectEqual(
+		TowerDefenseRequest.acceptsNoPayload({ wave = 1.5 }),
+		false,
+		"tower wave rejects a fractional client-selected wave"
+	)
+	expectEqual(
+		TowerDefenseRequest.acceptsNoPayload({ wave = math.huge }),
+		false,
+		"tower wave rejects a non-finite client-selected wave"
+	)
+
+	local loadout = TowerDefenseRequest.parseLoadout({
+		unitIds = { "unit_scout", "unit_guard" },
+	}, 4)
+	expectEqual(loadout ~= nil and #loadout.unitIds, 2, "tower loadout accepts a bounded dense array")
+	expectEqual(
+		loadout ~= nil and loadout.unitIds[2],
+		"unit_guard",
+		"tower loadout preserves declared unit order"
+	)
+	local keyedUnitIds: any = { "unit_scout" }
+	keyedUnitIds.metadata = true
+	for _, invalidLoadoutPayload in
+		{
+			{},
+			{ unitIds = "unit_scout" },
+			{ unitIds = { "" } },
+			{ unitIds = { "unit_scout", "unit_scout" } },
+			{ unitIds = { "unit_scout", "unit_guard", "unit_mage" } },
+			{ unitIds = { [2] = "unit_scout" } },
+			{ unitIds = keyedUnitIds },
+			{ unitIds = { "unit_scout" }, selectedByClient = true },
+		}
+	do
+		expectEqual(
+			TowerDefenseRequest.parseLoadout(invalidLoadoutPayload, 2),
+			nil,
+			"tower loadout rejects malformed, oversized, duplicate, or undeclared data"
+		)
+	end
 end
 
 do
@@ -3484,6 +3625,21 @@ do
 	)
 end
 local stageRuntimeSource = fs.readFile("src/server/Services/StageRuntimeService.luau")
+expectCompiles(fs.readFile("src/shared/StageTypes.luau"), "shared stage DTO contracts")
+expectCompiles(fs.readFile("src/shared/StageCatalog.luau"), "typed runtime stage catalog")
+expectCompiles(stageRuntimeSource, "typed stage runtime service")
+for _, typedRuntimeMarker in
+	{
+		"StageTypes.RuntimeStageDefinition",
+		"StageTypes.RuntimePathGraph",
+	}
+do
+	expectEqual(
+		string.find(stageRuntimeSource, typedRuntimeMarker, 1, true) ~= nil,
+		true,
+		`runtime stage service consumes the shared DTO contract: {typedRuntimeMarker}`
+	)
+end
 for _, authorityMarker in
 	{
 		'type(stageId) ~= "string"',
@@ -3695,6 +3851,26 @@ do
 		`remote service exposes validated tower defense action {towerDefenseRemoteMarker}`
 	)
 end
+local unknownRequestBucket =
+	string.find(remoteServiceSource, 'limiter:allow(player, "unknown-request"', 1, true)
+local knownRequestBucket = string.find(remoteServiceSource, "limiter:allow(player, action", 1, true)
+expectEqual(
+	unknownRequestBucket ~= nil and knownRequestBucket ~= nil and unknownRequestBucket < knownRequestBucket,
+	true,
+	"unknown request names are bounded before action-specific rate limiting"
+)
+local unknownQueryBucket = string.find(remoteServiceSource, 'limiter:allow(player, "query:unknown"', 1, true)
+local knownQueryBucket = string.find(remoteServiceSource, "limiter:allow(player, `query:{action}`", 1, true)
+expectEqual(
+	unknownQueryBucket ~= nil and knownQueryBucket ~= nil and unknownQueryBucket < knownQueryBucket,
+	true,
+	"unknown query names are bounded before action-specific rate limiting"
+)
+expectEqual(
+	string.find(remoteServiceSource, "TowerDefenseRequest.parseLoadout", 1, true) ~= nil,
+	true,
+	"tower loadout requests use the shared strict contract"
+)
 expectEqual(
 	string.find(runeConfigSource, "towerDefense = false", 1, true) ~= nil,
 	true,

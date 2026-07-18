@@ -1,11 +1,16 @@
 --!strict
 
-local bundle = require(script.Parent["StageCatalog.generated"])
 local StageHierarchy = require(script.Parent.StageHierarchy)
-local StageCatalog = {}
-local stages = bundle.stages
+local StageTypes = require(script.Parent.StageTypes)
 
-function StageCatalog.get(stageId: string): any?
+type RuntimeStageBundle = StageTypes.RuntimeStageBundle
+type RuntimeStageDefinition = StageTypes.RuntimeStageDefinition
+
+local bundle = require(script.Parent["StageCatalog.generated"]) :: RuntimeStageBundle
+local StageCatalog = {}
+local stages: { [string]: RuntimeStageDefinition } = bundle.stages
+
+function StageCatalog.get(stageId: string): RuntimeStageDefinition?
 	return stages[stageId]
 end
 
