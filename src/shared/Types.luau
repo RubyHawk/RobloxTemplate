@@ -142,6 +142,8 @@ export type ClientSnapshot = {
 	temporaryMultiplier: number,
 	runes: RuneClientState?,
 	towerDefense: TowerDefenseClientState?,
+	towerPlacements: { TowerDefensePresentationPlacement }?,
+	towerPlacementRevision: number?,
 	serverTime: number,
 	features: { [string]: boolean },
 }
@@ -168,6 +170,18 @@ export type TowerDefensePlacementState = {
 		column: number,
 		row: number,
 	},
+}
+
+export type TowerDefensePresentationPlacement = {
+	ownerUserId: number,
+	slot: number,
+	id: string,
+	unitId: string,
+	cell: {
+		column: number,
+		row: number,
+	},
+	frame: CFrame,
 }
 
 export type TowerDefenseEnemyState = {

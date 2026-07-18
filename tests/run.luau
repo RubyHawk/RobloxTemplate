@@ -5161,9 +5161,9 @@ for _, towerDefenseMarker in
 		"TowerDefenseService.resetMatch",
 		"TowerDefenseService.activateStage",
 		"TowerDefenseService.snapshotFor",
+		"TowerDefenseService.presentationSnapshot",
 		"EconomyService.spendCurrency",
 		"TowerDefenseLogic.isBuildableCell",
-		"runtimeFolderName",
 		"RunService.Heartbeat",
 		"StageRuntimeService.chooseEdge",
 		"maximum travel distance exceeded",
@@ -5172,11 +5172,8 @@ for _, towerDefenseMarker in
 		"simulationAccumulator",
 		"StageCatalog.nextLevelId",
 		"publishEnemies",
-		"BillboardGui",
-		"DebugNameplate",
-		"HealthBarFill",
-		"setNameplateBar",
-		"StudsOffsetWorldSpace",
+		"publishPlacements",
+		"placementRevision",
 	}
 do
 	expectEqual(
@@ -5185,6 +5182,85 @@ do
 		`tower defense service includes {towerDefenseMarker}`
 	)
 end
+for _, retiredServerPresentation in
+	{
+		'Instance.new("Part")',
+		'Instance.new("BillboardGui")',
+		"DebugNameplate",
+		"HealthBarFill",
+		"setNameplateBar",
+		"StudsOffsetWorldSpace",
+		"runtimeFolderName",
+		"placement.part",
+		"match.folder",
+	}
+do
+	expectEqual(
+		string.find(towerDefenseServiceSource, retiredServerPresentation, 1, true),
+		nil,
+		`tower defense service leaves presentation to clients: {retiredServerPresentation}`
+	)
+end
+for _, presentationSnapshotMarker in
+	{
+		"Players:GetPlayers()",
+		"table.sort(players",
+		"ownerUserId = player.UserId",
+		"slot = slot",
+		"id = placement.id",
+		"unitId = placement.unitId",
+		"column = placement.cell.column",
+		"row = placement.cell.row",
+		"frame = CFrame.new(placement.position)",
+		"return snapshot, placementRevision",
+	}
+do
+	expectEqual(
+		string.find(towerDefenseServiceSource, presentationSnapshotMarker, 1, true) ~= nil,
+		true,
+		`tower presentation snapshot includes {presentationSnapshotMarker}`
+	)
+end
+local sharedTypesSource = fs.readFile("src/shared/Types.luau")
+expectCompiles(sharedTypesSource, "shared client snapshot contracts")
+local towerPresentationType =
+	string.match(sharedTypesSource, "export type TowerDefensePresentationPlacement = (%b{})")
+expectEqual(towerPresentationType ~= nil, true, "shared types declare sanitized tower presentation records")
+for _, presentationField in { "ownerUserId", "slot", "id", "unitId", "cell", "frame" } do
+	expectEqual(
+		towerPresentationType ~= nil and string.find(towerPresentationType, presentationField, 1, true) ~= nil,
+		true,
+		`tower presentation records include sanitized field {presentationField}`
+	)
+end
+for _, privatePresentationField in { "damage", "health", "nextAttackAt", "position", "profile" } do
+	expectEqual(
+		towerPresentationType and string.find(towerPresentationType, privatePresentationField, 1, true),
+		nil,
+		`tower presentation records omit server-only field {privatePresentationField}`
+	)
+end
+expectEqual(
+	string.find(sharedTypesSource, "towerPlacements: { TowerDefensePresentationPlacement }", 1, true) ~= nil,
+	true,
+	"initial client snapshots include all-player tower presentation records"
+)
+expectEqual(
+	string.find(sharedTypesSource, "towerPlacementRevision: number?", 1, true) ~= nil,
+	true,
+	"client snapshots order tower presentation records with a revision"
+)
+expectEqual(
+	string.find(templateConfigSource, "towerVisuals", 1, true) ~= nil
+		and string.find(templateConfigSource, 'folderName = "StagewrightClientTowers"', 1, true) ~= nil,
+	true,
+	"tower presentation styling and folder ownership are configured for clients"
+)
+expectEqual(
+	string.find(templateConfigSource, "runtimeFolderName", 1, true),
+	nil,
+	"tower configuration retires the unused server presentation folder"
+)
 local stageRuntimeSource = fs.readFile("src/server/Services/StageRuntimeService.luau")
 expectCompiles(fs.readFile("src/shared/StageTypes.luau"), "shared stage DTO contracts")
 expectCompiles(fs.readFile("src/shared/StageCatalog.luau"), "typed runtime stage catalog")
@@ -5330,6 +5406,64 @@ for _, forbiddenGridRendererMarker in { 'Instance.new("SurfaceGui")', 'Instance.
 		`six-grid renderer avoids runtime GUI cloning: {forbiddenGridRendererMarker}`
 	)
 end
+local stageTowerRendererSource = fs.readFile("src/client/Controllers/StageTowerRenderer.luau")
+expectCompiles(stageTowerRendererSource, "client tower presentation renderer")
+for _, towerRendererMarker in
+	{
+		"StagewrightClientTowers",
+		"towerVisuals",
+		'Instance.new("Part")',
+		"Enum.PartType.Cylinder",
+		"partsByKey",
+		"partPool",
+		"table.remove(partPool)",
+		"table.insert(partPool, part)",
+		"recordKey(record.ownerUserId, record.id)",
+		"part.CFrame = record.frame",
+		"record.cell.column",
+		"record.cell.row",
+		'SetAttribute("OwnerUserId", record.ownerUserId)',
+		'SetAttribute("PlatformSlot", record.slot)',
+		'SetAttribute("PlacementId", record.id)',
+		'SetAttribute("UnitId", record.unitId)',
+		"local enabled = Config.features.towerDefense == true",
+	}
+do
+	expectEqual(
+		string.find(stageTowerRendererSource, towerRendererMarker, 1, true) ~= nil,
+		true,
+		`client tower renderer includes {towerRendererMarker}`
+	)
+end
+expectEqual(
+	string.find(
+		stageTowerRendererSource,
+		"local function recordKey(ownerUserId: number, id: string): string",
+		1,
+		true
+	)
+			~= nil
+		and string.find(stageTowerRendererSource, "`{ownerUserId}:{id}`", 1, true) ~= nil,
+	true,
+	"tower renderer keys placements by owner and placement id"
+)
+for _, forbiddenTowerRendererMarker in
+	{
+		'Instance.new("BillboardGui")',
+		'Instance.new("SurfaceGui")',
+		'Instance.new("Frame")',
+		'Instance.new("TextLabel")',
+		'Instance.new("ImageLabel")',
+		"GuiObject",
+		":Clone(",
+	}
+do
+	expectEqual(
+		string.find(stageTowerRendererSource, forbiddenTowerRendererMarker, 1, true),
+		nil,
+		`client tower renderer avoids dynamic GUI and clones: {forbiddenTowerRendererMarker}`
+	)
+end
 local stageOwnerControllerSource = fs.readFile("src/client/Controllers/StagePlatformOwnerController.luau")
 local stageOwnerControllerCompiles = pcall(function()
 	luau.load(stageOwnerControllerSource)
@@ -5414,13 +5548,42 @@ for _, towerDefenseRemoteMarker in
 		"ResetTowerDefense",
 		"ActivateTowerStage",
 		"TowerEnemies",
+		"TowerPlacements",
 		"TowerDefenseService.snapshotFor",
+		"TowerDefenseService.presentationSnapshot",
+		"RemoteService.publishTowerPlacements",
+		"FireAllClients",
+		"towerPlacementRevision",
+		"revision = revision",
 	}
 do
 	expectEqual(
 		string.find(remoteServiceSource, towerDefenseRemoteMarker, 1, true) ~= nil,
 		true,
 		`remote service exposes validated tower defense action {towerDefenseRemoteMarker}`
+	)
+end
+expectEqual(
+	string.find(serverBootstrapSource, "publishPlacements = RemoteService.publishTowerPlacements", 1, true)
+		~= nil,
+	true,
+	"tower defense mutations publish the all-player presentation snapshot"
+)
+for _, clientTowerPresentationMarker in
+	{
+		"local StageTowerRenderer = require(Controllers.StageTowerRenderer)",
+		"StageTowerRenderer.initialize()",
+		"acceptTowerPlacements(nextState.towerPlacements, nextState.towerPlacementRevision)",
+		'packet.kind == "TowerPlacements"',
+		"acceptTowerPlacements(packet.data, packet.revision)",
+		"nextRevision < towerPlacementRevision",
+		"latestTowerPlacements = nextPlacements",
+	}
+do
+	expectEqual(
+		string.find(initClient, clientTowerPresentationMarker, 1, true) ~= nil,
+		true,
+		`client bootstrap applies tower presentation updates: {clientTowerPresentationMarker}`
 	)
 end
 local unknownRequestBucket =

@@ -141,6 +141,7 @@ for _, requiredName in
 		"StageTypes",
 		"StageEnemyRenderer",
 		"StageGridRenderer",
+		"StageTowerRenderer",
 		"TowerDefenseRequest",
 	}
 do
@@ -150,8 +151,11 @@ for _, marker in
 	{
 		expectedChecksum,
 		"TowerEnemies",
+		"TowerPlacements",
+		"towerPlacementRevision",
 		"maximum travel distance exceeded",
 		"StagewrightClientGrids",
+		"StagewrightClientTowers",
 		"StagewrightEditorOnly",
 		"StagewrightRuntimeStowed",
 		"StageRuntimeService.spawnNodes",
@@ -167,7 +171,9 @@ do
 		`Tower-defense artifact is missing source marker {marker}`
 	)
 end
-for _, retiredMarker in { "catmullRomPosition", "createEnemyPart", "SPLINE_SAMPLES_PER_SEGMENT" } do
+for _, retiredMarker in
+	{ "catmullRomPosition", "createEnemyPart", "SPLINE_SAMPLES_PER_SEGMENT", "DebugNameplate" }
+do
 	assert(
 		not string.find(runtimeSource, retiredMarker, 1, true),
 		`Tower-defense artifact retained {retiredMarker}`

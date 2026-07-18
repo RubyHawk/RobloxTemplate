@@ -191,7 +191,6 @@ local Config = {
 		loadoutSlots = 4,
 		baseHealth = 20,
 		autoPlaceMaxUnits = 4,
-		runtimeFolderName = "TowerDefenseRuntime",
 		simulationHz = 20,
 		networkSnapshotHz = 4,
 		maximumEnemiesPerPlayer = 500,
@@ -251,6 +250,11 @@ local Config = {
 			goalColor = { 248, 92, 92 },
 			autoPlaceColor = { 84, 158, 255 },
 			blockedColor = { 132, 55, 68 },
+		},
+		towerVisuals = {
+			folderName = "StagewrightClientTowers",
+			size = { 1.4, 2.6, 2.6 },
+			color = { 78, 151, 73 },
 		},
 	},
 

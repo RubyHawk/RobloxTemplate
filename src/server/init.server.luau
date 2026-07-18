@@ -59,6 +59,7 @@ if Config.features.towerDefense then
 	TowerDefenseService.start({
 		publish = RemoteService.publish,
 		publishEnemies = RemoteService.publishTowerEnemies,
+		publishPlacements = RemoteService.publishTowerPlacements,
 	})
 end
 

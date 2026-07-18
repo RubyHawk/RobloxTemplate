@@ -24,6 +24,7 @@ local ResponsiveController = require(Controllers.ResponsiveController)
 local StageEnemyRenderer = require(Controllers.StageEnemyRenderer)
 local StageGridRenderer = require(Controllers.StageGridRenderer)
 local StagePlatformOwnerController = require(Controllers.StagePlatformOwnerController)
+local StageTowerRenderer = require(Controllers.StageTowerRenderer)
 local UIFactory = require(script.UI.UIFactory)
 local ScreenRegistry = require(script.UI.ScreenRegistry)
 local Screens = require(script.UI.Screens)
@@ -168,6 +169,7 @@ end
 
 AudioController.initialize()
 StageEnemyRenderer.initialize()
+StageTowerRenderer.initialize()
 
 local function optionalScreenGui(name: string): ScreenGui?
 	local candidate = playerGui:FindFirstChild(name)
@@ -264,6 +266,34 @@ end
 setupGalleryMenu()
 local registry = ScreenRegistry.new()
 local state: any = nil
+local towerPlacementRevision = -1
+local latestTowerPlacements: any = {}
+
+local function normalizedTowerPlacementRevision(value: any): number
+	return if type(value) == "number"
+			and value == value
+			and value ~= math.huge
+			and value >= 0
+			and value % 1 == 0
+		then value
+		else 0
+end
+
+local function acceptTowerPlacements(records: any, revision: any): boolean
+	local nextRevision = normalizedTowerPlacementRevision(revision)
+	if nextRevision < towerPlacementRevision then
+		return false
+	end
+	local nextPlacements = if type(records) == "table" then records else {}
+	towerPlacementRevision = nextRevision
+	latestTowerPlacements = nextPlacements
+	StageTowerRenderer.apply(nextPlacements)
+	if state ~= nil then
+		state.towerPlacements = nextPlacements
+		state.towerPlacementRevision = nextRevision
+	end
+	return true
+end
 
 local function request(action: string, payload: any, audioCue: string?)
 	AudioController.play(audioCue or "click")
@@ -425,6 +455,10 @@ local function applyState(nextState: any)
 	if nextState == nil or nextState.profile == nil then
 		return
 	end
+	if not acceptTowerPlacements(nextState.towerPlacements, nextState.towerPlacementRevision) then
+		nextState.towerPlacements = latestTowerPlacements
+		nextState.towerPlacementRevision = towerPlacementRevision
+	end
 	local definitions = if type(nextState.currencyDefinitions) == "table"
 		then nextState.currencyDefinitions
 		else {}
@@ -533,6 +567,8 @@ stateRemote.OnClientEvent:Connect(function(packet)
 			state.towerDefense = packet.data
 			binder.apply(state)
 		end
+	elseif packet.kind == "TowerPlacements" then
+		acceptTowerPlacements(packet.data, packet.revision)
 	elseif packet.kind == "Result" then
 		showToast(packet.message or if packet.ok then "Done" else "Request failed")
 		if packet.ok then

@@ -83,6 +83,11 @@ function RemoteService.snapshot(player: Player): any
 		return nil
 	end
 	local likes = LikesService.getLikes()
+	local towerPlacements = {}
+	local towerPlacementRevision = 0
+	if Config.features.towerDefense == true then
+		towerPlacements, towerPlacementRevision = TowerDefenseService.presentationSnapshot()
+	end
 	return {
 		profile = profile,
 		currencyDefinitions = Config.economy.currencies,
@@ -108,6 +113,8 @@ function RemoteService.snapshot(player: Player): any
 		towerDefense = if Config.features.towerDefense == true
 			then TowerDefenseService.snapshotFor(player)
 			else nil,
+		towerPlacements = towerPlacements,
+		towerPlacementRevision = towerPlacementRevision,
 		offline = RewardService.getPendingOffline(player),
 		likes = likes,
 		dailyRewards = Config.rewards.daily,
@@ -144,6 +151,17 @@ function RemoteService.publishTowerEnemies(player: Player)
 			player,
 			{ kind = "TowerEnemies", data = TowerDefenseService.snapshotFor(player) }
 		)
+	end
+end
+
+function RemoteService.publishTowerPlacements()
+	if stateRemote then
+		local placements, revision = TowerDefenseService.presentationSnapshot()
+		stateRemote:FireAllClients({
+			kind = "TowerPlacements",
+			data = placements,
+			revision = revision,
+		})
 	end
 end
 
