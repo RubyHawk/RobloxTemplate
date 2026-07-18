@@ -30,6 +30,162 @@ local function clone(value: any, seen: { [table]: table }?): any
 	return result
 end
 
+local function copyFields(source: any, fields: { string }): any
+	local result = {}
+	for _, field in fields do
+		if source[field] ~= nil then
+			result[field] = clone(source[field])
+		end
+	end
+	return result
+end
+
+local function copyArray<T>(source: { T }): { T }
+	local result: { T } = {}
+	for index = 1, #source do
+		result[index] = clone(source[index])
+	end
+	return result
+end
+
+local PREDICATE_FIELDS: { [string]: { string } } = {
+	WaveRange = { "kind", "minimum", "maximum" },
+	StageFlagEquals = { "kind", "key", "value" },
+	EnemyTag = { "kind", "tag" },
+	VisitCountBelow = { "kind", "nodeId", "maximum" },
+	StageUnlocked = { "kind", "stageId" },
+	UpgradeLevelAtLeast = { "kind", "upgradeId", "level" },
+	CurrencyAtLeast = { "kind", "currencyId", "amount" },
+}
+
+local UNLOCK_REQUIREMENT_FIELDS: { [string]: { string } } = {
+	StageUnlocked = PREDICATE_FIELDS.StageUnlocked,
+	UpgradeLevelAtLeast = PREDICATE_FIELDS.UpgradeLevelAtLeast,
+	CurrencyAtLeast = PREDICATE_FIELDS.CurrencyAtLeast,
+}
+
+local function projectPredicate(predicate: any): StageTypes.RoutePredicate
+	local fields = PREDICATE_FIELDS[predicate.kind]
+	assert(fields ~= nil, `Cannot project unknown Stagewright predicate {tostring(predicate.kind)}`)
+	return copyFields(predicate, fields) :: StageTypes.RoutePredicate
+end
+
+local function projectUnlockRequirement(requirement: any): StageTypes.StageUnlockPredicate
+	local fields = UNLOCK_REQUIREMENT_FIELDS[requirement.kind]
+	assert(
+		fields ~= nil,
+		`Cannot project unknown Stagewright unlock requirement {tostring(requirement.kind)}`
+	)
+	return copyFields(requirement, fields) :: StageTypes.StageUnlockPredicate
+end
+
+local function projectCell(cell: any): StageTypes.CellOverride
+	return copyFields(cell, {
+		"terrainId",
+		"buildPolicy",
+		"enemyTraversalPolicy",
+		"roles",
+		"metadata",
+	}) :: StageTypes.CellOverride
+end
+
+local function projectGrid(grid: any): StageTypes.GridDefinition
+	local cells: { [string]: StageTypes.CellOverride } = {}
+	for key, cell in grid.cells do
+		cells[key] = projectCell(cell)
+	end
+	return {
+		columns = grid.columns,
+		rows = grid.rows,
+		cellSize = grid.cellSize,
+		defaultCell = projectCell(grid.defaultCell),
+		cells = cells,
+	}
+end
+
+local function projectNode(node: any): StageTypes.PathNode
+	return {
+		id = node.id,
+		name = node.name,
+		kind = node.kind,
+		position = copyFields(node.position, { "x", "y", "z" }),
+		tags = copyArray(node.tags),
+	}
+end
+
+local function projectEdge(edge: any): StageTypes.PathEdge
+	local predicates: { StageTypes.RoutePredicate } = {}
+	for index = 1, #edge.predicates do
+		predicates[index] = projectPredicate(edge.predicates[index])
+	end
+	return {
+		id = edge.id,
+		fromNodeId = edge.fromNodeId,
+		toNodeId = edge.toNodeId,
+		outHandleOffset = copyFields(edge.outHandleOffset, { "x", "y", "z" }),
+		inHandleOffset = copyFields(edge.inHandleOffset, { "x", "y", "z" }),
+		laneProfileId = edge.laneProfileId,
+		priority = edge.priority,
+		predicates = predicates,
+		metadata = clone(edge.metadata),
+	}
+end
+
+local function projectGraph(graph: any): StageTypes.PathGraphDefinition
+	local nodes: { [string]: StageTypes.PathNode } = {}
+	for nodeId, node in graph.nodes do
+		nodes[nodeId] = projectNode(node)
+	end
+	local edges: { [string]: StageTypes.PathEdge } = {}
+	for edgeId, edge in graph.edges do
+		edges[edgeId] = projectEdge(edge)
+	end
+	local laneProfiles: { [string]: StageTypes.LaneProfile } = {}
+	for profileId, profile in graph.laneProfiles do
+		laneProfiles[profileId] = {
+			id = profile.id,
+			offsets = copyArray(profile.offsets),
+			clearanceRadius = profile.clearanceRadius,
+		}
+	end
+	return {
+		id = graph.id,
+		name = graph.name,
+		nodes = nodes,
+		edges = edges,
+		laneProfiles = laneProfiles,
+		maxNodeVisitsPerEnemy = graph.maxNodeVisitsPerEnemy,
+		maxTravelDistance = graph.maxTravelDistance,
+	}
+end
+
+local function projectStage(stage: any): StageTypes.StageDefinition
+	local pathGraphs: { [string]: StageTypes.PathGraphDefinition } = {}
+	for graphId, graph in stage.pathGraphs do
+		pathGraphs[graphId] = projectGraph(graph)
+	end
+	local unlockRequirements: { StageTypes.StageUnlockPredicate } = {}
+	for index = 1, #stage.unlockRequirements do
+		unlockRequirements[index] = projectUnlockRequirement(stage.unlockRequirements[index])
+	end
+	return {
+		schemaVersion = StageSchema.RUNTIME_VERSION,
+		id = stage.id,
+		stageGroupId = stage.stageGroupId,
+		stageNumber = stage.stageNumber,
+		levelNumber = stage.levelNumber,
+		name = stage.name,
+		displayOrder = stage.displayOrder,
+		grid = projectGrid(stage.grid),
+		pathGraphs = pathGraphs,
+		waveSetId = stage.waveSetId,
+		themeId = stage.themeId,
+		modifierIds = copyArray(stage.modifierIds),
+		unlockRequirements = unlockRequirements,
+		metadata = clone(stage.metadata),
+	}
+end
+
 local function add(left: any, right: any): any
 	return { x = left.x + right.x, y = left.y + right.y, z = left.z + right.z }
 end
@@ -153,8 +309,44 @@ function StageExport.bake(project: any): ExportResult
 				stageId = stageId,
 			})
 		end
-		for _, issue in StageSchema.validateStage(stage) do
+		local validationStage = clone(stage)
+		for _, graph in validationStage.pathGraphs or {} do
+			if type(graph) == "table" then
+				graph.outgoingEdgeIds = nil
+				for _, edge in graph.edges or {} do
+					if type(edge) == "table" and type(edge.predicates) == "table" then
+						edge.predicates = copyArray(edge.predicates)
+					end
+				end
+				for _, profile in graph.laneProfiles or {} do
+					if type(profile) == "table" and type(profile.offsets) == "table" then
+						profile.offsets = copyArray(profile.offsets)
+					end
+				end
+			end
+		end
+		for _, issue in StageSchema.validateStage(validationStage) do
 			table.insert(issues, issue)
+		end
+		if type(stage.unlockRequirements) ~= "table" then
+			table.insert(issues, {
+				severity = "Error",
+				code = "InvalidUnlockRequirements",
+				message = "Level unlock requirements must be an array",
+				stageId = stageId,
+			})
+		else
+			for index = 1, #stage.unlockRequirements do
+				local requirement = stage.unlockRequirements[index]
+				if type(requirement) ~= "table" or UNLOCK_REQUIREMENT_FIELDS[requirement.kind] == nil then
+					table.insert(issues, {
+						severity = "Error",
+						code = "InvalidUnlockRequirement",
+						message = `Level unlock requirement {index} has an unsupported kind`,
+						stageId = stageId,
+					})
+				end
+			end
 		end
 		local address = StageHierarchy.address(stage)
 		local existingGroup = groupByNumber[address.stageNumber]
@@ -195,8 +387,7 @@ function StageExport.bake(project: any): ExportResult
 	end)
 	local stages: { [string]: any } = {}
 	for _, stageId in stageIds do
-		local stage = clone(project.stages[stageId])
-		stage.schemaVersion = StageSchema.RUNTIME_VERSION
+		local stage: any = projectStage(project.stages[stageId])
 		for graphId, graph in stage.pathGraphs do
 			bakeGraph(graph)
 			for edgeId, edge in graph.edges do

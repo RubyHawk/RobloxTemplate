@@ -3661,6 +3661,24 @@ do
 		true,
 		"runtime export includes baked edge arc length"
 	)
+	local storedStageChecksum = runtimeStage.checksum
+	runtimeStage.checksum = nil
+	local recomputedStageChecksum = StageSchema.checksum(runtimeStage)
+	runtimeStage.checksum = storedStageChecksum
+	expectEqual(
+		recomputedStageChecksum,
+		storedStageChecksum,
+		"runtime stage checksum is derived after projection, baking, and route masking"
+	)
+	local storedBundleChecksum = firstExport.bundle.checksum
+	firstExport.bundle.checksum = nil
+	local recomputedBundleChecksum = StageSchema.checksum(firstExport.bundle)
+	firstExport.bundle.checksum = storedBundleChecksum
+	expectEqual(
+		recomputedBundleChecksum,
+		storedBundleChecksum,
+		"runtime bundle checksum includes projected stage checksums but not itself"
+	)
 	local routeMaskKey = if runtimeStage ~= nil then next(runtimeStage.routeNoBuildMask) else nil
 	expectEqual(
 		routeMaskKey ~= nil,
@@ -3671,6 +3689,124 @@ do
 		firstRuntimeEdgeId ~= nil and authoringGraph.edges[firstRuntimeEdgeId].samples,
 		nil,
 		"runtime baking does not mutate the authoring working copy"
+	)
+	local projectionProject = serde.decode("json", serde.encode("json", authoringProject))
+	local projectionStage = projectionProject.stages.stage_default
+	local projectionGraph = projectionStage.pathGraphs[authoredGraphId]
+	local projectionEdgeId = assert(firstRuntimeEdgeId, "production runtime graph has no edge")
+	local projectionEdge = projectionGraph.edges[projectionEdgeId]
+	local projectionNode = projectionGraph.nodes[projectionEdge.fromNodeId]
+	local projectionLaneProfile = projectionGraph.laneProfiles[projectionEdge.laneProfileId]
+	local projectionCellKey =
+		assert(next(projectionStage.grid.cells), "production stage has no cell override")
+	local projectionCell = projectionStage.grid.cells[projectionCellKey]
+	local projectionRole = assert(next(projectionCell.roles), "production cell override has no role")
+	projectionStage.editorOnlyField = true
+	projectionStage.grid.editorOnlyField = true
+	projectionStage.grid.defaultCell.editorOnlyField = true
+	projectionCell.editorOnlyField = true
+	projectionGraph.editorOnlyField = true
+	projectionEdge.editorOnlyField = true
+	projectionEdge.outHandleOffset.editorOnlyField = true
+	projectionNode.editorOnlyField = true
+	projectionNode.tags.editorOnlyField = "editor-only-tag"
+	projectionLaneProfile.editorOnlyField = true
+	projectionLaneProfile.offsets.editorOnlyField = math.huge
+	projectionEdge.predicates.editorOnlyField = { kind = "EditorOnlyPredicate" }
+	projectionStage.modifierIds.editorOnlyField = "editor-only-modifier"
+	projectionStage.unlockRequirements.editorOnlyField = {
+		kind = "StageUnlocked",
+		stageId = "stage_default",
+	}
+	local projectionExport = StageExport.bake(projectionProject)
+	local projectedStage = projectionExport.bundle and projectionExport.bundle.stages.stage_default
+	local projectedGraph = projectedStage and projectedStage.pathGraphs[authoredGraphId]
+	local projectedEdge = projectedGraph and projectedGraph.edges[projectionEdgeId]
+	local projectedNode = projectedGraph and projectedGraph.nodes[projectionEdge.fromNodeId]
+	local projectedLaneProfile = projectedGraph and projectedGraph.laneProfiles[projectionEdge.laneProfileId]
+	local projectedCell = projectedStage and projectedStage.grid.cells[projectionCellKey]
+	expectEqual(
+		projectedStage ~= nil
+			and projectedStage.editorOnlyField == nil
+			and projectedStage.grid.editorOnlyField == nil
+			and projectedStage.grid.defaultCell.editorOnlyField == nil
+			and projectedCell ~= nil
+			and projectedCell.editorOnlyField == nil
+			and projectedGraph.editorOnlyField == nil
+			and projectedEdge.editorOnlyField == nil
+			and projectedEdge.outHandleOffset.editorOnlyField == nil
+			and projectedNode.editorOnlyField == nil
+			and projectedNode.tags.editorOnlyField == nil
+			and projectedLaneProfile.editorOnlyField == nil
+			and projectedLaneProfile.offsets.editorOnlyField == nil
+			and projectedEdge.predicates.editorOnlyField == nil
+			and projectedStage.modifierIds.editorOnlyField == nil
+			and projectedStage.unlockRequirements.editorOnlyField == nil,
+		true,
+		"runtime projection strips undeclared authoring fields at every DTO boundary"
+	)
+	expectEqual(
+		projectionExport.bundle ~= nil
+			and firstExport.bundle ~= nil
+			and projectionExport.bundle.checksum == firstExport.bundle.checksum,
+		true,
+		"unknown authoring fields do not change the runtime bundle checksum"
+	)
+	expectEqual(
+		projectedCell ~= nil
+			and projectedCell.roles[projectionRole] == projectionCell.roles[projectionRole]
+			and projectedEdge.metadata.pathAssetId == projectionEdge.metadata.pathAssetId,
+		true,
+		"runtime projection preserves declared role and edge metadata dictionaries"
+	)
+	expectEqual(
+		projectionStage.editorOnlyField
+			and projectionEdge.outHandleOffset.editorOnlyField
+			and projectionLaneProfile.editorOnlyField
+			and projectionNode.tags.editorOnlyField == "editor-only-tag"
+			and projectionStage.modifierIds.editorOnlyField == "editor-only-modifier",
+		true,
+		"runtime projection does not strip unknown fields from the authoring working copy"
+	)
+	projectionStage.metadata.runtimeMetadataMarker = true
+	local metadataProjectionExport = StageExport.bake(projectionProject)
+	local metadataProjectedStage = metadataProjectionExport.bundle
+		and metadataProjectionExport.bundle.stages.stage_default
+	expectEqual(
+		metadataProjectedStage ~= nil
+			and metadataProjectedStage.metadata.runtimeMetadataMarker
+			and projectionExport.bundle ~= nil
+			and metadataProjectionExport.bundle.checksum ~= projectionExport.bundle.checksum,
+		true,
+		"declared runtime metadata survives projection and changes the bundle checksum"
+	)
+	local invalidUnlockProject = serde.decode("json", serde.encode("json", authoringProject))
+	invalidUnlockProject.stages.stage_default.unlockRequirements = {
+		{ kind = "WaveRange", minimum = 1 },
+	}
+	local invalidUnlockExport = StageExport.bake(invalidUnlockProject)
+	local foundInvalidUnlockRequirement = false
+	for _, issue in invalidUnlockExport.issues do
+		if issue.code == "InvalidUnlockRequirement" then
+			foundInvalidUnlockRequirement = true
+			break
+		end
+	end
+	expectEqual(
+		invalidUnlockExport.bundle == nil and foundInvalidUnlockRequirement,
+		true,
+		"runtime export rejects route-only predicates in stage unlock requirements"
+	)
+	local staleOutgoingProject = serde.decode("json", serde.encode("json", authoringProject))
+	staleOutgoingProject.stages.stage_default.pathGraphs[authoredGraphId].outgoingEdgeIds = {}
+	local staleOutgoingExport = StageExport.bake(staleOutgoingProject)
+	local rebuiltGraph = staleOutgoingExport.bundle
+		and staleOutgoingExport.bundle.stages.stage_default.pathGraphs[authoredGraphId]
+	local rebuiltOutgoing = rebuiltGraph and rebuiltGraph.outgoingEdgeIds[projectionEdge.fromNodeId]
+	expectEqual(
+		rebuiltOutgoing ~= nil and table.find(rebuiltOutgoing, projectionEdgeId) ~= nil,
+		true,
+		"runtime export validates edge maps and rebuilds stale authoring outgoing caches"
 	)
 	local traversalConflict = serde.decode("json", serde.encode("json", authoringProject))
 	local conflictingCell = traversalConflict.stages.stage_default.grid.cells[routeMaskKey] or {}
