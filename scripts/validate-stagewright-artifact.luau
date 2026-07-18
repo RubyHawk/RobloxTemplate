@@ -44,6 +44,7 @@ for _, requiredName in
 		"HeaderController",
 		"HitTest",
 		"Persistence",
+		"PaintRouteDragSession",
 		"PointerDrag",
 		"ProjectLoadPolicy",
 		"ProjectStore",

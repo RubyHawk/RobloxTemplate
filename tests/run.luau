@@ -21,7 +21,9 @@ local StageTrace = require("../src/shared/StageTrace")
 local CanvasTransform = require("../src/plugins/Stagewright/Interaction/CanvasTransform")
 local HitTest = require("../src/plugins/Stagewright/Interaction/HitTest")
 local PointerDrag = require("../src/plugins/Stagewright/Interaction/PointerDrag")
+local PaintRouteDragSession = require("../src/plugins/Stagewright/Controllers/PaintRouteDragSession")
 local WorldPathEditSession = require("../src/plugins/Stagewright/Controllers/WorldPathEditSession")
+local GraphOperations = require("../src/plugins/Stagewright/Graph/Operations")
 local PaintBrushes = require("../src/plugins/Stagewright/Paint/Brushes")
 local ProjectLoadPolicy = require("../src/plugins/Stagewright/Persistence/ProjectLoadPolicy")
 local StageSettings = require("../src/plugins/Stagewright/Stage/Settings")
@@ -470,6 +472,267 @@ do
 	expectEqual(invalidTargetKindAccepted, false, "pointer drag rejects unknown target kinds")
 	expectEqual(missingHandleIdAccepted, false, "pointer drag requires handle target ids")
 	expectEqual(invalidCancelReasonAccepted, false, "pointer drag rejects empty cancellation reasons")
+end
+
+do
+	local allowBegin = true
+	local beginThrows = false
+	local applySucceeds = true
+	local commitSucceeds = true
+	local finishThrows = false
+	local beginLabels: { string } = {}
+	local finishCommits: { boolean } = {}
+	local finishSawInactive: { boolean } = {}
+	local appliedTargets: { any } = {}
+	local appliedPositions: { any } = {}
+	local previewCount = 0
+	local committedCount = 0
+	local failedActions: { string } = {}
+	local failedPhases: { PaintRouteDragSession.FailurePhase } = {}
+	local blockedActions: { string } = {}
+	local releasedWithoutEditCount = 0
+	local nextTransaction = 0
+	local session: PaintRouteDragSession.Session
+	session = PaintRouteDragSession.new({
+		beginEdit = function(label: string): number?
+			table.insert(beginLabels, label)
+			if beginThrows then
+				error("simulated route begin failure")
+			end
+			if not allowBegin then
+				return nil
+			end
+			nextTransaction += 1
+			return nextTransaction
+		end,
+		finishEdit = function(_transaction: number, commit: boolean): boolean
+			table.insert(finishCommits, commit)
+			table.insert(finishSawInactive, not session:isActive())
+			if finishThrows then
+				error("simulated route persistence failure")
+			end
+			return if commit then commitSucceeds else false
+		end,
+		applyTarget = function(target: any, position: any): boolean
+			table.insert(appliedTargets, target)
+			table.insert(appliedPositions, position)
+			return applySucceeds
+		end,
+		onPreview = function()
+			previewCount += 1
+		end,
+		reportBlocked = function(action: string)
+			table.insert(blockedActions, action)
+		end,
+		onCommitted = function()
+			committedCount += 1
+		end,
+		onFailed = function(action: string, phase: PaintRouteDragSession.FailurePhase)
+			table.insert(failedActions, action)
+			table.insert(failedPhases, phase)
+		end,
+		onReleasedWithoutEdit = function()
+			releasedWithoutEditCount += 1
+		end,
+	})
+
+	local nodeTarget = { kind = "Node", id = "node_1" } :: PaintRouteDragSession.Target
+	local handleTarget = {
+		kind = "Handle",
+		id = "edge_1",
+		handleId = "Out",
+	} :: PaintRouteDragSession.Target
+	local origin = { x = 0, y = 0 }
+	local firstPosition = { x = 10, y = 7, z = 20 }
+	local secondPosition = { x = 11, y = 7, z = 21 }
+
+	expectEqual(session:press(nodeTarget, origin), true, "route session captures a node press")
+	expectEqual(
+		session:move({ x = 3, y = 0 }, firstPosition),
+		true,
+		"route session owns a below-threshold press"
+	)
+	expectEqual(#beginLabels, 0, "below-threshold route movement starts no transaction")
+	expectEqual(
+		session:release({ x = 3, y = 0 }, firstPosition),
+		true,
+		"route session consumes a node click release"
+	)
+	expectEqual(releasedWithoutEditCount, 1, "route click reports selection without an edit")
+	expectEqual(#appliedTargets, 0, "route click never mutates the graph")
+
+	session:press(nodeTarget, origin)
+	session:move({ x = 4, y = 0 }, firstPosition)
+	session:move({ x = 8, y = 0 }, secondPosition)
+	expectEqual(#beginLabels, 1, "one route drag begins exactly one transaction")
+	expectEqual(beginLabels[1], "Move Stagewright route node", "node drag uses the stable undo label")
+	expectEqual(#appliedTargets, 2, "captured route movement reuses its transaction")
+	expectEqual(previewCount, 2, "every accepted route movement refreshes the preview")
+	expectEqual(session:isActive(), true, "route drag stays active until release")
+	session:release({ x = 9, y = 0 }, { x = 12, y = 7, z = 22 })
+	expectEqual(#appliedTargets, 3, "route release applies its final pointer position")
+	expectEqual(appliedTargets[3].kind, "Node", "node drag stays routed to the node adapter")
+	expectEqual(appliedPositions[3].x, 12, "route release forwards the final local position")
+	expectEqual(finishCommits[1], true, "route release commits one undo transaction")
+	expectEqual(finishSawInactive[1], true, "route state clears before the commit adapter runs")
+	expectEqual(committedCount, 1, "successful route release emits one committed callback")
+	expectEqual(session:isActive(), false, "route release clears pointer and transaction state")
+	expectEqual(
+		session:release({ x = 10, y = 0 }, secondPosition),
+		false,
+		"stale route release cannot commit twice"
+	)
+	expectEqual(#finishCommits, 1, "stale route release does not finish twice")
+
+	session:press(handleTarget, origin)
+	session:release({ x = 5, y = 0 }, firstPosition)
+	expectEqual(
+		beginLabels[2],
+		"Shape Stagewright route spline",
+		"far handle release starts the spline undo transaction"
+	)
+	expectEqual(appliedTargets[4].kind, "Handle", "handle release uses the handle adapter")
+	expectEqual(appliedTargets[4].handleId, "Out", "handle release preserves the handle id")
+	expectEqual(finishCommits[2], true, "far release without movement still commits exactly once")
+
+	session:press(nodeTarget, origin)
+	session:move({ x = 5, y = 0 }, nil)
+	expectEqual(#beginLabels, 2, "outside-grid route movement does not begin an empty edit")
+	session:release({ x = 8, y = 0 }, nil)
+	expectEqual(releasedWithoutEditCount, 2, "outside-only drag releases without an edit")
+	session:press(nodeTarget, origin)
+	session:move({ x = 5, y = 0 }, firstPosition)
+	session:move({ x = 9, y = 0 }, nil)
+	session:release({ x = 12, y = 0 }, nil)
+	expectEqual(finishCommits[3], true, "outside release commits the last valid route position")
+	expectEqual(#appliedTargets, 5, "outside release does not invent another route position")
+
+	session:press(nodeTarget, origin)
+	session:move({ x = 5, y = 0 }, firstPosition)
+	expectEqual(session:cancel("Escape"), true, "route drag can be centrally cancelled")
+	expectEqual(finishCommits[4], false, "route cancellation rolls back its transaction")
+	expectEqual(finishSawInactive[4], true, "route rollback clears state before its adapter")
+	expectEqual(session:cancel("Escape"), false, "repeated route cancellation is idempotent")
+	expectEqual(#finishCommits, 4, "idle route cancellation does not finish twice")
+
+	allowBegin = false
+	session:press(nodeTarget, origin)
+	session:move({ x = 5, y = 0 }, firstPosition)
+	expectEqual(blockedActions[#blockedActions], "Move route node", "blocked route begin reports its action")
+	expectEqual(session:isActive(), false, "blocked route begin releases pointer capture")
+	session:move({ x = 8, y = 0 }, secondPosition)
+	expectEqual(#blockedActions, 1, "blocked route begin is reported only once per gesture")
+	allowBegin = true
+	beginThrows = true
+	session:press(nodeTarget, origin)
+	local thrownBeginEscaped = not pcall(function()
+		session:move({ x = 5, y = 0 }, firstPosition)
+	end)
+	expectEqual(thrownBeginEscaped, false, "route session contains a throwing begin adapter")
+	expectEqual(#blockedActions, 2, "throwing route begin reports one blocked gesture")
+	expectEqual(session:isActive(), false, "throwing route begin releases pointer capture")
+	beginThrows = false
+
+	applySucceeds = false
+	session:press(handleTarget, origin)
+	session:move({ x = 5, y = 0 }, firstPosition)
+	expectEqual(finishCommits[5], false, "failed route apply rolls back its transaction")
+	expectEqual(failedActions[#failedActions], "Shape route spline", "failed handle apply is reported")
+	expectEqual(failedPhases[#failedPhases], "Apply", "failed handle mutation is not reported as a commit")
+	expectEqual(session:isActive(), false, "failed route apply clears pointer and transaction state")
+	applySucceeds = true
+
+	commitSucceeds = false
+	session:press(nodeTarget, origin)
+	session:release({ x = 5, y = 0 }, firstPosition)
+	expectEqual(finishCommits[6], true, "rejected route commit still requests commit once")
+	expectEqual(failedActions[#failedActions], "Move route node", "rejected route commit is reported")
+	expectEqual(failedPhases[#failedPhases], "Commit", "rejected route commit identifies its phase")
+	expectEqual(session:isActive(), false, "rejected route commit cannot leave stale state")
+	commitSucceeds = true
+
+	finishThrows = true
+	session:press(nodeTarget, origin)
+	local thrownCommitEscaped = not pcall(function()
+		session:release({ x = 5, y = 0 }, firstPosition)
+	end)
+	expectEqual(thrownCommitEscaped, false, "route session contains a throwing finish adapter")
+	expectEqual(failedActions[#failedActions], "Move route node", "throwing route commit is reported")
+	expectEqual(failedPhases[#failedPhases], "Commit", "throwing route commit identifies its phase")
+	expectEqual(session:isActive(), false, "throwing route commit leaves the session idle")
+	finishThrows = false
+
+	local finishesBeforeReplacement = #finishCommits
+	session:press(nodeTarget, origin)
+	session:move({ x = 5, y = 0 }, firstPosition)
+	expectEqual(session:press(handleTarget, origin), true, "new press replaces a missed route release")
+	expectEqual(
+		#finishCommits,
+		finishesBeforeReplacement + 1,
+		"new press rolls back the stale route transaction once"
+	)
+	expectEqual(finishCommits[#finishCommits], false, "replaced route transaction is rolled back")
+	session:move({ x = 5, y = 0 }, secondPosition)
+	session:release({ x = 6, y = 0 }, secondPosition)
+	expectEqual(appliedTargets[#appliedTargets].kind, "Handle", "replacement drag targets the new handle")
+	expectEqual(finishCommits[#finishCommits], true, "replacement drag commits its own transaction")
+	expectEqual(session:isActive(), false, "replacement drag finishes without stale capture")
+end
+
+do
+	local graph = {
+		nodes = {
+			node_1 = { position = { x = 0, y = 7, z = 0 } },
+			node_2 = { position = { x = 30, y = 9, z = 40 } },
+		},
+		edges = {
+			edge_1 = {
+				fromNodeId = "node_1",
+				toNodeId = "node_2",
+				outHandleOffset = { x = 1, y = 2, z = 3 },
+				inHandleOffset = { x = -1, y = -2, z = -3 },
+			},
+		},
+	}
+	expectEqual(
+		GraphOperations.moveNode(graph, "node_1", { x = 10, y = 100, z = 20 }),
+		true,
+		"route node mutation accepts an existing node"
+	)
+	expectEqual(graph.nodes.node_1.position.x, 10, "route node mutation updates local x")
+	expectEqual(graph.nodes.node_1.position.z, 20, "route node mutation updates local z")
+	expectEqual(graph.nodes.node_1.position.y, 7, "route node mutation preserves authored height")
+	expectEqual(
+		GraphOperations.moveNode(graph, "node_missing", { x = 0, y = 0, z = 0 }),
+		false,
+		"route node mutation rejects a missing target"
+	)
+	expectEqual(
+		GraphOperations.moveHandle(graph, "edge_1", "Out", { x = 15, y = 100, z = 25 }),
+		true,
+		"route handle mutation accepts an existing outgoing handle"
+	)
+	expectEqual(graph.edges.edge_1.outHandleOffset.x, 5, "outgoing handle stores anchor-relative x")
+	expectEqual(graph.edges.edge_1.outHandleOffset.z, 5, "outgoing handle stores anchor-relative z")
+	expectEqual(graph.edges.edge_1.outHandleOffset.y, 2, "outgoing handle preserves authored height")
+	expectEqual(
+		GraphOperations.moveHandle(graph, "edge_1", "In", { x = 24, y = 100, z = 32 }),
+		true,
+		"route handle mutation accepts an existing incoming handle"
+	)
+	expectEqual(graph.edges.edge_1.inHandleOffset.x, -6, "incoming handle stores anchor-relative x")
+	expectEqual(graph.edges.edge_1.inHandleOffset.z, -8, "incoming handle stores anchor-relative z")
+	expectEqual(graph.edges.edge_1.inHandleOffset.y, -2, "incoming handle preserves authored height")
+	expectEqual(
+		GraphOperations.moveHandle(graph, "edge_1", "Side", { x = 0, y = 0, z = 0 }),
+		false,
+		"route handle mutation rejects an unsupported handle"
+	)
+	expectEqual(
+		GraphOperations.moveHandle(graph, "edge_missing", "Out", { x = 0, y = 0, z = 0 }),
+		false,
+		"route handle mutation rejects a missing edge"
+	)
 end
 
 do
@@ -2288,6 +2551,8 @@ do
 		fs.readFile("src/plugins/Stagewright/Controllers/WorldPathController.luau")
 	local stagewrightWorldPathEditSessionSource =
 		fs.readFile("src/plugins/Stagewright/Controllers/WorldPathEditSession.luau")
+	local stagewrightPaintRouteDragSessionSource =
+		fs.readFile("src/plugins/Stagewright/Controllers/PaintRouteDragSession.luau")
 	local stagewrightAppShellSource = fs.readFile("src/plugins/Stagewright/UI/AppShell.luau")
 	local stagewrightThemeSource = fs.readFile("src/plugins/Stagewright/UI/Theme.luau")
 	local stagewrightFactorySource = fs.readFile("src/plugins/Stagewright/UI/Factory.luau")
@@ -2321,6 +2586,10 @@ do
 		stagewrightWorldPathEditSessionSource,
 		"Stagewright world-path edit session compiles as Luau"
 	)
+	expectCompiles(
+		stagewrightPaintRouteDragSessionSource,
+		"Stagewright paint-route drag session compiles as Luau"
+	)
 	expectCompiles(stagewrightAppShellSource, "Stagewright app shell compiles as Luau")
 	expectCompiles(stagewrightThemeSource, "Stagewright UI theme compiles as Luau")
 	expectCompiles(stagewrightFactorySource, "Stagewright UI factory compiles as Luau")
@@ -2348,6 +2617,7 @@ do
 	)
 	expectEqual(
 		string.find(gridPluginSource, "require(script.UI.AppShell)", 1, true) ~= nil
+			and string.find(gridPluginSource, "require(script.Controllers.PaintRouteDragSession)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.Controllers.WorldPathController)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.UI.Theme)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.Graph.Operations)", 1, true) ~= nil
@@ -2371,6 +2641,31 @@ do
 			`Stagewright world-path edit session stays independent from {forbiddenDependency}`
 		)
 	end
+	for _, forbiddenDependency in
+		{ "game", "Instance", "ProjectStore", "UserInputService", "GraphOperations", "WorldPathView" }
+	do
+		expectEqual(
+			string.find(stagewrightPaintRouteDragSessionSource, forbiddenDependency, 1, true),
+			nil,
+			`Stagewright paint-route drag session stays independent from {forbiddenDependency}`
+		)
+	end
+	for _, retiredRouteDragField in
+		{
+			"routeDraggingNodeId",
+			"routeDraggingEdgeId",
+			"routeDraggingHandle",
+			"routeDragStartScreen",
+			"routeDragMoved",
+			"routeDragTransaction",
+		}
+	do
+		expectEqual(
+			string.find(gridPluginSource, retiredRouteDragField, 1, true),
+			nil,
+			`Stagewright bootstrap retires route gesture field {retiredRouteDragField}`
+		)
+	end
 	for _, retiredControllerPlumbing in { "viewModule", "flowUi.dragTransaction" } do
 		expectEqual(
 			string.find(gridPluginSource, retiredControllerPlumbing, 1, true),
@@ -2382,7 +2677,6 @@ do
 		{
 			"local succeeded, result = pcall(ProjectStore.finish",
 			"onMoveFailed = function()",
-			'reportEditorCommit(finishRouteDragTransaction(true), "Route drag")',
 			'reportEditorCommit(finishPaintTransaction(true), "Paint stroke")',
 		}
 	do
@@ -2392,6 +2686,11 @@ do
 			`Stagewright bootstrap preserves failed transaction handling through {transactionFailureContract}`
 		)
 	end
+	expectEqual(
+		string.find(stagewrightPaintRouteDragSessionSource, "pcall(config.finishEdit", 1, true) ~= nil,
+		true,
+		"Stagewright paint-route drag session contains a rejected or throwing commit"
+	)
 	expectEqual(
 		string.find(stagewrightWorkspacePreviewSource, "self.config.onMoveFailed()", 1, true) ~= nil,
 		true,

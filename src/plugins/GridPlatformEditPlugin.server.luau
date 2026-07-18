@@ -10,6 +10,7 @@ if RunService:IsRunning() then
 end
 
 local AuthoringArea = require(script.AuthoringArea)
+local PaintRouteDragSession = require(script.Controllers.PaintRouteDragSession)
 local WorldPathController = require(script.Controllers.WorldPathController)
 local GraphOperations = require(script.Graph.Operations)
 local PredicateFields = require(script.Graph.PredicateFields)
@@ -69,12 +70,6 @@ type PaintRuntime = {
 	legend: GuiObject,
 	modeButtons: { [string]: TextButton },
 	routeToolButtons: { [string]: TextButton },
-	routeDraggingNodeId: string?,
-	routeDraggingEdgeId: string?,
-	routeDraggingHandle: string?,
-	routeDragStartScreen: Vector2?,
-	routeDragMoved: boolean,
-	routeDragTransaction: ProjectStore.Transaction?,
 	cellAt: (Vector2) -> (number?, number?),
 	localPositionAt: (Vector2) -> any?,
 	hitRoute: (Vector2) -> (string?, string?, string?),
@@ -106,6 +101,7 @@ local pendingConfirmation: { id: string, expires: number }? = nil
 local islandOutlinesEnabled = false
 local validationIssues: { any } = {}
 local worldPathController: WorldPathController.Controller
+local routeDragSession: PaintRouteDragSession.Session
 local flowRuntime: FlowRuntime = {
 	mode = "World",
 	render = function() end,
@@ -457,15 +453,13 @@ local paintRuntime = {
 	routeTool = "Move",
 	modeButtons = {},
 	routeToolButtons = {},
-	routeDragStartScreen = nil,
-	routeDragMoved = false,
-	routeDragTransaction = nil,
 } :: PaintRuntime
 
-local function finishRouteDragTransaction(commit: boolean): boolean
-	local transaction = paintRuntime.routeDragTransaction
-	paintRuntime.routeDragTransaction = nil
-	return finishEditorTransaction(transaction, commit)
+local function routePoint(position: Vector2): PaintRouteDragSession.Point2
+	return {
+		x = position.X,
+		y = position.Y,
+	}
 end
 
 local function finishPaintTransaction(commit: boolean): boolean
@@ -482,6 +476,48 @@ local function reportEditorCommit(committed: boolean, action: string): boolean
 	setStatus(`{action} was cancelled because the edit could not be committed.`, true)
 	return false
 end
+
+routeDragSession = PaintRouteDragSession.new({
+	beginEdit = function(label: string): number?
+		return ProjectStore.begin(label)
+	end,
+	finishEdit = function(transaction: number, commit: boolean): boolean
+		return finishEditorTransaction(transaction, commit)
+	end,
+	applyTarget = function(
+		target: PaintRouteDragSession.Target,
+		position: PaintRouteDragSession.Vec3
+	): boolean
+		local currentGraph = graph()
+		if currentGraph == nil then
+			return false
+		end
+		if target.kind == "Node" then
+			return GraphOperations.moveNode(currentGraph, target.id, position)
+		end
+		return GraphOperations.moveHandle(currentGraph, target.id, target.handleId, position)
+	end,
+	onPreview = function()
+		renderCanvas()
+	end,
+	reportBlocked = function(action: string)
+		flowRuntime.reportBlocked(action)
+	end,
+	onCommitted = function()
+		reportEditorCommit(true, "Route drag")
+	end,
+	onFailed = function(action: string, phase: PaintRouteDragSession.FailurePhase)
+		if phase == "Apply" then
+			setStatus(`{action} was cancelled because the route target became unavailable.`, true)
+		else
+			reportEditorCommit(false, action)
+		end
+		renderAll()
+	end,
+	onReleasedWithoutEdit = function()
+		setStatus("Route item selected. Hold and drag to move it.")
+	end,
+})
 
 local paintPage = contentByMode.Paint
 local paintToolbar = create("Frame", {
@@ -505,11 +541,8 @@ do
 		local modeId = definition.id
 		local modeButton = button(modeBar, definition.label, 132, function()
 			finishPaintTransaction(false)
-			finishRouteDragTransaction(false)
+			routeDragSession:cancel("Paint mode changed")
 			paintRuntime.mode = modeId
-			paintRuntime.routeDraggingNodeId = nil
-			paintRuntime.routeDraggingEdgeId = nil
-			paintRuntime.routeDraggingHandle = nil
 			painting = false
 			connectFromNodeId = nil
 			renderAll()
@@ -3538,10 +3571,11 @@ paintRuntime.beginRouteInteraction = function(position: Vector2)
 		selectedNodeId = nil
 		selectedEdgeId = edgeId
 		connectFromNodeId = nil
-		paintRuntime.routeDraggingEdgeId = edgeId
-		paintRuntime.routeDraggingHandle = handleId
-		paintRuntime.routeDragStartScreen = position
-		paintRuntime.routeDragMoved = false
+		routeDragSession:press({
+			kind = "Handle",
+			id = edgeId,
+			handleId = handleId,
+		}, routePoint(position))
 		setStatus(`Hold and drag the {string.lower(handleId)} spline handle. Release to save one undo step.`)
 		renderCanvas()
 		renderPaintChrome()
@@ -3551,9 +3585,10 @@ paintRuntime.beginRouteInteraction = function(position: Vector2)
 		selectedNodeId = nodeId
 		selectedEdgeId = nil
 		connectFromNodeId = nil
-		paintRuntime.routeDraggingNodeId = nodeId
-		paintRuntime.routeDragStartScreen = position
-		paintRuntime.routeDragMoved = false
+		routeDragSession:press({
+			kind = "Node",
+			id = nodeId,
+		}, routePoint(position))
 		setStatus("Hold and drag the route node. Release to save one undo step.")
 		renderCanvas()
 		renderPaintChrome()
@@ -4095,21 +4130,11 @@ button(exportActions, "Import selected", 128, function()
 end)
 
 cancelActiveEditorInteraction = function(refresh: boolean?): boolean
-	local canceled = painting
-		or paintTransaction ~= nil
-		or paintRuntime.routeDragTransaction ~= nil
-		or paintRuntime.routeDraggingNodeId ~= nil
-		or paintRuntime.routeDraggingEdgeId ~= nil
-		or paintRuntime.routeDraggingHandle ~= nil
+	local canceled = painting or paintTransaction ~= nil or routeDragSession:isActive()
 
 	painting = false
 	finishPaintTransaction(false)
-	finishRouteDragTransaction(false)
-	paintRuntime.routeDraggingNodeId = nil
-	paintRuntime.routeDraggingEdgeId = nil
-	paintRuntime.routeDraggingHandle = nil
-	paintRuntime.routeDragStartScreen = nil
-	paintRuntime.routeDragMoved = false
+	canceled = routeDragSession:cancel("Editor context changed") or canceled
 	table.clear(paintedKeys)
 	gridCanvas:SetAttribute("RectangleColumn", nil)
 	gridCanvas:SetAttribute("RectangleRow", nil)
@@ -4423,25 +4448,12 @@ UserInputService.InputChanged:Connect(function(input)
 	end
 	local position = Vector2.new(input.Position.X, input.Position.Y)
 	if paintRuntime.mode == "Route" then
-		local routeDragActive = paintRuntime.routeDraggingNodeId ~= nil
-			or paintRuntime.routeDraggingEdgeId ~= nil
-			or paintRuntime.routeDraggingHandle ~= nil
-		if routeDragActive and not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-			local routeMoved = paintRuntime.routeDragMoved
-			local committed = true
-			if routeMoved then
-				committed = finishRouteDragTransaction(true)
-			end
-			paintRuntime.routeDraggingNodeId = nil
-			paintRuntime.routeDraggingEdgeId = nil
-			paintRuntime.routeDraggingHandle = nil
-			paintRuntime.routeDragStartScreen = nil
-			paintRuntime.routeDragMoved = false
-			if routeMoved then
-				reportEditorCommit(committed, "Route drag")
-			else
-				setStatus("Route selection released. Workspace was not changed.")
-			end
+		local localPosition = paintRuntime.localPositionAt(position)
+		if
+			routeDragSession:isActive()
+			and not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+		then
+			routeDragSession:release(routePoint(position), localPosition)
 			renderAll()
 			return
 		end
@@ -4453,59 +4465,7 @@ UserInputService.InputChanged:Connect(function(input)
 		else
 			showHoveredCell(nil, nil)
 		end
-		if
-			routeDragActive
-			and paintRuntime.routeDragStartScreen ~= nil
-			and (position - paintRuntime.routeDragStartScreen).Magnitude < 4
-		then
-			return
-		end
-		if routeDragActive and not paintRuntime.routeDragMoved then
-			paintRuntime.routeDragMoved = true
-			paintRuntime.routeDragTransaction = ProjectStore.begin(
-				if paintRuntime.routeDraggingNodeId ~= nil
-					then "Move Stagewright route node"
-					else "Shape Stagewright route spline"
-			)
-			if paintRuntime.routeDragTransaction == nil then
-				paintRuntime.routeDragMoved = false
-				return
-			end
-		end
-		if paintRuntime.routeDraggingEdgeId ~= nil and paintRuntime.routeDraggingHandle ~= nil then
-			local localPosition = paintRuntime.localPositionAt(position)
-			local currentGraph = graph()
-			local edge = if currentGraph ~= nil
-				then currentGraph.edges[paintRuntime.routeDraggingEdgeId]
-				else nil
-			local anchorNode = if currentGraph ~= nil and edge ~= nil
-				then currentGraph.nodes[if paintRuntime.routeDraggingHandle == "Out"
-					then edge.fromNodeId
-					else edge.toNodeId]
-				else nil
-			if localPosition ~= nil and edge ~= nil and anchorNode ~= nil then
-				local offset = if paintRuntime.routeDraggingHandle == "Out"
-					then edge.outHandleOffset
-					else edge.inHandleOffset
-				offset.x = localPosition.x - anchorNode.position.x
-				offset.z = localPosition.z - anchorNode.position.z
-				renderCanvas()
-			end
-		elseif paintRuntime.routeDraggingNodeId ~= nil then
-			local localPosition = paintRuntime.localPositionAt(position)
-			local currentGraph = graph()
-			local node = if currentGraph ~= nil
-				then currentGraph.nodes[paintRuntime.routeDraggingNodeId]
-				else nil
-			if localPosition ~= nil and node ~= nil then
-				node.position = {
-					x = localPosition.x,
-					y = node.position.y,
-					z = localPosition.z,
-				}
-				renderCanvas()
-			end
-		end
+		routeDragSession:move(routePoint(position), localPosition)
 		return
 	end
 	local column, row = paintRuntime.cellAt(position)
@@ -4524,20 +4484,10 @@ end)
 
 UserInputService.InputEnded:Connect(function(input)
 	if not ProjectStore.isWritable() then
-		local hadActiveInteraction = painting
-			or paintTransaction ~= nil
-			or paintRuntime.routeDragTransaction ~= nil
-			or paintRuntime.routeDraggingNodeId ~= nil
-			or paintRuntime.routeDraggingEdgeId ~= nil
-			or paintRuntime.routeDraggingHandle ~= nil
+		local hadActiveInteraction = painting or paintTransaction ~= nil or routeDragSession:isActive()
 		painting = false
-		paintRuntime.routeDraggingNodeId = nil
-		paintRuntime.routeDraggingEdgeId = nil
-		paintRuntime.routeDraggingHandle = nil
-		paintRuntime.routeDragStartScreen = nil
-		paintRuntime.routeDragMoved = false
 		finishPaintTransaction(false)
-		finishRouteDragTransaction(false)
+		routeDragSession:cancel("Editing became unavailable")
 		gridCanvas:SetAttribute("RectangleColumn", nil)
 		gridCanvas:SetAttribute("RectangleRow", nil)
 		table.clear(paintedKeys)
@@ -4547,24 +4497,9 @@ UserInputService.InputEnded:Connect(function(input)
 		end
 		return
 	end
-	if
-		input.UserInputType == Enum.UserInputType.MouseButton1
-		and (
-			paintRuntime.routeDraggingNodeId ~= nil
-			or paintRuntime.routeDraggingEdgeId ~= nil
-			or paintRuntime.routeDraggingHandle ~= nil
-		)
-	then
-		paintRuntime.routeDraggingNodeId = nil
-		paintRuntime.routeDraggingEdgeId = nil
-		paintRuntime.routeDraggingHandle = nil
-		paintRuntime.routeDragStartScreen = nil
-		if paintRuntime.routeDragMoved then
-			reportEditorCommit(finishRouteDragTransaction(true), "Route drag")
-		else
-			setStatus("Route item selected. Hold and drag to move it.")
-		end
-		paintRuntime.routeDragMoved = false
+	if input.UserInputType == Enum.UserInputType.MouseButton1 and routeDragSession:isActive() then
+		local position = Vector2.new(input.Position.X, input.Position.Y)
+		routeDragSession:release(routePoint(position), paintRuntime.localPositionAt(position))
 		renderAll()
 		return
 	end

@@ -1,12 +1,15 @@
 --!strict
 
-local HttpService = game:GetService("HttpService")
+local HttpService = if script ~= nil then game:GetService("HttpService") else nil
 
-local StageLanes = require(script.Parent.Parent.Shared.StageLanes)
+local StageLanes = if script ~= nil
+	then require(script.Parent.Parent.Shared.StageLanes)
+	else require("../../../shared/StageLanes")
 
 local Operations = {}
 
 local function guid(prefix: string): string
+	assert(HttpService ~= nil, "Roblox HttpService is unavailable")
 	return `{prefix}_{string.lower(HttpService:GenerateGUID(false))}`
 end
 
@@ -57,6 +60,37 @@ function Operations.addNode(graph: any, kind: string, requestedPosition: any?): 
 		tags = {},
 	}
 	return id
+end
+
+function Operations.moveNode(graph: any, nodeId: string, position: any): boolean
+	local node = graph.nodes[nodeId]
+	if node == nil then
+		return false
+	end
+	node.position = {
+		x = position.x,
+		y = node.position.y,
+		z = position.z,
+	}
+	return true
+end
+
+function Operations.moveHandle(graph: any, edgeId: string, handleId: string, position: any): boolean
+	if handleId ~= "Out" and handleId ~= "In" then
+		return false
+	end
+	local edge = graph.edges[edgeId]
+	if edge == nil then
+		return false
+	end
+	local anchorNode = graph.nodes[if handleId == "Out" then edge.fromNodeId else edge.toNodeId]
+	if anchorNode == nil then
+		return false
+	end
+	local offset = if handleId == "Out" then edge.outHandleOffset else edge.inHandleOffset
+	offset.x = position.x - anchorNode.position.x
+	offset.z = position.z - anchorNode.position.z
+	return true
 end
 
 function Operations.connect(graph: any, fromId: string, toId: string): string?

@@ -7,6 +7,9 @@
     },
     "Controllers": {
       "$className": "Folder",
+      "PaintRouteDragSession": {
+        "$path": "../src/plugins/Stagewright/Controllers/PaintRouteDragSession.luau"
+      },
       "WorldPathEditSession": {
         "$path": "../src/plugins/Stagewright/Controllers/WorldPathEditSession.luau"
       },

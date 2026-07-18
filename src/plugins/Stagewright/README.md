@@ -13,6 +13,8 @@ domain logic or reusable UI primitives should not be added to the bootstrap.
   wired to semantic mutation adapters from the composition root.
 - `Controllers/WorldPathEditSession.luau`: pure begin/apply/commit/cancel
   coordination for one world-path gesture, with no Roblox service dependency.
+- `Controllers/PaintRouteDragSession.luau`: pure route-canvas pointer and undo
+  lifecycle; it composes the shared drag reducer and owns no graph or UI state.
 - `WorldPathView.luau`: world-path canvas rendering and pointer input; it does
   not own persistence or undo.
 - `RouteOverview.luau`: route-logic graph rendering and input.
