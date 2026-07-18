@@ -218,7 +218,6 @@ root:GetPropertyChangedSignal("AbsoluteSize"):Connect(applyResponsiveShell)
 
 local modeButtons: { [Mode]: TextButton } = {} :: any
 local contentByMode: { [Mode]: Frame } = {} :: any
-local rerenderAll: () -> ()
 local renderAll: () -> ()
 local mutate: (string, () -> ()) -> ()
 local renderStageList: () -> ()
@@ -420,7 +419,7 @@ for order, modeName in { "Graph", "Paint", "Stage", "Validate" } :: { Mode } do
 	local label = if mode == "Graph" then "Flow + Graph" elseif mode == "Stage" then "Stages" else mode
 	modeButtons[mode] = button(modes, label, 88, function()
 		activeMode = mode
-		rerenderAll()
+		renderAll()
 	end)
 	modeButtons[mode].LayoutOrder = order
 	modeButtons[mode].BackgroundColor3 = COLORS.panel
@@ -499,7 +498,7 @@ do
 			paintRuntime.routeDraggingHandle = nil
 			painting = false
 			connectFromNodeId = nil
-			rerenderAll()
+			renderAll()
 		end)
 		modeButton.Position = UDim2.fromOffset(10 + (order - 1) * 140, 6)
 		modeButton.Size = UDim2.fromOffset(132, 30)
@@ -547,7 +546,7 @@ do
 			else
 				connectFromNodeId = nil
 			end
-			rerenderAll()
+			renderAll()
 		end)
 		toolButton.Position = UDim2.fromOffset(10 + (order - 1) * 94, 11)
 		toolButton.Size = UDim2.fromOffset(88, 32)
@@ -2362,26 +2361,30 @@ end
 -- Graph page: stable node/edge IDs, directed connections, predicates, lanes, and priorities.
 local graphPage = contentByMode.Graph
 graphPage.ClipsDescendants = true
+local function selectRouteNode(nodeId: string)
+	if connectFromNodeId ~= nil and connectFromNodeId ~= nodeId then
+		local fromId = connectFromNodeId
+		connectFromNodeId = nil
+		mutate("Connect Stagewright route nodes", function()
+			flowRuntime.connect(fromId, nodeId)
+		end)
+	end
+	selectedNodeId = nodeId
+	selectedEdgeId = nil
+	tracedEdgeIds = {}
+	renderAll()
+end
+
+local function selectRouteEdge(edgeId: string)
+	selectedEdgeId = edgeId
+	selectedNodeId = nil
+	tracedEdgeIds = {}
+	renderAll()
+end
+
 routeOverview = RouteOverview.new(graphPage, COLORS, {
-	selectNode = function(nodeId: string)
-		if connectFromNodeId ~= nil and connectFromNodeId ~= nodeId then
-			local fromId = connectFromNodeId
-			connectFromNodeId = nil
-			mutate("Connect Stagewright route nodes", function()
-				flowRuntime.connect(fromId, nodeId)
-			end)
-		end
-		selectedNodeId = nodeId
-		selectedEdgeId = nil
-		tracedEdgeIds = {}
-		renderAll()
-	end,
-	selectEdge = function(edgeId: string)
-		selectedEdgeId = edgeId
-		selectedNodeId = nil
-		tracedEdgeIds = {}
-		renderAll()
-	end,
+	selectNode = selectRouteNode,
+	selectEdge = selectRouteEdge,
 	connectNodes = function(fromNodeId: string, toNodeId: string)
 		mutate("Connect Stagewright route nodes", function()
 			flowRuntime.connect(fromNodeId, toNodeId)
@@ -3131,25 +3134,8 @@ do
 			cancelActiveEditorInteraction(false)
 			renderAll()
 		end,
-		selectNode = function(nodeId: string)
-			if connectFromNodeId ~= nil and connectFromNodeId ~= nodeId then
-				local fromId = connectFromNodeId
-				connectFromNodeId = nil
-				mutate("Connect Stagewright route nodes", function()
-					flowRuntime.connect(fromId, nodeId)
-				end)
-			end
-			selectedNodeId = nodeId
-			selectedEdgeId = nil
-			tracedEdgeIds = {}
-			renderAll()
-		end,
-		selectEdge = function(edgeId: string)
-			selectedEdgeId = edgeId
-			selectedNodeId = nil
-			tracedEdgeIds = {}
-			renderAll()
-		end,
+		selectNode = selectRouteNode,
+		selectEdge = selectRouteEdge,
 		setLanes = flowUi.setLaneCount,
 		focusWorld = function(edgeId: string?)
 			selectedEdgeId = edgeId
@@ -4085,7 +4071,7 @@ local renderedPaintMode = paintRuntime.mode
 local renderedStageId = selectedStageId
 local renderedGraphId = selectedGraphId
 
-function rerenderAll()
+renderAll = function()
 	local contextChanged = renderedActiveMode ~= activeMode
 		or renderedPaintMode ~= paintRuntime.mode
 		or renderedStageId ~= selectedStageId
@@ -4327,7 +4313,6 @@ function rerenderAll()
 	end
 	flowRuntime.refreshRecoveryBanner()
 end
-renderAll = rerenderAll
 headerValidation.Activated:Connect(function()
 	activeMode = "Validate"
 	renderAll()
@@ -4634,7 +4619,7 @@ end)
 widget:GetPropertyChangedSignal("Enabled"):Connect(function()
 	openButton:SetActive(widget.Enabled)
 	if widget.Enabled then
-		rerenderAll()
+		renderAll()
 	else
 		cancelActiveEditorInteraction(false)
 		workspacePreview:clear()
@@ -4706,7 +4691,7 @@ ProjectStore.observe(function()
 			else "Undo/redo synchronized from the saved working copy.",
 		recoveryMessage ~= nil
 	)
-	rerenderAll()
+	renderAll()
 end)
 
 local initialRecoveryMessage = ProjectStore.recoveryMessage()
