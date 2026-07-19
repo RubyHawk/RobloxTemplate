@@ -1,0 +1,171 @@
+{
+  "ClassName": "Model",
+  "Children": [
+    {
+      "Name": "Floor",
+      "ClassName": "Part",
+      "Properties": {
+        "Anchored": true,
+        "CanCollide": true,
+        "CanQuery": true,
+        "CanTouch": false,
+        "CastShadow": false,
+        "Color": [0.06, 0.05, 0.09],
+        "Material": "Slate",
+        "Position": [0, 500, 0],
+        "Size": [160, 3, 160],
+        "Transparency": 0
+      },
+      "Children": []
+    },
+    {
+      "Name": "WallNorth",
+      "ClassName": "Part",
+      "Properties": {
+        "Anchored": true,
+        "CanCollide": true,
+        "CanQuery": false,
+        "CanTouch": false,
+        "CastShadow": false,
+        "Color": [0.33, 0.12, 0.42],
+        "Material": "Neon",
+        "Position": [0, 520, 80],
+        "Size": [164, 40, 3],
+        "Transparency": 0.55
+      },
+      "Children": []
+    },
+    {
+      "Name": "WallSouth",
+      "ClassName": "Part",
+      "Properties": {
+        "Anchored": true,
+        "CanCollide": true,
+        "CanQuery": false,
+        "CanTouch": false,
+        "CastShadow": false,
+        "Color": [0.33, 0.12, 0.42],
+        "Material": "Neon",
+        "Position": [0, 520, -80],
+        "Size": [164, 40, 3],
+        "Transparency": 0.55
+      },
+      "Children": []
+    },
+    {
+      "Name": "WallEast",
+      "ClassName": "Part",
+      "Properties": {
+        "Anchored": true,
+        "CanCollide": true,
+        "CanQuery": false,
+        "CanTouch": false,
+        "CastShadow": false,
+        "Color": [0.33, 0.12, 0.42],
+        "Material": "Neon",
+        "Position": [80, 520, 0],
+        "Size": [3, 40, 164],
+        "Transparency": 0.55
+      },
+      "Children": []
+    },
+    {
+      "Name": "WallWest",
+      "ClassName": "Part",
+      "Properties": {
+        "Anchored": true,
+        "CanCollide": true,
+        "CanQuery": false,
+        "CanTouch": false,
+        "CastShadow": false,
+        "Color": [0.33, 0.12, 0.42],
+        "Material": "Neon",
+        "Position": [-80, 520, 0],
+        "Size": [3, 40, 164],
+        "Transparency": 0.55
+      },
+      "Children": []
+    },
+    {
+      "Name": "ArenaLight",
+      "ClassName": "Part",
+      "Properties": {
+        "Anchored": true,
+        "CanCollide": false,
+        "CanQuery": false,
+        "CanTouch": false,
+        "CastShadow": false,
+        "Color": [0.1, 0.08, 0.14],
+        "Material": "SmoothPlastic",
+        "Position": [0, 540, 0],
+        "Size": [4, 4, 4],
+        "Transparency": 1
+      },
+      "Children": [
+        {
+          "Name": "Fill",
+          "ClassName": "PointLight",
+          "Properties": {
+            "Brightness": 1.6,
+            "Color": [0.7, 0.55, 1],
+            "Range": 120,
+            "Shadows": false
+          },
+          "Children": []
+        }
+      ]
+    },
+    {
+      "Name": "Boss",
+      "ClassName": "Model",
+      "Children": [
+        {
+          "Name": "Core",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": true,
+            "CanQuery": true,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [0.42, 0.05, 0.08],
+            "Material": "Neon",
+            "Position": [0, 507, 55],
+            "Size": [10, 12, 10],
+            "Transparency": 0.08
+          },
+          "Children": [
+            {
+              "Name": "CoreLight",
+              "ClassName": "PointLight",
+              "Properties": {
+                "Brightness": 3,
+                "Color": [1, 0.28, 0.28],
+                "Range": 30,
+                "Shadows": false
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "Eye",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [1, 0.85, 0.3],
+            "Material": "Neon",
+            "Position": [0, 509, 50],
+            "Size": [3, 3, 1],
+            "Transparency": 0.05
+          },
+          "Children": []
+        }
+      ]
+    }
+  ]
+}

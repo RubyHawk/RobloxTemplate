@@ -3,6 +3,7 @@
 local CurrencyConfig = require(script.Parent.CurrencyConfig)
 local DataStoreNames = require(script.Parent.DataStoreNames)
 local DesignerConfig = require(script.Parent.DesignerConfig)
+local DungeonConfig = require(script.Parent.DungeonConfig)
 local IconAssets = require(script.Parent.IconAssets)
 local RuneModeConfig = require(script.Parent.RuneModeConfig)
 local StagePlatformLayout = require(script.Parent.StagePlatformLayout)
@@ -121,6 +122,7 @@ local Config = {
 		afKRollOver = true,
 		runes = true,
 		towerDefense = false,
+		dungeon = false,
 		communityVerification = false,
 		discordVerification = false,
 		guilds = false,
@@ -257,6 +259,13 @@ local Config = {
 			color = { 78, 151, 73 },
 		},
 	},
+
+	-- Portal -> reserved-server dungeon: standing on the authored portal pad forms
+	-- a party (solo allowed), a server-owned countdown runs, then the party is
+	-- teleported into a private instance of this same place to fight a boss. Every
+	-- tunable accepts a DesignerConfig.dungeon override; DungeonConfig clamps and
+	-- validates the whole block so a bad recipe never strands the default boss.
+	dungeon = DungeonConfig.normalize((DesignerConfig :: any).dungeon),
 
 	rewards = {
 		daily = { 250, 500, 750, 1000, 1500, 2000, 3000 },

@@ -23,5 +23,6 @@ return {
 	features = {
 		runes = true,
 		towerDefense = true,
+		dungeon = true,
 	},
 }

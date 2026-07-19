@@ -1,0 +1,93 @@
+{
+  "ClassName": "Model",
+  "Children": [
+    {
+      "Name": "Platform",
+      "ClassName": "Part",
+      "Properties": {
+        "Anchored": true,
+        "CanCollide": true,
+        "CanQuery": true,
+        "CanTouch": false,
+        "CastShadow": false,
+        "Color": [0.09, 0.06, 0.19],
+        "Material": "Slate",
+        "Orientation": [0, 0, 90],
+        "Position": [6, 20.9, 40],
+        "Shape": "Cylinder",
+        "Size": [0.72, 14.4, 14.4],
+        "Transparency": 0.05
+      },
+      "Children": []
+    },
+    {
+      "Name": "GlowRing",
+      "ClassName": "Part",
+      "Properties": {
+        "Anchored": true,
+        "CanCollide": false,
+        "CanQuery": false,
+        "CanTouch": false,
+        "CastShadow": false,
+        "Color": [0.45, 0.36, 0.98],
+        "Material": "Neon",
+        "Orientation": [0, 0, 90],
+        "Position": [6, 20.8, 40],
+        "Shape": "Cylinder",
+        "Size": [0.3, 16.6, 16.6],
+        "Transparency": 0.35
+      },
+      "Children": []
+    },
+    {
+      "Name": "CoreGlow",
+      "ClassName": "Part",
+      "Properties": {
+        "Anchored": true,
+        "CanCollide": false,
+        "CanQuery": false,
+        "CanTouch": false,
+        "CastShadow": false,
+        "Color": [0.53, 0.42, 1],
+        "Material": "Neon",
+        "Orientation": [0, 0, 90],
+        "Position": [6, 20.98, 40],
+        "Shape": "Cylinder",
+        "Size": [0.66, 7.6, 7.6],
+        "Transparency": 0.28
+      },
+      "Children": [
+        {
+          "Name": "PortalLight",
+          "ClassName": "PointLight",
+          "Properties": {
+            "Brightness": 3.4,
+            "Color": [0.55, 0.44, 1],
+            "Range": 26,
+            "Shadows": false
+          },
+          "Children": []
+        }
+      ]
+    },
+    {
+      "Name": "Vortex",
+      "ClassName": "Part",
+      "Properties": {
+        "Anchored": true,
+        "CanCollide": false,
+        "CanQuery": false,
+        "CanTouch": false,
+        "CastShadow": false,
+        "Color": [0.72, 0.62, 1],
+        "Material": "Glass",
+        "Orientation": [0, 0, 90],
+        "Position": [6, 21.05, 40],
+        "Shape": "Cylinder",
+        "Size": [0.3, 4.6, 4.6],
+        "Transparency": 0.4
+      },
+      "Children": []
+    }
+  ]
+}

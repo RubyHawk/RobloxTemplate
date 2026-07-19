@@ -21,6 +21,8 @@ local StoreService = require(Services.StoreService)
 local StageRuntimeService = require(Services.StageRuntimeService)
 local StagePlatformService = require(Services.StagePlatformService)
 local TowerDefenseService = require(Services.TowerDefenseService)
+local PortalService = require(Services.PortalService)
+local DungeonService = require(Services.DungeonService)
 local EconomyRateProvider = require(script.Providers.DefaultEconomyRateProvider)
 local DataStoreRuntime = require(script.Util.DataStoreRuntime)
 
@@ -61,6 +63,31 @@ if Config.features.towerDefense then
 		publishEnemies = RemoteService.publishTowerEnemies,
 		publishPlacements = RemoteService.publishTowerPlacements,
 	})
+end
+if Config.features.dungeon then
+	-- The same place boots as a lobby or a reserved dungeon server.
+	-- DungeonService self-gates (it only runs the boss fight in a reserved
+	-- server); the portal pad loop must run in the lobby only, or a dungeon
+	-- server would try to launch a nested dungeon from its own pad.
+	local isDungeon = DungeonService.isDungeonServer()
+	DungeonService.start({
+		publish = function(data)
+			RemoteService.broadcast("DungeonState", data)
+		end,
+		award = EconomyService.awardCurrencyRaw,
+		fallbackCurrencyId = Config.economy.primaryCurrencyId,
+		notify = function(player, message)
+			RemoteService.sendEvent(player, "PortalNotice", { message = message })
+		end,
+	})
+	if not isDungeon then
+		PortalService.start({
+			publish = function(data)
+				RemoteService.broadcast("PortalState", data)
+			end,
+			launch = DungeonService.launchParty,
+		})
+	end
 end
 
 local function playerAdded(player: Player)
@@ -115,6 +142,7 @@ local function playerRemoving(player: Player)
 	TowerDefenseService.forget(player)
 	StagePlatformService.forget(player)
 	StageRuntimeService.forget(player)
+	PortalService.forget(player)
 	FeedbackService.forget(player)
 	RemoteService.forget(player)
 	ProfileService.release(player)

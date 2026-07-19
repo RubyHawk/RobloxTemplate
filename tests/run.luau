@@ -5,6 +5,8 @@ local CurrencyConfig = require("../src/shared/CurrencyConfig")
 local RuneCatalog = require("../src/shared/RuneCatalog")
 local RuneLogic = require("../src/shared/RuneLogic")
 local RuneModeConfig = require("../src/shared/RuneModeConfig")
+local DungeonConfig = require("../src/shared/DungeonConfig")
+local DungeonLogic = require("../src/shared/DungeonLogic")
 local TowerDefenseCatalog = require("../src/shared/TowerDefenseCatalog")
 local TowerDefenseLogic = require("../src/shared/TowerDefenseLogic")
 local TowerDefenseRequest = require("../src/shared/TowerDefenseRequest")
@@ -5951,5 +5953,142 @@ expectEqual(
 	true,
 	"tower defense gameplay loop has configured roll cost and loadout slots"
 )
+
+do
+	-- DungeonConfig normalization: defaults, numeric clamps, vector validation,
+	-- and the all-or-nothing boss list fallback.
+	local defaults = DungeonConfig.normalize(nil)
+	expectEqual(defaults.partyMax, 4, "dungeon defaults keep the authored party max")
+	expectEqual(defaults.countdownSeconds, 5, "dungeon defaults keep the authored countdown")
+	expectEqual(defaults.defaultBossId, "forest_warden", "dungeon defaults resolve the authored boss id")
+	expectEqual(#defaults.bosses, 1, "dungeon defaults expose the authored boss list")
+	expectEqual(defaults.bosses[1].baseHealth, 2500, "dungeon default boss keeps its authored health")
+
+	expectEqual(DungeonConfig.normalize({ partyMax = 999 }).partyMax, 12, "party max clamps to the ceiling")
+	expectEqual(DungeonConfig.normalize({ partyMax = 0 }).partyMax, 1, "party max clamps to the floor")
+	expectEqual(
+		DungeonConfig.normalize({ countdownSeconds = 1000 }).countdownSeconds,
+		60,
+		"countdown seconds clamp to the ceiling"
+	)
+
+	local shortVector = DungeonConfig.normalize({ arenaSpawn = { 1, 2 } })
+	expectEqual(shortVector.arenaSpawn[2], 503, "a malformed arena spawn falls back to the default vector")
+	local goodVector = DungeonConfig.normalize({ arenaSpawn = { 7, 8, 9 } })
+	expectEqual(goodVector.arenaSpawn[1], 7, "a valid arena spawn override passes through")
+	expectEqual(goodVector.arenaSpawn[3], 9, "a valid arena spawn keeps every component")
+
+	local badBoss = DungeonConfig.normalize({ bosses = { { id = "broken" } } })
+	expectEqual(badBoss.bosses[1].id, "forest_warden", "an incomplete boss entry falls back wholesale")
+
+	local customBoss = DungeonConfig.normalize({
+		bosses = {
+			{
+				id = "warden_two",
+				name = "Warden II",
+				baseHealth = 1000,
+				healthPerExtraPlayer = 400,
+				partyDpsPerPlayer = 90,
+				attackDamage = 12,
+				timeLimitSeconds = 45,
+				rewardCurrencyId = "gems",
+				rewardAmount = 250,
+			},
+		},
+	})
+	expectEqual(customBoss.bosses[1].id, "warden_two", "a valid boss override passes through")
+	expectEqual(
+		customBoss.defaultBossId,
+		"warden_two",
+		"the default boss id resolves to the first valid boss"
+	)
+
+	local duplicateBoss = DungeonConfig.normalize({
+		bosses = {
+			{
+				id = "dupe",
+				name = "A",
+				baseHealth = 10,
+				healthPerExtraPlayer = 0,
+				partyDpsPerPlayer = 1,
+				attackDamage = 0,
+				timeLimitSeconds = 10,
+				rewardCurrencyId = "coins",
+				rewardAmount = 0,
+			},
+			{
+				id = "dupe",
+				name = "B",
+				baseHealth = 10,
+				healthPerExtraPlayer = 0,
+				partyDpsPerPlayer = 1,
+				attackDamage = 0,
+				timeLimitSeconds = 10,
+				rewardCurrencyId = "coins",
+				rewardAmount = 0,
+			},
+		},
+	})
+	expectEqual(duplicateBoss.bosses[1].id, "forest_warden", "duplicate boss ids fall back wholesale")
+
+	expectEqual(
+		DungeonConfig.bossById(defaults, "forest_warden") ~= nil,
+		true,
+		"bossById finds a configured boss"
+	)
+	expectEqual(DungeonConfig.bossById(defaults, "missing"), nil, "bossById returns nil for an unknown boss")
+end
+
+do
+	-- DungeonLogic combat + occupancy math is pure and server-authoritative.
+	expectEqual(DungeonLogic.isWithinCylinder(0, 0, 0, 10, 5), true, "the center of a cylinder is inside it")
+	expectEqual(DungeonLogic.isWithinCylinder(8, 0, 6, 10, 5), true, "a point on the radius counts as inside")
+	expectEqual(
+		DungeonLogic.isWithinCylinder(8, 0, 7, 10, 5),
+		false,
+		"a point beyond the radius is outside the cylinder"
+	)
+	expectEqual(
+		DungeonLogic.isWithinCylinder(0, 6, 0, 10, 5),
+		false,
+		"a point above the height tolerance is outside the cylinder"
+	)
+
+	local boss = {
+		id = "b",
+		name = "B",
+		baseHealth = 1000,
+		healthPerExtraPlayer = 500,
+		partyDpsPerPlayer = 100,
+		attackDamage = 20,
+		timeLimitSeconds = 60,
+		rewardCurrencyId = "coins",
+		rewardAmount = 100,
+	}
+	expectEqual(DungeonLogic.bossMaxHealth(boss, 1), 1000, "a solo run uses base boss health")
+	expectEqual(DungeonLogic.bossMaxHealth(boss, 3), 2000, "boss health scales per extra player")
+	expectEqual(DungeonLogic.partyDps(boss, 0), 0, "no attackers deal no damage")
+	expectEqual(DungeonLogic.partyDps(boss, 3), 300, "party dps scales with attackers in range")
+	expectEqual(DungeonLogic.partyDps(boss, -1), 0, "negative attacker counts never deal damage")
+
+	expectEqual(DungeonLogic.applyDamage(100, 10, 2), 80, "damage applies dps over the elapsed time")
+	expectEqual(DungeonLogic.applyDamage(5, 10, 2), 0, "health never drops below zero")
+	expectEqual(DungeonLogic.applyDamage(100, 10, -1), 100, "negative delta time never heals or hurts")
+
+	expectEqual(DungeonLogic.isDefeated(0), true, "zero health is a defeat")
+	expectEqual(DungeonLogic.isDefeated(1), false, "positive health is not a defeat")
+	expectEqual(DungeonLogic.healthFraction(50, 100), 0.5, "half health reports a half bar")
+	expectEqual(DungeonLogic.healthFraction(0, 0), 0, "a zero-max boss reports an empty bar")
+	expectEqual(DungeonLogic.healthFraction(200, 100), 1, "health fraction clamps to a full bar")
+
+	expectEqual(DungeonLogic.countdownRemaining(10, 4), 6, "countdown reports whole seconds left")
+	expectEqual(DungeonLogic.countdownRemaining(10, 3.2), 7, "countdown rounds up to whole seconds")
+	expectEqual(DungeonLogic.countdownRemaining(10, 12), 0, "a passed deadline reports zero")
+
+	expectEqual(#DungeonLogic.clampParty({ 1, 2, 3 }, 2), 2, "an oversized roster is capped to party max")
+	expectEqual(DungeonLogic.clampParty({ 1, 2, 3 }, 2)[2], 2, "the capped roster keeps arrival order")
+	expectEqual(#DungeonLogic.clampParty({ 1, 2 }, 5), 2, "a roster under the cap passes through")
+	expectEqual(#DungeonLogic.clampParty({ 1, 2, 3 }, 0), 0, "a zero party max yields an empty party")
+end
 
 print(`{passed} pure Luau assertions passed`)

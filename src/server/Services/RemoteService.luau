@@ -355,6 +355,15 @@ function RemoteService.sendEvent(player: Player, kind: string, data: any)
 	end
 end
 
+-- Server-owned broadcasts (portal roster/countdown, dungeon boss HUD) that every
+-- client in the server should see. The party lives alone in a reserved dungeon
+-- server, so a broadcast there only reaches that party.
+function RemoteService.broadcast(kind: string, data: any)
+	if stateRemote then
+		stateRemote:FireAllClients({ kind = kind, data = data })
+	end
+end
+
 function RemoteService.forget(player: Player)
 	limiter:forget(player)
 end

@@ -27,6 +27,12 @@
           "DesignerConfig": {
             "$path": "rng-defender/DesignerConfig.luau"
           },
+          "DungeonConfig": {
+            "$path": "../src/shared/DungeonConfig.luau"
+          },
+          "DungeonLogic": {
+            "$path": "../src/shared/DungeonLogic.luau"
+          },
           "FeatureRegistry": {
             "$path": "../src/shared/FeatureRegistry.luau"
           },
@@ -124,6 +130,9 @@
       },
       "RuneCircle": {
         "$path": "../src/starter/RuneCircle.server.luau"
+      },
+      "PortalPad": {
+        "$path": "../src/starter/Portal.server.luau"
       }
     },
     "StarterGui": {
@@ -136,6 +145,12 @@
       },
       "StagePlatformOwners": {
         "$path": "../src/ui/StagePlatformOwners.model.json"
+      },
+      "PortalSign": {
+        "$path": "../src/ui/PortalSign.model.json"
+      },
+      "DungeonHUD": {
+        "$path": "../src/ui/DungeonHUD.model.json"
       }
     },
     "StarterPlayer": {
@@ -146,6 +161,9 @@
         },
         "RuneCircleClient": {
           "$path": "../src/starter-client/RuneCircle.client.luau"
+        },
+        "PortalClient": {
+          "$path": "../src/starter-client/Portal.client.luau"
         }
       }
     },
@@ -153,6 +171,12 @@
       "$ignoreUnknownInstances": true,
       "RuneCircle": {
         "$path": "../src/world/RuneCircle.model.json"
+      },
+      "PortalPad": {
+        "$path": "../src/world/PortalPad.model.json"
+      },
+      "DungeonArena": {
+        "$path": "../src/world/DungeonArena.model.json"
       }
     }
   }
