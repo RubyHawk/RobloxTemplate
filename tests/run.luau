@@ -25,6 +25,7 @@ local PaintRouteDragSession = require("../src/plugins/Stagewright/Controllers/Pa
 local PaintStrokeSession = require("../src/plugins/Stagewright/Controllers/PaintStrokeSession")
 local WorldPathEditSession = require("../src/plugins/Stagewright/Controllers/WorldPathEditSession")
 local GraphOperations = require("../src/plugins/Stagewright/Graph/Operations")
+local PredicateFields = require("../src/plugins/Stagewright/Graph/PredicateFields")
 local PaintBrushes = require("../src/plugins/Stagewright/Paint/Brushes")
 local ProjectLoadPolicy = require("../src/plugins/Stagewright/Persistence/ProjectLoadPolicy")
 local StageSettings = require("../src/plugins/Stagewright/Stage/Settings")
@@ -946,6 +947,250 @@ do
 		GraphOperations.moveHandle(graph, "edge_missing", "Out", { x = 0, y = 0, z = 0 }),
 		false,
 		"route handle mutation rejects a missing edge"
+	)
+end
+
+do
+	local graph = {
+		nodes = {
+			spawn = { id = "spawn", kind = "Spawn", name = "Spawn", position = { x = 0, y = 0, z = 0 } },
+			junction = {
+				id = "junction",
+				kind = "Junction",
+				name = "Junction",
+				position = { x = 10, y = 0, z = 0 },
+			},
+			goal = { id = "goal", kind = "Goal", name = "Goal", position = { x = 20, y = 0, z = 0 } },
+		},
+		edges = {},
+		laneProfiles = {},
+	}
+	local edgeId = GraphOperations.connect(graph, "spawn", "junction")
+	expectEqual(type(edgeId), "string", "graph connect creates a valid directed spline")
+	local edge = graph.edges[assert(edgeId, "connected edge ID")]
+	expectEqual(edge.metadata.pathAssetId, "gravel", "new graph edge receives path asset metadata")
+	expectEqual(edge.metadata.curveMode, "Smooth", "new graph edge receives curve metadata")
+	expectEqual(edge.metadata.laneWidth, 4, "new graph edge receives lane width metadata")
+	local parallelEdgeId = GraphOperations.connect(graph, "spawn", "junction")
+	expectEqual(type(parallelEdgeId), "string", "graph connect preserves parallel directed splines")
+	expectEqual(parallelEdgeId ~= edgeId, true, "parallel graph splines keep independent stable IDs")
+	expectEqual(GraphOperations.connect(graph, "goal", "junction"), nil, "goal nodes reject outgoing splines")
+	expectEqual(
+		GraphOperations.connect(graph, "junction", "spawn"),
+		nil,
+		"spawn nodes reject incoming splines"
+	)
+	expectEqual(GraphOperations.setLaneCount(graph, edgeId, 2), true, "lane count mutates a selected spline")
+	local profile = graph.laneProfiles[edge.laneProfileId]
+	expectEqual(profile.offsets[1], -2, "two-lane route uses the authored lane width as spacing")
+	expectEqual(profile.offsets[2], 2, "two-lane route remains centered")
+	expectEqual(GraphOperations.setLaneWidth(graph, edgeId, 6), true, "lane width mutates route clearance")
+	expectEqual(profile.offsets[1], -3, "lane width updates negative lane offset")
+	expectEqual(profile.offsets[2], 3, "lane width updates positive lane offset")
+	expectEqual(profile.clearanceRadius, 6, "lane width updates the no-build clearance radius")
+	expectEqual(GraphOperations.setPriority(graph, edgeId, 200), true, "priority mutation accepts a spline")
+	expectEqual(edge.priority, 99, "priority mutation clamps unsafe values")
+	expectEqual(GraphOperations.setCurveMode(graph, edgeId, "Free"), true, "curve metadata is editable")
+	expectEqual(edge.metadata.curveMode, "Free", "curve mutation persists on the selected spline")
+	local previousIncomingX = edge.inHandleOffset.x
+	expectEqual(
+		GraphOperations.setHandleOffset(graph, edgeId, "Out", { x = 2, y = 0, z = 3 }),
+		true,
+		"free curve mode accepts an authored handle"
+	)
+	expectEqual(edge.inHandleOffset.x, previousIncomingX, "free curve mode leaves the opposite handle alone")
+	expectEqual(GraphOperations.setCurveMode(graph, edgeId, "Mirrored"), true, "mirrored mode is editable")
+	expectEqual(edge.inHandleOffset.x, -2, "mirrored mode aligns the opposite handle")
+	expectEqual(edge.inHandleOffset.z, -3, "mirrored mode mirrors the full handle vector")
+	expectEqual(GraphOperations.setLaneCount(graph, edgeId, 0), false, "lane count rejects invalid values")
+	expectEqual(GraphOperations.setLaneWidth(graph, edgeId, math.huge), false, "lane width rejects infinity")
+	expectEqual(GraphOperations.setPriority(graph, edgeId, -math.huge), false, "priority rejects infinity")
+	expectEqual(
+		GraphOperations.setCurveMode(graph, edgeId, "Decorative"),
+		false,
+		"curve mutation rejects unsupported modes"
+	)
+end
+
+do
+	local openRange, openRangeError = PredicateFields.fromText("WaveRange", "", "5", "", {
+		fromNodeId = "spawn",
+	})
+	expectEqual(openRangeError, nil, "open-ended wave condition parses without a fake maximum")
+	local resolvedOpenRange = assert(openRange, "open wave range")
+	expectEqual(resolvedOpenRange.minimum, 5, "open-ended wave condition preserves its minimum")
+	expectEqual(resolvedOpenRange.maximum, nil, "open-ended wave condition omits its maximum")
+	expectEqual(
+		PredicateFields.describe(resolvedOpenRange),
+		"Wave >= 5",
+		"wave condition has truthful UI copy"
+	)
+	local invalidRange, invalidRangeError = PredicateFields.fromText("WaveRange", "", "8", "4", {
+		fromNodeId = "spawn",
+	})
+	expectEqual(invalidRange, nil, "reversed wave range is rejected")
+	expectEqual(type(invalidRangeError), "string", "reversed wave range reports a useful error")
+	for _, invalidMinimum in { "0", "1.5", "1e999" } do
+		local invalid = PredicateFields.fromText("WaveRange", "", invalidMinimum, "", {
+			fromNodeId = "spawn",
+		})
+		expectEqual(invalid, nil, `wave condition rejects unsafe value {invalidMinimum}`)
+	end
+	local invalidVisit = PredicateFields.fromText("VisitCountBelow", "spawn", "-1", "", {
+		fromNodeId = "spawn",
+	})
+	expectEqual(invalidVisit, nil, "visit condition rejects negative counts")
+	local invalidUpgrade = PredicateFields.fromText("UpgradeLevelAtLeast", "tower", "2.5", "", {
+		fromNodeId = "spawn",
+	})
+	expectEqual(invalidUpgrade, nil, "upgrade condition rejects fractional levels")
+	local invalidCurrency = PredicateFields.fromText("CurrencyAtLeast", "coins", "1e999", "", {
+		fromNodeId = "spawn",
+	})
+	expectEqual(invalidCurrency, nil, "currency condition rejects infinity")
+	expectEqual(
+		PredicateFields.describe({ kind = "CurrencyAtLeast", currencyId = "Coins", amount = 50 }),
+		"Coins >= 50",
+		"currency condition has truthful UI copy"
+	)
+end
+
+do
+	local graph = {
+		nodes = {
+			start = { id = "start", kind = "Spawn", name = "Start", position = { x = 0, y = 0, z = 0 } },
+			finish = { id = "finish", kind = "Goal", name = "Finish", position = { x = 10, y = 0, z = 0 } },
+		},
+		edges = {
+			edge = {
+				id = "edge",
+				fromNodeId = "start",
+				toNodeId = "finish",
+				outHandleOffset = { x = 3, y = 0, z = 0 },
+				inHandleOffset = { x = -3, y = 0, z = 0 },
+				laneProfileId = "lane",
+				metadata = {
+					pathAssetId = "gravel",
+					curveMode = "Smooth",
+					surfaceMode = "FollowTerrain",
+					laneWidth = 4,
+					custom = { value = 7 },
+				},
+				priority = 3,
+				predicates = { { kind = "WaveRange", minimum = 5 } },
+			},
+		},
+		laneProfiles = {
+			lane = { id = "lane", offsets = { -2, 2 }, clearanceRadius = 4 },
+		},
+	}
+	local splitNodeId = GraphOperations.splitEdge(graph, "edge")
+	expectEqual(type(splitNodeId), "string", "graph split creates a junction")
+	local splitNode = graph.nodes[assert(splitNodeId, "split node ID")]
+	expectEqual(splitNode.position.x, 5, "De Casteljau split preserves the cubic midpoint")
+	expectEqual(graph.edges.edge, nil, "graph split retires the original spline")
+	local firstEdge: any? = nil
+	local secondEdge: any? = nil
+	for _, candidate in graph.edges do
+		if candidate.fromNodeId == "start" then
+			firstEdge = candidate
+		elseif candidate.toNodeId == "finish" then
+			secondEdge = candidate
+		end
+	end
+	expectEqual(firstEdge ~= nil, true, "graph split creates the first exact half")
+	expectEqual(secondEdge ~= nil, true, "graph split creates the second exact half")
+	local resolvedFirstEdge = assert(firstEdge, "first split edge")
+	local resolvedSecondEdge = assert(secondEdge, "second split edge")
+	expectEqual(resolvedFirstEdge.metadata.laneWidth, 4, "graph split preserves edge metadata")
+	expectEqual(resolvedFirstEdge.predicates[1].minimum, 5, "graph split preserves entry predicates")
+	expectEqual(resolvedSecondEdge.metadata.curveMode, "Smooth", "graph split copies curve metadata")
+	resolvedFirstEdge.metadata.custom.value = 9
+	expectEqual(resolvedSecondEdge.metadata.custom.value, 7, "split metadata copies stay independent")
+	expectEqual(resolvedSecondEdge.priority, 3, "graph split preserves priority on both halves")
+	expectEqual(resolvedFirstEdge.outHandleOffset.x, 1.5, "first split handle follows De Casteljau")
+	expectEqual(resolvedFirstEdge.inHandleOffset.x, -1.75, "first split incoming handle preserves shape")
+	expectEqual(resolvedSecondEdge.outHandleOffset.x, 1.75, "second split outgoing handle preserves shape")
+	expectEqual(resolvedSecondEdge.inHandleOffset.x, -1.5, "second split handle follows De Casteljau")
+	expectEqual(GraphOperations.deleteEdge(graph, resolvedFirstEdge.id), true, "edge deletion succeeds")
+	expectEqual(graph.laneProfiles.lane ~= nil, true, "shared lane profile remains while referenced")
+	expectEqual(
+		GraphOperations.deleteEdge(graph, resolvedSecondEdge.id),
+		true,
+		"second edge deletion succeeds"
+	)
+	expectEqual(
+		graph.laneProfiles.lane ~= nil,
+		true,
+		"edge deletion preserves reusable authored lane profiles"
+	)
+end
+
+do
+	local graph = {
+		nodes = {
+			a = { id = "a", kind = "Spawn", name = "A", position = { x = 0, y = 0, z = 0 } },
+			b = { id = "b", kind = "Junction", name = "B", position = { x = 10, y = 0, z = 0 } },
+			c = { id = "c", kind = "Goal", name = "C", position = { x = 20, y = 0, z = 0 } },
+		},
+		edges = {
+			edge = {
+				id = "edge",
+				fromNodeId = "a",
+				toNodeId = "c",
+				outHandleOffset = { x = 4, y = 0, z = 0 },
+				inHandleOffset = { x = -4, y = 0, z = 0 },
+				laneProfileId = "lane_default",
+				priority = 1,
+				predicates = { { kind = "VisitCountBelow", nodeId = "b", maximum = 2 } },
+			},
+		},
+		laneProfiles = {
+			lane_default = { id = "lane_default", offsets = { -2, 2 }, clearanceRadius = 5 },
+		},
+	}
+	expectEqual(GraphOperations.deleteNode(graph, "b"), false, "referenced nodes cannot be deleted")
+	expectEqual(graph.nodes.b ~= nil, true, "failed referenced-node deletion preserves graph data")
+	expectEqual(GraphOperations.setLaneCount(graph, "edge", 2), true, "starter lane count can be reapplied")
+	expectEqual(
+		graph.edges.edge.laneProfileId,
+		"lane_default",
+		"reapplying a lane count does not fork an unchanged shared profile"
+	)
+	expectEqual(
+		graph.laneProfiles.lane_default.clearanceRadius,
+		5,
+		"reapplying the starter lane count preserves its authored shoulder"
+	)
+end
+
+do
+	local graph = {
+		nodes = {},
+		edges = {
+			first = {
+				id = "first",
+				laneProfileId = "shared",
+				metadata = { laneWidth = 4, curveMode = "Free" },
+			},
+			second = {
+				id = "second",
+				laneProfileId = "shared",
+				metadata = { laneWidth = 4, curveMode = "Free" },
+			},
+		},
+		laneProfiles = {
+			shared = { id = "shared", offsets = { -2, 2 }, clearanceRadius = 5, preserved = "yes" },
+		},
+	}
+	expectEqual(GraphOperations.setLaneCount(graph, "first", 3), true, "shared lane profile can be edited")
+	expectEqual(graph.edges.first.laneProfileId ~= "shared", true, "lane edits use copy-on-write")
+	expectEqual(graph.edges.second.laneProfileId, "shared", "sibling spline keeps the original lane profile")
+	expectEqual(graph.laneProfiles.shared.offsets[1], -2, "copy-on-write preserves sibling lane offsets")
+	expectEqual(
+		graph.laneProfiles[graph.edges.first.laneProfileId].preserved,
+		"yes",
+		"copy-on-write preserves unknown profile fields"
 	)
 end
 
@@ -2829,6 +3074,22 @@ do
 		"Stagewright toolbar icons compensate for padded button coordinates"
 	)
 	expectEqual(
+		string.find(stagewrightThemeSource, "resolveHeaderLayout", 1, true) ~= nil
+			and string.find(stagewrightHeaderControllerSource, "styleIconOnlyButton", 1, true) ~= nil
+			and string.find(stagewrightAppShellSource, "Stagewright 2.5", 1, true) ~= nil,
+		true,
+		"Stagewright shell uses responsive header density and the refreshed plugin version"
+	)
+	expectEqual(
+		string.find(stagewrightAppShellSource, 'Name = "CompactToolsButton"', 1, true) ~= nil
+			and string.find(stagewrightAppShellSource, 'Name = "CompactInspectorButton"', 1, true) ~= nil
+			and string.find(stagewrightAppShellSource, 'Name = "CompactPanelDismiss"', 1, true) ~= nil
+			and string.find(stagewrightAppShellSource, 'compactPanel == "Left"', 1, true) ~= nil
+			and string.find(stagewrightAppShellSource, 'compactPanel == "Right"', 1, true) ~= nil,
+		true,
+		"Stagewright compact shell keeps authored tools and inspectors available through drawers"
+	)
+	expectEqual(
 		string.find(stagewrightAppShellSource, 'Name = "PopupLayer"', 1, true) ~= nil
 			and string.find(stagewrightHeaderControllerSource, "config.popupLayer", 1, true) ~= nil
 			and string.find(stagewrightHeaderControllerSource, "stageDropdown.Visible = false", 1, true)
@@ -3133,7 +3394,27 @@ do
 			`Stagewright bootstrap does not recreate dead legacy control {removedLegacySurface}`
 		)
 	end
-	for _, behavior in { "connectionFromNodeId", "connectNodes", "outputPort", "positionEdgeLine" } do
+	for _, behavior in
+		{
+			"connectionFromNodeId",
+			"connectNodes",
+			"outputPort",
+			"positionEdgeLine",
+			"beginConnection",
+			"setObstructions",
+			"safeWindowSize",
+			"topologySignature",
+			"curveProjection",
+			"projectOffset",
+			"unprojectOffset",
+			"beginHandleDrag",
+			"HANDLE_DRAG_THRESHOLD",
+			"edge.outHandleOffset",
+			"edge.inHandleOffset",
+			"callbacks.moveHandle",
+			'if self.tool == "Select"',
+		}
+	do
 		expectEqual(
 			string.find(stagewrightRouteOverviewSource, behavior, 1, true) ~= nil,
 			true,
@@ -3144,10 +3425,13 @@ do
 		{
 			"GRAVEL",
 			"ViewportFrame",
-			"FirstPrivateIsland",
+			"worldSource",
+			"worldOrigin",
+			"backdropDirty",
+			"CLICK_DRAG_THRESHOLD",
 			"Lane centerline",
 			"Selected spline",
-			"Test segment",
+			"Highlight segment",
 			"Build mask derived automatically",
 			"setLanes",
 			"require(script.Parent.Interaction.HitTest)",
@@ -3158,12 +3442,48 @@ do
 			"PointerDrag.release",
 			"PointerDrag.cancel",
 			"seedDragValue",
+			"setTool",
+			"AddSpawn",
+			"SHORT_INSPECTOR_HEIGHT",
+			"backdropCamera.Parent",
 		}
 	do
 		expectEqual(
 			string.find(stagewrightWorldPathSource, behavior, 1, true) ~= nil,
 			true,
 			`Stagewright world path view includes {behavior}`
+		)
+	end
+	for _, graphBehavior in
+		{
+			"Operations.canConnect",
+			"Operations.setHandleOffset",
+			"Operations.canDeleteNode",
+			"constrainedOpposite",
+			"authoredShoulder",
+			"cloneValue",
+		}
+	do
+		expectEqual(
+			string.find(stagewrightGraphOperationsSource, graphBehavior, 1, true) ~= nil,
+			true,
+			`Stagewright graph operations preserve functional behavior through {graphBehavior}`
+		)
+	end
+	for _, responsiveBootstrapBehavior in
+		{
+			"stackedActions",
+			"connectRouteNodes",
+			"flowUi.activateTool",
+			"GraphOperations.setLaneWidth",
+			"GraphOperations.setPriority",
+			"Shape Stagewright route logic spline",
+		}
+	do
+		expectEqual(
+			string.find(gridPluginSource, responsiveBootstrapBehavior, 1, true) ~= nil,
+			true,
+			`Stagewright bootstrap wires responsive behavior through {responsiveBootstrapBehavior}`
 		)
 	end
 	for _, transformBehavior in
@@ -3215,7 +3535,7 @@ do
 			"self.callbacks.cancelInteraction()",
 			"canvas.Position = UDim2.new(",
 			"visibleDepth = math.max(worldHeight, worldWidth / aspect)",
-			"local inspectorHeight = INSPECTOR_HEIGHT",
+			"SHORT_INSPECTOR_HEIGHT",
 		}
 	do
 		expectEqual(
@@ -3281,7 +3601,7 @@ do
 	for _, workspacePreviewWiring in
 		{
 			"local workspacePreview = WorkspacePreview.new({",
-			'toggleAction("Preview in World"',
+			'toggleAction("In Studio"',
 			"workspacePreview:setEnabled(requested)",
 			"renderWorkspacePreview()",
 			"workspacePreview:cancelInteraction()",
@@ -3367,7 +3687,7 @@ do
 			"Paint cells",
 			"Edit enemy route",
 			"Play Trace",
-			"Preview in World",
+			"In Studio",
 			"Export bundle",
 			"Focus authoring area",
 			"Guides",

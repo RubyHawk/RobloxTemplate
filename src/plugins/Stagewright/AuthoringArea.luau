@@ -273,15 +273,21 @@ function AuthoringArea.container(): Model?
 	return if area ~= nil and area:IsA("Model") then area else nil
 end
 
-function AuthoringArea.origin(): CFrame
+function AuthoringArea.platformOriginFrame(): CFrame?
 	local platform = AuthoringArea.findPlatform()
 	local templateConfig = config()
 	local origin = if platform ~= nil and templateConfig ~= nil
 		then platform:FindFirstChild(templateConfig.towerDefense.platformOriginName)
 		else nil
-	if origin ~= nil and origin:IsA("BasePart") then
-		return origin.CFrame
+	return if origin ~= nil and origin:IsA("BasePart") then origin.CFrame else nil
+end
+
+function AuthoringArea.origin(): CFrame
+	local platformOriginFrame = AuthoringArea.platformOriginFrame()
+	if platformOriginFrame ~= nil then
+		return platformOriginFrame
 	end
+	local platform = AuthoringArea.findPlatform()
 	local base = if platform ~= nil then platform:FindFirstChild("PlatformBase") else nil
 	return if base ~= nil and base:IsA("BasePart") then base.CFrame else CFrame.new()
 end

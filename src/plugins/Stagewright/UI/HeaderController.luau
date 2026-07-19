@@ -38,11 +38,12 @@ export type Controller = {
 
 local HeaderController = {}
 
-local function addLogo(header: Frame)
+local function addLogo(header: Frame): Frame
 	local logo = create("Frame", {
 		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(13, 10),
-		Size = UDim2.fromOffset(32, 32),
+		Name = "StagewrightLogo",
+		Position = UDim2.fromOffset(10, 8),
+		Size = UDim2.fromOffset(28, 28),
 		ZIndex = 4,
 	}, header) :: Frame
 	for _, rotation in { 0, 45, 90, 135 } do
@@ -52,7 +53,7 @@ local function addLogo(header: Frame)
 			BorderSizePixel = 0,
 			Position = UDim2.fromScale(0.5, 0.5),
 			Rotation = rotation,
-			Size = UDim2.fromOffset(27, 8),
+			Size = UDim2.fromOffset(24, 7),
 			ZIndex = 4,
 		}, logo) :: Frame
 		create("UICorner", { CornerRadius = UDim.new(0, 3) }, petal)
@@ -62,21 +63,24 @@ local function addLogo(header: Frame)
 		BackgroundColor3 = COLORS.text,
 		BorderSizePixel = 0,
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(11, 11),
+		Size = UDim2.fromOffset(9, 9),
 		ZIndex = 5,
 	}, logo) :: Frame
 	create("UICorner", { CornerRadius = UDim.new(0, 3) }, core)
+	return logo
 end
 
 function HeaderController.new(config: Config): Controller
 	local header = config.header
 	config.headerValidation.TextXAlignment = Enum.TextXAlignment.Left
-	create("UIPadding", {
-		PaddingLeft = UDim.new(0, 40),
-		PaddingRight = UDim.new(0, 12),
-	}, config.headerValidation)
+	local validationPadding = config.headerValidation:FindFirstChildOfClass("UIPadding")
+	if validationPadding == nil then
+		validationPadding = create("UIPadding", {}, config.headerValidation) :: UIPadding
+	end
+	validationPadding.PaddingLeft = UDim.new(0, Theme.metrics.iconButtonTextPaddingLeft)
+	validationPadding.PaddingRight = UDim.new(0, Theme.metrics.iconButtonTextPaddingRight)
 	Toolbar.addVectorIcon(config.headerValidation, "warning", COLORS.warning, 12)
-	addLogo(header)
+	local logo = addLogo(header)
 
 	local stageSelector = create("TextButton", {
 		AutoButtonColor = false,
@@ -84,40 +88,54 @@ function HeaderController.new(config: Config): Controller
 		BorderSizePixel = 0,
 		Font = Enum.Font.BuilderSansMedium,
 		Name = "StageSelector",
-		Position = UDim2.fromOffset(198, 7),
-		Size = UDim2.fromOffset(224, 38),
+		Position = UDim2.fromOffset(158, 5),
+		Size = UDim2.fromOffset(208, Theme.metrics.headerControlHeight),
 		Text = "",
 		TextColor3 = COLORS.text,
-		TextSize = 14,
+		TextSize = 13,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 202,
 	}, header) :: TextButton
 	create("UICorner", { CornerRadius = UDim.new(0, 6) }, stageSelector)
-	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, stageSelector)
+	create("UIStroke", {
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Color = COLORS.borderStrong,
+		Thickness = 1,
+	}, stageSelector)
+	stageSelector.MouseEnter:Connect(function()
+		if stageSelector.BackgroundColor3 == COLORS.surface then
+			stageSelector.BackgroundColor3 = COLORS.hover
+		end
+	end)
+	stageSelector.MouseLeave:Connect(function()
+		if stageSelector.BackgroundColor3 == COLORS.hover then
+			stageSelector.BackgroundColor3 = COLORS.surface
+		end
+	end)
 	local stageSelectorLabel = create("TextLabel", {
 		Active = false,
 		BackgroundTransparency = 1,
 		Font = Enum.Font.BuilderSansMedium,
-		Position = UDim2.fromOffset(14, 0),
-		Size = UDim2.new(1, -52, 1, 0),
+		Position = UDim2.fromOffset(10, 0),
+		Size = UDim2.new(1, -38, 1, 0),
 		Text = "Stage 1 / Level 1",
 		TextColor3 = COLORS.text,
-		TextSize = 14,
+		TextSize = 13,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 203,
 	}, stageSelector) :: TextLabel
 	local stageChevron = Toolbar.addVectorIcon(stageSelector, "chevron", COLORS.muted, 0)
 	stageChevron.AnchorPoint = Vector2.new(1, 0.5)
-	stageChevron.Position = UDim2.new(1, -12, 0.5, 0)
+	stageChevron.Position = UDim2.new(1, -10, 0.5, 0)
 
 	local stageDropdown = create("Frame", {
 		Active = true,
 		BackgroundColor3 = COLORS.panel,
 		BorderSizePixel = 0,
 		Name = "StageDropdown",
-		Position = UDim2.fromOffset(198, 51),
-		Size = UDim2.fromOffset(224, 294),
+		Position = UDim2.fromOffset(158, Theme.metrics.headerHeight + 4),
+		Size = UDim2.fromOffset(208, 294),
 		Visible = false,
 		ZIndex = 310,
 	}, config.popupLayer) :: Frame
@@ -197,7 +215,8 @@ function HeaderController.new(config: Config): Controller
 		AnchorPoint = Vector2.new(1, 0),
 		BackgroundColor3 = COLORS.panel,
 		BorderSizePixel = 0,
-		Position = UDim2.new(1, -8, 0, 58),
+		Name = "MenuPopup",
+		Position = UDim2.new(1, -8, 0, Theme.metrics.headerHeight + 4),
 		Size = UDim2.fromOffset(190, 190),
 		Visible = false,
 		ZIndex = 310,
@@ -255,8 +274,10 @@ function HeaderController.new(config: Config): Controller
 		end)
 		config.onRender()
 	end)
-	undo.Position = UDim2.fromOffset(452, 9)
-	undo.Size = UDim2.fromOffset(82, 34)
+	undo.Name = "UndoButton"
+	undo.Position = UDim2.fromOffset(374, 5)
+	undo.Size = UDim2.fromOffset(74, Theme.metrics.headerControlHeight)
+	undo.ZIndex = 102
 	Toolbar.styleIconButton(undo, "Undo", "undo", COLORS.muted)
 	local redo = button(header, "Redo", 82, function()
 		if not canRunMutation("Redo") then
@@ -267,18 +288,88 @@ function HeaderController.new(config: Config): Controller
 		end)
 		config.onRender()
 	end)
-	redo.Position = UDim2.fromOffset(540, 9)
-	redo.Size = UDim2.fromOffset(82, 34)
+	redo.Name = "RedoButton"
+	redo.Position = UDim2.fromOffset(454, 5)
+	redo.Size = UDim2.fromOffset(74, Theme.metrics.headerControlHeight)
+	redo.ZIndex = 102
 	Toolbar.styleIconButton(redo, "Redo", "redo", COLORS.muted)
 	local menu = button(header, "Menu", 76, function()
 		stageDropdown.Visible = false
 		menuPopup.Visible = not menuPopup.Visible
 	end)
+	menu.Name = "MenuButton"
 	menu.AnchorPoint = Vector2.new(1, 0)
-	menu.Position = UDim2.new(1, -8, 0, 9)
-	menu.Size = UDim2.fromOffset(76, 34)
+	menu.Position = UDim2.new(1, -8, 0, 5)
+	menu.Size = UDim2.fromOffset(76, Theme.metrics.headerControlHeight)
 	menu.ZIndex = 102
 	Toolbar.styleIconButton(menu, "Menu", "menu", COLORS.muted)
+
+	local lastDensity = ""
+	local function applyHeaderLayout()
+		local layout = Theme.resolveHeaderLayout(header.AbsoluteSize.X)
+		local controlY = math.floor((Theme.metrics.headerHeight - Theme.metrics.headerControlHeight) * 0.5)
+		local undoX = layout.stageX + layout.stageWidth + Theme.metrics.headerOuterPadding
+		local redoX = undoX + layout.historyWidth + Theme.metrics.headerControlGap
+		local validationRight = Theme.metrics.headerOuterPadding
+			+ layout.menuWidth
+			+ Theme.metrics.headerControlGap
+
+		logo.Position = UDim2.fromOffset(10, 8)
+		stageSelector.Position = UDim2.fromOffset(layout.stageX, controlY)
+		stageSelector.Size = UDim2.fromOffset(layout.stageWidth, Theme.metrics.headerControlHeight)
+		stageSelectorLabel.TextSize = if layout.density == "compact" then 12 else 13
+		stageDropdown.Position = UDim2.fromOffset(layout.stageX, Theme.metrics.headerHeight + 4)
+		stageDropdown.Size = UDim2.fromOffset(layout.stageWidth, 294)
+
+		undo.Position = UDim2.fromOffset(undoX, controlY)
+		undo.Size = UDim2.fromOffset(layout.historyWidth, Theme.metrics.headerControlHeight)
+		redo.Position = UDim2.fromOffset(redoX, controlY)
+		redo.Size = UDim2.fromOffset(layout.historyWidth, Theme.metrics.headerControlHeight)
+		menu.Position = UDim2.new(1, -Theme.metrics.headerOuterPadding, 0, controlY)
+		menu.Size = UDim2.fromOffset(layout.menuWidth, Theme.metrics.headerControlHeight)
+		menuPopup.Position =
+			UDim2.new(1, -Theme.metrics.headerOuterPadding, 0, Theme.metrics.headerHeight + 4)
+
+		config.headerValidation.Position = UDim2.new(1, -validationRight, 0, controlY)
+		config.headerValidation.Size =
+			UDim2.fromOffset(layout.validationWidth, Theme.metrics.headerControlHeight)
+		config.headerValidation.TextTransparency = if layout.showValidationLabel then 0 else 1
+		config.headerValidation:SetAttribute("StagewrightIconOnly", not layout.showValidationLabel)
+		validationPadding.PaddingLeft =
+			UDim.new(0, if layout.showValidationLabel then Theme.metrics.iconButtonTextPaddingLeft else 0)
+		validationPadding.PaddingRight =
+			UDim.new(0, if layout.showValidationLabel then Theme.metrics.iconButtonTextPaddingRight else 0)
+		local validationIcon = config.headerValidation:FindFirstChild("VectorIcon")
+		if validationIcon ~= nil and validationIcon:IsA("GuiObject") then
+			if layout.showValidationLabel then
+				validationIcon.AnchorPoint = Vector2.new(0, 0.5)
+				validationIcon.Position =
+					UDim2.new(0, Theme.metrics.iconInset - Theme.metrics.iconButtonTextPaddingLeft, 0.5, 0)
+			else
+				validationIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+				validationIcon.Position = UDim2.fromScale(0.5, 0.5)
+			end
+		end
+
+		if lastDensity ~= layout.density then
+			if layout.showHistoryLabels then
+				Toolbar.styleIconButton(undo, "Undo", "undo", COLORS.muted)
+				Toolbar.styleIconButton(redo, "Redo", "redo", COLORS.muted)
+			else
+				Toolbar.styleIconOnlyButton(undo, "Undo", "undo", COLORS.muted)
+				Toolbar.styleIconOnlyButton(redo, "Redo", "redo", COLORS.muted)
+			end
+			if layout.showMenuLabel then
+				Toolbar.styleIconButton(menu, "Menu", "menu", COLORS.muted)
+			else
+				Toolbar.styleIconOnlyButton(menu, "Menu", "menu", COLORS.muted)
+			end
+			lastDensity = layout.density
+		end
+	end
+
+	header:GetPropertyChangedSignal("AbsoluteSize"):Connect(applyHeaderLayout)
+	applyHeaderLayout()
 
 	return controller
 end

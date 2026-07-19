@@ -30,21 +30,32 @@ function Factory.button(parent: Instance, text: string, width: number?, callback
 	}, parent) :: TextButton
 	Factory.create("UICorner", { CornerRadius = UDim.new(0, Theme.metrics.cornerRadius) }, result)
 	local stroke = Factory.create("UIStroke", {
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 		Name = "Outline",
 		Color = COLORS.border,
 		Thickness = 1,
 	}, result) :: UIStroke
+	local restingBackground: Color3? = nil
+	local restingStroke: Color3? = nil
 	result.MouseEnter:Connect(function()
-		if result.Active and result.BackgroundColor3 == COLORS.field then
+		local background = result.BackgroundColor3
+		if
+			result.Active
+			and (background == COLORS.field or background == COLORS.surface or background == COLORS.panel)
+		then
+			restingBackground = background
+			restingStroke = stroke.Color
 			result.BackgroundColor3 = COLORS.hover
 			stroke.Color = COLORS.borderStrong
 		end
 	end)
 	result.MouseLeave:Connect(function()
-		if result.Active and result.BackgroundColor3 == COLORS.hover then
-			result.BackgroundColor3 = COLORS.field
-			stroke.Color = COLORS.border
+		if result.BackgroundColor3 == COLORS.hover and restingBackground ~= nil then
+			result.BackgroundColor3 = restingBackground
+			stroke.Color = restingStroke or COLORS.border
 		end
+		restingBackground = nil
+		restingStroke = nil
 	end)
 	result.Activated:Connect(callback)
 	return result

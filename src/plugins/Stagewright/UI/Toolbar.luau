@@ -8,6 +8,14 @@ local create = Factory.create
 
 local Toolbar = {}
 
+local function paddingFor(result: TextButton): UIPadding
+	local padding = result:FindFirstChildOfClass("UIPadding")
+	if padding == nil then
+		padding = create("UIPadding", {}, result) :: UIPadding
+	end
+	return padding
+end
+
 function Toolbar.iconLine(
 	parent: Instance,
 	x: number,
@@ -77,6 +85,10 @@ function Toolbar.addVectorIcon(parent: GuiObject, kind: string, color: Color3, o
 		Size = UDim2.fromOffset(20, 20),
 		ZIndex = parent.ZIndex + 1,
 	}, parent) :: Frame
+	if parent:GetAttribute("StagewrightIconOnly") == true then
+		icon.AnchorPoint = Vector2.new(0.5, 0.5)
+		icon.Position = UDim2.fromScale(0.5, 0.5)
+	end
 	local zIndex = icon.ZIndex + 1
 	if kind == "menu" then
 		for _, y in { 5, 10, 15 } do
@@ -180,18 +192,29 @@ function Toolbar.addVectorIcon(parent: GuiObject, kind: string, color: Color3, o
 end
 
 function Toolbar.styleIconButton(result: TextButton, label: string, iconKind: string, iconColor: Color3?)
+	result:SetAttribute("StagewrightIconOnly", false)
 	result.Text = label
 	result.Font = Enum.Font.BuilderSansMedium
 	result.TextColor3 = COLORS.text
 	result.TextSize = 13
 	result.TextXAlignment = Enum.TextXAlignment.Left
-	local padding = result:FindFirstChildOfClass("UIPadding")
-	if padding == nil then
-		padding = create("UIPadding", {}, result) :: UIPadding
-	end
-	padding.PaddingLeft = UDim.new(0, 39)
-	padding.PaddingRight = UDim.new(0, 10)
-	Toolbar.addVectorIcon(result, iconKind, iconColor or COLORS.muted, 12)
+	local padding = paddingFor(result)
+	padding.PaddingLeft = UDim.new(0, Theme.metrics.iconButtonTextPaddingLeft)
+	padding.PaddingRight = UDim.new(0, Theme.metrics.iconButtonTextPaddingRight)
+	Toolbar.addVectorIcon(result, iconKind, iconColor or COLORS.muted, Theme.metrics.iconInset)
+end
+
+function Toolbar.styleIconOnlyButton(result: TextButton, label: string, iconKind: string, iconColor: Color3?)
+	result:SetAttribute("StagewrightIconOnly", true)
+	result.Name = if result.Name == "TextButton" then `{label}Button` else result.Name
+	result.Text = ""
+	result.TextXAlignment = Enum.TextXAlignment.Center
+	local padding = paddingFor(result)
+	padding.PaddingLeft = UDim.new(0, 0)
+	padding.PaddingRight = UDim.new(0, 0)
+	local icon = Toolbar.addVectorIcon(result, iconKind, iconColor or COLORS.muted, 0)
+	icon.AnchorPoint = Vector2.new(0.5, 0.5)
+	icon.Position = UDim2.fromScale(0.5, 0.5)
 end
 
 function Toolbar.setNavigationSelected(result: TextButton, selected: boolean)

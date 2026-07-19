@@ -9,6 +9,7 @@ type StageDefinition = StageTypes.StageDefinition
 type StagePreviewDefinition = StageTypes.StagePreviewDefinition
 
 export type Option = "AssetPreview" | "Lanes" | "BuildMask" | "Conflicts"
+export type Tool = WorldPathView.Tool
 
 export type RenderState = {
 	stage: StageDefinition?,
@@ -22,6 +23,8 @@ export type RenderState = {
 export type Config = {
 	parent: Instance,
 	theme: WorldPathView.Theme,
+	worldSource: () -> Instance?,
+	worldOrigin: () -> CFrame?,
 	currentPreview: () -> StagePreviewDefinition?,
 	beginEdit: (label: string) -> number?,
 	finishEdit: (transaction: number, commit: boolean) -> boolean,
@@ -35,6 +38,7 @@ export type Config = {
 	reportBlocked: (action: string) -> (),
 	onCommitted: () -> (),
 	onFailed: (action: string) -> (),
+	addNode: (kind: "Spawn" | "Junction" | "Goal", position: WorldPathEditSession.Vec3) -> (),
 	selectNode: (nodeId: string) -> (),
 	selectEdge: (edgeId: string) -> (),
 	setLanes: (edgeId: string, laneCount: number) -> (),
@@ -46,6 +50,7 @@ export type Controller = {
 	render: (self: Controller, state: RenderState) -> (),
 	getOption: (self: Controller, option: Option) -> boolean,
 	toggleOption: (self: Controller, option: Option) -> (),
+	setTool: (self: Controller, tool: Tool) -> (),
 	fitToView: (self: Controller) -> (),
 	cancelInteraction: (self: Controller) -> boolean,
 	destroy: (self: Controller) -> (),
@@ -71,6 +76,15 @@ function WorldPathController.new(config: Config): Controller
 
 	view = WorldPathView.new(config.parent, config.theme, {
 		cancelInteraction = config.cancelActiveInteraction,
+		worldSource = config.worldSource,
+		worldOrigin = config.worldOrigin,
+		addNode = function(kind: "Spawn" | "Junction" | "Goal", position: any)
+			config.addNode(kind, {
+				x = position.x,
+				y = position.y,
+				z = position.z,
+			})
+		end,
 		selectNode = config.selectNode,
 		selectEdge = config.selectEdge,
 		moveNode = function(nodeId: string, position: any, finished: boolean)
@@ -129,6 +143,9 @@ function WorldPathController.new(config: Config): Controller
 			view.showConflicts = enabled
 		end
 		view:rerender()
+	end
+	controller.setTool = function(_self: Controller, tool: Tool)
+		view:setTool(tool)
 	end
 	controller.fitToView = function(_self: Controller)
 		view:fitToView()

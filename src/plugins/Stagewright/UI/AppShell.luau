@@ -27,6 +27,12 @@ export type Controller = {
 
 local AppShell = {}
 local FOOTER_HEIGHT = 28
+local COMPACT_PANEL_BUTTON_WIDTH = 76
+local COMPACT_DRAWER_INSET = 8
+local COMPACT_LEFT_DRAWER_WIDTH = 248
+local COMPACT_RIGHT_DRAWER_WIDTH = 268
+
+type CompactPanel = "Left" | "Right"
 
 function AppShell.new(widget: DockWidgetPluginGui): Controller
 	local root = create("Frame", {
@@ -53,22 +59,33 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 	local title = create("TextLabel", {
 		BackgroundTransparency = 1,
 		Font = Enum.Font.BuilderSansBold,
-		Position = UDim2.fromOffset(52, 0),
-		Size = UDim2.fromOffset(128, Theme.metrics.headerHeight),
+		Position = UDim2.fromOffset(46, 0),
+		Size = UDim2.fromOffset(104, Theme.metrics.headerHeight),
 		Text = "Stagewright",
 		TextColor3 = COLORS.text,
-		TextSize = 17,
+		TextSize = 16,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 3,
 	}, header) :: TextLabel
 	local modes = create("Frame", {
-		AnchorPoint = Vector2.new(1, 0.5),
-		BackgroundTransparency = 1,
-		Position = UDim2.new(1, -96, 0.5, 0),
-		Size = UDim2.fromOffset(500, 34),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = COLORS.surface,
+		BorderSizePixel = 0,
+		ClipsDescendants = true,
+		Name = "WorkspaceNavigation",
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(436, Theme.metrics.headerControlHeight),
+		ZIndex = 1,
 	}, header) :: Frame
+	create("UICorner", { CornerRadius = UDim.new(0, 7) }, modes)
+	create("UIStroke", {
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Color = COLORS.borderStrong,
+		Thickness = 1,
+	}, modes)
 	create("UIGridLayout", {
-		CellPadding = UDim2.fromOffset(8, 0),
-		CellSize = UDim2.new(0.25, -6, 1, 0),
+		CellPadding = UDim2.fromOffset(2, 0),
+		CellSize = UDim2.new(0.25, -1.5, 1, 0),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 	}, modes)
 	local body = create("Frame", {
@@ -112,7 +129,7 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 		Font = Enum.Font.BuilderSans,
 		Position = UDim2.fromScale(1, 0),
 		Size = UDim2.fromOffset(180, 34),
-		Text = "Stagewright 2.4 - Edit mode only",
+		Text = "Stagewright 2.5 - Edit mode only",
 		TextColor3 = COLORS.muted,
 		TextSize = 10,
 		TextXAlignment = Enum.TextXAlignment.Right,
@@ -123,14 +140,27 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 		BackgroundColor3 = Color3.fromRGB(45, 35, 18),
 		BorderSizePixel = 0,
 		Font = Enum.Font.BuilderSansBold,
-		Position = UDim2.new(1, -598, 0, 9),
-		Size = UDim2.fromOffset(174, 34),
+		Name = "HeaderValidation",
+		Position = UDim2.new(1, -90, 0, 5),
+		Size = UDim2.fromOffset(188, Theme.metrics.headerControlHeight),
 		Text = "Checking project...",
 		TextColor3 = COLORS.muted,
 		TextSize = 12,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 102,
 	}, header) :: TextButton
 	create("UICorner", { CornerRadius = UDim.new(0, 7) }, headerValidation)
-	create("UIStroke", { Color = COLORS.border, Thickness = 1 }, headerValidation)
+	create("UIStroke", {
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Color = COLORS.border,
+		Name = "Outline",
+		Thickness = 1,
+	}, headerValidation)
+	create("UIPadding", {
+		PaddingLeft = UDim.new(0, Theme.metrics.iconButtonTextPaddingLeft),
+		PaddingRight = UDim.new(0, Theme.metrics.iconButtonTextPaddingRight),
+	}, headerValidation)
 
 	-- Header dropdowns must sit above every editor surface without turning the
 	-- entire window into an input blocker. Only the visible popup children are
@@ -183,8 +213,67 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 		TextSize = 12,
 		TextXAlignment = Enum.TextXAlignment.Left,
 	}, rightSidebar) :: TextLabel
+	local leftCorner = create("UICorner", { CornerRadius = UDim.new(0, 0) }, leftSidebar) :: UICorner
+	local rightCorner = create("UICorner", { CornerRadius = UDim.new(0, 0) }, rightSidebar) :: UICorner
+	local leftOutline = create("UIStroke", {
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Color = COLORS.borderStrong,
+		Enabled = false,
+		Thickness = 1,
+	}, leftSidebar) :: UIStroke
+	local rightOutline = create("UIStroke", {
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Color = COLORS.borderStrong,
+		Enabled = false,
+		Thickness = 1,
+	}, rightSidebar) :: UIStroke
+
+	-- Compact layouts keep the editor canvas at full width. These controls reveal
+	-- the existing authored sidebars as mutually-exclusive drawers, so Paint,
+	-- Stages, and Validate never lose their tools or inspector at the 880 px
+	-- supported minimum. The drawer contains the original controls and state;
+	-- there is no second compact implementation to drift out of sync.
+	local compactDismiss = create("TextButton", {
+		AutoButtonColor = false,
+		BackgroundColor3 = Color3.fromRGB(3, 7, 12),
+		BackgroundTransparency = 0.28,
+		BorderSizePixel = 0,
+		Name = "CompactPanelDismiss",
+		Size = UDim2.fromScale(1, 1),
+		Text = "",
+		Visible = false,
+		ZIndex = 110,
+	}, body) :: TextButton
 
 	local controller: Controller = {} :: any
+	local responsiveMode: Mode = "Graph"
+	local compactPanel: CompactPanel? = nil
+	local compactToolsButton: TextButton
+	local compactInspectorButton: TextButton
+	compactToolsButton = Factory.button(header, "Tools", COMPACT_PANEL_BUTTON_WIDTH, function()
+		compactPanel = if compactPanel == "Left" then nil else "Left"
+		controller:applyResponsive(responsiveMode)
+	end)
+	compactToolsButton.Name = "CompactToolsButton"
+	compactToolsButton.AnchorPoint = Vector2.new(1, 0)
+	compactToolsButton.Size = UDim2.fromOffset(COMPACT_PANEL_BUTTON_WIDTH, Theme.metrics.headerControlHeight)
+	compactToolsButton.Visible = false
+	compactToolsButton.ZIndex = 203
+	compactInspectorButton = Factory.button(header, "Inspect", COMPACT_PANEL_BUTTON_WIDTH, function()
+		compactPanel = if compactPanel == "Right" then nil else "Right"
+		controller:applyResponsive(responsiveMode)
+	end)
+	compactInspectorButton.Name = "CompactInspectorButton"
+	compactInspectorButton.AnchorPoint = Vector2.new(1, 0)
+	compactInspectorButton.Size =
+		UDim2.fromOffset(COMPACT_PANEL_BUTTON_WIDTH, Theme.metrics.headerControlHeight)
+	compactInspectorButton.Visible = false
+	compactInspectorButton.ZIndex = 203
+	compactDismiss.Activated:Connect(function()
+		compactPanel = nil
+		controller:applyResponsive(responsiveMode)
+	end)
+
 	controller.root = root
 	controller.header = header
 	controller.title = title
@@ -200,27 +289,112 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 	controller.inspectorTitle = inspectorTitle
 	controller.applyResponsive = function(self: Controller, mode: Mode)
 		local width = self.root.AbsoluteSize.X
+		local headerLayout = Theme.resolveHeaderLayout(width)
 		local wantsInspector = mode ~= "Validate"
+		local isCompact = headerLayout.density == "compact"
+		if responsiveMode ~= mode then
+			compactPanel = nil
+		end
+		responsiveMode = mode
 		local leftWidth = if width >= 1_500
 			then if mode == "Paint" then 232 elseif mode == "Validate" then 196 else 240
-			else if width >= 1_100 then 208 else 172
+			else if width >= 1_050 then 208 else 172
 		local inspectorWidth = if width >= 1_500
 			then if mode == "Graph" then 300 elseif mode == "Stage" then 310 else 260
 			else 236
+
+		self.title.Visible = headerLayout.showTitle
+		self.modes.AnchorPoint = Vector2.new(0.5, 0.5)
+		self.modes.Position = UDim2.fromScale(0.5, 0.5)
+		self.modes.Size = UDim2.fromOffset(headerLayout.navWidth, Theme.metrics.headerControlHeight)
+		for _, child in self.modes:GetChildren() do
+			if child:IsA("TextButton") then
+				child.TextSize = headerLayout.modeTextSize
+			end
+		end
+
+		self.headerValidation.Visible = true
+		local validationRight = Theme.metrics.headerOuterPadding
+			+ headerLayout.menuWidth
+			+ Theme.metrics.headerControlGap
+		local inspectorButtonRight = validationRight
+			+ headerLayout.validationWidth
+			+ Theme.metrics.headerControlGap
+		local controlY = math.floor((Theme.metrics.headerHeight - Theme.metrics.headerControlHeight) * 0.5)
+		compactInspectorButton.Position = UDim2.new(1, -inspectorButtonRight, 0, controlY)
+		compactToolsButton.Position = UDim2.new(
+			1,
+			-(inspectorButtonRight + COMPACT_PANEL_BUTTON_WIDTH + Theme.metrics.headerControlGap),
+			0,
+			controlY
+		)
+
 		if mode == "Graph" then
+			compactPanel = nil
+			compactToolsButton.Visible = false
+			compactInspectorButton.Visible = false
+			compactDismiss.Visible = false
 			self.leftSidebar.Visible = false
 			self.rightSidebar.Visible = false
 			self.workspace.Position = UDim2.fromOffset(0, 0)
 			self.workspace.Size = UDim2.fromScale(1, 1)
-			self.title.Visible = true
-			self.modes.AnchorPoint = Vector2.new(1, 0.5)
-			self.modes.Position = UDim2.new(1, -96, 0.5, 0)
-			self.modes.Size = UDim2.fromOffset(500, 34)
-			self.headerValidation.Visible = true
-		elseif width >= 760 then
+		elseif isCompact then
+			if not wantsInspector and compactPanel == "Right" then
+				compactPanel = nil
+			end
+			compactToolsButton.Text = if mode == "Stage"
+				then "Levels"
+				elseif mode == "Validate" then "Issues"
+				else "Tools"
+			compactToolsButton.Visible = true
+			compactInspectorButton.Visible = wantsInspector
+			compactDismiss.Visible = compactPanel ~= nil
+			Factory.setSelected(compactToolsButton, compactPanel == "Left")
+			Factory.setSelected(compactInspectorButton, compactPanel == "Right")
+
+			self.workspace.Position = UDim2.fromOffset(0, 0)
+			self.workspace.Size = UDim2.fromScale(1, 1)
+			self.leftSidebar.AnchorPoint = Vector2.new(0, 0)
+			self.leftSidebar.Position = UDim2.fromOffset(COMPACT_DRAWER_INSET, COMPACT_DRAWER_INSET)
+			self.leftSidebar.Size = UDim2.new(
+				0,
+				math.min(COMPACT_LEFT_DRAWER_WIDTH, width - COMPACT_DRAWER_INSET * 2),
+				1,
+				-COMPACT_DRAWER_INSET * 2
+			)
+			self.leftSidebar.Visible = compactPanel == "Left"
+			self.leftSidebar.ZIndex = 120
+			self.rightSidebar.AnchorPoint = Vector2.new(1, 0)
+			self.rightSidebar.Position = UDim2.new(1, -COMPACT_DRAWER_INSET, 0, COMPACT_DRAWER_INSET)
+			self.rightSidebar.Size = UDim2.new(
+				0,
+				math.min(COMPACT_RIGHT_DRAWER_WIDTH, width - COMPACT_DRAWER_INSET * 2),
+				1,
+				-COMPACT_DRAWER_INSET * 2
+			)
+			self.rightSidebar.Visible = compactPanel == "Right" and wantsInspector
+			self.rightSidebar.ZIndex = 120
+			leftCorner.CornerRadius = UDim.new(0, 8)
+			rightCorner.CornerRadius = UDim.new(0, 8)
+			leftOutline.Enabled = true
+			rightOutline.Enabled = true
+		else
+			compactPanel = nil
+			compactToolsButton.Visible = false
+			compactInspectorButton.Visible = false
+			compactDismiss.Visible = false
+			Factory.setSelected(compactToolsButton, false)
+			Factory.setSelected(compactInspectorButton, false)
+			leftCorner.CornerRadius = UDim.new(0, 0)
+			rightCorner.CornerRadius = UDim.new(0, 0)
+			leftOutline.Enabled = false
+			rightOutline.Enabled = false
 			self.leftSidebar.Visible = true
+			self.leftSidebar.AnchorPoint = Vector2.new(0, 0)
+			self.leftSidebar.Position = UDim2.fromOffset(0, 0)
 			self.rightSidebar.Visible = wantsInspector
 			self.leftSidebar.Size = UDim2.new(0, leftWidth, 1, 0)
+			self.leftSidebar.ZIndex = 1
 			self.workspace.Position = UDim2.fromOffset(leftWidth + 1, 0)
 			self.workspace.Size = UDim2.new(
 				1,
@@ -228,22 +402,10 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 				1,
 				0
 			)
+			self.rightSidebar.AnchorPoint = Vector2.new(1, 0)
+			self.rightSidebar.Position = UDim2.fromScale(1, 0)
 			self.rightSidebar.Size = UDim2.new(0, inspectorWidth, 1, 0)
-			self.title.Visible = true
-			self.modes.AnchorPoint = Vector2.new(1, 0.5)
-			self.modes.Position = UDim2.new(1, -96, 0.5, 0)
-			self.modes.Size = UDim2.fromOffset(500, 34)
-			self.headerValidation.Visible = true
-		else
-			self.leftSidebar.Visible = false
-			self.rightSidebar.Visible = false
-			self.workspace.Position = UDim2.fromOffset(0, 0)
-			self.workspace.Size = UDim2.fromScale(1, 1)
-			self.title.Visible = false
-			self.modes.AnchorPoint = Vector2.new(0, 0.5)
-			self.modes.Position = UDim2.new(0, 10, 0.5, 0)
-			self.modes.Size = UDim2.new(1, -20, 0, 30)
-			self.headerValidation.Visible = false
+			self.rightSidebar.ZIndex = 1
 		end
 	end
 	return controller

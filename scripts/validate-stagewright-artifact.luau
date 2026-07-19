@@ -94,7 +94,7 @@ for _, marker in
 		"Delete spline",
 		"Add Junction",
 		"Lanes 1/2/3",
-		"Preview in World",
+		"In Studio",
 		"ProjectStorage.writePayload",
 		"WorkspacePreview.new",
 		"StagewrightPanelV2",

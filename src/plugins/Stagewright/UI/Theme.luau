@@ -28,12 +28,89 @@ export type Palette = {
 
 export type Metrics = {
 	headerHeight: number,
+	headerControlHeight: number,
+	headerControlGap: number,
+	headerOuterPadding: number,
+	iconInset: number,
+	iconButtonTextPaddingLeft: number,
+	iconButtonTextPaddingRight: number,
 	flowViewBarHeight: number,
 	flowActionBarHeight: number,
 	controlHeight: number,
 	cornerRadius: number,
 	panelGap: number,
 }
+
+export type HeaderDensity = "compact" | "medium" | "wide"
+
+export type HeaderLayout = {
+	density: HeaderDensity,
+	modeTextSize: number,
+	navWidth: number,
+	stageX: number,
+	stageWidth: number,
+	historyWidth: number,
+	menuWidth: number,
+	validationWidth: number,
+	showTitle: boolean,
+	showHistoryLabels: boolean,
+	showMenuLabel: boolean,
+	showValidationLabel: boolean,
+}
+
+local COMPACT_HEADER: HeaderLayout = table.freeze({
+	density = "compact",
+	modeTextSize = 12,
+	navWidth = 340,
+	stageX = 42,
+	stageWidth = 150,
+	historyWidth = 30,
+	menuWidth = 32,
+	validationWidth = 34,
+	showTitle = false,
+	showHistoryLabels = false,
+	showMenuLabel = false,
+	showValidationLabel = false,
+})
+
+local MEDIUM_HEADER: HeaderLayout = table.freeze({
+	density = "medium",
+	modeTextSize = 13,
+	navWidth = 400,
+	stageX = 44,
+	stageWidth = 180,
+	historyWidth = 36,
+	menuWidth = 76,
+	validationWidth = 188,
+	showTitle = false,
+	showHistoryLabels = false,
+	showMenuLabel = true,
+	showValidationLabel = true,
+})
+
+local WIDE_HEADER: HeaderLayout = table.freeze({
+	density = "wide",
+	modeTextSize = 14,
+	navWidth = 436,
+	stageX = 158,
+	stageWidth = 208,
+	historyWidth = 74,
+	menuWidth = 76,
+	validationWidth = 188,
+	showTitle = true,
+	showHistoryLabels = true,
+	showMenuLabel = true,
+	showValidationLabel = true,
+})
+
+local function resolveHeaderLayout(width: number): HeaderLayout
+	if width >= 1_500 then
+		return WIDE_HEADER
+	elseif width >= 1_050 then
+		return MEDIUM_HEADER
+	end
+	return COMPACT_HEADER
+end
 
 local Theme = {
 	colors = table.freeze({
@@ -62,13 +139,20 @@ local Theme = {
 		route = Color3.fromRGB(73, 207, 230),
 	} :: Palette),
 	metrics = table.freeze({
-		headerHeight = 52,
-		flowViewBarHeight = 52,
-		flowActionBarHeight = 56,
+		headerHeight = 44,
+		headerControlHeight = 34,
+		headerControlGap = 6,
+		headerOuterPadding = 8,
+		iconInset = 10,
+		iconButtonTextPaddingLeft = 33,
+		iconButtonTextPaddingRight = 7,
+		flowViewBarHeight = 44,
+		flowActionBarHeight = 44,
 		controlHeight = 34,
 		cornerRadius = 6,
 		panelGap = 8,
 	} :: Metrics),
+	resolveHeaderLayout = resolveHeaderLayout,
 }
 
 return table.freeze(Theme)
