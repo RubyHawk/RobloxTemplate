@@ -5963,8 +5963,25 @@ do
 	expectEqual(defaults.defaultBossId, "forest_warden", "dungeon defaults resolve the authored boss id")
 	expectEqual(#defaults.bosses, 1, "dungeon defaults expose the authored boss list")
 	expectEqual(defaults.bosses[1].baseHealth, 2500, "dungeon default boss keeps its authored health")
+	expectEqual(defaults.attackCooldownSeconds, 0.35, "dungeon defaults keep the authored attack cooldown")
+	expectEqual(defaults.proximityAutoDps, false, "dungeon defaults make click-to-attack the damage source")
+	expectEqual(
+		defaults.bosses[1].attackDamagePerHit,
+		90,
+		"dungeon default boss keeps its authored hit damage"
+	)
 
 	expectEqual(DungeonConfig.normalize({ partyMax = 999 }).partyMax, 12, "party max clamps to the ceiling")
+	expectEqual(
+		DungeonConfig.normalize({ proximityAutoDps = true }).proximityAutoDps,
+		true,
+		"proximity auto-dps can be re-enabled by a recipe"
+	)
+	expectEqual(
+		DungeonConfig.normalize({ attackCooldownSeconds = 100 }).attackCooldownSeconds,
+		5,
+		"attack cooldown clamps to the ceiling"
+	)
 	expectEqual(DungeonConfig.normalize({ partyMax = 0 }).partyMax, 1, "party max clamps to the floor")
 	expectEqual(
 		DungeonConfig.normalize({ countdownSeconds = 1000 }).countdownSeconds,
@@ -6001,6 +6018,33 @@ do
 		customBoss.defaultBossId,
 		"warden_two",
 		"the default boss id resolves to the first valid boss"
+	)
+	expectEqual(
+		customBoss.bosses[1].attackDamagePerHit,
+		90,
+		"an omitted attackDamagePerHit defaults to the authored value"
+	)
+
+	local badHitBoss = DungeonConfig.normalize({
+		bosses = {
+			{
+				id = "bad_hit",
+				name = "Bad Hit",
+				baseHealth = 100,
+				healthPerExtraPlayer = 0,
+				partyDpsPerPlayer = 1,
+				attackDamagePerHit = 0,
+				attackDamage = 0,
+				timeLimitSeconds = 10,
+				rewardCurrencyId = "coins",
+				rewardAmount = 0,
+			},
+		},
+	})
+	expectEqual(
+		badHitBoss.bosses[1].id,
+		"forest_warden",
+		"a present-but-invalid attackDamagePerHit falls back wholesale"
 	)
 
 	local duplicateBoss = DungeonConfig.normalize({
@@ -6075,6 +6119,9 @@ do
 	expectEqual(DungeonLogic.applyDamage(5, 10, 2), 0, "health never drops below zero")
 	expectEqual(DungeonLogic.applyDamage(100, 10, -1), 100, "negative delta time never heals or hurts")
 
+	expectEqual(DungeonLogic.applyHit(1000, 90), 910, "a validated hit removes its damage from boss health")
+	expectEqual(DungeonLogic.applyHit(50, 90), 0, "a hit never drops boss health below zero")
+	expectEqual(DungeonLogic.applyHit(100, -5), 100, "negative hit damage never heals the boss")
 	expectEqual(DungeonLogic.isDefeated(0), true, "zero health is a defeat")
 	expectEqual(DungeonLogic.isDefeated(1), false, "positive health is not a defeat")
 	expectEqual(DungeonLogic.healthFraction(50, 100), 0.5, "half health reports a half bar")

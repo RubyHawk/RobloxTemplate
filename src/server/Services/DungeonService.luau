@@ -35,9 +35,24 @@ export type Deps = {
 
 local DungeonService = {}
 
+type Run = {
+	active: boolean,
+	boss: DungeonConfig.Boss,
+	core: BasePart?,
+	party: { Player },
+	health: number,
+	maxHealth: number,
+	startClock: number,
+}
+
 local dungeon = Config.dungeon
 local deps: Deps? = nil
 local runInProgress = false
+-- Authoritative state for the active fight, exposed so the DungeonAttack remote
+-- handler can apply validated hits between combat ticks. `lastHitAt` enforces a
+-- per-player attack cooldown on the server.
+local run: Run? = nil
+local lastHitAt: { [Player]: number } = {}
 
 -- Reserved-server detection. In Studio a reserved server cannot exist, so a
 -- Workspace attribute opts a test session into dungeon mode.
@@ -158,8 +173,30 @@ local function bossAttack(party: { Player }, core: BasePart, boss: DungeonConfig
 	end
 end
 
+-- Broadcasts the current fight's HUD snapshot. Reads the shared `run` state so
+-- both the combat loop and the DungeonAttack handler publish the same source.
+local function publishRun(phase: string, result: string?)
+	local current = run
+	local target = deps
+	if current == nil or target == nil then
+		return
+	end
+	target.publish({
+		active = true,
+		bossName = current.boss.name,
+		fraction = DungeonLogic.healthFraction(current.health, current.maxHealth),
+		phase = phase,
+		result = result,
+		timeLeft = DungeonLogic.countdownRemaining(
+			current.startClock + current.boss.timeLimitSeconds,
+			os.clock()
+		),
+	})
+end
+
 -- Runs one server-authoritative boss fight against `party`, positioning them on
--- the arena first. Returns the result ("victory" | "defeat") and the survivors.
+-- the arena first. Damage comes from validated player hits (DungeonAttack);
+-- proximity auto-DPS is an opt-in fallback. Returns the result and survivors.
 local function runFight(party: { Player }, bossId: string): (string, { Player })
 	local boss = DungeonConfig.bossById(dungeon, bossId) or dungeon.bosses[1]
 	local arena = findArena()
@@ -174,28 +211,24 @@ local function runFight(party: { Player }, bossId: string): (string, { Player })
 	end
 
 	local maxHealth = DungeonLogic.bossMaxHealth(boss, #party)
-	local health = maxHealth
-	local startClock = os.clock()
-	local lastClock = startClock
-	local lastAttack = startClock
+	local current: Run = {
+		active = true,
+		boss = boss,
+		core = core,
+		party = party,
+		health = maxHealth,
+		maxHealth = maxHealth,
+		startClock = os.clock(),
+	}
+	run = current
+	table.clear(lastHitAt)
+
+	local lastClock = current.startClock
+	local lastAttack = current.startClock
 	local lastSnapshot = 0
 	local result = "defeat"
 
-	local function push(phase: string)
-		local target = deps
-		if target == nil then
-			return
-		end
-		target.publish({
-			active = true,
-			bossName = boss.name,
-			fraction = DungeonLogic.healthFraction(health, maxHealth),
-			phase = phase,
-			timeLeft = DungeonLogic.countdownRemaining(startClock + boss.timeLimitSeconds, os.clock()),
-		})
-	end
-
-	push("fight")
+	publishRun("fight")
 	while true do
 		task.wait(dungeon.tickSeconds)
 		local now = os.clock()
@@ -208,17 +241,18 @@ local function runFight(party: { Player }, bossId: string): (string, { Player })
 			break
 		end
 
-		if core ~= nil then
+		if core ~= nil and dungeon.proximityAutoDps then
 			local attackers = attackersInRing(party, core.Position, dungeon.damageRingRadius)
-			health = DungeonLogic.applyDamage(health, DungeonLogic.partyDps(boss, attackers), dt)
+			current.health =
+				DungeonLogic.applyDamage(current.health, DungeonLogic.partyDps(boss, attackers), dt)
 		end
 
-		if DungeonLogic.isDefeated(health) then
+		if DungeonLogic.isDefeated(current.health) then
 			result = "victory"
 			break
 		end
 
-		if now - startClock >= boss.timeLimitSeconds then
+		if now - current.startClock >= boss.timeLimitSeconds then
 			result = "defeat"
 			break
 		end
@@ -230,21 +264,13 @@ local function runFight(party: { Player }, bossId: string): (string, { Player })
 
 		if now - lastSnapshot >= dungeon.snapshotSeconds then
 			lastSnapshot = now
-			push("fight")
+			publishRun("fight")
 		end
 	end
 
+	current.active = false
 	local survivors = livingParty(party)
-	if deps ~= nil then
-		deps.publish({
-			active = true,
-			bossName = boss.name,
-			fraction = DungeonLogic.healthFraction(health, maxHealth),
-			phase = result,
-			result = result,
-			timeLeft = 0,
-		})
-	end
+	publishRun(result, result)
 
 	if result == "victory" and deps ~= nil then
 		for _, player in survivors do
@@ -257,7 +283,45 @@ local function runFight(party: { Player }, bossId: string): (string, { Player })
 		end
 	end
 
+	run = nil
 	return result, survivors
+end
+
+-- DungeonAttack remote entry: a single validated player hit on the boss. The
+-- client only asks; the server verifies an active run, party membership,
+-- liveness, range, and a per-player cooldown before subtracting health.
+function DungeonService.registerHit(player: Player): (boolean, string)
+	local current = run
+	if current == nil or not current.active then
+		return false, "No active dungeon"
+	end
+	if table.find(current.party, player) == nil then
+		return false, "You are not in this dungeon"
+	end
+	local root, humanoid = characterRoot(player)
+	if root == nil or humanoid == nil or humanoid.Health <= 0 then
+		return false, "You are down"
+	end
+	local core = current.core
+	if core == nil then
+		return false, "The boss is not present"
+	end
+	local now = os.clock()
+	if now - (lastHitAt[player] or 0) < dungeon.attackCooldownSeconds then
+		return false, "Too fast"
+	end
+	local offset = root.Position - core.Position
+	if not DungeonLogic.isWithinCylinder(offset.X, offset.Y, offset.Z, dungeon.damageRingRadius, 30) then
+		return false, "Move closer to the boss"
+	end
+	lastHitAt[player] = now
+	current.health = DungeonLogic.applyHit(current.health, current.boss.attackDamagePerHit)
+	publishRun("fight")
+	return true, "Hit"
+end
+
+function DungeonService.forget(player: Player)
+	lastHitAt[player] = nil
 end
 
 local function userIds(players: { Player }): { number }

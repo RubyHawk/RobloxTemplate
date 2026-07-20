@@ -20,6 +20,7 @@ export type Boss = {
 	baseHealth: number,
 	healthPerExtraPlayer: number,
 	partyDpsPerPlayer: number,
+	attackDamagePerHit: number,
 	attackDamage: number,
 	timeLimitSeconds: number,
 	rewardCurrencyId: string,
@@ -38,6 +39,8 @@ export type Dungeon = {
 	damageRingRadius: number,
 	attackRingRadius: number,
 	attackIntervalSeconds: number,
+	attackCooldownSeconds: number,
+	proximityAutoDps: boolean,
 	teleportRetries: number,
 	defaultBossId: string,
 	bosses: { Boss },
@@ -50,6 +53,7 @@ local DEFAULT_BOSSES: { Boss } = {
 		baseHealth = 2500,
 		healthPerExtraPlayer = 1500,
 		partyDpsPerPlayer = 120,
+		attackDamagePerHit = 90,
 		attackDamage = 22,
 		timeLimitSeconds = 120,
 		rewardCurrencyId = "coins",
@@ -72,6 +76,11 @@ local DEFAULTS: Dungeon = {
 	damageRingRadius = 46,
 	attackRingRadius = 22,
 	attackIntervalSeconds = 3,
+	-- Players attack by clicking/tapping; the server enforces this per-player
+	-- cooldown between accepted hits. proximityAutoDps keeps the old "stand in
+	-- the ring and auto-damage" behavior available as an opt-in fallback.
+	attackCooldownSeconds = 0.35,
+	proximityAutoDps = false,
 	teleportRetries = 4,
 	defaultBossId = "forest_warden",
 	bosses = DEFAULT_BOSSES,
@@ -105,6 +114,14 @@ local function vector3(raw: any, key: string, fallback: { number }): { number }
 	return out
 end
 
+local function boolean(raw: any, key: string, fallback: boolean): boolean
+	local value = if type(raw) == "table" then raw[key] else nil
+	if type(value) ~= "boolean" then
+		return fallback
+	end
+	return value
+end
+
 local function copyBosses(bosses: { Boss }): { Boss }
 	local result: { Boss } = {}
 	for _, boss in bosses do
@@ -114,6 +131,7 @@ local function copyBosses(bosses: { Boss }): { Boss }
 			baseHealth = boss.baseHealth,
 			healthPerExtraPlayer = boss.healthPerExtraPlayer,
 			partyDpsPerPlayer = boss.partyDpsPerPlayer,
+			attackDamagePerHit = boss.attackDamagePerHit,
 			attackDamage = boss.attackDamage,
 			timeLimitSeconds = boss.timeLimitSeconds,
 			rewardCurrencyId = boss.rewardCurrencyId,
@@ -166,6 +184,15 @@ local function normalizedBoss(raw: any, used: { [string]: boolean }): Boss?
 	then
 		return nil
 	end
+	-- attackDamagePerHit is optional (defaults to the authored value) so recipes
+	-- need not restate every combat number; a present-but-invalid value still
+	-- rejects the whole list, matching the all-or-nothing rule above.
+	local attackDamagePerHit = raw.attackDamagePerHit
+	if attackDamagePerHit == nil then
+		attackDamagePerHit = 90
+	elseif not isFiniteNumber(attackDamagePerHit) or attackDamagePerHit < 1 then
+		return nil
+	end
 	local name = if type(raw.name) == "string" and #raw.name >= 1 and #raw.name <= 40 then raw.name else id
 	used[id] = true
 	return {
@@ -174,6 +201,7 @@ local function normalizedBoss(raw: any, used: { [string]: boolean }): Boss?
 		baseHealth = baseHealth,
 		healthPerExtraPlayer = healthPerExtraPlayer,
 		partyDpsPerPlayer = partyDpsPerPlayer,
+		attackDamagePerHit = attackDamagePerHit,
 		attackDamage = attackDamage,
 		timeLimitSeconds = timeLimitSeconds,
 		rewardCurrencyId = rewardCurrencyId,
@@ -234,6 +262,8 @@ function DungeonConfig.normalize(raw: any): Dungeon
 		damageRingRadius = number(raw, "damageRingRadius", DEFAULTS.damageRingRadius, 1, 500),
 		attackRingRadius = number(raw, "attackRingRadius", DEFAULTS.attackRingRadius, 1, 500),
 		attackIntervalSeconds = number(raw, "attackIntervalSeconds", DEFAULTS.attackIntervalSeconds, 0.5, 30),
+		attackCooldownSeconds = number(raw, "attackCooldownSeconds", DEFAULTS.attackCooldownSeconds, 0.05, 5),
+		proximityAutoDps = boolean(raw, "proximityAutoDps", DEFAULTS.proximityAutoDps),
 		teleportRetries = math.floor(number(raw, "teleportRetries", DEFAULTS.teleportRetries, 0, 10)),
 		defaultBossId = resolveDefaultBossId(raw, bosses),
 		bosses = bosses,

@@ -9,6 +9,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Template"):WaitForChild("Shared")
@@ -62,6 +63,10 @@ end
 
 local bossBar = child(hud, "BossBar")
 local resultBanner = child(hud, "ResultBanner")
+local attackHint = child(hud, "AttackHint")
+
+-- True while a boss fight is live, so the input handler only fires attacks then.
+local dungeonActive = false
 
 local function setText(instance: Instance?, text: string)
 	if instance ~= nil and instance:IsA("TextLabel") then
@@ -133,12 +138,17 @@ local function applyDungeonState(data: any)
 		return
 	end
 	local active = data.active == true
+	dungeonActive = active
 	hud.Enabled = active
 	setVisible(bossBar, active)
 	if not active then
 		setVisible(resultBanner, false)
+		setVisible(attackHint, false)
 		return
 	end
+	-- Show the attack prompt only while the fight is live (hidden once a
+	-- victory/defeat result arrives).
+	setVisible(attackHint, data.result == nil)
 
 	if bossBar ~= nil then
 		setText(
@@ -180,6 +190,7 @@ end
 
 local remotes = ReplicatedStorage:WaitForChild(RemoteNames.folder)
 local stateRemote = remotes:WaitForChild(RemoteNames.state) :: RemoteEvent
+local requestRemote = remotes:WaitForChild(RemoteNames.request) :: RemoteEvent
 
 stateRemote.OnClientEvent:Connect(function(packet: any)
 	if type(packet) ~= "table" then
@@ -195,6 +206,30 @@ stateRemote.OnClientEvent:Connect(function(packet: any)
 			else "The dungeon portal is unavailable right now."
 		setText(statusLine, string.upper(message))
 	end
+end)
+
+-- ---- Attack input --------------------------------------------------------------
+
+-- Click/tap while a fight is live asks the server to hit the boss. The server
+-- re-checks range, liveness, and cooldown; this local throttle only avoids
+-- flooding it beyond the accepted cadence.
+local lastAttackFire = 0
+UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
+	if gameProcessed or not dungeonActive then
+		return
+	end
+	if
+		input.UserInputType ~= Enum.UserInputType.MouseButton1
+		and input.UserInputType ~= Enum.UserInputType.Touch
+	then
+		return
+	end
+	local now = os.clock()
+	if now - lastAttackFire < Config.dungeon.attackCooldownSeconds then
+		return
+	end
+	lastAttackFire = now
+	requestRemote:FireServer({ action = "DungeonAttack" })
 end)
 
 -- ---- Ambient pad animation -----------------------------------------------------

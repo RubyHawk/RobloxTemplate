@@ -53,6 +53,16 @@ function DungeonLogic.applyDamage(currentHealth: number, dps: number, deltaSecon
 	return remaining
 end
 
+-- Applies a single validated player hit, clamped so health never drops below
+-- zero. Negative damage never heals.
+function DungeonLogic.applyHit(currentHealth: number, damage: number): number
+	local remaining = currentHealth - math.max(0, damage)
+	if remaining < 0 then
+		return 0
+	end
+	return remaining
+end
+
 function DungeonLogic.isDefeated(health: number): boolean
 	return health <= 0
 end
