@@ -11,6 +11,7 @@ local TowerDefenseRequest = require(Shared.TowerDefenseRequest)
 
 local RateLimiter = require(script.Parent.Parent.Util.RateLimiter)
 local AfkService = require(script.Parent.AfkService)
+local DungeonService = require(script.Parent.DungeonService)
 local EconomyService = require(script.Parent.EconomyService)
 local FeedbackService = require(script.Parent.FeedbackService)
 local InventoryService = require(script.Parent.InventoryService)
@@ -47,6 +48,14 @@ local requestFeatures: { [string]: string } = {
 	StartTowerWave = "towerDefense",
 	ResetTowerDefense = "towerDefense",
 	ActivateTowerStage = "towerDefense",
+	DungeonAttack = "dungeon",
+}
+
+-- Per-action rate-limit overrides (capacity, tokens/second). Actions absent here
+-- use the default 6-burst / 1-per-second bucket. Click-to-attack is already paced
+-- by DungeonService's per-player cooldown, so its bucket only guards raw spam.
+local requestRates: { [string]: { number } } = {
+	DungeonAttack = { 12, 8 },
 }
 
 local queryActions: { [string]: boolean } = {
@@ -183,7 +192,12 @@ local function handleRequest(player: Player, packet: any)
 		end
 		return
 	end
-	if not limiter:allow(player, action, 6, 1) then
+	local rateCapacity, rateRefill = 6, 1
+	local rateOverride = requestRates[action]
+	if rateOverride then
+		rateCapacity, rateRefill = rateOverride[1], rateOverride[2]
+	end
+	if not limiter:allow(player, action, rateCapacity, rateRefill) then
 		result(player, false, "Please slow down")
 		return
 	end
@@ -281,6 +295,11 @@ local function handleRequest(player: Player, packet: any)
 			return
 		end
 		result(player, TowerDefenseService.activateStage(player, activation.stageId))
+	elseif action == "DungeonAttack" then
+		-- Fire-and-forget: the boss HUD updates through DungeonService's own
+		-- broadcast, so we skip the heavy per-request profile snapshot that
+		-- `result` sends. All validation (range, cooldown, liveness) is server-side.
+		DungeonService.registerHit(player)
 	elseif action == "AfkRollover" then
 		local profile = ProfileService.get(player)
 		if profile == nil or not profile.settings.afKRollOver then
@@ -352,6 +371,15 @@ end
 function RemoteService.sendEvent(player: Player, kind: string, data: any)
 	if stateRemote and player.Parent then
 		stateRemote:FireClient(player, { kind = kind, data = data })
+	end
+end
+
+-- Server-owned broadcasts (portal roster/countdown, dungeon boss HUD) that every
+-- client in the server should see. The party lives alone in a reserved dungeon
+-- server, so a broadcast there only reaches that party.
+function RemoteService.broadcast(kind: string, data: any)
+	if stateRemote then
+		stateRemote:FireAllClients({ kind = kind, data = data })
 	end
 end
 
