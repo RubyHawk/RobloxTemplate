@@ -51,6 +51,10 @@ if Config.features.runes then
 		end,
 	})
 end
+-- Detect a reserved dungeon server up front so lobby-only rules (the portal pad
+-- loop and the tower-defense "no platform" kick) can be skipped there. A public
+-- lobby server and every non-dungeon game evaluate this to false.
+local dungeonMode = Config.features.dungeon and DungeonService.isDungeonServer()
 if Config.features.towerDefense then
 	StagePlatformService.start()
 	StageRuntimeService.start({
@@ -69,7 +73,6 @@ if Config.features.dungeon then
 	-- DungeonService self-gates (it only runs the boss fight in a reserved
 	-- server); the portal pad loop must run in the lobby only, or a dungeon
 	-- server would try to launch a nested dungeon from its own pad.
-	local isDungeon = DungeonService.isDungeonServer()
 	DungeonService.start({
 		publish = function(data)
 			RemoteService.broadcast("DungeonState", data)
@@ -80,7 +83,7 @@ if Config.features.dungeon then
 			RemoteService.sendEvent(player, "PortalNotice", { message = message })
 		end,
 	})
-	if not isDungeon then
+	if not dungeonMode then
 		PortalService.start({
 			publish = function(data)
 				RemoteService.broadcast("PortalState", data)
@@ -92,7 +95,13 @@ end
 
 local function playerAdded(player: Player)
 	task.spawn(function()
-		if Config.features.towerDefense and not StagePlatformService.hasPlatform(player) then
+		-- In a reserved dungeon server the party is here to fight the boss, not to
+		-- claim a tower-defense platform, so never bounce them for lacking one.
+		if
+			Config.features.towerDefense
+			and not dungeonMode
+			and not StagePlatformService.hasPlatform(player)
+		then
 			if player.Parent then
 				player:Kick(
 					"No playable platform was available in this server. Please rejoin to enter another server."
