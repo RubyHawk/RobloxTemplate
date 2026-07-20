@@ -3,6 +3,8 @@
 local CollectionService = game:GetService("CollectionService")
 local Workspace = game:GetService("Workspace")
 
+local StagePathAssets = require(script.Parent.Shared.StagePathAssets)
+
 local PREVIEW_NAME = "StagewrightPreview"
 local PREVIEW_TAG = "StagewrightTransientPreview"
 
@@ -31,6 +33,8 @@ export type Config = {
 type ControllerState = {
 	enabled: boolean,
 	folder: Folder?,
+	legacyRoot: Instance?,
+	legacyHiddenParts: { [BasePart]: number },
 	lastState: RenderState?,
 	moveRevision: number,
 	moveTransaction: MoveTransaction?,
@@ -50,6 +54,11 @@ export type Controller = ControllerState & {
 
 local Controller = {}
 Controller.__index = Controller
+
+local LEGACY_PATH_FOLDERS = {
+	PathPoints = true,
+	PathTiles = true,
+}
 
 local function part(parent: Folder, name: string, canQuery: boolean): Part
 	local result = Instance.new("Part")
@@ -73,16 +82,70 @@ local function previewPoint(origin: CFrame, sample: any, laneOffset: number): Ve
 	return frame.Position + frame.RightVector * laneOffset
 end
 
+local function materialFromName(materialName: any): Enum.Material
+	if type(materialName) == "string" then
+		local candidate = (Enum.Material :: any)[materialName]
+		if typeof(candidate) == "EnumItem" then
+			return candidate :: Enum.Material
+		end
+	end
+	return Enum.Material.Pebble
+end
+
 function Controller.isEnabled(self: Controller): boolean
 	return self.enabled
 end
 
-function Controller.clear(self: Controller)
+local function clearPreview(self: Controller)
 	local folder = self.folder
 	self.folder = nil
 	if folder ~= nil then
 		folder:Destroy()
 	end
+end
+
+local function restoreLegacyPathArtifacts(self: Controller)
+	for partToRestore, transparency in self.legacyHiddenParts do
+		if partToRestore.Parent ~= nil then
+			partToRestore.LocalTransparencyModifier = transparency
+		end
+	end
+	table.clear(self.legacyHiddenParts)
+	self.legacyRoot = nil
+end
+
+local function isLegacyPathArtifact(instance: Instance, root: Instance): boolean
+	local current = instance.Parent
+	while current ~= nil and current ~= root do
+		if LEGACY_PATH_FOLDERS[current.Name] == true then
+			return true
+		end
+		current = current.Parent
+	end
+	return false
+end
+
+local function hideLegacyPathArtifacts(self: Controller, root: Instance?)
+	if self.legacyRoot ~= root then
+		restoreLegacyPathArtifacts(self)
+	end
+	if root == nil then
+		return
+	end
+	self.legacyRoot = root
+	for _, descendant in root:GetDescendants() do
+		if descendant:IsA("BasePart") and isLegacyPathArtifact(descendant, root) then
+			if self.legacyHiddenParts[descendant] == nil then
+				self.legacyHiddenParts[descendant] = descendant.LocalTransparencyModifier
+			end
+			descendant.LocalTransparencyModifier = 1
+		end
+	end
+end
+
+function Controller.clear(self: Controller)
+	clearPreview(self)
+	restoreLegacyPathArtifacts(self)
 end
 
 local function finishMove(self: Controller, revision: number)
@@ -186,6 +249,8 @@ local function renderEdges(
 	state: RenderState
 )
 	for edgeId, edge in bakedGraph.edges do
+		local pathAsset, requestedAssetId = StagePathAssets.forEdge(edge)
+		local pathMaterial = materialFromName(pathAsset.materialName)
 		local laneProfile = bakedGraph.laneProfiles[edge.laneProfileId]
 		local samples = edge.samples or {}
 		local laneOffsets = if laneProfile ~= nil and #laneProfile.offsets > 0
@@ -211,14 +276,15 @@ local function renderEdges(
 				outline.Size = Vector3.new(corridorWidth + 0.55, 0.12, distance + 0.16)
 				outline.CFrame = pathFrame * CFrame.new(0, -0.07, 0)
 			end
-			local corridor = part(folder, `Edge_{edgeId}_Gravel_{index}`, true)
-			corridor.Color = Color3.fromRGB(142, 119, 86)
-			corridor.Material = Enum.Material.Pebble
+			local corridor = part(folder, `Edge_{edgeId}_Path_{index}`, true)
+			corridor.Color = Color3.fromRGB(pathAsset.rgb[1], pathAsset.rgb[2], pathAsset.rgb[3])
+			corridor.Material = pathMaterial
 			corridor.Transparency = 0.08
 			corridor.Size = Vector3.new(corridorWidth, 0.16, distance + 0.14)
 			corridor.CFrame = pathFrame
 			corridor:SetAttribute("StagewrightEdgeId", edgeId)
-			corridor:SetAttribute("StagewrightPathAsset", "gravel")
+			corridor:SetAttribute("StagewrightPathAsset", pathAsset.id)
+			corridor:SetAttribute("StagewrightRequestedPathAsset", requestedAssetId)
 		end
 		if state.selectedEdgeId == edgeId or state.tracedEdgeIds[edgeId] then
 			for laneIndex, laneOffset in laneOffsets do
@@ -292,8 +358,13 @@ end
 
 function Controller.render(self: Controller, state: RenderState)
 	self.lastState = state
-	self:clear()
-	if not self.enabled or not self.config.canEdit() then
+	clearPreview(self)
+	if not self.config.canEdit() then
+		restoreLegacyPathArtifacts(self)
+		return
+	end
+	hideLegacyPathArtifacts(self, state.parent)
+	if not self.enabled then
 		return
 	end
 	local graph = state.graph
@@ -369,7 +440,9 @@ function Controller.edgePart(self: Controller, edgeId: string): BasePart?
 end
 
 function Controller.destroy(self: Controller)
-	self:setEnabled(false)
+	self.enabled = false
+	self:cancelInteraction()
+	self:clear()
 	self.lastState = nil
 end
 
@@ -384,6 +457,8 @@ function WorkspacePreview.new(config: Config): Controller
 	return setmetatable({
 		enabled = false,
 		folder = nil,
+		legacyRoot = nil,
+		legacyHiddenParts = {},
 		lastState = nil,
 		moveRevision = 0,
 		moveTransaction = nil,

@@ -2,6 +2,7 @@
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
 local StageCatalog = require(Shared.StageCatalog)
+local StageCell = require(Shared.StageCell)
 local StageGraph = require(Shared.StageGraph)
 local StagePath = require(Shared.StagePath)
 local StageSchema = require(Shared.StageSchema)
@@ -255,7 +256,7 @@ end
 
 function StageRuntimeService.cell(stage: RuntimeStageDefinition, column: number, row: number): CellOverride
 	local key = StageSchema.cellKey(column, row)
-	return stage.grid.cells[key] or stage.grid.defaultCell
+	return StageCell.resolve(stage.grid.defaultCell, stage.grid.cells[key])
 end
 
 function StageRuntimeService.isBuildable(stage: RuntimeStageDefinition, column: number, row: number): boolean

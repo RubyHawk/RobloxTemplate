@@ -10,8 +10,8 @@ local COLORS = Theme.colors
 local button = Factory.button
 local create = Factory.create
 
-export type StageOption = {
-	id: string,
+export type SelectorOption = {
+	value: string,
 	label: string,
 	selected: boolean,
 }
@@ -22,7 +22,8 @@ export type Config = {
 	headerValidation: TextButton,
 	status: TextLabel,
 	widget: DockWidgetPluginGui,
-	stageOptions: () -> { StageOption },
+	stageOptions: () -> { SelectorOption },
+	levelOptions: () -> { SelectorOption },
 	onSelectStage: (stageId: string) -> (),
 	onRender: () -> (),
 	onSave: () -> string,
@@ -34,6 +35,13 @@ export type Config = {
 
 export type Controller = {
 	refreshStageSelector: (self: Controller) -> (),
+}
+
+type SelectorUi = {
+	button: TextButton,
+	label: TextLabel,
+	dropdown: Frame,
+	list: ScrollingFrame,
 }
 
 local HeaderController = {}
@@ -70,6 +78,98 @@ local function addLogo(header: Frame): Frame
 	return logo
 end
 
+local function createSelector(header: Frame, popupLayer: Frame, name: string, placeholder: string): SelectorUi
+	local selector = create("TextButton", {
+		AutoButtonColor = false,
+		BackgroundColor3 = COLORS.surface,
+		BorderSizePixel = 0,
+		Font = Enum.Font.BuilderSansMedium,
+		Name = `{name}Selector`,
+		Position = UDim2.fromOffset(0, 5),
+		Size = UDim2.fromOffset(100, Theme.metrics.headerControlHeight),
+		Text = "",
+		TextColor3 = COLORS.text,
+		TextSize = 13,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 202,
+	}, header) :: TextButton
+	create("UICorner", { CornerRadius = UDim.new(0, 6) }, selector)
+	create("UIStroke", {
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Color = COLORS.borderStrong,
+		Thickness = 1,
+	}, selector)
+	selector.MouseEnter:Connect(function()
+		if selector.BackgroundColor3 == COLORS.surface then
+			selector.BackgroundColor3 = COLORS.hover
+		end
+	end)
+	selector.MouseLeave:Connect(function()
+		if selector.BackgroundColor3 == COLORS.hover then
+			selector.BackgroundColor3 = COLORS.surface
+		end
+	end)
+	local label = create("TextLabel", {
+		Active = false,
+		BackgroundTransparency = 1,
+		Font = Enum.Font.BuilderSansMedium,
+		Position = UDim2.fromOffset(9, 0),
+		Size = UDim2.new(1, -34, 1, 0),
+		Text = placeholder,
+		TextColor3 = COLORS.text,
+		TextSize = 12,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 203,
+	}, selector) :: TextLabel
+	local chevron = Toolbar.addVectorIcon(selector, "chevron", COLORS.muted, 0)
+	chevron.AnchorPoint = Vector2.new(1, 0.5)
+	chevron.Position = UDim2.new(1, -9, 0.5, 0)
+
+	local dropdown = create("Frame", {
+		Active = true,
+		BackgroundColor3 = COLORS.panel,
+		BorderSizePixel = 0,
+		Name = `{name}Dropdown`,
+		Position = UDim2.fromOffset(0, Theme.metrics.headerHeight + 4),
+		Size = UDim2.fromOffset(126, 294),
+		Visible = false,
+		ZIndex = 310,
+	}, popupLayer) :: Frame
+	create("UICorner", { CornerRadius = UDim.new(0, 7) }, dropdown)
+	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, dropdown)
+	local list = create("ScrollingFrame", {
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		CanvasSize = UDim2.fromScale(0, 0),
+		Position = UDim2.fromOffset(7, 7),
+		ScrollBarImageColor3 = COLORS.borderStrong,
+		ScrollBarThickness = 4,
+		Size = UDim2.new(1, -14, 1, -14),
+		ZIndex = 311,
+	}, dropdown) :: ScrollingFrame
+	create("UIListLayout", {
+		Padding = UDim.new(0, 5),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, list)
+	return {
+		button = selector,
+		label = label,
+		dropdown = dropdown,
+		list = list,
+	}
+end
+
+local function dropdownHeight(selector: SelectorUi): number
+	local optionCount = selector.dropdown:GetAttribute("StagewrightOptionCount")
+	if type(optionCount) ~= "number" then
+		return 48
+	end
+	local visibleRows = math.max(optionCount, 1)
+	return math.min(294, 14 + visibleRows * 34 + math.max(visibleRows - 1, 0) * 5)
+end
+
 function HeaderController.new(config: Config): Controller
 	local header = config.header
 	config.headerValidation.TextXAlignment = Enum.TextXAlignment.Left
@@ -82,80 +182,8 @@ function HeaderController.new(config: Config): Controller
 	Toolbar.addVectorIcon(config.headerValidation, "warning", COLORS.warning, 12)
 	local logo = addLogo(header)
 
-	local stageSelector = create("TextButton", {
-		AutoButtonColor = false,
-		BackgroundColor3 = COLORS.surface,
-		BorderSizePixel = 0,
-		Font = Enum.Font.BuilderSansMedium,
-		Name = "StageSelector",
-		Position = UDim2.fromOffset(158, 5),
-		Size = UDim2.fromOffset(208, Theme.metrics.headerControlHeight),
-		Text = "",
-		TextColor3 = COLORS.text,
-		TextSize = 13,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 202,
-	}, header) :: TextButton
-	create("UICorner", { CornerRadius = UDim.new(0, 6) }, stageSelector)
-	create("UIStroke", {
-		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-		Color = COLORS.borderStrong,
-		Thickness = 1,
-	}, stageSelector)
-	stageSelector.MouseEnter:Connect(function()
-		if stageSelector.BackgroundColor3 == COLORS.surface then
-			stageSelector.BackgroundColor3 = COLORS.hover
-		end
-	end)
-	stageSelector.MouseLeave:Connect(function()
-		if stageSelector.BackgroundColor3 == COLORS.hover then
-			stageSelector.BackgroundColor3 = COLORS.surface
-		end
-	end)
-	local stageSelectorLabel = create("TextLabel", {
-		Active = false,
-		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSansMedium,
-		Position = UDim2.fromOffset(10, 0),
-		Size = UDim2.new(1, -38, 1, 0),
-		Text = "Stage 1 / Level 1",
-		TextColor3 = COLORS.text,
-		TextSize = 13,
-		TextTruncate = Enum.TextTruncate.AtEnd,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 203,
-	}, stageSelector) :: TextLabel
-	local stageChevron = Toolbar.addVectorIcon(stageSelector, "chevron", COLORS.muted, 0)
-	stageChevron.AnchorPoint = Vector2.new(1, 0.5)
-	stageChevron.Position = UDim2.new(1, -10, 0.5, 0)
-
-	local stageDropdown = create("Frame", {
-		Active = true,
-		BackgroundColor3 = COLORS.panel,
-		BorderSizePixel = 0,
-		Name = "StageDropdown",
-		Position = UDim2.fromOffset(158, Theme.metrics.headerHeight + 4),
-		Size = UDim2.fromOffset(208, 294),
-		Visible = false,
-		ZIndex = 310,
-	}, config.popupLayer) :: Frame
-	create("UICorner", { CornerRadius = UDim.new(0, 7) }, stageDropdown)
-	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, stageDropdown)
-	local stageDropdownList = create("ScrollingFrame", {
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		CanvasSize = UDim2.fromScale(0, 0),
-		Position = UDim2.fromOffset(7, 7),
-		ScrollBarImageColor3 = COLORS.borderStrong,
-		ScrollBarThickness = 4,
-		Size = UDim2.new(1, -14, 1, -14),
-		ZIndex = 311,
-	}, stageDropdown) :: ScrollingFrame
-	create("UIListLayout", {
-		Padding = UDim.new(0, 5),
-		SortOrder = Enum.SortOrder.LayoutOrder,
-	}, stageDropdownList)
+	local stageSelector = createSelector(header, config.popupLayer, "Stage", "Stage --")
+	local levelSelector = createSelector(header, config.popupLayer, "Level", "Level --")
 
 	local controller: Controller = {} :: any
 	local function canRunMutation(action: string): boolean
@@ -166,23 +194,27 @@ function HeaderController.new(config: Config): Controller
 		return false
 	end
 
-	controller.refreshStageSelector = function(_self: Controller)
-		local options = config.stageOptions()
+	local function refreshSelector(selector: SelectorUi, placeholder: string, options: { SelectorOption })
+		selector.label.Text = placeholder
+		selector.dropdown:SetAttribute("StagewrightOptionCount", #options)
+		selector.dropdown.Size = UDim2.fromOffset(selector.dropdown.Size.X.Offset, dropdownHeight(selector))
+		selector.list.CanvasPosition = Vector2.zero
 		for _, option in options do
 			if option.selected then
-				stageSelectorLabel.Text = option.label
+				selector.label.Text = option.label
 				break
 			end
 		end
-		for _, child in stageDropdownList:GetChildren() do
+		for _, child in selector.list:GetChildren() do
 			if child:IsA("GuiObject") then
 				child:Destroy()
 			end
 		end
 		for order, option in options do
-			local item = button(stageDropdownList, option.label, 198, function()
-				stageDropdown.Visible = false
-				config.onSelectStage(option.id)
+			local item = button(selector.list, option.label, 198, function()
+				stageSelector.dropdown.Visible = false
+				levelSelector.dropdown.Visible = false
+				config.onSelectStage(option.value)
 			end)
 			item.LayoutOrder = order
 			item.Size = UDim2.new(1, -2, 0, 34)
@@ -203,11 +235,26 @@ function HeaderController.new(config: Config): Controller
 			end
 		end
 	end
+	controller.refreshStageSelector = function(_self: Controller)
+		refreshSelector(stageSelector, "Stage --", config.stageOptions())
+		refreshSelector(levelSelector, "Level --", config.levelOptions())
+	end
 	local menuPopup: Frame
-	stageSelector.Activated:Connect(function()
+	stageSelector.button.Activated:Connect(function()
+		local open = not stageSelector.dropdown.Visible
+		stageSelector.dropdown.Visible = false
+		levelSelector.dropdown.Visible = false
 		menuPopup.Visible = false
 		controller:refreshStageSelector()
-		stageDropdown.Visible = not stageDropdown.Visible
+		stageSelector.dropdown.Visible = open
+	end)
+	levelSelector.button.Activated:Connect(function()
+		local open = not levelSelector.dropdown.Visible
+		stageSelector.dropdown.Visible = false
+		levelSelector.dropdown.Visible = false
+		menuPopup.Visible = false
+		controller:refreshStageSelector()
+		levelSelector.dropdown.Visible = open
 	end)
 
 	menuPopup = create("Frame", {
@@ -294,7 +341,8 @@ function HeaderController.new(config: Config): Controller
 	redo.ZIndex = 102
 	Toolbar.styleIconButton(redo, "Redo", "redo", COLORS.muted)
 	local menu = button(header, "Menu", 76, function()
-		stageDropdown.Visible = false
+		stageSelector.dropdown.Visible = false
+		levelSelector.dropdown.Visible = false
 		menuPopup.Visible = not menuPopup.Visible
 	end)
 	menu.Name = "MenuButton"
@@ -308,6 +356,10 @@ function HeaderController.new(config: Config): Controller
 	local function applyHeaderLayout()
 		local layout = Theme.resolveHeaderLayout(header.AbsoluteSize.X)
 		local controlY = math.floor((Theme.metrics.headerHeight - Theme.metrics.headerControlHeight) * 0.5)
+		local selectorGap = Theme.metrics.headerControlGap
+		local stageSelectorWidth = math.floor((layout.stageWidth - selectorGap) * 0.5)
+		local levelSelectorWidth = layout.stageWidth - selectorGap - stageSelectorWidth
+		local levelSelectorX = layout.stageX + stageSelectorWidth + selectorGap
 		local undoX = layout.stageX + layout.stageWidth + Theme.metrics.headerOuterPadding
 		local redoX = undoX + layout.historyWidth + Theme.metrics.headerControlGap
 		local validationRight = Theme.metrics.headerOuterPadding
@@ -315,11 +367,19 @@ function HeaderController.new(config: Config): Controller
 			+ Theme.metrics.headerControlGap
 
 		logo.Position = UDim2.fromOffset(10, 8)
-		stageSelector.Position = UDim2.fromOffset(layout.stageX, controlY)
-		stageSelector.Size = UDim2.fromOffset(layout.stageWidth, Theme.metrics.headerControlHeight)
-		stageSelectorLabel.TextSize = if layout.density == "compact" then 12 else 13
-		stageDropdown.Position = UDim2.fromOffset(layout.stageX, Theme.metrics.headerHeight + 4)
-		stageDropdown.Size = UDim2.fromOffset(layout.stageWidth, 294)
+		stageSelector.button.Position = UDim2.fromOffset(layout.stageX, controlY)
+		stageSelector.button.Size = UDim2.fromOffset(stageSelectorWidth, Theme.metrics.headerControlHeight)
+		stageSelector.label.TextSize = if layout.density == "compact" then 11 else 12
+		stageSelector.dropdown.Position = UDim2.fromOffset(layout.stageX, Theme.metrics.headerHeight + 4)
+		stageSelector.dropdown.Size =
+			UDim2.fromOffset(math.max(stageSelectorWidth, 126), dropdownHeight(stageSelector))
+
+		levelSelector.button.Position = UDim2.fromOffset(levelSelectorX, controlY)
+		levelSelector.button.Size = UDim2.fromOffset(levelSelectorWidth, Theme.metrics.headerControlHeight)
+		levelSelector.label.TextSize = if layout.density == "compact" then 11 else 12
+		levelSelector.dropdown.Position = UDim2.fromOffset(levelSelectorX, Theme.metrics.headerHeight + 4)
+		levelSelector.dropdown.Size =
+			UDim2.fromOffset(math.max(levelSelectorWidth, 126), dropdownHeight(levelSelector))
 
 		undo.Position = UDim2.fromOffset(undoX, controlY)
 		undo.Size = UDim2.fromOffset(layout.historyWidth, Theme.metrics.headerControlHeight)

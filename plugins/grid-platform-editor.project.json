@@ -7,6 +7,12 @@
     },
     "Controllers": {
       "$className": "Folder",
+      "GraphToolController": {
+        "$path": "../src/plugins/Stagewright/Controllers/GraphToolController.luau"
+      },
+      "MapNavigationController": {
+        "$path": "../src/plugins/Stagewright/Controllers/MapNavigationController.luau"
+      },
       "PaintRouteDragSession": {
         "$path": "../src/plugins/Stagewright/Controllers/PaintRouteDragSession.luau"
       },
@@ -88,6 +94,12 @@
       "PaintAppearance": {
         "$path": "../src/plugins/Stagewright/UI/PaintAppearance.luau"
       },
+      "PaintCellOverlay": {
+        "$path": "../src/plugins/Stagewright/UI/PaintCellOverlay.luau"
+      },
+      "PaintInspector": {
+        "$path": "../src/plugins/Stagewright/UI/PaintInspector.luau"
+      },
       "Theme": {
         "$path": "../src/plugins/Stagewright/UI/Theme.luau"
       },
@@ -103,6 +115,9 @@
     },
     "Shared": {
       "$className": "Folder",
+      "StagePathAssets": {
+        "$path": "../src/shared/StagePathAssets.luau"
+      },
       "StagePath": {
         "$path": "../src/shared/StagePath.luau"
       },
@@ -123,6 +138,9 @@
       },
       "StageTypes": {
         "$path": "../src/shared/StageTypes.luau"
+      },
+      "StageCell": {
+        "$path": "../src/shared/StageCell.luau"
       },
       "StageLegacy": {
         "$path": "../src/shared/StageLegacy.luau"

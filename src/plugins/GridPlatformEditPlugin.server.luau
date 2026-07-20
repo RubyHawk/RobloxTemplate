@@ -10,6 +10,8 @@ if RunService:IsRunning() then
 end
 
 local AuthoringArea = require(script.AuthoringArea)
+local GraphToolController = require(script.Controllers.GraphToolController)
+local MapNavigationController = require(script.Controllers.MapNavigationController)
 local PaintRouteDragSession = require(script.Controllers.PaintRouteDragSession)
 local PaintStrokeSession = require(script.Controllers.PaintStrokeSession)
 local WorldPathController = require(script.Controllers.WorldPathController)
@@ -20,7 +22,9 @@ local ProjectStorage = require(script.Persistence.ProjectStorage)
 local ProjectStore = require(script.ProjectStore)
 local RouteOverview = require(script.RouteOverview)
 local StageSettings = require(script.Stage.Settings)
+local StageCell = require(script.Shared.StageCell)
 local StageHierarchy = require(script.Shared.StageHierarchy)
+local StagePathAssets = require(script.Shared.StagePathAssets)
 local StagePayload = require(script.Shared.StagePayload)
 local StageSchema = require(script.Shared.StageSchema)
 local StageTrace = require(script.Shared.StageTrace)
@@ -28,12 +32,17 @@ local AppShell = require(script.UI.AppShell)
 local Factory = require(script.UI.Factory)
 local HeaderController = require(script.UI.HeaderController)
 local PaintAppearance = require(script.UI.PaintAppearance)
+local PaintCellOverlay = require(script.UI.PaintCellOverlay)
+local PaintInspector = require(script.UI.PaintInspector)
 local Toolbar = require(script.UI.Toolbar)
 local IssueModel = require(script.Validation.IssueModel)
 local WorkspacePreview = require(script.WorkspacePreview)
 
 local PLUGIN_NAME = "Stagewright"
 local paintCellPixels = 22
+local PAINT_TOOLBAR_HEIGHT = 48
+local PAINT_CANVAS_TOP = 90
+local PAINT_VALIDATION_HEIGHT = 46
 local Theme = require(script.UI.Theme)
 local COLORS = Theme.colors
 local create = Factory.create
@@ -43,10 +52,19 @@ local setButtonSelected = Factory.setSelected
 
 type Mode = "Paint" | "Graph" | "Stage" | "Validate"
 type GraphViewMode = "World" | "Logic"
+type PaintPanPointerId = "Primary" | "Middle"
+type PaintPanState = {
+	pointerId: PaintPanPointerId,
+	pointerStart: Vector2,
+	canvasStart: Vector2,
+}
+type PaintPointerState = {
+	input: InputObject,
+	stateConnection: RBXScriptConnection?,
+}
 type FlowRuntime = {
 	mode: GraphViewMode,
 	render: () -> (),
-	connect: (string, string) -> boolean,
 	inspectorLabel: (Instance, string, number, Color3?, number?) -> (),
 	renderInspector: () -> (),
 	worldControls: Frame,
@@ -89,10 +107,13 @@ local selectedEdgeId: string? = nil
 local selectedCellKey: string? = nil
 local tracedEdgeIds: { [string]: boolean } = {}
 local connectFromNodeId: string? = nil
+local finishGraphTool: () -> () = function() end
+local graphTools: GraphToolController.Controller
 local activeMode: Mode = "Graph"
 local activeBrushId = "terrain_ground"
 local activePaintTool = "Pencil"
 local paintBrushSize = 1
+local paintPanState: PaintPanState? = nil
 local validationFilter = "Overview"
 local pendingConfirmation: { id: string, expires: number }? = nil
 local islandOutlinesEnabled = false
@@ -103,9 +124,6 @@ local paintStrokeSession: PaintStrokeSession.Session
 local flowRuntime: FlowRuntime = {
 	mode = "World",
 	render = function() end,
-	connect = function(): boolean
-		return false
-	end,
 	inspectorLabel = function() end,
 	renderInspector = function() end,
 	worldControls = nil :: any,
@@ -226,6 +244,7 @@ end
 
 local function selectStage(stageId: string)
 	selectedStageId = stageId
+	selectedCellKey = nil
 	selectedGraphId = nil
 	selectedNodeId = nil
 	selectedEdgeId = nil
@@ -242,15 +261,46 @@ do
 		widget = widget,
 		stageOptions = function()
 			local options: { any } = {}
+			local selectedDefinition = project.stages[selectedStageId]
+			local selectedAddress = if selectedDefinition ~= nil
+				then StageHierarchy.address(selectedDefinition)
+				else nil
+			local seenGroups: { [string]: boolean } = {}
 			for _, stageId in ProjectStore.stageIds() do
 				local definition = project.stages[stageId]
 				if definition ~= nil then
 					local address = StageHierarchy.address(definition)
-					table.insert(options, {
-						id = stageId,
-						label = `Stage {address.stageNumber} / Level {address.levelNumber}`,
-						selected = stageId == selectedStageId,
-					})
+					if not seenGroups[address.groupId] then
+						seenGroups[address.groupId] = true
+						local selected = selectedAddress ~= nil and address.groupId == selectedAddress.groupId
+						table.insert(options, {
+							value = if selected then selectedStageId else stageId,
+							label = `Stage {address.stageNumber}`,
+							selected = selected,
+						})
+					end
+				end
+			end
+			return options
+		end,
+		levelOptions = function()
+			local options: { any } = {}
+			local selectedDefinition = project.stages[selectedStageId]
+			if selectedDefinition == nil then
+				return options
+			end
+			local selectedAddress = StageHierarchy.address(selectedDefinition)
+			for _, stageId in ProjectStore.stageIds() do
+				local definition = project.stages[stageId]
+				if definition ~= nil then
+					local address = StageHierarchy.address(definition)
+					if address.groupId == selectedAddress.groupId then
+						table.insert(options, {
+							value = stageId,
+							label = `Level {address.levelNumber}`,
+							selected = stageId == selectedStageId,
+						})
+					end
 				end
 			end
 			return options
@@ -315,8 +365,6 @@ local function graph(): any?
 	return if selectedGraphId ~= nil then current.pathGraphs[selectedGraphId] else nil
 end
 
--- Open the workbench on a meaningful spline so the world and logic views
--- immediately explain the authored route instead of presenting an empty inspector.
 do
 	local initialGraph = graph()
 	if initialGraph ~= nil then
@@ -339,6 +387,14 @@ local function setStatus(message: string, errorState: boolean?)
 	status.Text = message
 	status.TextColor3 = if errorState then COLORS.danger else COLORS.muted
 end
+
+MapNavigationController.bind(shell.mapPlayable, shell.mapAdmin, {
+	cancelInteraction = function()
+		cancelActiveEditorInteraction(false)
+	end,
+	reportBlocked = flowRuntime.reportBlocked,
+	setStatus = setStatus,
+})
 
 local function confirm(id: string, prompt: string): boolean
 	local now = os.clock()
@@ -491,8 +547,11 @@ paintStrokeSession = PaintStrokeSession.new({
 			return nil
 		end
 		local authoredCell = current.grid.cells[`{column}:{row}`]
-		local resolvedCell = authoredCell or current.grid.defaultCell
-		return PaintAppearance.resolve(resolvedCell, authoredCell, current.grid.defaultCell)
+		return PaintAppearance.token(
+			authoredCell,
+			current.grid.defaultCell,
+			Brushes.find(activeBrushId).layer
+		)
 	end,
 	applyArea = function(
 		brushId: string,
@@ -574,8 +633,12 @@ local paintToolbar = create("Frame", {
 	BackgroundColor3 = COLORS.panel,
 	BorderSizePixel = 0,
 	Position = UDim2.fromOffset(0, 42),
-	Size = UDim2.new(1, 0, 0, 54),
+	Size = UDim2.new(1, 0, 0, PAINT_TOOLBAR_HEIGHT),
 }, paintPage) :: Frame
+local paintActiveBrushLabel: TextLabel
+local paintHover: TextLabel
+local paintShiftBadge: TextLabel
+local refreshPaintSafetyBadge: (boolean?) -> () = function() end
 do
 	local modeBar = create("Frame", {
 		BackgroundColor3 = COLORS.background,
@@ -590,8 +653,7 @@ do
 	do
 		local modeId = definition.id
 		local modeButton = button(modeBar, definition.label, 132, function()
-			paintStrokeSession:cancel("Paint mode changed")
-			routeDragSession:cancel("Paint mode changed")
+			cancelActiveEditorInteraction(false)
 			paintRuntime.mode = modeId
 			connectFromNodeId = nil
 			renderAll()
@@ -600,24 +662,42 @@ do
 		modeButton.Size = UDim2.fromOffset(132, 30)
 		paintRuntime.modeButtons[modeId] = modeButton
 	end
-	create("TextLabel", {
-		AnchorPoint = Vector2.new(1, 0),
-		BackgroundTransparency = 1,
+	paintActiveBrushLabel = create("TextLabel", {
+		BackgroundColor3 = COLORS.surface,
+		BorderSizePixel = 0,
 		Font = Enum.Font.BuilderSansMedium,
-		Position = UDim2.new(1, -12, 0, 0),
-		Size = UDim2.new(1, -304, 1, 0),
-		Text = "Grid layers and enemy routes are edited separately",
+		Position = UDim2.fromOffset(302, 7),
+		Size = UDim2.fromOffset(220, 28),
+		Text = "Brush: Ground",
+		TextColor3 = COLORS.text,
+		TextSize = 10,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, modeBar) :: TextLabel
+	create("UICorner", { CornerRadius = UDim.new(0, 6) }, paintActiveBrushLabel)
+	create("UIPadding", {
+		PaddingLeft = UDim.new(0, 10),
+		PaddingRight = UDim.new(0, 10),
+	}, paintActiveBrushLabel)
+	paintHover = create("TextLabel", {
+		AnchorPoint = Vector2.new(1, 0),
+		BackgroundColor3 = COLORS.surface,
+		BorderSizePixel = 0,
+		Font = Enum.Font.BuilderSansMedium,
+		Position = UDim2.new(1, -12, 0, 7),
+		Size = UDim2.fromOffset(180, 28),
+		Text = "Cell --",
 		TextColor3 = COLORS.muted,
 		TextSize = 10,
 		TextTruncate = Enum.TextTruncate.AtEnd,
-		TextXAlignment = Enum.TextXAlignment.Right,
-	}, modeBar)
+	}, modeBar) :: TextLabel
+	create("UICorner", { CornerRadius = UDim.new(0, 6) }, paintHover)
 
 	paintRuntime.routeToolbar = create("Frame", {
 		BackgroundColor3 = COLORS.panel,
 		BorderSizePixel = 0,
 		Position = UDim2.fromOffset(0, 42),
-		Size = UDim2.new(1, 0, 0, 54),
+		Size = UDim2.new(1, 0, 0, PAINT_TOOLBAR_HEIGHT),
 		Visible = false,
 	}, paintPage)
 	for order, definition in
@@ -633,18 +713,18 @@ do
 		local toolButton = button(paintRuntime.routeToolbar, definition.label, 88, function()
 			paintRuntime.routeTool = toolId
 			if toolId == "Connect" then
-				connectFromNodeId = selectedNodeId
-				setStatus(
-					if connectFromNodeId ~= nil
-						then "Click the destination node to create a directed spline."
-						else "Click a start node, then click its destination."
-				)
+				if selectedNodeId == nil then
+					connectFromNodeId = nil
+					setStatus("Click a start node, then click its destination.")
+				else
+					graphTools:beginSource(selectedNodeId)
+				end
 			else
 				connectFromNodeId = nil
 			end
 			renderAll()
 		end)
-		toolButton.Position = UDim2.fromOffset(10 + (order - 1) * 94, 11)
+		toolButton.Position = UDim2.fromOffset(8 + (order - 1) * 94, 8)
 		toolButton.Size = UDim2.fromOffset(88, 32)
 		paintRuntime.routeToolButtons[toolId] = toolButton
 	end
@@ -660,43 +740,43 @@ do
 		end)
 		renderAll()
 	end)
-	laneButton.Position = UDim2.fromOffset(480, 11)
+	laneButton.AnchorPoint = Vector2.new(1, 0)
+	laneButton.Position = UDim2.new(1, -90, 0, 8)
 	laneButton.Size = UDim2.fromOffset(98, 32)
 	local deleteButton = button(paintRuntime.routeToolbar, "Delete", 72, function()
 		paintRuntime.deleteRouteSelection()
 	end)
-	deleteButton.Position = UDim2.fromOffset(584, 11)
+	deleteButton.AnchorPoint = Vector2.new(1, 0)
+	deleteButton.Position = UDim2.new(1, -10, 0, 8)
 	deleteButton.Size = UDim2.fromOffset(72, 32)
 end
-local paintHint = create("TextLabel", {
-	AnchorPoint = Vector2.new(0.5, 1),
-	BackgroundColor3 = COLORS.surface,
-	BackgroundTransparency = 0.06,
+
+paintShiftBadge = create("TextLabel", {
+	BackgroundColor3 = Color3.fromRGB(73, 52, 19),
 	BorderSizePixel = 0,
-	Font = Enum.Font.BuilderSansMedium,
-	Position = UDim2.new(0.5, 0, 1, -154),
-	Size = UDim2.fromOffset(188, 38),
-	Text = "Click to inspect. Hold Shift and drag to paint one undo step.",
-	TextColor3 = COLORS.text,
-	TextSize = 12,
+	Font = Enum.Font.BuilderSansBold,
+	Position = UDim2.fromOffset(452, 9),
+	Size = UDim2.fromOffset(142, 30),
+	Text = "SHIFT TO PAINT",
+	TextColor3 = COLORS.warning,
+	TextSize = 10,
 	TextTruncate = Enum.TextTruncate.AtEnd,
-	ZIndex = 30,
-}, paintPage) :: TextLabel
-create("UICorner", { CornerRadius = UDim.new(0, 7) }, paintHint)
-create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, paintHint)
-local paintHover = create("TextLabel", {
-	AnchorPoint = Vector2.new(1, 0),
-	BackgroundColor3 = COLORS.surface,
-	BorderSizePixel = 0,
-	Font = Enum.Font.BuilderSansMedium,
-	Position = UDim2.new(1, -294, 0, 13),
-	Size = UDim2.fromOffset(104, 28),
-	Text = "Cell --",
-	TextColor3 = COLORS.muted,
-	TextSize = 11,
-	Visible = true,
+	ZIndex = 3,
 }, paintToolbar) :: TextLabel
-create("UICorner", { CornerRadius = UDim.new(0, 6) }, paintHover)
+create("UICorner", { CornerRadius = UDim.new(0, 6) }, paintShiftBadge)
+local paintShiftOutline =
+	create("UIStroke", { Color = COLORS.warning, Thickness = 1 }, paintShiftBadge) :: UIStroke
+refreshPaintSafetyBadge = function(enabled: boolean?)
+	local paintEnabled = enabled == true
+	paintShiftBadge.Text = if paintEnabled then "SHIFT HELD - PAINT ON" else "SHIFT TO PAINT"
+	paintShiftBadge.TextColor3 = if paintEnabled then COLORS.success else COLORS.warning
+	paintShiftBadge.BackgroundColor3 = if paintEnabled
+		then Color3.fromRGB(22, 61, 41)
+		else Color3.fromRGB(73, 52, 19)
+	paintShiftOutline.Color = if paintEnabled then COLORS.success else COLORS.warning
+end
+refreshPaintSafetyBadge(false)
+
 local brushRail = create("ScrollingFrame", {
 	BackgroundColor3 = COLORS.panel,
 	BorderSizePixel = 0,
@@ -746,15 +826,16 @@ local brushButtons: { [string]: TextButton } = {}
 local renderPaintChrome: () -> ()
 local paintSizeButton: TextButton
 local paintZoomLabel: TextLabel
+local paintInspector: PaintInspector.Controller
 do
-	local previousBrushCategory: string? = nil
+	local previousBrushLayer: Brushes.Layer? = nil
 	local brushLayoutOrder = 0
 	for _, brushDefinition in brushes do
 		local brush = brushDefinition
-		if brush.category ~= previousBrushCategory then
+		if brush.layer ~= previousBrushLayer then
 			brushLayoutOrder += 1
-			sectionLabel(brushRail, `v  {brush.category}`, brushLayoutOrder)
-			previousBrushCategory = brush.category
+			sectionLabel(brushRail, string.upper(Brushes.layerLabel(brush.layer)), brushLayoutOrder)
+			previousBrushLayer = brush.layer
 		end
 		brushLayoutOrder += 1
 		local glyph = if brush.id == "role_EnemySpawn"
@@ -785,8 +866,10 @@ do
 			elseif brush.id == "role_DecorationAnchor" then Color3.fromRGB(111, 124, 143)
 			else COLORS.accent
 		local brushButton = button(brushRail, "", 196, function()
+			cancelActiveEditorInteraction(false)
 			activeBrushId = brush.id
 			activePaintTool = "Pencil"
+			shell:closeCompactPanel()
 			renderPaintChrome()
 			renderCanvas()
 		end)
@@ -826,7 +909,10 @@ do
 	end
 end
 function renderPaintChrome()
-	local brush = Brushes.find(activeBrushId)
+	local selectedBrush = Brushes.find(activeBrushId)
+	local brush = if activePaintTool == "Erase"
+		then Brushes.find(Brushes.eraseId(selectedBrush.layer))
+		else selectedBrush
 	local editingRoute = paintRuntime.mode == "Route"
 	for modeId, modeButton in paintRuntime.modeButtons do
 		setButtonSelected(modeButton, modeId == paintRuntime.mode)
@@ -844,25 +930,16 @@ function renderPaintChrome()
 			setButtonSelected(child, string.sub(child.Name, 11) == activePaintTool)
 		end
 	end
-	paintHint.Text = if editingRoute
-		then "Drag nodes  |  Connect joins start to destination"
-		else "Shift + drag to paint"
+	paintActiveBrushLabel.Text = if editingRoute
+		then "Route editing"
+		else `{Brushes.layerLabel(brush.layer)}: {brush.label}`
+	paintHover.Text = if editingRoute then "Route canvas" else "Cell --"
+	paintHover.TextColor3 = COLORS.muted
+	refreshPaintSafetyBadge()
 	paintSizeButton.Text = `Brush {paintBrushSize} x {paintBrushSize}`
 	paintZoomLabel.Text = `{math.round(paintCellPixels / 24 * 100)}%`
-	local brushName = rightSidebar:FindFirstChild("PaintInspectorBrushName", true)
-	if brushName ~= nil and brushName:IsA("TextLabel") then
-		brushName.Text = brush.label
-	end
-	local brushHelp = rightSidebar:FindFirstChild("PaintInspectorBrushHelp", true)
-	if brushHelp ~= nil and brushHelp:IsA("TextLabel") then
-		brushHelp.Text = brush.help
-	end
-	for _, size in { 1, 3, 5 } do
-		local sizeButton = rightSidebar:FindFirstChild(`PaintSizeChoice{size}`, true)
-		if sizeButton ~= nil and sizeButton:IsA("TextButton") then
-			setButtonSelected(sizeButton, size == paintBrushSize)
-		end
-	end
+	paintInspector:setBrush(Brushes.layerLabel(brush.layer), brush.label, brush.help)
+	paintInspector:setBrushSize(paintBrushSize)
 	local routeSelection = paintRuntime.routeInspector:FindFirstChild("PaintRouteSelection")
 	if routeSelection ~= nil and routeSelection:IsA("TextLabel") then
 		local currentGraph = graph()
@@ -893,10 +970,10 @@ end
 local gridScroll = create("ScrollingFrame", {
 	BackgroundColor3 = Color3.fromRGB(12, 13, 15),
 	BorderSizePixel = 0,
-	Position = UDim2.fromOffset(0, 100),
+	Position = UDim2.fromOffset(0, PAINT_CANVAS_TOP),
 	ScrollBarThickness = 8,
 	ScrollingDirection = Enum.ScrollingDirection.XY,
-	Size = UDim2.new(1, 0, 1, -240),
+	Size = UDim2.new(1, 0, 1, -(PAINT_CANVAS_TOP + PAINT_VALIDATION_HEIGHT)),
 }, paintPage) :: ScrollingFrame
 local gridCanvas = create("Frame", { BackgroundTransparency = 1 }, gridScroll) :: Frame
 paintRuntime.routeCanvas = create("Frame", {
@@ -909,43 +986,90 @@ paintRuntime.routeCanvas = create("Frame", {
 	ZIndex = 8,
 }, gridCanvas)
 local cellPool: { TextButton } = {}
+local cellOverlay = PaintCellOverlay.new(gridCanvas)
+local activePaintPointer: PaintPointerState? = nil
+
+local function pointInsidePaintGrid(position: Vector2): boolean
+	local gridPosition = gridScroll.AbsolutePosition
+	local gridSize = gridScroll.AbsoluteWindowSize
+	return position.X >= gridPosition.X
+		and position.Y >= gridPosition.Y
+		and position.X < gridPosition.X + gridSize.X
+		and position.Y < gridPosition.Y + gridSize.Y
+end
+
+local function beginPaintPan(position: Vector2, pointerId: PaintPanPointerId)
+	if not pointInsidePaintGrid(position) or paintStrokeSession:isActive() or routeDragSession:isActive() then
+		return
+	end
+	paintPanState = {
+		pointerId = pointerId,
+		pointerStart = position,
+		canvasStart = gridScroll.CanvasPosition,
+	}
+	cellOverlay:clearHover()
+	paintHover.Text = "Cell --"
+	paintHover.TextColor3 = COLORS.muted
+	setStatus("Panning canvas. Release to stop.")
+end
 
 do
 	local toolButtons: { [string]: TextButton } = {}
-	for order, toolName in { "Select", "Pencil", "Rect", "Fill", "Erase", "Pan" } do
-		local name = toolName
-		local toolLabel = if name == "Rect" then "Rectangle" else name
-		local tool = button(paintToolbar, toolLabel, 74, function()
+	local toolX = 8
+	for _, definition in
+		{
+			{ id = "Select", label = "Select", width = 68 },
+			{ id = "Pencil", label = "Pencil", width = 68 },
+			{ id = "Rect", label = "Rectangle", width = 86 },
+			{ id = "Fill", label = "Fill", width = 58 },
+			{ id = "Erase", label = "Erase", width = 66 },
+			{ id = "Pan", label = "Pan", width = 58 },
+		}
+	do
+		local name = definition.id
+		local toolWidth = definition.width
+		local tool = button(paintToolbar, definition.label, toolWidth, function()
+			cancelActiveEditorInteraction(false)
 			activePaintTool = name
-			for candidate, candidateButton in toolButtons do
-				setButtonSelected(candidateButton, candidate == activePaintTool)
-			end
-			if name ~= "Pencil" and name ~= "Erase" then
-				setStatus(`{name} tool selected. Hold Shift for any cell mutation.`)
-			end
+			renderPaintChrome()
+			renderCanvas()
+			local toolStatus = if name == "Select"
+				then "Select tool: click a cell to inspect it."
+				elseif name == "Pan" then "Pan tool: drag the canvas. Middle mouse pans from any tool."
+				elseif name == "Rect" then "Rectangle ready: hold Shift and drag between opposite corners."
+				elseif name == "Fill" then "Fill ready: hold Shift and click a connected area."
+				elseif
+					name == "Erase"
+				then `Erase ready: hold Shift and drag to restore only {Brushes.layerLabel(
+					Brushes.find(activeBrushId).layer
+				)} from the level default.`
+				else "Pencil ready: hold Shift and drag to paint one undo step."
+			setStatus(toolStatus)
 		end)
 		tool.Name = `PaintTool_{name}`
-		tool.Position = UDim2.fromOffset(10 + (order - 1) * 80, 11)
-		tool.Size = UDim2.fromOffset(74, 32)
+		tool.Position = UDim2.fromOffset(toolX, 8)
+		tool.Size = UDim2.fromOffset(toolWidth, 32)
 		toolButtons[name] = tool
+		toolX += toolWidth + 6
 	end
 	setButtonSelected(toolButtons.Pencil, true)
 end
 
 paintSizeButton = button(paintToolbar, "Brush 1 x 1", 92, function()
 	paintBrushSize = if paintBrushSize == 1 then 3 elseif paintBrushSize == 3 then 5 else 1
-	paintSizeButton.Text = `Brush {paintBrushSize} x {paintBrushSize}`
+	renderPaintChrome()
 end)
 paintSizeButton.AnchorPoint = Vector2.new(1, 0)
-paintSizeButton.Position = UDim2.new(1, -188, 0, 11)
+paintSizeButton.Position = UDim2.new(1, -136, 0, 8)
+paintSizeButton.Size = UDim2.fromOffset(96, 32)
 
 paintZoomLabel = create("TextLabel", {
 	AnchorPoint = Vector2.new(1, 0),
 	BackgroundColor3 = COLORS.surface,
 	BorderSizePixel = 0,
 	Font = Enum.Font.BuilderSansMedium,
-	Position = UDim2.new(1, -82, 0, 11),
-	Size = UDim2.fromOffset(66, 32),
+	Position = UDim2.new(1, -68, 0, 8),
+	Size = UDim2.fromOffset(62, 32),
 	Text = "100%",
 	TextColor3 = COLORS.text,
 	TextSize = 11,
@@ -970,53 +1094,8 @@ do
 		end
 	end)
 	fit.AnchorPoint = Vector2.new(1, 0)
-	fit.Position = UDim2.new(1, -12, 0, 11)
-	fit.Size = UDim2.fromOffset(58, 32)
-end
-
-do
-	local legend = create("Frame", {
-		AnchorPoint = Vector2.new(1, 1),
-		BackgroundColor3 = COLORS.surface,
-		BackgroundTransparency = 0.04,
-		BorderSizePixel = 0,
-		Position = UDim2.new(1, -14, 1, -154),
-		Size = UDim2.fromOffset(154, 180),
-		ZIndex = 30,
-	}, paintPage) :: Frame
-	create("UICorner", { CornerRadius = UDim.new(0, 7) }, legend)
-	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, legend)
-	for order, entry in
-		{
-			{ "Ground", COLORS.ground },
-			{ "Build allowed", COLORS.allowed },
-			{ "Build blocked", COLORS.blocked },
-			{ "Traversal", Color3.fromRGB(51, 116, 164) },
-			{ "Auto place", COLORS.auto },
-			{ "Spawn", Color3.fromRGB(45, 146, 84) },
-			{ "Goal / Hazard", Color3.fromRGB(113, 76, 193) },
-			{ "Enemy route", COLORS.route },
-		}
-	do
-		create("Frame", {
-			BackgroundColor3 = entry[2] :: Color3,
-			BorderSizePixel = 0,
-			Position = UDim2.fromOffset(10, 10 + (order - 1) * 20),
-			Size = UDim2.fromOffset(11, 11),
-			ZIndex = 31,
-		}, legend)
-		create("TextLabel", {
-			BackgroundTransparency = 1,
-			Font = Enum.Font.BuilderSans,
-			Position = UDim2.fromOffset(28, 6 + (order - 1) * 20),
-			Size = UDim2.new(1, -36, 0, 18),
-			Text = entry[1] :: string,
-			TextColor3 = COLORS.text,
-			TextSize = 10,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			ZIndex = 31,
-		}, legend)
-	end
+	fit.Position = UDim2.new(1, -8, 0, 8)
+	fit.Size = UDim2.fromOffset(54, 32)
 end
 
 do
@@ -1026,7 +1105,7 @@ do
 		BackgroundColor3 = COLORS.panel,
 		BorderSizePixel = 0,
 		Position = UDim2.fromScale(0, 1),
-		Size = UDim2.new(1, 0, 0, 140),
+		Size = UDim2.new(1, 0, 0, PAINT_VALIDATION_HEIGHT),
 	}, paintPage) :: Frame
 	create("Frame", {
 		BackgroundColor3 = COLORS.border,
@@ -1036,11 +1115,11 @@ do
 	create("TextLabel", {
 		BackgroundTransparency = 1,
 		Font = Enum.Font.BuilderSansBold,
-		Position = UDim2.fromOffset(14, 10),
-		Size = UDim2.fromOffset(100, 24),
+		Position = UDim2.fromOffset(12, 0),
+		Size = UDim2.fromOffset(68, PAINT_VALIDATION_HEIGHT),
 		Text = "VALIDATION",
 		TextColor3 = COLORS.text,
-		TextSize = 11,
+		TextSize = 9,
 		TextXAlignment = Enum.TextXAlignment.Left,
 	}, paintValidationPanel)
 	create("TextLabel", {
@@ -1048,8 +1127,8 @@ do
 		BackgroundColor3 = COLORS.surface,
 		BorderSizePixel = 0,
 		Font = Enum.Font.BuilderSansBold,
-		Position = UDim2.fromOffset(116, 9),
-		Size = UDim2.fromOffset(154, 26),
+		Position = UDim2.fromOffset(82, 10),
+		Size = UDim2.fromOffset(126, 26),
 		Text = "Checking...",
 		TextColor3 = COLORS.muted,
 		TextSize = 10,
@@ -1059,118 +1138,71 @@ do
 		renderAll()
 	end)
 	openValidation.AnchorPoint = Vector2.new(1, 0)
-	openValidation.Position = UDim2.new(1, -12, 0, 8)
-	for index = 1, 3 do
-		local row = create("TextLabel", {
-			Name = `PaintValidationRow{index}`,
-			BackgroundColor3 = COLORS.surface,
-			BorderSizePixel = 0,
-			Font = Enum.Font.BuilderSans,
-			Position = UDim2.fromOffset(12, 40 + (index - 1) * 32),
-			Size = UDim2.new(1, -24, 0, 28),
-			Text = "No issue",
-			TextColor3 = COLORS.muted,
-			TextSize = 10,
-			TextTruncate = Enum.TextTruncate.AtEnd,
-			TextXAlignment = Enum.TextXAlignment.Left,
-		}, paintValidationPanel) :: TextLabel
-		create("UICorner", { CornerRadius = UDim.new(0, 5) }, row)
-		create("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) }, row)
-	end
-end
-
-do
-	local paintInspector = create("Frame", {
-		Name = "PaintInspector",
-		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(0, 38),
-		Size = UDim2.new(1, 0, 1, -38),
-		Visible = false,
-	}, rightSidebar) :: Frame
-	local paintBrushCard = create("Frame", {
+	openValidation.Position = UDim2.new(1, -10, 0, 7)
+	openValidation.Size = UDim2.fromOffset(128, 32)
+	local row = create("TextLabel", {
+		Name = "PaintValidationRow1",
 		BackgroundColor3 = COLORS.surface,
 		BorderSizePixel = 0,
-		Position = UDim2.fromOffset(10, 4),
-		Size = UDim2.new(1, -20, 0, 112),
-	}, paintInspector) :: Frame
-	create("UICorner", { CornerRadius = UDim.new(0, 7) }, paintBrushCard)
-	create("UIStroke", { Color = COLORS.border, Thickness = 1 }, paintBrushCard)
-	create("TextLabel", {
-		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSansBold,
-		Position = UDim2.fromOffset(12, 10),
-		Size = UDim2.new(1, -24, 0, 24),
-		Text = "ACTIVE BRUSH",
-		TextColor3 = COLORS.muted,
-		TextSize = 9,
-		TextXAlignment = Enum.TextXAlignment.Left,
-	}, paintBrushCard)
-	create("TextLabel", {
-		Name = "PaintInspectorBrushName",
-		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSansBold,
-		Position = UDim2.fromOffset(12, 34),
-		Size = UDim2.new(1, -24, 0, 24),
-		Text = "Ground",
-		TextColor3 = COLORS.text,
-		TextSize = 15,
-		TextXAlignment = Enum.TextXAlignment.Left,
-	}, paintBrushCard)
-	create("TextLabel", {
-		Name = "PaintInspectorBrushHelp",
-		BackgroundTransparency = 1,
 		Font = Enum.Font.BuilderSans,
-		Position = UDim2.fromOffset(12, 62),
-		Size = UDim2.new(1, -24, 0, 38),
-		Text = "Paint normal playable ground.",
+		Position = UDim2.fromOffset(216, 9),
+		Size = UDim2.new(1, -366, 0, 28),
+		Text = "No issue in this level",
 		TextColor3 = COLORS.muted,
-		TextSize = 11,
-		TextWrapped = true,
+		TextSize = 10,
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		TextYAlignment = Enum.TextYAlignment.Top,
-	}, paintBrushCard)
-	create("TextLabel", {
-		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSansBold,
-		Position = UDim2.fromOffset(12, 136),
-		Size = UDim2.new(1, -24, 0, 20),
-		Text = "BRUSH SIZE",
-		TextColor3 = COLORS.muted,
-		TextSize = 9,
-		TextXAlignment = Enum.TextXAlignment.Left,
-	}, paintInspector)
-	for order, size in { 1, 3, 5 } do
-		local brushSize = size
-		local sizeChoice = button(paintInspector, `{brushSize} x {brushSize}`, 70, function()
-			paintBrushSize = brushSize
-			renderPaintChrome()
-		end)
-		sizeChoice.Position = UDim2.new((order - 1) / 3, 10 + (order - 1) * 3, 0, 162)
-		sizeChoice.Size = UDim2.new(1 / 3, -9, 0, 32)
-		sizeChoice.Name = `PaintSizeChoice{brushSize}`
+	}, paintValidationPanel) :: TextLabel
+	create("UICorner", { CornerRadius = UDim.new(0, 5) }, row)
+	create("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) }, row)
+end
+
+paintInspector = PaintInspector.create(rightSidebar, {
+	onBrushSize = function(brushSize: number)
+		paintBrushSize = brushSize
+		shell:closeCompactPanel()
+		renderPaintChrome()
+	end,
+})
+
+local function paintCellState(column: number, row: number): PaintInspector.CellState?
+	local current = stage()
+	if current == nil then
+		return nil
 	end
-	create("TextLabel", {
-		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSansBold,
-		Position = UDim2.fromOffset(12, 218),
-		Size = UDim2.new(1, -24, 0, 20),
-		Text = "SAFE PAINTING",
-		TextColor3 = COLORS.muted,
-		TextSize = 9,
-		TextXAlignment = Enum.TextXAlignment.Left,
-	}, paintInspector)
-	create("TextLabel", {
-		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSans,
-		Position = UDim2.fromOffset(12, 244),
-		Size = UDim2.new(1, -24, 0, 112),
-		Text = "1. Choose a layer\n2. Choose Pencil, Rectangle, or Fill\n3. Hold Shift while painting\n4. Release to create one undo step\n\nClick without Shift to inspect a cell.",
-		TextColor3 = COLORS.muted,
-		TextSize = 11,
-		TextWrapped = true,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextYAlignment = Enum.TextYAlignment.Top,
-	}, paintInspector)
+	local key = `{column}:{row}`
+	local cell = StageCell.resolve(current.grid.defaultCell, current.grid.cells[key])
+	local roleLabels: { string } = {}
+	if type(cell.roles) == "table" then
+		for role, enabled in cell.roles do
+			if type(role) == "string" and enabled == true then
+				table.insert(roleLabels, (string.gsub(role, "(%l)(%u)", "%1 %2")))
+			end
+		end
+	end
+	table.sort(roleLabels)
+	return {
+		label = `Cell {column}, {row}`,
+		surface = if cell.terrainId == "void" then "Void" else "Ground",
+		towers = if cell.buildPolicy == "AutoOnly"
+			then "Auto-place only"
+			else tostring(cell.buildPolicy or "Allowed"),
+		route = tostring(cell.enemyTraversalPolicy or "Allowed"),
+		roles = if #roleLabels > 0 then table.concat(roleLabels, ", ") else "None",
+	}
+end
+
+local function selectedPaintCellState(): PaintInspector.CellState?
+	if selectedCellKey == nil then
+		return nil
+	end
+	local columnText, rowText = string.match(selectedCellKey, "^(%d+):(%d+)$")
+	local column = if columnText ~= nil then tonumber(columnText) else nil
+	local row = if rowText ~= nil then tonumber(rowText) else nil
+	if column == nil or row == nil then
+		return nil
+	end
+	return paintCellState(column, row)
 end
 
 paintRuntime.routeInspector = create("Frame", {
@@ -1215,36 +1247,16 @@ do
 	openFlow.Size = UDim2.new(1, -20, 0, 34)
 end
 
-local function paintModifierDown(): boolean
-	return UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)
-		or UserInputService:IsKeyDown(Enum.KeyCode.RightShift)
-end
-
 local function showHoveredCell(column: number?, row: number?, routeAffected: boolean?)
-	for _, cellButton in cellPool do
-		if cellButton.Visible then
-			local buttonColumn = cellButton:GetAttribute("Column")
-			local buttonRow = cellButton:GetAttribute("Row")
-			local key = if type(buttonColumn) == "number" and type(buttonRow) == "number"
-				then `{buttonColumn}:{buttonRow}`
-				else nil
-			local hovered = buttonColumn == column and buttonRow == row
-			cellButton.BorderColor3 = if hovered
-				then COLORS.warning
-				elseif key ~= nil and key == selectedCellKey then COLORS.accent
-				else Color3.fromRGB(24, 27, 31)
-			cellButton.BorderSizePixel = if hovered or (key ~= nil and key == selectedCellKey) then 2 else 1
-		end
-	end
 	if column == nil or row == nil then
-		gridCanvas:SetAttribute("HoverColumn", nil)
-		gridCanvas:SetAttribute("HoverRow", nil)
+		cellOverlay:clearHover()
 		paintHover.Text = "Cell --"
 		paintHover.TextColor3 = COLORS.muted
+		paintInspector:setCell(selectedPaintCellState())
 		return
 	end
-	gridCanvas:SetAttribute("HoverColumn", column)
-	gridCanvas:SetAttribute("HoverRow", row)
+	cellOverlay:setHover(column, row)
+	paintInspector:setCell(paintCellState(column, row))
 	paintHover.Text = if routeAffected
 		then `Cell {column}, {row} - TRAVERSAL CONFLICT`
 		else `Cell {column}, {row}`
@@ -1577,26 +1589,118 @@ paintRuntime.renderRoute = function(preview: any?)
 	end
 end
 
-local function beginPaintInteraction(column: number, row: number)
+local function beginPaintInteraction(column: number, row: number, modifierDown: boolean): boolean
 	selectedCellKey = `{column}:{row}`
 	local preview = ProjectStore.preview(selectedStageId)
 	local routeAffected = preview ~= nil and preview.routeNoBuildMask[column .. ":" .. row] == true
 	showHoveredCell(column, row, routeAffected)
-	if not paintModifierDown() or activePaintTool == "Select" or activePaintTool == "Pan" then
+	if activePaintTool == "Select" or activePaintTool == "Pan" or not modifierDown then
 		setStatus(
-			if routeAffected
-				then `Cell {column}, {row} is inside the derived enemy route. Hold Shift to paint.`
-				else `Cell {column}, {row} selected. Hold Shift to paint.`
+			if activePaintTool == "Pan"
+				then "Drag the canvas to pan. Middle mouse pans from any paint tool."
+				elseif
+					activePaintTool ~= "Select"
+				then `Cell {column}, {row} selected. Shift was not detected on this click.`
+				elseif routeAffected then `Cell {column}, {row} is inside the derived enemy route.`
+				else `Cell {column}, {row} selected.`
 		)
 		renderCanvas()
-		return
+		return false
 	end
-	local brushId = if activePaintTool == "Erase" then Brushes.RESET_ID else activeBrushId
-	paintStrokeSession:begin({
+	local brushId = if activePaintTool == "Erase"
+		then Brushes.eraseId(Brushes.find(activeBrushId).layer)
+		else activeBrushId
+	local began = paintStrokeSession:begin({
 		tool = activePaintTool :: PaintStrokeSession.Tool,
 		brushId = brushId,
 		brushSize = paintBrushSize,
 	}, column, row)
+	if began and paintStrokeSession:isActive() then
+		setStatus(
+			if activePaintTool == "Rect"
+				then "Rectangle started. Keep Shift held and release on the opposite corner."
+				else "Painting cells. Release Shift or the mouse to finish one undo step."
+		)
+	end
+	return began and paintStrokeSession:isActive()
+end
+
+local function finishPaintInteraction(column: number?, row: number?, modifierReleased: boolean?): boolean
+	if not paintStrokeSession:isActive() then
+		return false
+	end
+	if activePaintTool == "Rect" and (modifierReleased == true or column == nil or row == nil) then
+		paintStrokeSession:cancel("Rectangle requires Shift through release")
+		renderCanvas()
+		setStatus("Rectangle canceled. Keep Shift held until releasing on the opposite corner.")
+		return true
+	end
+	return paintStrokeSession:release(column, row)
+end
+
+local function clearActivePaintPointer()
+	local pointer = activePaintPointer
+	activePaintPointer = nil
+	if pointer ~= nil and pointer.stateConnection ~= nil then
+		pointer.stateConnection:Disconnect()
+	end
+	refreshPaintSafetyBadge(false)
+end
+
+local function finishActivePaintPointer(input: InputObject, canceled: boolean?)
+	local pointer = activePaintPointer
+	if pointer == nil or pointer.input ~= input then
+		return
+	end
+	if canceled == true then
+		clearActivePaintPointer()
+		paintStrokeSession:cancel("Paint pointer was canceled")
+		renderCanvas()
+		setStatus("Paint stroke canceled; previous cell values were restored.")
+		return
+	end
+	local column, row = cellOverlay:hoverCell()
+	local modifierReleased = not input:IsModifierKeyDown(Enum.ModifierKey.Shift)
+	clearActivePaintPointer()
+	finishPaintInteraction(column, row, modifierReleased)
+end
+
+local function beginPaintCellInput(input: InputObject, column: number, row: number): boolean
+	if
+		input.UserInputType ~= Enum.UserInputType.MouseButton1
+		or activeMode ~= "Paint"
+		or not widget.Enabled
+		or paintRuntime.mode ~= "Cells"
+		or activePaintTool == "Pan"
+		or activePaintPointer ~= nil
+	then
+		return false
+	end
+	local modifierDown = input:IsModifierKeyDown(Enum.ModifierKey.Shift)
+	refreshPaintSafetyBadge(modifierDown)
+	local mutationRequested = activePaintTool ~= "Select" and modifierDown
+	if mutationRequested and not ProjectStore.isWritable() then
+		flowRuntime.reportBlocked("Paint editing")
+		refreshPaintSafetyBadge(false)
+		return true
+	end
+	local active = beginPaintInteraction(column, row, modifierDown)
+	if not active then
+		refreshPaintSafetyBadge(false)
+		return true
+	end
+	local pointer: PaintPointerState = {
+		input = input,
+		stateConnection = nil,
+	}
+	activePaintPointer = pointer
+	pointer.stateConnection = input:GetPropertyChangedSignal("UserInputState"):Connect(function()
+		local inputState = input.UserInputState
+		if inputState == Enum.UserInputState.End or inputState == Enum.UserInputState.Cancel then
+			finishActivePaintPointer(input, inputState == Enum.UserInputState.Cancel)
+		end
+	end)
+	return true
 end
 
 function renderCanvas()
@@ -1605,6 +1709,7 @@ function renderCanvas()
 		return
 	end
 	local grid = current.grid
+	local paintLayer = Brushes.find(activeBrushId).layer
 	local routePreview = ProjectStore.preview(selectedStageId)
 	local routeMask = if routePreview ~= nil then routePreview.routeNoBuildMask or {} else {}
 	local width = grid.columns * paintCellPixels + 22
@@ -1673,25 +1778,17 @@ function renderCanvas()
 			TextSize = 11,
 			ZIndex = 5,
 		}, gridCanvas) :: TextButton
-		create("UIStroke", {
-			Name = "RouteStroke",
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-			Color = COLORS.route,
-			Thickness = 2,
-			Transparency = 1,
-		}, cellButton)
-		create("TextLabel", {
-			Name = "RouteBadge",
-			AnchorPoint = Vector2.new(1, 0),
-			BackgroundTransparency = 1,
-			Font = Enum.Font.BuilderSansBold,
-			Position = UDim2.fromScale(1, 0),
-			Size = UDim2.fromOffset(8, 8),
-			Text = "",
-			TextColor3 = COLORS.route,
-			TextSize = 12,
-			ZIndex = 10,
-		}, cellButton)
+		cellButton.InputBegan:Connect(function(input: InputObject)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1 then
+				return
+			end
+			local column = cellButton:GetAttribute("Column")
+			local row = cellButton:GetAttribute("Row")
+			if type(column) ~= "number" or type(row) ~= "number" then
+				return
+			end
+			beginPaintCellInput(input, column, row)
+		end)
 		cellButton.MouseEnter:Connect(function()
 			local column = cellButton:GetAttribute("Column")
 			local row = cellButton:GetAttribute("Row")
@@ -1700,17 +1797,31 @@ function renderCanvas()
 				return
 			end
 			showHoveredCell(column, row, cellButton:GetAttribute("RouteAffected") == true)
-			cellButton.BorderColor3 = COLORS.warning
-			cellButton.BorderSizePixel = 2
+			local pointer = activePaintPointer
+			if activeMode == "Paint" and paintRuntime.mode == "Cells" and pointer ~= nil then
+				if not pointer.input:IsModifierKeyDown(Enum.ModifierKey.Shift) then
+					finishActivePaintPointer(pointer.input, false)
+					return
+				end
+				if ProjectStore.isWritable() then
+					paintStrokeSession:move(column, row, true)
+				else
+					clearActivePaintPointer()
+					paintStrokeSession:cancel("Editing became unavailable")
+					setStatus("Active paint was canceled because editing became unavailable.", true)
+					renderAll()
+				end
+			end
 		end)
 		cellButton.MouseLeave:Connect(function()
 			local column = cellButton:GetAttribute("Column")
 			local row = cellButton:GetAttribute("Row")
-			local key = if type(column) == "number" and type(row) == "number" then `{column}:{row}` else nil
-			cellButton.BorderColor3 = if key ~= nil and key == selectedCellKey
-				then COLORS.accent
-				else Color3.fromRGB(24, 27, 31)
-			cellButton.BorderSizePixel = if key ~= nil and key == selectedCellKey then 2 else 1
+			if
+				gridCanvas:GetAttribute("HoverColumn") == column
+				and gridCanvas:GetAttribute("HoverRow") == row
+			then
+				showHoveredCell(nil, nil)
+			end
 		end)
 		table.insert(cellPool, cellButton)
 	end
@@ -1721,46 +1832,51 @@ function renderCanvas()
 			local cellButton = cellPool[index]
 			local key = `{column}:{row}`
 			local authoredCell = grid.cells[key]
-			local cell = authoredCell or grid.defaultCell
-			local color, glyph = PaintAppearance.resolve(cell, authoredCell, grid.defaultCell)
+			local color, glyph = PaintAppearance.resolve(authoredCell, grid.defaultCell, paintLayer)
 			local traversalPolicy = if authoredCell ~= nil
 					and authoredCell.enemyTraversalPolicy ~= nil
 				then authoredCell.enemyTraversalPolicy
 				else grid.defaultCell.enemyTraversalPolicy
-			local routeAffected = paintRuntime.mode == "Route"
-				and routeMask[key] == true
-				and traversalPolicy == "Blocked"
+			local routeAffected = routeMask[key] == true and traversalPolicy == "Blocked"
 			cellButton.Position =
 				UDim2.fromOffset(22 + (column - 1) * paintCellPixels, 22 + (row - 1) * paintCellPixels)
 			cellButton.Size = UDim2.fromOffset(paintCellPixels, paintCellPixels)
-			cellButton.BackgroundColor3 = if routeAffected
+			cellButton.BackgroundColor3 = if paintRuntime.mode == "Route" and routeAffected
 				then color:Lerp(Color3.fromRGB(255, 154, 64), 0.52)
 				else color
-			cellButton.BorderColor3 = if key == selectedCellKey
-				then COLORS.accent
-				else Color3.fromRGB(24, 27, 31)
-			cellButton.BorderSizePixel = if key == selectedCellKey then 2 else 1
+			cellButton.BorderColor3 = Color3.fromRGB(24, 27, 31)
+			cellButton.BorderSizePixel = 1
 			cellButton.Text = glyph
 			cellButton:SetAttribute("Column", column)
 			cellButton:SetAttribute("Row", row)
 			cellButton:SetAttribute("RouteAffected", routeAffected)
-			local routeStroke = cellButton:FindFirstChild("RouteStroke") :: UIStroke?
-			if routeStroke ~= nil then
-				routeStroke.Transparency = 1
-			end
-			local routeBadge = cellButton:FindFirstChild("RouteBadge") :: TextLabel?
-			if routeBadge ~= nil then
-				routeBadge.Text = ""
-			end
 			cellButton.Visible = true
 		end
 	end
 	for poolIndex = index + 1, #cellPool do
 		cellPool[poolIndex].Visible = false
 	end
+	cellOverlay:refresh({
+		columns = grid.columns,
+		rows = grid.rows,
+		cellPixels = paintCellPixels,
+		selectedCellKey = selectedCellKey,
+		showHover = activeMode == "Paint",
+		showSelection = activeMode == "Paint" and paintRuntime.mode == "Cells",
+	})
+	local hoverColumn, hoverRow = cellOverlay:hoverCell()
+	paintInspector:setCell(
+		if hoverColumn ~= nil and hoverRow ~= nil
+			then paintCellState(hoverColumn, hoverRow)
+			else selectedPaintCellState()
+	)
 end
-gridScroll:GetPropertyChangedSignal("CanvasPosition"):Connect(renderCanvas)
-gridScroll:GetPropertyChangedSignal("AbsoluteWindowSize"):Connect(renderCanvas)
+local function renderCanvasAfterGeometryChange()
+	showHoveredCell(nil, nil)
+	renderCanvas()
+end
+gridScroll:GetPropertyChangedSignal("CanvasPosition"):Connect(renderCanvasAfterGeometryChange)
+gridScroll:GetPropertyChangedSignal("AbsoluteWindowSize"):Connect(renderCanvasAfterGeometryChange)
 gridScroll.MouseLeave:Connect(function()
 	showHoveredCell(nil, nil)
 end)
@@ -2204,12 +2320,14 @@ end
 stageAction("+ Stage", function()
 	mutate("Create Stagewright stage group", function()
 		selectedStageId = ProjectStore.createStage(nil)
+		selectedCellKey = nil
 	end)
 	renderAll()
 end)
 stageAction("+ Level", function()
 	mutate("Create Stagewright level", function()
 		selectedStageId = ProjectStore.createLevel(selectedStageId)
+		selectedCellKey = nil
 	end)
 	renderAll()
 end)
@@ -2222,6 +2340,7 @@ stageAction("Delete", function()
 		ok, message = ProjectStore.deleteStage(selectedStageId)
 		if ok then
 			selectedStageId = ProjectStore.stageIds()[1]
+			selectedCellKey = nil
 		end
 	end)
 	if not committed then
@@ -2397,39 +2516,32 @@ function renderStageList()
 	stageList.CanvasSize = UDim2.fromOffset(0, layoutOrder * 33 + 14)
 end
 
--- Graph page: stable node/edge IDs, directed connections, predicates, lanes, and priorities.
 local graphPage = contentByMode.Graph
 graphPage.ClipsDescendants = true
-local function connectRouteNodes(fromNodeId: string, toNodeId: string): boolean
-	local currentGraph = graph()
-	if currentGraph == nil or not GraphOperations.canConnect(currentGraph, fromNodeId, toNodeId) then
-		setStatus("Those route nodes cannot be connected in that direction.", true)
-		return false
-	end
-	local connected = false
-	local committed = mutate("Connect Stagewright route nodes", function()
-		connected = flowRuntime.connect(fromNodeId, toNodeId)
-	end)
-	if not committed then
-		return false
-	end
-	if not connected then
-		setStatus("The route connection could not be created.", true)
-		return false
-	end
-	return true
-end
+graphTools = GraphToolController.new({
+	currentGraph = graph,
+	sourceNodeId = function()
+		return connectFromNodeId
+	end,
+	setSourceNodeId = function(nodeId: string?)
+		connectFromNodeId = nodeId
+	end,
+	mutate = mutate,
+	select = function(nodeId: string?, edgeId: string?)
+		selectedNodeId = nodeId
+		selectedEdgeId = edgeId
+		tracedEdgeIds = {}
+	end,
+	setStatus = setStatus,
+	finishTool = function()
+		finishGraphTool()
+	end,
+	render = function()
+		renderAll()
+	end,
+})
 
 local function selectRouteNode(nodeId: string)
-	if connectFromNodeId ~= nil and connectFromNodeId ~= nodeId then
-		local fromId = connectFromNodeId
-		connectFromNodeId = nil
-		if connectRouteNodes(fromId, nodeId) then
-			tracedEdgeIds = {}
-			renderAll()
-			return
-		end
-	end
 	selectedNodeId = nodeId
 	selectedEdgeId = nil
 	tracedEdgeIds = {}
@@ -2446,10 +2558,17 @@ end
 routeOverview = RouteOverview.new(graphPage, COLORS, {
 	selectNode = selectRouteNode,
 	selectEdge = selectRouteEdge,
+	beginSource = function(nodeId: string)
+		return graphTools:beginSource(nodeId)
+	end,
+	connectNode = function(nodeId: string)
+		return graphTools:activateNode(nodeId)
+	end,
 	connectNodes = function(fromNodeId: string, toNodeId: string)
-		if connectRouteNodes(fromNodeId, toNodeId) then
-			renderAll()
-		end
+		return graphTools:connectNodes(fromNodeId, toNodeId)
+	end,
+	splitEdge = function(edgeId: string)
+		return graphTools:splitEdge(edgeId)
 	end,
 	moveHandle = function(edgeId: string, handleId: string, offset: any): boolean
 		local currentGraph = graph()
@@ -2571,21 +2690,6 @@ local function createRulesControls(parent: Instance): Frame
 	return rulesControls
 end
 
-flowRuntime.connect = function(fromId: string, toId: string)
-	local currentGraph = graph()
-	if currentGraph == nil then
-		return false
-	end
-	local edgeId = GraphOperations.connect(currentGraph, fromId, toId)
-	if edgeId == nil then
-		return false
-	end
-	selectedEdgeId = edgeId
-	selectedNodeId = nil
-	return true
-end
-
--- World Path and Route Logic are synchronized views over the same authored graph.
 do
 	local flowUi = {} :: any
 
@@ -2640,7 +2744,7 @@ do
 				cancelActiveEditorInteraction(false)
 			end
 			flowRuntime.mode = mode
-			flowRuntime.render()
+			renderAll()
 		end)
 		viewButton.Position = UDim2.fromOffset(12 + (order - 1) * 124, 6)
 		viewButton.Size = UDim2.fromOffset(116, 32)
@@ -2684,22 +2788,6 @@ do
 		renderAll()
 	end
 
-	flowUi.splitSelected = function()
-		local currentGraph = graph()
-		local edgeId = selectedEdgeId
-		if currentGraph == nil or edgeId == nil then
-			setStatus("Select a spline before splitting it.", true)
-			return
-		end
-		mutate("Split Stagewright graph edge", function()
-			selectedNodeId = GraphOperations.splitEdge(currentGraph, edgeId)
-			if selectedNodeId ~= nil then
-				selectedEdgeId = nil
-			end
-		end)
-		renderAll()
-	end
-
 	flowUi.activeTool = "Select"
 	flowUi.refreshToolButtons = function()
 		Toolbar.setNavigationSelected(flowUi.selectAction, flowUi.activeTool == "Select")
@@ -2707,15 +2795,30 @@ do
 		Toolbar.setNavigationSelected(flowUi.addSpawnAction, flowUi.activeTool == "AddSpawn")
 		Toolbar.setNavigationSelected(flowUi.addJunctionAction, flowUi.activeTool == "AddJunction")
 		Toolbar.setNavigationSelected(flowUi.addGoalAction, flowUi.activeTool == "AddGoal")
+		Toolbar.setNavigationSelected(flowUi.connectAction, flowUi.activeTool == "Connect")
+		Toolbar.setNavigationSelected(flowUi.splitAction, flowUi.activeTool == "Split")
 	end
 	flowUi.activateTool = function(tool: WorldPathController.Tool)
+		if worldPathController ~= nil then
+			worldPathController:cancelInteraction()
+		end
+		routeOverview:cancelInteraction()
+		connectFromNodeId = nil
 		flowUi.activeTool = tool
-		routeOverview:setTool(if tool == "Pan" then "Pan" else "Select")
+		routeOverview:setTool(
+			if tool == "Pan"
+				then "Pan"
+				elseif tool == "Connect" then "Connect"
+				elseif tool == "Split" then "Split"
+				else "Select"
+		)
 		if worldPathController ~= nil then
 			worldPathController:setTool(tool)
 		end
-		connectFromNodeId = nil
 		flowUi.refreshToolButtons()
+	end
+	finishGraphTool = function()
+		flowUi.activateTool("Select")
 	end
 	flowUi.selectAction = flowUi.action("Select", "select", COLORS.text, 78, function()
 		flowUi.activateTool("Select")
@@ -2728,7 +2831,7 @@ do
 	flowUi.addSpawnAction = flowUi.action("Add Spawn", "spawn", Color3.fromRGB(71, 209, 111), 100, function()
 		flowRuntime.mode = "World"
 		flowUi.activateTool("AddSpawn")
-		flowRuntime.render()
+		renderAll()
 		setStatus("Click an empty point on the World Path map to place the spawn.")
 	end)
 	flowUi.addJunctionAction = flowUi.action(
@@ -2739,29 +2842,30 @@ do
 		function()
 			flowRuntime.mode = "World"
 			flowUi.activateTool("AddJunction")
-			flowRuntime.render()
+			renderAll()
 			setStatus("Click an empty point on the World Path map to place the junction.")
 		end
 	)
 	flowUi.addGoalAction = flowUi.action("Add Goal", "goal", Color3.fromRGB(145, 80, 232), 94, function()
 		flowRuntime.mode = "World"
 		flowUi.activateTool("AddGoal")
-		flowRuntime.render()
+		renderAll()
 		setStatus("Click an empty point on the World Path map to place the goal.")
 	end)
-	flowUi.refreshToolButtons()
-	flowUi.action("Connect", "connect", COLORS.text, 90, function()
-		flowUi.activateTool("Select")
+	flowUi.connectAction = flowUi.action("Connect", "connect", COLORS.text, 90, function()
+		flowUi.activateTool("Connect")
 		local nodeId = selectedNodeId
 		if nodeId == nil then
-			setStatus("Select a start node first.", true)
-		elseif routeOverview:beginConnection(nodeId) then
-			setStatus("Click a destination node, or drag from the selected node's output port.")
-		else
-			setStatus("Goal nodes cannot start a route connection.", true)
+			setStatus("Click a start node, then click its destination. Escape cancels.")
+		elseif graphTools:activateNode(nodeId) == false and flowRuntime.mode == "Logic" then
+			routeOverview:beginConnection(nodeId)
 		end
 	end)
-	flowUi.action("Split", "split", COLORS.text, 72, flowUi.splitSelected)
+	flowUi.splitAction = flowUi.action("Split", "split", COLORS.text, 72, function()
+		flowUi.activateTool("Split")
+		setStatus("Click the spline to split at its midpoint. Escape cancels.")
+	end)
+	flowUi.refreshToolButtons()
 	flowRuntime.worldControls = create("Frame", {
 		AnchorPoint = Vector2.new(1, 0),
 		BackgroundTransparency = 1,
@@ -2887,6 +2991,7 @@ do
 	end)
 	flowUi.fitAction = flowRuntime.modeAction(flowRuntime.worldControls, "Fit", 62, function()
 		worldPathController:fitToView()
+		setStatus("World Path fitted. Hold Ctrl while scrolling over the map to zoom.")
 	end)
 	Toolbar.styleIconButton(flowUi.fitAction, "Fit", "fit", COLORS.muted)
 	flowRuntime.optionButtons.logicLanes = flowRuntime.modeAction(
@@ -3223,19 +3328,35 @@ do
 	flowRuntime.cancelInteraction = function(): boolean
 		local canceled = connectFromNodeId ~= nil
 		connectFromNodeId = nil
-		if
-			flowUi.activeTool == "AddSpawn"
-			or flowUi.activeTool == "AddJunction"
-			or flowUi.activeTool == "AddGoal"
-		then
+		if flowUi.activeTool ~= "Select" and flowUi.activeTool ~= "Pan" then
 			flowUi.activeTool = "Select"
 			worldPathController:setTool("Select")
+			routeOverview:setTool("Select")
 			flowUi.refreshToolButtons()
 			canceled = true
 		end
 		canceled = worldPathController:cancelInteraction() or canceled
 		canceled = routeOverview:cancelInteraction() or canceled
 		return canceled
+	end
+	local function mutateWorldPathEdge(label: string, edgeId: string, update: (any, string) -> boolean)
+		local currentGraph = graph()
+		if currentGraph == nil then
+			return
+		end
+		if
+			mutate(label, function()
+				assert(update(currentGraph, edgeId), `Stagewright rejected {label}`)
+			end)
+		then
+			renderAll()
+		end
+	end
+	local function selectWorldRoute(nodeId: string?, edgeId: string?)
+		selectedNodeId = nodeId
+		selectedEdgeId = edgeId
+		tracedEdgeIds = {}
+		renderWorkspacePreview()
 	end
 	worldPathController = WorldPathController.new({
 		parent = flowUi.worldHost,
@@ -3304,9 +3425,19 @@ do
 			cancelActiveEditorInteraction(false)
 			renderAll()
 		end,
-		selectNode = selectRouteNode,
-		selectEdge = selectRouteEdge,
+		select = selectWorldRoute,
+		connectNode = function(nodeId: string)
+			return graphTools:activateNode(nodeId)
+		end,
+		splitEdge = function(edgeId: string)
+			return graphTools:splitEdge(edgeId)
+		end,
 		setLanes = flowUi.setLaneCount,
+		setEdgeProperty = function(edgeId: string, property: string, value: any)
+			mutateWorldPathEdge(`Set Stagewright {property}`, edgeId, function(currentGraph, currentEdgeId)
+				return GraphOperations.setEdgeProperty(currentGraph, currentEdgeId, property, value)
+			end)
+		end,
 		focusWorld = function(edgeId: string?)
 			selectedEdgeId = edgeId
 			flowUi.activateTool("Select")
@@ -3314,9 +3445,23 @@ do
 			renderAll()
 		end,
 		testSegment = function(edgeId: string)
+			local currentGraph = graph()
+			local currentPreview = ProjectStore.preview(selectedStageId)
+			local bakedGraph = if currentGraph ~= nil and currentPreview ~= nil
+				then currentPreview.pathGraphs[currentGraph.id]
+				else nil
+			local bakedEdge = if bakedGraph ~= nil then bakedGraph.edges[edgeId] else nil
+			if currentGraph == nil or bakedEdge == nil then
+				setStatus("Segment test failed because the spline could not be baked.", true)
+				return
+			end
+			local profile = bakedGraph.laneProfiles[bakedEdge.laneProfileId]
+			local laneCount = if profile ~= nil then #profile.offsets else 1
 			selectedEdgeId = edgeId
 			tracedEdgeIds = { [edgeId] = true }
-			setStatus("Selected spline highlighted in the world preview.")
+			setStatus(
+				`Segment ready: {math.round(bakedEdge.length * 10) / 10} studs, {laneCount} lanes, {#bakedEdge.samples} baked samples.`
+			)
 			renderAll()
 		end,
 	})
@@ -3387,7 +3532,7 @@ do
 			local showWorld = button(flowUi.logicInspectorContent, "Open World Path", 248, function()
 				cancelActiveEditorInteraction(false)
 				flowRuntime.mode = "World"
-				flowRuntime.render()
+				renderAll()
 			end)
 			showWorld.Position = UDim2.fromOffset(2, 158)
 			showWorld.Size = UDim2.new(1, -4, 0, 32)
@@ -3406,7 +3551,7 @@ do
 			local pathAssetId = if type(metadata.pathAssetId) == "string"
 				then metadata.pathAssetId
 				else "gravel"
-			local pathAssetLabel = if string.lower(pathAssetId) == "gravel" then "Gravel" else pathAssetId
+			local pathAssetLabel = StagePathAssets.label(pathAssetId)
 			local function inspectorField(text: string, x: number, y: number, width: number): TextLabel
 				local result = create("TextLabel", {
 					BackgroundColor3 = COLORS.field,
@@ -3526,7 +3671,27 @@ do
 				setButtonSelected(curve, curveMode == selectedCurveMode)
 			end
 			flowRuntime.inspectorLabel(flowUi.logicInspectorContent, "PATH ASSET", 248, COLORS.muted)
-			inspectorField(pathAssetLabel, 2, 270, 222)
+			local pathAssetButton = button(
+				flowUi.logicInspectorContent,
+				`{pathAssetLabel}  ·  Next`,
+				248,
+				function()
+					mutateWorldPathEdge(
+						"Set Stagewright path asset",
+						edgeId,
+						function(graphToEdit, edgeToEdit)
+							return GraphOperations.setPathAsset(
+								graphToEdit,
+								edgeToEdit,
+								StagePathAssets.next(pathAssetId)
+							)
+						end
+					)
+				end
+			)
+			pathAssetButton.Position = UDim2.fromOffset(2, 270)
+			pathAssetButton.Size = UDim2.fromOffset(222, 32)
+			pathAssetButton.ZIndex = 82
 			flowRuntime.inspectorLabel(flowUi.logicInspectorContent, "CONDITIONS", 310, COLORS.muted)
 			local firstPredicate = edge.predicates[1]
 			local conditionText = if firstPredicate == nil
@@ -3589,7 +3754,7 @@ do
 			local showWorld = button(flowUi.logicInspectorContent, "Show in World", 138, function()
 				cancelActiveEditorInteraction(false)
 				flowRuntime.mode = "World"
-				flowRuntime.render()
+				renderAll()
 			end)
 			showWorld.Position = UDim2.fromOffset(2, 416)
 			showWorld.Size = UDim2.fromOffset(138, 32)
@@ -3752,26 +3917,10 @@ paintRuntime.beginRouteInteraction = function(position: Vector2)
 			setStatus("Connect needs a node: click the start node, then its destination.", true)
 			return
 		end
-		if connectFromNodeId == nil then
-			connectFromNodeId = nodeId
-			selectedNodeId = nodeId
-			selectedEdgeId = nil
-			setStatus("Start selected. Click the destination node.")
+		if graphTools:activateNode(nodeId) == true then
+			paintRuntime.routeTool = "Move"
 			renderAll()
-			return
 		end
-		if connectFromNodeId == nodeId then
-			setStatus("Choose a different destination node.", true)
-			return
-		end
-		local fromId = connectFromNodeId
-		if not connectRouteNodes(fromId :: string, nodeId) then
-			return
-		end
-		connectFromNodeId = nil
-		paintRuntime.routeTool = "Move"
-		setStatus("Directed spline created. Select it to adjust lanes.")
-		renderAll()
 		return
 	end
 	if edgeId ~= nil and handleId ~= nil then
@@ -4022,7 +4171,7 @@ local function renderIssues()
 	end
 	local paintIssueIndex = 0
 	for _, issue in validationIssues do
-		if issue.stageId == selectedStageId and paintIssueIndex < 3 then
+		if issue.stageId == selectedStageId and paintIssueIndex < 1 then
 			paintIssueIndex += 1
 			local row = paintPage:FindFirstChild(`PaintValidationRow{paintIssueIndex}`, true)
 			if row ~= nil and row:IsA("TextLabel") then
@@ -4031,7 +4180,7 @@ local function renderIssues()
 			end
 		end
 	end
-	for index = paintIssueIndex + 1, 3 do
+	for index = paintIssueIndex + 1, 1 do
 		local row = paintPage:FindFirstChild(`PaintValidationRow{index}`, true)
 		if row ~= nil and row:IsA("TextLabel") then
 			row.Text = if paintIssueIndex == 0 and index == 1 then "No issues in this level" else ""
@@ -4093,6 +4242,7 @@ local function renderIssues()
 			if issue.stageId ~= nil and project.stages[issue.stageId] ~= nil then
 				selectedStageId = issue.stageId
 			end
+			selectedCellKey = nil
 			local cellColumnText, cellRowText =
 				if issue.objectId ~= nil then string.match(issue.objectId, "^(%d+):(%d+)$") else nil, nil
 			selectedGraphId = issue.graphId
@@ -4329,6 +4479,7 @@ button(exportActions, "Import selected", 128, function()
 	if ok then
 		project = ProjectStore.get()
 		selectedStageId = project.startingStageId
+		selectedCellKey = nil
 		stageIds = ProjectStore.stageIds()
 		flowRuntime.refreshRecoveryBanner()
 		renderAll()
@@ -4337,7 +4488,12 @@ button(exportActions, "Import selected", 128, function()
 end)
 
 cancelActiveEditorInteraction = function(refresh: boolean?): boolean
-	local canceled = paintStrokeSession:isActive() or routeDragSession:isActive()
+	local canceled = activePaintPointer ~= nil
+		or paintPanState ~= nil
+		or paintStrokeSession:isActive()
+		or routeDragSession:isActive()
+	clearActivePaintPointer()
+	paintPanState = nil
 
 	canceled = paintStrokeSession:cancel("Editor context changed") or canceled
 	canceled = routeDragSession:cancel("Editor context changed") or canceled
@@ -4357,19 +4513,35 @@ local renderedActiveMode = activeMode
 local renderedPaintMode = paintRuntime.mode
 local renderedStageId = selectedStageId
 local renderedGraphId = selectedGraphId
+local renderedFlowMode = flowRuntime.mode
+local renderedWidgetEnabled = widget.Enabled
 
 renderAll = function()
+	if activeMode == "Graph" then
+		graph()
+	end
+	local graphViewBecameVisible = activeMode == "Graph"
+		and (
+			renderedActiveMode ~= "Graph"
+			or renderedFlowMode ~= flowRuntime.mode
+			or renderedStageId ~= selectedStageId
+			or renderedGraphId ~= selectedGraphId
+			or (widget.Enabled and not renderedWidgetEnabled)
+		)
 	local contextChanged = renderedActiveMode ~= activeMode
 		or renderedPaintMode ~= paintRuntime.mode
 		or renderedStageId ~= selectedStageId
 		or renderedGraphId ~= selectedGraphId
 	if contextChanged then
 		cancelActiveEditorInteraction(false)
+		showHoveredCell(nil, nil)
 	end
 	renderedActiveMode = activeMode
 	renderedPaintMode = paintRuntime.mode
 	renderedStageId = selectedStageId
 	renderedGraphId = selectedGraphId
+	renderedFlowMode = flowRuntime.mode
+	renderedWidgetEnabled = widget.Enabled
 
 	for mode, page in contentByMode do
 		page.Visible = mode == activeMode
@@ -4377,7 +4549,7 @@ renderAll = function()
 	end
 	local browsingLevels = activeMode == "Graph" or activeMode == "Stage"
 	sidebarTitle.Text = if activeMode == "Paint"
-		then if paintRuntime.mode == "Route" then "ROUTE TOOLS" else "LAYERS"
+		then if paintRuntime.mode == "Route" then "ROUTE TOOLS" else "CELL PROPERTIES"
 		elseif activeMode == "Validate" then "VALIDATION"
 		else "STAGES & LEVELS"
 	stageSearchField.Visible = browsingLevels
@@ -4396,16 +4568,13 @@ renderAll = function()
 		stageMoreMenu.Visible = false
 	end
 	stageInspector.Visible = activeMode == "Stage"
-	local paintInspectorView = rightSidebar:FindFirstChild("PaintInspector")
-	if paintInspectorView ~= nil and paintInspectorView:IsA("GuiObject") then
-		paintInspectorView.Visible = activeMode == "Paint" and paintRuntime.mode == "Cells"
-	end
+	paintInspector.root.Visible = activeMode == "Paint" and paintRuntime.mode == "Cells"
 	paintRuntime.routeInspector.Visible = activeMode == "Paint" and paintRuntime.mode == "Route"
 	shell.inspectorTitle.Text = if activeMode == "Graph"
 		then if selectedEdgeId ~= nil then "EDGE" elseif selectedNodeId ~= nil then "NODE" else "INSPECTOR"
 		elseif activeMode == "Paint" then if paintRuntime.mode == "Route"
 			then "ROUTE INSPECTOR"
-			else "BRUSH INSPECTOR"
+			else "CELL INSPECTOR"
 		elseif activeMode == "Stage" then "LEVEL PROPERTIES"
 		else ""
 	renderPaintChrome()
@@ -4471,9 +4640,8 @@ renderAll = function()
 					for column = 1, current.grid.columns do
 						local key = `{column}:{row}`
 						local authoredCell = current.grid.cells[key]
-						local resolvedCell = authoredCell or current.grid.defaultCell
 						local color, glyph =
-							PaintAppearance.resolve(resolvedCell, authoredCell, current.grid.defaultCell)
+							PaintAppearance.resolve(authoredCell, current.grid.defaultCell, "All")
 						local previewCellFrame = create("Frame", {
 							BackgroundColor3 = color,
 							BorderColor3 = Color3.fromRGB(28, 34, 41),
@@ -4590,6 +4758,14 @@ renderAll = function()
 	renderStageList()
 	if activeMode == "Graph" then
 		flowRuntime.render()
+		if graphViewBecameVisible then
+			if flowRuntime.mode == "World" then
+				worldPathController:fitToView()
+			else
+				routeOverview:fitToView()
+				flowRuntime.refreshOptions()
+			end
+		end
 	end
 	renderIslandOutlines()
 	applyResponsiveShell()
@@ -4616,25 +4792,30 @@ UserInputService.InputBegan:Connect(function(input)
 		end
 		return
 	end
-	if
-		activeMode ~= "Paint"
-		or not widget.Enabled
-		or input.UserInputType ~= Enum.UserInputType.MouseButton1
-	then
+	local isPrimary = input.UserInputType == Enum.UserInputType.MouseButton1
+	local isMiddle = input.UserInputType == Enum.UserInputType.MouseButton3
+	if activeMode ~= "Paint" or not widget.Enabled or (not isPrimary and not isMiddle) then
+		return
+	end
+	local position = Vector2.new(input.Position.X, input.Position.Y)
+	if not shell:isWorkspaceInputAllowed(position) then
+		return
+	end
+	if isMiddle or (paintRuntime.mode == "Cells" and activePaintTool == "Pan") then
+		beginPaintPan(position, if isMiddle then "Middle" else "Primary")
+		return
+	end
+	if paintRuntime.mode == "Cells" then
+		-- Cell painting is owned by GuiObject input because UserInputService is not
+		-- reliable while a DockWidgetPluginGui has focus.
 		return
 	end
 	if not ProjectStore.isWritable() then
 		flowRuntime.reportBlocked("Paint and route editing")
 		return
 	end
-	local position = Vector2.new(input.Position.X, input.Position.Y)
 	if paintRuntime.mode == "Route" then
 		paintRuntime.beginRouteInteraction(position)
-		return
-	end
-	local column, row = paintRuntime.cellAt(position)
-	if column ~= nil and row ~= nil then
-		beginPaintInteraction(column, row)
 	end
 end)
 
@@ -4646,11 +4827,27 @@ UserInputService.InputChanged:Connect(function(input)
 	then
 		return
 	end
-	if not ProjectStore.isWritable() then
+	local position = Vector2.new(input.Position.X, input.Position.Y)
+	local panState = paintPanState
+	if panState ~= nil then
+		local panButton = if panState.pointerId == "Primary"
+			then Enum.UserInputType.MouseButton1
+			else Enum.UserInputType.MouseButton3
+		if not UserInputService:IsMouseButtonPressed(panButton) then
+			paintPanState = nil
+			return
+		end
+		local delta = position - panState.pointerStart
+		gridScroll.CanvasPosition = Vector2.new(
+			math.max(panState.canvasStart.X - delta.X, 0),
+			math.max(panState.canvasStart.Y - delta.Y, 0)
+		)
 		return
 	end
-	local position = Vector2.new(input.Position.X, input.Position.Y)
 	if paintRuntime.mode == "Route" then
+		if not ProjectStore.isWritable() then
+			return
+		end
 		local localPosition = paintRuntime.localPositionAt(position)
 		if
 			routeDragSession:isActive()
@@ -4671,30 +4868,24 @@ UserInputService.InputChanged:Connect(function(input)
 		routeDragSession:move(routePoint(position), localPosition)
 		return
 	end
-	local column, row = paintRuntime.cellAt(position)
-	if
-		paintStrokeSession:isActive()
-		and not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
-	then
-		paintStrokeSession:release(column, row)
-		if column == nil or row == nil then
-			showHoveredCell(nil, nil)
-		end
-		return
-	end
-	if column == nil or row == nil then
-		showHoveredCell(nil, nil)
-		return
-	end
-	local preview = ProjectStore.preview(selectedStageId)
-	local routeAffected = preview ~= nil and preview.routeNoBuildMask[`{column}:{row}`] == true
-	showHoveredCell(column, row, routeAffected)
-	paintStrokeSession:move(column, row, paintModifierDown())
 end)
 
 UserInputService.InputEnded:Connect(function(input)
+	local panState = paintPanState
+	if
+		panState ~= nil
+		and (
+			(panState.pointerId == "Primary" and input.UserInputType == Enum.UserInputType.MouseButton1)
+			or (panState.pointerId == "Middle" and input.UserInputType == Enum.UserInputType.MouseButton3)
+		)
+	then
+		paintPanState = nil
+		setStatus("Canvas panned. Continue editing when ready.")
+		return
+	end
 	if not ProjectStore.isWritable() then
 		local hadActiveInteraction = paintStrokeSession:isActive() or routeDragSession:isActive()
+		clearActivePaintPointer()
 		paintStrokeSession:cancel("Editing became unavailable")
 		routeDragSession:cancel("Editing became unavailable")
 		if hadActiveInteraction then
@@ -4708,11 +4899,6 @@ UserInputService.InputEnded:Connect(function(input)
 		routeDragSession:release(routePoint(position), paintRuntime.localPositionAt(position))
 		renderAll()
 		return
-	end
-	if input.UserInputType == Enum.UserInputType.MouseButton1 and paintStrokeSession:isActive() then
-		local position = Vector2.new(input.Position.X, input.Position.Y)
-		local column, row = paintRuntime.cellAt(position)
-		paintStrokeSession:release(column, row)
 	end
 end)
 
@@ -4787,6 +4973,7 @@ do
 	action.Triggered:Connect(function()
 		mutate("Create Stagewright level", function()
 			selectedStageId = ProjectStore.createLevel(selectedStageId)
+			selectedCellKey = nil
 		end)
 		renderAll()
 	end)
@@ -4802,6 +4989,7 @@ do
 	action.Triggered:Connect(function()
 		mutate("Create Stagewright stage group", function()
 			selectedStageId = ProjectStore.createStage(nil)
+			selectedCellKey = nil
 		end)
 		renderAll()
 	end)
@@ -4815,11 +5003,14 @@ widget:GetPropertyChangedSignal("Enabled"):Connect(function()
 	if widget.Enabled then
 		renderAll()
 	else
+		renderedWidgetEnabled = false
+		refreshPaintSafetyBadge()
 		cancelActiveEditorInteraction(false)
 		workspacePreview:clear()
 	end
 end)
 local function cancelForFocusLoss()
+	refreshPaintSafetyBadge()
 	if widget.Enabled and cancelActiveEditorInteraction(true) then
 		setStatus("Active edit canceled because Stagewright lost focus.")
 	end
@@ -4877,6 +5068,7 @@ ProjectStore.observe(function()
 	stageIds = ProjectStore.stageIds()
 	if project.stages[selectedStageId] == nil then
 		selectedStageId = project.startingStageId or stageIds[1]
+		selectedCellKey = nil
 	end
 	local recoveryMessage = ProjectStore.recoveryMessage()
 	setStatus(

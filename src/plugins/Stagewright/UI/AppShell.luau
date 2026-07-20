@@ -15,6 +15,8 @@ export type Controller = {
 	status: TextLabel,
 	modes: Frame,
 	footerStage: TextLabel,
+	mapPlayable: TextButton,
+	mapAdmin: TextButton,
 	headerValidation: TextButton,
 	popupLayer: Frame,
 	leftSidebar: Frame,
@@ -23,14 +25,18 @@ export type Controller = {
 	sidebarTitle: TextLabel,
 	inspectorTitle: TextLabel,
 	applyResponsive: (self: Controller, mode: Mode) -> (),
+	closeCompactPanel: (self: Controller) -> (),
+	isWorkspaceInputAllowed: (self: Controller, position: Vector2) -> boolean,
 }
 
 local AppShell = {}
-local FOOTER_HEIGHT = 28
+local FOOTER_HEIGHT = 56
 local COMPACT_PANEL_BUTTON_WIDTH = 76
 local COMPACT_DRAWER_INSET = 8
 local COMPACT_LEFT_DRAWER_WIDTH = 248
 local COMPACT_RIGHT_DRAWER_WIDTH = 268
+local PAINT_MEDIUM_LEFT_WIDTH = 176
+local PAINT_DESKTOP_SIDEBAR_MIN_WIDTH = 1_350
 
 type CompactPanel = "Left" | "Right"
 
@@ -116,24 +122,47 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 		BackgroundTransparency = 1,
 		Font = Enum.Font.BuilderSansMedium,
 		Position = UDim2.fromScale(0.34, 0),
-		Size = UDim2.new(0.66, -190, 1, 0),
+		Size = UDim2.new(0.66, -220, 1, 0),
 		Text = "Loading your versioned stage project...",
 		TextColor3 = COLORS.muted,
 		TextSize = 11,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
 	}, footer) :: TextLabel
+	local mapPanel = create("Frame", {
+		AnchorPoint = Vector2.new(1, 0.5),
+		BackgroundColor3 = COLORS.surface,
+		BorderSizePixel = 0,
+		Name = "MapNavigation",
+		Position = UDim2.new(1, -8, 0.5, 0),
+		Size = UDim2.fromOffset(204, 48),
+		ZIndex = 4,
+	}, footer) :: Frame
+	create("UICorner", { CornerRadius = UDim.new(0, Theme.metrics.cornerRadius) }, mapPanel)
+	create("UIStroke", { Color = COLORS.borderStrong, Thickness = 1 }, mapPanel)
 	create("TextLabel", {
-		AnchorPoint = Vector2.new(1, 0),
 		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSans,
-		Position = UDim2.fromScale(1, 0),
-		Size = UDim2.fromOffset(180, 34),
-		Text = "Stagewright 2.5 - Edit mode only",
+		Font = Enum.Font.BuilderSansBold,
+		Position = UDim2.fromOffset(8, 2),
+		Size = UDim2.new(1, -16, 0, 14),
+		Text = "MAP",
 		TextColor3 = COLORS.muted,
-		TextSize = 10,
-		TextXAlignment = Enum.TextXAlignment.Right,
-	}, footer)
+		TextSize = 9,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 5,
+	}, mapPanel)
+	local mapPlayable = Factory.button(mapPanel, "PLAYABLE", 92, nil)
+	mapPlayable.Name = "MapPlayable"
+	mapPlayable.Position = UDim2.fromOffset(6, 18)
+	mapPlayable.Size = UDim2.fromOffset(92, 24)
+	mapPlayable.TextSize = 10
+	mapPlayable.ZIndex = 5
+	local mapAdmin = Factory.button(mapPanel, "ADMIN", 92, nil)
+	mapAdmin.Name = "MapAdmin"
+	mapAdmin.Position = UDim2.fromOffset(106, 18)
+	mapAdmin.Size = UDim2.fromOffset(92, 24)
+	mapAdmin.TextSize = 10
+	mapAdmin.ZIndex = 5
 	local headerValidation = create("TextButton", {
 		AnchorPoint = Vector2.new(1, 0),
 		AutoButtonColor = false,
@@ -270,8 +299,7 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 	compactInspectorButton.Visible = false
 	compactInspectorButton.ZIndex = 203
 	compactDismiss.Activated:Connect(function()
-		compactPanel = nil
-		controller:applyResponsive(responsiveMode)
+		controller:closeCompactPanel()
 	end)
 
 	controller.root = root
@@ -280,6 +308,8 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 	controller.status = status
 	controller.modes = modes
 	controller.footerStage = footerStage
+	controller.mapPlayable = mapPlayable
+	controller.mapAdmin = mapAdmin
 	controller.headerValidation = headerValidation
 	controller.popupLayer = popupLayer
 	controller.leftSidebar = leftSidebar
@@ -287,11 +317,41 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 	controller.rightSidebar = rightSidebar
 	controller.sidebarTitle = sidebarTitle
 	controller.inspectorTitle = inspectorTitle
+	controller.closeCompactPanel = function(self: Controller)
+		if compactPanel == nil then
+			return
+		end
+		compactPanel = nil
+		self:applyResponsive(responsiveMode)
+	end
+	controller.isWorkspaceInputAllowed = function(_self: Controller, position: Vector2): boolean
+		if compactDismiss.Visible then
+			return false
+		end
+		for _, child in popupLayer:GetChildren() do
+			if child:IsA("GuiObject") and child.Visible then
+				local childPosition = child.AbsolutePosition
+				local childSize = child.AbsoluteSize
+				if
+					position.X >= childPosition.X
+					and position.Y >= childPosition.Y
+					and position.X < childPosition.X + childSize.X
+					and position.Y < childPosition.Y + childSize.Y
+				then
+					return false
+				end
+			end
+		end
+		return true
+	end
 	controller.applyResponsive = function(self: Controller, mode: Mode)
 		local width = self.root.AbsoluteSize.X
 		local headerLayout = Theme.resolveHeaderLayout(width)
 		local wantsInspector = mode ~= "Validate"
 		local isCompact = headerLayout.density == "compact"
+		local usesPaintMediumLayout = mode == "Paint"
+			and width >= 1_050
+			and width < PAINT_DESKTOP_SIDEBAR_MIN_WIDTH
 		if responsiveMode ~= mode then
 			compactPanel = nil
 		end
@@ -313,13 +373,14 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 			end
 		end
 
-		self.headerValidation.Visible = true
+		local hidesValidationForDrawerButtons = usesPaintMediumLayout
+		self.headerValidation.Visible = not hidesValidationForDrawerButtons
 		local validationRight = Theme.metrics.headerOuterPadding
 			+ headerLayout.menuWidth
 			+ Theme.metrics.headerControlGap
-		local inspectorButtonRight = validationRight
-			+ headerLayout.validationWidth
-			+ Theme.metrics.headerControlGap
+		local inspectorButtonRight = if hidesValidationForDrawerButtons
+			then validationRight
+			else validationRight + headerLayout.validationWidth + Theme.metrics.headerControlGap
 		local controlY = math.floor((Theme.metrics.headerHeight - Theme.metrics.headerControlHeight) * 0.5)
 		compactInspectorButton.Position = UDim2.new(1, -inspectorButtonRight, 0, controlY)
 		compactToolsButton.Position = UDim2.new(
@@ -377,6 +438,42 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 			leftCorner.CornerRadius = UDim.new(0, 8)
 			rightCorner.CornerRadius = UDim.new(0, 8)
 			leftOutline.Enabled = true
+			rightOutline.Enabled = true
+		elseif usesPaintMediumLayout then
+			-- Keep the frequently-used brush rail visible at medium Paint widths,
+			-- while the less frequently-used inspector remains an overlay drawer.
+			-- This preserves at least 873 px of canvas at the 1,050 px breakpoint.
+			if compactPanel == "Left" then
+				compactPanel = nil
+			end
+			compactToolsButton.Visible = false
+			compactInspectorButton.Visible = wantsInspector
+			compactDismiss.Visible = compactPanel == "Right"
+			Factory.setSelected(compactToolsButton, false)
+			Factory.setSelected(compactInspectorButton, compactPanel == "Right")
+
+			self.leftSidebar.Visible = true
+			self.leftSidebar.AnchorPoint = Vector2.new(0, 0)
+			self.leftSidebar.Position = UDim2.fromOffset(0, 0)
+			self.leftSidebar.Size = UDim2.new(0, PAINT_MEDIUM_LEFT_WIDTH, 1, 0)
+			self.leftSidebar.ZIndex = 1
+			self.workspace.Position = UDim2.fromOffset(PAINT_MEDIUM_LEFT_WIDTH + 1, 0)
+			self.workspace.Size = UDim2.new(1, -(PAINT_MEDIUM_LEFT_WIDTH + 1), 1, 0)
+
+			self.rightSidebar.AnchorPoint = Vector2.new(1, 0)
+			self.rightSidebar.Position = UDim2.new(1, -COMPACT_DRAWER_INSET, 0, COMPACT_DRAWER_INSET)
+			self.rightSidebar.Size = UDim2.new(
+				0,
+				math.min(COMPACT_RIGHT_DRAWER_WIDTH, width - COMPACT_DRAWER_INSET * 2),
+				1,
+				-COMPACT_DRAWER_INSET * 2
+			)
+			self.rightSidebar.Visible = compactPanel == "Right" and wantsInspector
+			self.rightSidebar.ZIndex = 120
+
+			leftCorner.CornerRadius = UDim.new(0, 0)
+			rightCorner.CornerRadius = UDim.new(0, 8)
+			leftOutline.Enabled = false
 			rightOutline.Enabled = true
 		else
 			compactPanel = nil

@@ -34,6 +34,8 @@ local function sourceAndNames(instances: { Instance }): (string, { [string]: boo
 	return table.concat(sources, "\n"), names
 end
 
+local retiredLegacyInstanceNames = { "GridNpcDemo", "GridNpc", "PathPoints", "PathTiles", "GridOverlay" }
+
 local pluginRoots = roblox.deserializeModel(fs.readFile(pluginPath))
 local pluginSource, pluginNames = sourceAndNames(descendantsWithRoots(pluginRoots))
 for _, requiredName in
@@ -41,11 +43,15 @@ for _, requiredName in
 		"AuthoringArea",
 		"AppShell",
 		"CanvasTransform",
+		"GraphToolController",
 		"HeaderController",
 		"HitTest",
+		"MapNavigationController",
 		"Persistence",
 		"PaintRouteDragSession",
 		"PaintStrokeSession",
+		"PaintCellOverlay",
+		"PaintInspector",
 		"PointerDrag",
 		"ProjectLoadPolicy",
 		"ProjectStore",
@@ -53,10 +59,12 @@ for _, requiredName in
 		"RouteOverview",
 		"Shared",
 		"StageGraph",
+		"StageCell",
 		"StageHierarchy",
 		"StageLanes",
 		"StageLegacy",
 		"StagePath",
+		"StagePathAssets",
 		"StagePayload",
 		"StagePlatformLayout",
 		"StageSchema",
@@ -98,12 +106,28 @@ for _, marker in
 		"ProjectStorage.writePayload",
 		"WorkspacePreview.new",
 		"StagewrightPanelV2",
+		"MapNavigation",
+		"MapPlayable",
+		"MapAdmin",
+		"focusPlayable",
+		"removeLegacyArtifacts",
+		"StagewrightRequestedPathAsset",
+		"UnknownPathAsset",
 		"STAGES & LEVELS",
 		"Brush 1 x 1",
-		"Shift + drag to paint",
+		"SHIFT TO PAINT",
+		"HoverCellOutline",
+		"SelectedCellOutline",
+		"Each cell has one Surface",
+		"StageCell.resolve",
+		"Enum.ModifierKey.Ctrl",
+		"ScrollingEnabled",
+		"isWorkspaceInputAllowed",
+		"Panning canvas",
 		"LevelPreviewCanvas",
 		"ValidationErrorValue",
 		"StageMoreMenu",
+		"Level --",
 		"World Path",
 		"Route Logic",
 		"PaintTool_",
@@ -131,10 +155,12 @@ for _, requiredName in
 	{
 		"StageCatalog",
 		"StageCatalog.generated",
+		"StageCell",
 		"StageGraph",
 		"StageHierarchy",
 		"StageLanes",
 		"StagePath",
+		"StagePathAssets",
 		"StagePlatformLayout",
 		"StagePlatformService",
 		"StageRuntimeService",
@@ -147,7 +173,9 @@ for _, requiredName in
 do
 	assert(runtimeNames[requiredName], `Tower-defense artifact is missing {requiredName}`)
 end
-assert(not runtimeNames.GridNpcDemo, "Tower-defense artifact retained the dead GridNpcDemo script")
+for _, retiredName in retiredLegacyInstanceNames do
+	assert(not runtimeNames[retiredName], `Tower-defense artifact retained legacy instance {retiredName}`)
+end
 for _, marker in
 	{
 		expectedChecksum,
@@ -165,6 +193,9 @@ for _, marker in
 		"ActiveStageId",
 		"StageCatalog.nextLevelId",
 		"stage_1_level_10",
+		"StagewrightLaneWidth",
+		"StagewrightRequestedPathAsset",
+		"UnknownPathAsset",
 	}
 do
 	assert(
@@ -187,6 +218,8 @@ for _, requiredName in
 	{
 		"TemplateConfig",
 		"RuneModeConfig",
+		"StageCell",
+		"StagePathAssets",
 		"StagePlatformService",
 		"StagePlatformOwnerController",
 		"TowerDefenseRequest",
@@ -194,6 +227,8 @@ for _, requiredName in
 do
 	assert(safePatchNames[requiredName], `Shared-place safe patch is missing {requiredName}`)
 end
-assert(not safePatchNames.GridNpcDemo, "Shared-place safe patch retained the dead GridNpcDemo script")
+for _, retiredName in retiredLegacyInstanceNames do
+	assert(not safePatchNames[retiredName], `Shared-place safe patch retained legacy instance {retiredName}`)
+end
 
 print("Stagewright plugin, player-test, and shared-place artifacts passed structural validation.")

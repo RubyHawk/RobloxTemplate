@@ -8,7 +8,10 @@ local Template = ReplicatedStorage:WaitForChild("Template")
 local Shared = Template:WaitForChild("Shared")
 local Config = require(Shared.TemplateConfig)
 local StageCatalog = require(Shared.StageCatalog)
+local StageCell = require(Shared.StageCell)
+local StageLanes = require(Shared.StageLanes)
 local StagePath = require(Shared.StagePath)
+local StagePathAssets = require(Shared.StagePathAssets)
 
 local StageGridRenderer = {}
 
@@ -28,6 +31,16 @@ end
 
 local function faded(transparency: number, fade: number): number
 	return 1 - (1 - transparency) * (1 - math.clamp(fade, 0, 1))
+end
+
+local function materialFromName(materialName: any): Enum.Material
+	if type(materialName) == "string" then
+		local candidate = (Enum.Material :: any)[materialName]
+		if typeof(candidate) == "EnumItem" then
+			return candidate :: Enum.Material
+		end
+	end
+	return Enum.Material.Pebble
 end
 
 local function hideEditorRoot(root: Instance)
@@ -224,10 +237,15 @@ end
 local function renderRouteSegment(
 	model: Model,
 	index: number,
+	edgeId: string,
 	fromPosition: Vector3,
 	toPosition: Vector3,
 	up: Vector3,
-	fade: number
+	laneWidth: number,
+	fade: number,
+	pathAsset: any,
+	pathMaterial: Enum.Material,
+	requestedAssetId: string
 )
 	local visuals = Config.towerDefense.gridVisuals
 	local difference = toPosition - fromPosition
@@ -236,15 +254,19 @@ local function renderRouteSegment(
 		return
 	end
 	local middle = fromPosition:Lerp(toPosition, 0.5)
-	createPart(
+	local routePart = createPart(
 		model,
 		`Route_{string.format("%03d", index)}`,
-		Vector3.new(visuals.routeWidth, visuals.routeHeight, length + 0.08),
+		Vector3.new(laneWidth, visuals.routeHeight, length + 0.08),
 		CFrame.lookAt(middle, toPosition, up),
-		color(visuals.routeColor),
+		color(pathAsset.rgb),
 		faded(visuals.routeTransparency, fade),
-		Enum.Material.SmoothPlastic
+		pathMaterial
 	)
+	routePart:SetAttribute("StagewrightEdgeId", edgeId)
+	routePart:SetAttribute("StagewrightPathAsset", pathAsset.id)
+	routePart:SetAttribute("StagewrightRequestedPathAsset", requestedAssetId)
+	routePart:SetAttribute("StagewrightLaneWidth", laneWidth)
 end
 
 local function routePoint(origin: CFrame, sample: any, laneOffset: number, verticalOffset: number): Vector3
@@ -274,6 +296,9 @@ local function renderRoutes(model: Model, stage: any, origin: CFrame, fade: numb
 		table.sort(edgeIds)
 		for _, edgeId in edgeIds do
 			local edge = graph.edges[edgeId]
+			local pathAsset, requestedAssetId = StagePathAssets.forEdge(edge)
+			local pathMaterial = materialFromName(pathAsset.materialName)
+			local laneWidth = StageLanes.resolveWidth(edge.metadata)
 			local laneProfile = graph.laneProfiles[edge.laneProfileId]
 			local laneOffsets = if laneProfile ~= nil and #laneProfile.offsets > 0
 				then laneProfile.offsets
@@ -287,7 +312,19 @@ local function renderRoutes(model: Model, stage: any, origin: CFrame, fade: numb
 						local current = routePoint(origin, sample, laneOffset, visuals.routeVerticalOffset)
 						if previous ~= nil then
 							segmentIndex += 1
-							renderRouteSegment(model, segmentIndex, previous, current, origin.UpVector, fade)
+							renderRouteSegment(
+								model,
+								segmentIndex,
+								edgeId,
+								previous,
+								current,
+								origin.UpVector,
+								laneWidth,
+								fade,
+								pathAsset,
+								pathMaterial,
+								requestedAssetId
+							)
 						end
 						previous = current
 					end
@@ -298,7 +335,19 @@ local function renderRoutes(model: Model, stage: any, origin: CFrame, fade: numb
 					local finalPosition =
 						routePoint(origin, finalSample, laneOffset, visuals.routeVerticalOffset)
 					segmentIndex += 1
-					renderRouteSegment(model, segmentIndex, previous, finalPosition, origin.UpVector, fade)
+					renderRouteSegment(
+						model,
+						segmentIndex,
+						edgeId,
+						previous,
+						finalPosition,
+						origin.UpVector,
+						laneWidth,
+						fade,
+						pathAsset,
+						pathMaterial,
+						requestedAssetId
+					)
 				end
 			end
 		end
@@ -325,7 +374,8 @@ local function renderMarkers(model: Model, stage: any, origin: CFrame, fade: num
 	local grid = stage.grid
 	local width = grid.columns * grid.cellSize
 	local depth = grid.rows * grid.cellSize
-	for key, cell in grid.cells do
+	for key, authoredCell in grid.cells do
+		local cell = StageCell.resolve(grid.defaultCell, authoredCell)
 		local partColor = markerColor(cell)
 		if partColor == nil then
 			continue

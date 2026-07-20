@@ -10,6 +10,7 @@ type StagePreviewDefinition = StageTypes.StagePreviewDefinition
 
 export type Option = "AssetPreview" | "Lanes" | "BuildMask" | "Conflicts"
 export type Tool = WorldPathView.Tool
+export type EdgeProperty = "LaneWidth" | "Priority" | "CurveMode" | "PathAsset"
 
 export type RenderState = {
 	stage: StageDefinition?,
@@ -39,9 +40,11 @@ export type Config = {
 	onCommitted: () -> (),
 	onFailed: (action: string) -> (),
 	addNode: (kind: "Spawn" | "Junction" | "Goal", position: WorldPathEditSession.Vec3) -> (),
-	selectNode: (nodeId: string) -> (),
-	selectEdge: (edgeId: string) -> (),
+	select: (nodeId: string?, edgeId: string?) -> (),
+	connectNode: (nodeId: string) -> boolean?,
+	splitEdge: (edgeId: string) -> boolean,
 	setLanes: (edgeId: string, laneCount: number) -> (),
+	setEdgeProperty: (edgeId: string, property: EdgeProperty, value: any) -> (),
 	focusWorld: (edgeId: string?) -> (),
 	testSegment: (edgeId: string) -> (),
 }
@@ -85,10 +88,16 @@ function WorldPathController.new(config: Config): Controller
 				z = position.z,
 			})
 		end,
-		selectNode = config.selectNode,
-		selectEdge = config.selectEdge,
+		selectNode = function(nodeId: string)
+			config.select(nodeId, nil)
+		end,
+		selectEdge = function(edgeId: string)
+			config.select(nil, edgeId)
+		end,
+		connectNode = config.connectNode,
+		splitEdge = config.splitEdge,
 		moveNode = function(nodeId: string, position: any, finished: boolean)
-			editSession:moveNode(nodeId, {
+			return editSession:moveNode(nodeId, {
 				x = position.x,
 				y = position.y,
 				z = position.z,
@@ -96,16 +105,28 @@ function WorldPathController.new(config: Config): Controller
 		end,
 		moveHandle = function(edgeId: string, handleId: string, offset: any, finished: boolean)
 			if handleId ~= "Out" and handleId ~= "In" then
-				return
+				return false
 			end
 			local resolvedHandleId = handleId :: WorldPathEditSession.HandleId
-			editSession:moveHandle(edgeId, resolvedHandleId, {
+			return editSession:moveHandle(edgeId, resolvedHandleId, {
 				x = offset.x,
 				y = offset.y,
 				z = offset.z,
 			}, finished)
 		end,
 		setLanes = config.setLanes,
+		setLaneWidth = function(edgeId: string, value: number)
+			config.setEdgeProperty(edgeId, "LaneWidth", value)
+		end,
+		setPriority = function(edgeId: string, value: number)
+			config.setEdgeProperty(edgeId, "Priority", value)
+		end,
+		setCurveMode = function(edgeId: string, value: string)
+			config.setEdgeProperty(edgeId, "CurveMode", value)
+		end,
+		setPathAsset = function(edgeId: string, value: string)
+			config.setEdgeProperty(edgeId, "PathAsset", value)
+		end,
 		focusWorld = config.focusWorld,
 		testSegment = config.testSegment,
 	})
@@ -144,7 +165,8 @@ function WorldPathController.new(config: Config): Controller
 		end
 		view:rerender()
 	end
-	controller.setTool = function(_self: Controller, tool: Tool)
+	controller.setTool = function(self: Controller, tool: Tool)
+		self:cancelInteraction()
 		view:setTool(tool)
 	end
 	controller.fitToView = function(_self: Controller)

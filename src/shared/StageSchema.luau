@@ -1,10 +1,14 @@
 --!strict
 
 local StageGraph = if script ~= nil then require(script.Parent.StageGraph) else require("./StageGraph")
+local StageCell = if script ~= nil then require(script.Parent.StageCell) else require("./StageCell")
 local StageHierarchy = if script ~= nil
 	then require(script.Parent.StageHierarchy)
 	else require("./StageHierarchy")
 local StageLanes = if script ~= nil then require(script.Parent.StageLanes) else require("./StageLanes")
+local StagePathAssets = if script ~= nil
+	then require(script.Parent.StagePathAssets)
+	else require("./StagePathAssets")
 
 local StageSchema = {}
 
@@ -283,7 +287,75 @@ function StageSchema.validateStage(stage: any): { Issue }
 				stageId = stageId,
 			})
 		end
-		for key, cell in grid.cells or {} do
+		local defaultCell = if type(grid.defaultCell) == "table" then grid.defaultCell else {}
+		if type(grid.defaultCell) ~= "table" then
+			table.insert(issues, {
+				severity = "Error",
+				code = "InvalidDefaultCell",
+				message = "Stage grid default cell is missing or invalid",
+				stageId = stageId,
+			})
+		else
+			if defaultCell.buildPolicy ~= nil and VALID_BUILD_POLICIES[defaultCell.buildPolicy] ~= true then
+				table.insert(issues, {
+					severity = "Error",
+					code = "DefaultBuildPolicy",
+					message = "Stage grid default cell has an invalid build policy",
+					stageId = stageId,
+				})
+			end
+			if
+				defaultCell.enemyTraversalPolicy ~= nil
+				and VALID_TRAVERSAL_POLICIES[defaultCell.enemyTraversalPolicy] ~= true
+			then
+				table.insert(issues, {
+					severity = "Error",
+					code = "DefaultTraversalPolicy",
+					message = "Stage grid default cell has an invalid enemy traversal policy",
+					stageId = stageId,
+				})
+			end
+			if defaultCell.roles ~= nil and type(defaultCell.roles) ~= "table" then
+				table.insert(issues, {
+					severity = "Error",
+					code = "DefaultCellRoles",
+					message = "Stage grid default roles must be a table",
+					stageId = stageId,
+				})
+			elseif type(defaultCell.roles) == "table" then
+				for _, enabled in defaultCell.roles do
+					if enabled == true then
+						table.insert(issues, {
+							severity = "Error",
+							code = "DefaultCellRole",
+							message = "Cell roles must be authored on explicit cells, not the level default",
+							stageId = stageId,
+						})
+						break
+					end
+				end
+			end
+		end
+		local cells = if type(grid.cells) == "table" then grid.cells else {}
+		if type(grid.cells) ~= "table" then
+			table.insert(issues, {
+				severity = "Error",
+				code = "InvalidCells",
+				message = "Stage grid cell overrides are missing or invalid",
+				stageId = stageId,
+			})
+		end
+		for key, cell in cells do
+			if type(key) ~= "string" or type(cell) ~= "table" then
+				table.insert(issues, {
+					severity = "Error",
+					code = "InvalidCellOverride",
+					message = "Stage grid contains an invalid cell override",
+					stageId = stageId,
+					objectId = if type(key) == "string" then key else nil,
+				})
+				continue
+			end
 			local columnText, rowText = string.match(key, "^(%d+):(%d+)$")
 			local column = tonumber(columnText)
 			local row = tonumber(rowText)
@@ -324,7 +396,17 @@ function StageSchema.validateStage(stage: any): { Issue }
 					objectId = key,
 				})
 			end
-			for role, enabled in cell.roles or {} do
+			local authoredRoles = if type(cell.roles) == "table" then cell.roles else {}
+			if cell.roles ~= nil and type(cell.roles) ~= "table" then
+				table.insert(issues, {
+					severity = "Error",
+					code = "CellRoles",
+					message = `Cell {key} roles must be a table`,
+					stageId = stageId,
+					objectId = key,
+				})
+			end
+			for role, enabled in authoredRoles do
 				if enabled == true and VALID_ROLES[role] ~= true then
 					table.insert(issues, {
 						severity = "Warning",
@@ -335,8 +417,24 @@ function StageSchema.validateStage(stage: any): { Issue }
 					})
 				end
 			end
-			local roles = cell.roles or {}
-			if (roles.EnemySpawn or roles.EnemyGoal) and cell.buildPolicy ~= "Blocked" then
+			local resolvedCell = StageCell.resolve(defaultCell, cell)
+			local roles = if type(resolvedCell.roles) == "table" then resolvedCell.roles else {}
+			local primaryRoleCount = 0
+			for _, primaryRole in { "EnemySpawn", "EnemyGoal", "AutoPlace" } do
+				if roles[primaryRole] == true then
+					primaryRoleCount += 1
+				end
+			end
+			if primaryRoleCount > 1 then
+				table.insert(issues, {
+					severity = "Error",
+					code = "ConflictingPrimaryRoles",
+					message = `Cell {key} can only be a spawn, goal, or auto-place cell`,
+					stageId = stageId,
+					objectId = key,
+				})
+			end
+			if (roles.EnemySpawn or roles.EnemyGoal) and resolvedCell.buildPolicy ~= "Blocked" then
 				table.insert(issues, {
 					severity = "Error",
 					code = "EndpointBuildPolicy",
@@ -345,7 +443,7 @@ function StageSchema.validateStage(stage: any): { Issue }
 					objectId = key,
 				})
 			end
-			if roles.AutoPlace and cell.buildPolicy == "Blocked" then
+			if roles.AutoPlace and resolvedCell.buildPolicy == "Blocked" then
 				table.insert(issues, {
 					severity = "Error",
 					code = "AutoPlaceBlocked",
@@ -442,6 +540,18 @@ function StageSchema.validateStage(stage: any): { Issue }
 						severity = "Error",
 						code = "MissingLaneProfile",
 						message = `Edge {edgeId} references a missing lane profile`,
+						stageId = stageId,
+						graphId = graphId,
+						objectId = edgeId,
+					})
+				end
+				local metadata = if type(edge.metadata) == "table" then edge.metadata else nil
+				local pathAssetId = if metadata ~= nil then metadata.pathAssetId else nil
+				if type(pathAssetId) == "string" and not StagePathAssets.isValid(pathAssetId) then
+					table.insert(issues, {
+						severity = "Warning",
+						code = "UnknownPathAsset",
+						message = `Edge {edgeId} references unavailable path asset {pathAssetId}; preview uses {StagePathAssets.DEFAULT_ASSET_ID}`,
 						stageId = stageId,
 						graphId = graphId,
 						objectId = edgeId,

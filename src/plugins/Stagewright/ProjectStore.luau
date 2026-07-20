@@ -213,6 +213,7 @@ local function applyLoadedPlan(state: ProjectLoadPolicy.Ready | ProjectLoadPolic
 			persistedChecksum = state.persistedChecksum,
 		}
 	end
+	AuthoringArea.removeLegacyArtifacts()
 end
 
 function ProjectStore.load(platformOverride: Instance?): StageProject
@@ -262,7 +263,7 @@ end
 
 local refreshObserverConnections: () -> ()
 
-local function saveUnchecked(): string
+local function saveUnchecked(existingRecording: boolean?): string
 	local current = ProjectStore.get()
 	local encoded = StageSchema.encodeCanonical(current)
 	local checksum = StageSchema.checksum(current)
@@ -282,6 +283,7 @@ local function saveUnchecked(): string
 	}
 	writesSuspended = false
 	refreshObserverConnections()
+	AuthoringArea.removeLegacyArtifacts(existingRecording)
 	return checksum
 end
 
@@ -446,7 +448,7 @@ finishActiveTransaction = function(commit: boolean): boolean
 		ChangeHistoryService:FinishRecording(activeRecording, Enum.FinishRecordingOperation.Cancel)
 		return false
 	end
-	local success, message = pcall(saveUnchecked)
+	local success, message = pcall(saveUnchecked, true)
 	if not success then
 		restoreRecordingProject(snapshot)
 		ChangeHistoryService:FinishRecording(activeRecording, Enum.FinishRecordingOperation.Cancel)
@@ -730,7 +732,7 @@ function ProjectStore.importPayload(encoded: string, expectedChecksum: string?):
 	local previousLoadResult = loadResult
 	project = candidate
 	loadResult = planned
-	local saveSuccess, saveMessage = pcall(saveUnchecked)
+	local saveSuccess, saveMessage = pcall(saveUnchecked, true)
 	if not saveSuccess then
 		project = previousProject
 		loadResult = previousLoadResult

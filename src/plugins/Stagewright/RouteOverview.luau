@@ -5,7 +5,7 @@ local UserInputService = game:GetService("UserInputService")
 local RouteOverview = {}
 RouteOverview.__index = RouteOverview
 
-export type Tool = "Select" | "Pan"
+export type Tool = "Select" | "Pan" | "Connect" | "Split"
 
 type HandleId = "Out" | "In"
 
@@ -48,7 +48,10 @@ type Theme = {
 export type Callbacks = {
 	selectNode: (string) -> (),
 	selectEdge: (string) -> (),
-	connectNodes: (string, string) -> (),
+	beginSource: (string) -> boolean,
+	connectNode: (string) -> boolean?,
+	connectNodes: (string, string) -> boolean?,
+	splitEdge: (string) -> boolean,
 	moveHandle: (string, HandleId, Vec3) -> boolean,
 }
 
@@ -75,6 +78,8 @@ export type Controller = typeof(setmetatable(
 		topologySignature: string?,
 		connectionFromNodeId: string?,
 		connectionPreview: Frame?,
+		suppressNodeActivationId: string?,
+		suppressNodeActivationUntil: number,
 		panInputStart: Vector2?,
 		panCanvasStart: Vector2?,
 		handleDrag: HandleDrag?,
@@ -453,6 +458,7 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		Position = UDim2.fromOffset(0, 0),
 		ScrollBarImageColor3 = theme.border,
 		ScrollBarThickness = 7,
+		ScrollingEnabled = false,
 		ScrollingDirection = Enum.ScrollingDirection.XY,
 		Size = UDim2.fromScale(1, 1),
 	}, root) :: ScrollingFrame
@@ -513,6 +519,8 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		topologySignature = nil,
 		connectionFromNodeId = nil,
 		connectionPreview = nil,
+		suppressNodeActivationId = nil,
+		suppressNodeActivationUntil = 0,
 		panInputStart = nil,
 		panCanvasStart = nil,
 		handleDrag = nil,
@@ -617,12 +625,17 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 				return
 			end
 			local fromNodeId = controller.connectionFromNodeId
-			if input.UserInputType ~= Enum.UserInputType.MouseButton1 or fromNodeId == nil then
+			if
+				input.UserInputType ~= Enum.UserInputType.MouseButton1
+				or fromNodeId == nil
+				or not isVisible(controller.root)
+			then
 				return
 			end
 			local pointer = Vector2.new(input.Position.X, input.Position.Y)
 				- controller.canvas.AbsolutePosition
 			local destinationId: string? = nil
+			local destinationDistance = math.huge
 			for nodeId, point in controller.nodePositions do
 				local destination = if controller.graph ~= nil then controller.graph.nodes[nodeId] else nil
 				if
@@ -632,12 +645,23 @@ function RouteOverview.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 					and math.abs(pointer.X - point.X) <= NODE_SIZE.X * controller.zoom * 0.6
 					and math.abs(pointer.Y - point.Y) <= NODE_SIZE.Y * controller.zoom * 0.72
 				then
-					destinationId = nodeId
-					break
+					local distance = (pointer - point).Magnitude
+					if
+						distance < destinationDistance
+						or (
+							distance == destinationDistance
+							and (destinationId == nil or nodeId < destinationId)
+						)
+					then
+						destinationId = nodeId
+						destinationDistance = distance
+					end
 				end
 			end
 			controller:cancelInteraction()
 			if destinationId ~= nil then
+				controller.suppressNodeActivationId = destinationId
+				controller.suppressNodeActivationUntil = os.clock() + 0.25
 				controller.callbacks.connectNodes(fromNodeId, destinationId)
 			else
 				controller:rerender()
@@ -818,7 +842,9 @@ function RouteOverview.rerender(self: Controller)
 		local to = self.nodePositions[edge.toNodeId]
 		if fromNode ~= nil and toNode ~= nil and from ~= nil and to ~= nil then
 			local function selectThisEdge()
-				if self.tool == "Select" then
+				if self.tool == "Split" then
+					self.callbacks.splitEdge(edgeId)
+				elseif self.tool == "Select" then
 					self.callbacks.selectEdge(edgeId)
 				end
 			end
@@ -1051,14 +1077,32 @@ function RouteOverview.rerender(self: Controller)
 			create("UICorner", { CornerRadius = UDim.new(1, 0) }, outputPort)
 			create("UIStroke", { Color = self.theme.accent, Thickness = 2 }, outputPort)
 			outputPort.InputBegan:Connect(function(input)
-				if self.tool == "Select" and input.UserInputType == Enum.UserInputType.MouseButton1 then
+				if input.UserInputType ~= Enum.UserInputType.MouseButton1 then
+					return
+				end
+				if self.tool == "Connect" then
+					if self.callbacks.beginSource(nodeId) then
+						self.connectionFromNodeId = nodeId
+					else
+						self:cancelInteraction()
+					end
+				elseif self.tool == "Select" then
 					self.connectionFromNodeId = nodeId
 					self.callbacks.selectNode(nodeId)
 				end
 			end)
 		end
 		nodeButton.Activated:Connect(function()
-			if self.tool == "Select" then
+			if self.suppressNodeActivationId == nodeId and os.clock() <= self.suppressNodeActivationUntil then
+				self.suppressNodeActivationId = nil
+				self.suppressNodeActivationUntil = 0
+				return
+			end
+			if self.tool == "Connect" then
+				if self.callbacks.connectNode(nodeId) == false then
+					self.connectionFromNodeId = nodeId
+				end
+			elseif self.tool == "Select" then
 				self.callbacks.selectNode(nodeId)
 			end
 		end)
@@ -1141,7 +1185,7 @@ function RouteOverview.beginConnection(self: Controller, nodeId: string): boolea
 		return false
 	end
 	self:cancelInteraction()
-	self.tool = "Select"
+	self.tool = "Connect"
 	self.connectionFromNodeId = nodeId
 	return true
 end
@@ -1160,7 +1204,8 @@ function RouteOverview.setObstructions(self: Controller, right: number, bottom: 
 end
 
 function RouteOverview.zoomBy(self: Controller, amount: number)
-	self.zoom = math.clamp(self.zoom + amount, MIN_ZOOM, 1.6)
+	local minimumZoom = fitZoom(self) or MIN_ZOOM
+	self.zoom = math.clamp(self.zoom + amount, minimumZoom, 1.6)
 	self:rerender()
 end
 

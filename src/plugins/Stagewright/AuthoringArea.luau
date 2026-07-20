@@ -5,6 +5,7 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Selection = game:GetService("Selection")
+local ServerScriptService = game:GetService("ServerScriptService")
 local Workspace = game:GetService("Workspace")
 
 local AuthoringArea = {}
@@ -229,11 +230,6 @@ local function createPlatformShell(origin: CFrame, templateConfig: any): Model
 		rowValue.Value = string.rep(".", 32)
 		rowValue.Parent = cellMap
 	end
-	for _, name in { "PathPoints", "PathTiles" } do
-		local folder = Instance.new("Folder")
-		folder.Name = name
-		folder.Parent = platform
-	end
 	return platform
 end
 
@@ -454,19 +450,149 @@ function AuthoringArea.showIslandOutlines(columns: number, rows: number, cellSiz
 	return true
 end
 
-function AuthoringArea.focus()
-	local platform = AuthoringArea.ensure() or AuthoringArea.findPlatform()
-	if platform == nil then
-		return
+local function focusTarget(target: Instance?): boolean
+	if target == nil then
+		return false
 	end
-	Selection:Set({ platform })
-	local origin = AuthoringArea.origin()
+	local frame: CFrame
+	local size: Vector3
+	if target:IsA("Model") then
+		frame, size = target:GetBoundingBox()
+	elseif target:IsA("BasePart") then
+		frame, size = target.CFrame, target.Size
+	else
+		local part = target:FindFirstChildWhichIsA("BasePart", true)
+		if part == nil then
+			return false
+		end
+		frame, size = part.CFrame, part.Size
+	end
+	Selection:Set({ target })
 	local camera = Workspace.CurrentCamera
 	if camera ~= nil then
-		local target = origin.Position
-		camera.CFrame = CFrame.lookAt(target + origin:VectorToWorldSpace(Vector3.new(0, 105, -125)), target)
-		camera.Focus = CFrame.new(target)
+		local span = math.max(size.X, size.Z, 24)
+		local targetPosition = frame.Position
+		local offset = frame:VectorToWorldSpace(
+			Vector3.new(0, math.max(size.Y + span * 0.65, 35), -math.max(span * 1.1, 45))
+		)
+		camera.CFrame = CFrame.lookAt(targetPosition + offset, targetPosition)
+		camera.Focus = CFrame.new(targetPosition)
 	end
+	return true
+end
+
+function AuthoringArea.focus(): boolean
+	local platform = AuthoringArea.ensure() or AuthoringArea.findPlatform()
+	if platform == nil then
+		return false
+	end
+	return focusTarget(platform)
+end
+
+function AuthoringArea.focusPlayable(): boolean
+	local templateConfig = config()
+	if templateConfig == nil then
+		return false
+	end
+	local island = Workspace:FindFirstChild(templateConfig.towerDefense.firstPlatformIslandName)
+	return focusTarget(island or centerPart(templateConfig))
+end
+
+local function legacyGridNpc(candidate: Instance?): Model?
+	if candidate == nil or not candidate:IsA("Model") or candidate.Name ~= "GridNpc" then
+		return nil
+	end
+	local requiredParts = { "Root", "Body", "Head", "LeftArm", "RightArm", "LeftLeg", "RightLeg" }
+	if #candidate:GetChildren() ~= #requiredParts then
+		return nil
+	end
+	for _, name in requiredParts do
+		local part = candidate:FindFirstChild(name)
+		if part == nil or not part:IsA("BasePart") or not part.Anchored or part.CanCollide then
+			return nil
+		end
+	end
+	local root = candidate:FindFirstChild("Root") :: BasePart
+	return if root.Transparency == 1 and not root.CanQuery and not root.CanTouch then candidate else nil
+end
+
+local function legacyGridNpcScript(): Instance?
+	local candidate = ServerScriptService:FindFirstChild("GridNpcDemo")
+	if candidate == nil or (not candidate:IsA("Script") and not candidate:IsA("LocalScript")) then
+		return nil
+	end
+	local success, source = pcall(function()
+		return candidate.Source
+	end)
+	if
+		not success
+		or not string.find(source, "WALK_SPEED_STUDS_PER_SECOND", 1, true)
+		or not string.find(source, "StagePath.sample", 1, true)
+		or not string.find(source, 'Workspace:FindFirstChild("FirstPrivateIsland")', 1, true)
+	then
+		return nil
+	end
+	return candidate
+end
+
+function AuthoringArea.removeLegacyArtifacts(existingRecording: boolean?): number
+	local templateConfig, authoring = config()
+	if templateConfig == nil then
+		return 0
+	end
+	local candidates: { Instance } = {}
+	local seen: { [Instance]: boolean } = {}
+	local function add(candidate: Instance?)
+		if candidate ~= nil and candidate.Parent ~= nil and not seen[candidate] then
+			seen[candidate] = true
+			table.insert(candidates, candidate)
+		end
+	end
+	local island = Workspace:FindFirstChild(templateConfig.towerDefense.firstPlatformIslandName)
+	local area = if authoring ~= nil then Workspace:FindFirstChild(authoring.areaName) else nil
+	for _, root in { island, area } do
+		local platform = if root ~= nil
+			then root:FindFirstChild(templateConfig.towerDefense.platformModelName)
+			else nil
+		if platform == nil or not platform:IsA("Model") then
+			continue
+		end
+		for _, name in { "PathPoints", "PathTiles" } do
+			local folder = platform:FindFirstChild(name)
+			if folder ~= nil and folder:IsA("Folder") then
+				add(folder)
+			end
+		end
+		local base = platform:FindFirstChild("PlatformBase")
+		local overlay = if base ~= nil then base:FindFirstChild("GridOverlay") else nil
+		if overlay ~= nil and overlay:IsA("SurfaceGui") then
+			add(overlay)
+		end
+	end
+	add(legacyGridNpc(if island ~= nil then island:FindFirstChild("GridNpc") else nil))
+	add(legacyGridNpcScript())
+	if #candidates == 0 then
+		return 0
+	end
+	local recording: any = nil
+	if existingRecording ~= true then
+		recording = ChangeHistoryService:TryBeginRecording(
+			"Remove legacy Stagewright artifacts",
+			"Remove retired path helpers and NPC demo"
+		)
+		if recording == nil then
+			return 0
+		end
+	end
+	for _, candidate in candidates do
+		if candidate.Parent ~= nil then
+			candidate:Destroy()
+		end
+	end
+	if recording ~= nil then
+		ChangeHistoryService:FinishRecording(recording, Enum.FinishRecordingOperation.Commit)
+	end
+	return #candidates
 end
 
 function AuthoringArea.ensure(): Model?

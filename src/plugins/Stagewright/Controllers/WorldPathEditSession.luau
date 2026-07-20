@@ -65,11 +65,15 @@ function WorldPathEditSession.new(config: Config): Session
 	end
 
 	local function finishAppliedEdit(finished: boolean, action: string): boolean
-		config.onPreview(config.currentPreview())
 		if not finished then
 			return true
 		end
 		if finish(true) then
+			-- Baking route samples and the no-build mask is intentionally deferred
+			-- until release. The authoring graph already contains the live drag
+			-- geometry, while a full StageExport preview on every pointer movement
+			-- makes DockWidget manipulation visibly stutter.
+			config.onPreview(config.currentPreview())
 			config.onCommitted()
 			return true
 		end

@@ -69,6 +69,9 @@
           "StageCatalog.generated": {
             "$path": "../src/shared/StageCatalog.generated.luau"
           },
+          "StageCell": {
+            "$path": "../src/shared/StageCell.luau"
+          },
           "StageGraph": {
             "$path": "../src/shared/StageGraph.luau"
           },
@@ -83,6 +86,9 @@
           },
           "StagePath": {
             "$path": "../src/shared/StagePath.luau"
+          },
+          "StagePathAssets": {
+            "$path": "../src/shared/StagePathAssets.luau"
           },
           "StagePlatformLayout": {
             "$path": "../src/shared/StagePlatformLayout.luau"

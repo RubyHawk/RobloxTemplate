@@ -1,6 +1,7 @@
 --!strict
 
 local StagePath = if script ~= nil then require(script.Parent.StagePath) else require("./StagePath")
+local StageCell = if script ~= nil then require(script.Parent.StageCell) else require("./StageCell")
 local StageHierarchy = if script ~= nil
 	then require(script.Parent.StageHierarchy)
 	else require("./StageHierarchy")
@@ -418,8 +419,8 @@ function StageExport.bake(project: any): ExportResult
 		end
 		stage.routeNoBuildMask = routeMask(stage)
 		for key in stage.routeNoBuildMask do
-			local cell = stage.grid.cells[key]
-			if cell ~= nil and cell.enemyTraversalPolicy == "Blocked" then
+			local cell = StageCell.resolve(stage.grid.defaultCell, stage.grid.cells[key])
+			if cell.enemyTraversalPolicy == "Blocked" then
 				table.insert(issues, {
 					severity = "Error",
 					code = "RouteTraversalConflict",

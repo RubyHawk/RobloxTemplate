@@ -1,10 +1,12 @@
 --!strict
 
-local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 local CanvasTransform = require(script.Parent.Interaction.CanvasTransform)
 local HitTest = require(script.Parent.Interaction.HitTest)
 local PointerDrag = require(script.Parent.Interaction.PointerDrag)
+local StageCell = require(script.Parent.Shared.StageCell)
+local StagePathAssets = require(script.Parent.Shared.StagePathAssets)
 
 export type Theme = {
 	background: Color3,
@@ -31,14 +33,20 @@ export type Callbacks = {
 	addNode: ("Spawn" | "Junction" | "Goal", any) -> (),
 	selectNode: (string) -> (),
 	selectEdge: (string) -> (),
-	moveNode: (string, any, boolean) -> (),
-	moveHandle: (string, string, any, boolean) -> (),
+	connectNode: (string) -> boolean?,
+	splitEdge: (string) -> boolean,
+	moveNode: (string, any, boolean) -> boolean,
+	moveHandle: (string, string, any, boolean) -> boolean,
 	setLanes: (string, number) -> (),
+	setLaneWidth: (string, number) -> (),
+	setPriority: (string, number) -> (),
+	setCurveMode: (string, string) -> (),
+	setPathAsset: (string, string) -> (),
 	focusWorld: (string?) -> (),
 	testSegment: (string) -> (),
 }
 
-export type Tool = "Select" | "Pan" | "AddSpawn" | "AddJunction" | "AddGoal"
+export type Tool = "Select" | "Pan" | "AddSpawn" | "AddJunction" | "AddGoal" | "Connect" | "Split"
 
 export type Controller = {
 	root: Frame,
@@ -52,7 +60,9 @@ export type Controller = {
 	tracedEdgeIds: { [string]: boolean },
 	transform: CanvasTransform.Transform?,
 	transformStageId: string?,
+	transformGraphId: string?,
 	canvas: Frame?,
+	interactionSurface: TextButton,
 	backdropHost: Frame?,
 	backdropCamera: Camera?,
 	backdropSource: Instance?,
@@ -74,11 +84,19 @@ export type Controller = {
 	nextTouchPointerId: number,
 	lastDragRenderAt: number,
 	lastDragValue: any?,
+	dragGrabOffset: any?,
 	panLastScreen: Vector2?,
 	panPointerId: string?,
 	pendingAddPointerId: string?,
 	pendingAddStart: Vector2?,
 	pendingAddKind: ("Spawn" | "Junction" | "Goal")?,
+	activePointerInput: InputObject?,
+	activePointerStateConnection: RBXScriptConnection?,
+	lastPointerPosition: Vector2?,
+	lastNodeClickAt: number,
+	lastNodeClickPosition: Vector2?,
+	lastNodeCandidateKey: string?,
+	lastNodeClickId: string?,
 	connections: { RBXScriptConnection },
 	render: (Controller, any?, any?, any?, string?, string?, { [string]: boolean }) -> (),
 	rerender: (Controller) -> (),
@@ -91,20 +109,25 @@ export type Controller = {
 local WorldPathView = {}
 WorldPathView.__index = WorldPathView
 
-local GRAVEL = Color3.fromRGB(153, 121, 80)
-local GRAVEL_DARK = Color3.fromRGB(90, 78, 65)
-local GRAVEL_LIGHT = Color3.fromRGB(205, 181, 139)
 local LANE = Color3.fromRGB(239, 236, 224)
 local SELECTED = Color3.fromRGB(69, 207, 230)
 local WATER = Color3.fromRGB(22, 68, 95)
 local CANVAS_PADDING = 18
+local MIN_WORLD_ZOOM = 1
 local INSPECTOR_HEIGHT = 196
-local COMPACT_INSPECTOR_HEIGHT = 174
+local COMPACT_INSPECTOR_HEIGHT = 210
 local SHORT_INSPECTOR_HEIGHT = 104
-local NODE_HIT_RADIUS = 16
-local HANDLE_HIT_RADIUS = 14
+local NODE_HIT_RADIUS = 24
+local HANDLE_HIT_RADIUS = 20
 local CLICK_DRAG_THRESHOLD = 8
+local NODE_CYCLE_SECONDS = 0.75
+local NODE_CYCLE_RADIUS = 7
+local DRAG_RENDER_INTERVAL = 0.04
 local BACKDROP_REFRESH_DELAY = 0.18
+local LEGACY_PATH_FOLDERS = {
+	PathPoints = true,
+	PathTiles = true,
+}
 
 local function backdropSource(self: Controller): Instance?
 	local source = self.callbacks.worldSource()
@@ -146,6 +169,11 @@ local function sanitizedClone(source: Instance): Instance?
 	end)
 	if not clonedSuccessfully or cloned == nil then
 		return nil
+	end
+	for _, descendant in cloned:GetDescendants() do
+		if LEGACY_PATH_FOLDERS[descendant.Name] == true then
+			descendant:Destroy()
+		end
 	end
 	if cloned:IsA("BasePart") then
 		cloned.Anchored = true
@@ -429,19 +457,6 @@ local function line(
 	return result
 end
 
-local function resolvedCell(grid: any, key: string): any
-	local override = grid.cells[key]
-	if override == nil then
-		return grid.defaultCell
-	end
-	return setmetatable({}, {
-		__index = function(_, field)
-			local value = override[field]
-			return if value ~= nil then value else grid.defaultCell[field]
-		end,
-	})
-end
-
 local function nodeColor(kind: string): Color3
 	if kind == "Spawn" then
 		return Color3.fromRGB(49, 166, 91)
@@ -451,8 +466,114 @@ local function nodeColor(kind: string): Color3
 	return Color3.fromRGB(238, 158, 48)
 end
 
+local function pathAssetColors(assetId: any): (Color3, Color3, Color3)
+	local definition = StagePathAssets.find(assetId) or StagePathAssets.find(StagePathAssets.DEFAULT_ASSET_ID)
+	local rgb = assert(definition, "Stagewright requires a default path asset").rgb
+	local base = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
+	return base, base:Lerp(Color3.new(0, 0, 0), 0.42), base:Lerp(Color3.new(1, 1, 1), 0.34)
+end
+
 local function displayName(node: any?): string
 	return if node ~= nil and type(node.name) == "string" then node.name else "Missing node"
+end
+
+local function liveEdgeSamples(graph: any, edge: any, segmentCount: number): { any }
+	local from = graph.nodes[edge.fromNodeId]
+	local to = graph.nodes[edge.toNodeId]
+	if from == nil or to == nil then
+		return {}
+	end
+	local p0 = from.position
+	local p1 = {
+		x = p0.x + edge.outHandleOffset.x,
+		y = p0.y + edge.outHandleOffset.y,
+		z = p0.z + edge.outHandleOffset.z,
+	}
+	local p3 = to.position
+	local p2 = {
+		x = p3.x + edge.inHandleOffset.x,
+		y = p3.y + edge.inHandleOffset.y,
+		z = p3.z + edge.inHandleOffset.z,
+	}
+	local samples: { any } = {}
+	for index = 0, segmentCount do
+		local t = index / segmentCount
+		local inverse = 1 - t
+		local inverseSquared = inverse * inverse
+		local tSquared = t * t
+		local x = inverseSquared * inverse * p0.x
+			+ 3 * inverseSquared * t * p1.x
+			+ 3 * inverse * tSquared * p2.x
+			+ tSquared * t * p3.x
+		local y = inverseSquared * inverse * p0.y
+			+ 3 * inverseSquared * t * p1.y
+			+ 3 * inverse * tSquared * p2.y
+			+ tSquared * t * p3.y
+		local z = inverseSquared * inverse * p0.z
+			+ 3 * inverseSquared * t * p1.z
+			+ 3 * inverse * tSquared * p2.z
+			+ tSquared * t * p3.z
+		local tangentX = 3 * inverseSquared * (p1.x - p0.x)
+			+ 6 * inverse * t * (p2.x - p1.x)
+			+ 3 * tSquared * (p3.x - p2.x)
+		local tangentZ = 3 * inverseSquared * (p1.z - p0.z)
+			+ 6 * inverse * t * (p2.z - p1.z)
+			+ 3 * tSquared * (p3.z - p2.z)
+		local magnitude = math.sqrt(tangentX * tangentX + tangentZ * tangentZ)
+		if magnitude <= 1e-5 then
+			tangentX = 1
+			tangentZ = 0
+			magnitude = 1
+		end
+		table.insert(samples, {
+			position = { x = x, y = y, z = z },
+			tangent = { x = tangentX / magnitude, y = 0, z = tangentZ / magnitude },
+			up = { x = 0, y = 1, z = 0 },
+		})
+	end
+	return samples
+end
+
+local function graphFocusBounds(graph: any, grid: any): (CanvasTransform.Point2, CanvasTransform.Point2)
+	local gridWidth = math.max(grid.columns * grid.cellSize, 1)
+	local gridHeight = math.max(grid.rows * grid.cellSize, 1)
+	local minimumX, maximumX = math.huge, -math.huge
+	local minimumZ, maximumZ = math.huge, -math.huge
+	local function include(position: any)
+		minimumX = math.min(minimumX, position.x)
+		maximumX = math.max(maximumX, position.x)
+		minimumZ = math.min(minimumZ, position.z)
+		maximumZ = math.max(maximumZ, position.z)
+	end
+	for _, node in graph.nodes do
+		include(node.position)
+	end
+	for _, edge in graph.edges do
+		local from = graph.nodes[edge.fromNodeId]
+		local to = graph.nodes[edge.toNodeId]
+		if from ~= nil then
+			include({
+				x = from.position.x + edge.outHandleOffset.x,
+				z = from.position.z + edge.outHandleOffset.z,
+			})
+		end
+		if to ~= nil then
+			include({ x = to.position.x + edge.inHandleOffset.x, z = to.position.z + edge.inHandleOffset.z })
+		end
+	end
+	if minimumX == math.huge then
+		return { x = gridWidth, y = gridHeight }, { x = 0, y = 0 }
+	end
+	local margin = grid.cellSize * 2
+	local focusWidth = math.clamp(maximumX - minimumX + margin * 2, gridWidth * 0.45, gridWidth)
+	local focusHeight = math.clamp(maximumZ - minimumZ + margin * 2, gridHeight * 0.45, gridHeight)
+	return {
+		x = focusWidth,
+		y = focusHeight,
+	}, {
+		x = math.clamp((minimumX + maximumX) * 0.5, -gridWidth * 0.5, gridWidth * 0.5),
+		y = math.clamp((minimumZ + maximumZ) * 0.5, -gridHeight * 0.5, gridHeight * 0.5),
+	}
 end
 
 function WorldPathView.cancelInteraction(self: Controller): boolean
@@ -464,11 +585,23 @@ function WorldPathView.cancelInteraction(self: Controller): boolean
 	table.clear(self.touchPointerIds)
 	self.lastDragRenderAt = 0
 	self.lastDragValue = nil
+	self.dragGrabOffset = nil
 	self.panLastScreen = nil
 	self.panPointerId = nil
 	self.pendingAddPointerId = nil
 	self.pendingAddStart = nil
 	self.pendingAddKind = nil
+	self.activePointerInput = nil
+	self.lastPointerPosition = nil
+	self.lastNodeClickAt = 0
+	self.lastNodeClickPosition = nil
+	self.lastNodeCandidateKey = nil
+	self.lastNodeClickId = nil
+	local stateConnection = self.activePointerStateConnection
+	self.activePointerStateConnection = nil
+	if stateConnection ~= nil then
+		stateConnection:Disconnect()
+	end
 	return canceled
 end
 
@@ -481,9 +614,13 @@ function WorldPathView.setTool(self: Controller, tool: Tool)
 		or self.panLastScreen ~= nil
 		or self.pendingAddPointerId ~= nil
 	then
-		self.callbacks.cancelInteraction()
+		self:cancelInteraction()
 	end
 	self.tool = tool
+	self.lastNodeClickAt = 0
+	self.lastNodeClickPosition = nil
+	self.lastNodeCandidateKey = nil
+	self.lastNodeClickId = nil
 end
 
 function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks): Controller
@@ -494,6 +631,15 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		ClipsDescendants = true,
 		Size = UDim2.fromScale(1, 1),
 	}, parent) :: Frame
+	local interactionSurface = create("TextButton", {
+		Active = true,
+		AutoButtonColor = false,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		Text = "",
+		Visible = false,
+		ZIndex = 24,
+	}, root) :: TextButton
 	local self: Controller = setmetatable({
 		root = root,
 		theme = theme,
@@ -506,7 +652,9 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		tracedEdgeIds = {},
 		transform = nil,
 		transformStageId = nil,
+		transformGraphId = nil,
 		canvas = nil,
+		interactionSurface = interactionSurface,
 		backdropHost = nil,
 		backdropCamera = nil,
 		backdropSource = nil,
@@ -528,15 +676,23 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		nextTouchPointerId = 0,
 		lastDragRenderAt = 0,
 		lastDragValue = nil,
+		dragGrabOffset = nil,
 		panLastScreen = nil,
 		panPointerId = nil,
 		pendingAddPointerId = nil,
 		pendingAddStart = nil,
 		pendingAddKind = nil,
+		activePointerInput = nil,
+		activePointerStateConnection = nil,
+		lastPointerPosition = nil,
+		lastNodeClickAt = 0,
+		lastNodeClickPosition = nil,
+		lastNodeCandidateKey = nil,
+		lastNodeClickId = nil,
 		connections = {},
 	}, WorldPathView)
 
-	local function pointToLocal(position: Vector2): any?
+	local function pointToLocal(position: Vector2, clampToGrid: boolean?): any?
 		local stage = self.stage
 		local transform = self.transform
 		if stage == nil or transform == nil then
@@ -544,10 +700,13 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		end
 		local point = position - self.root.AbsolutePosition
 		if
-			point.X < 0
-			or point.Y < 0
-			or point.X > transform.viewportSize.x
-			or point.Y > transform.viewportSize.y
+			not clampToGrid
+			and (
+				point.X < 0
+				or point.Y < 0
+				or point.X > transform.viewportSize.x
+				or point.Y > transform.viewportSize.y
+			)
 		then
 			return nil
 		end
@@ -556,22 +715,25 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		local halfWidth = grid.columns * grid.cellSize * 0.5
 		local halfHeight = grid.rows * grid.cellSize * 0.5
 		if
-			worldPoint.x < -halfWidth
-			or worldPoint.x > halfWidth
-			or worldPoint.y < -halfHeight
-			or worldPoint.y > halfHeight
+			not clampToGrid
+			and (
+				worldPoint.x < -halfWidth
+				or worldPoint.x > halfWidth
+				or worldPoint.y < -halfHeight
+				or worldPoint.y > halfHeight
+			)
 		then
 			return nil
 		end
 		return {
-			x = worldPoint.x,
+			x = math.clamp(worldPoint.x, -halfWidth, halfWidth),
 			y = 0.48,
-			z = worldPoint.y,
+			z = math.clamp(worldPoint.y, -halfHeight, halfHeight),
 		}
 	end
 
 	local function updateDrag(target: PointerDrag.Target, pointer: Vector2, finished: boolean): boolean
-		local localPosition = pointToLocal(pointer)
+		local localPosition = pointToLocal(pointer, true)
 		local graph = self.graph
 		if graph == nil then
 			return false
@@ -583,6 +745,17 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 			end
 			local value = localPosition
 			if value ~= nil then
+				local grabOffset = self.dragGrabOffset
+				if type(grabOffset) == "table" then
+					local stage = self.stage
+					local grid = if stage ~= nil then stage.grid else nil
+					if grid ~= nil then
+						local halfWidth = grid.columns * grid.cellSize * 0.5
+						local halfHeight = grid.rows * grid.cellSize * 0.5
+						value.x = math.clamp(value.x + grabOffset.x, -halfWidth, halfWidth)
+						value.z = math.clamp(value.z + grabOffset.z, -halfHeight, halfHeight)
+					end
+				end
 				value.y = node.position.y
 				self.lastDragValue = value
 			elseif finished then
@@ -591,8 +764,7 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 			if value == nil then
 				return false
 			end
-			self.callbacks.moveNode(target.id, value, finished)
-			return true
+			return self.callbacks.moveNode(target.id, value, finished)
 		elseif target.kind == "Handle" and target.handleId ~= nil then
 			local edge = graph.edges[target.id]
 			if edge == nil then
@@ -605,10 +777,15 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 			end
 			local value = nil
 			if localPosition ~= nil then
+				local grabOffset = self.dragGrabOffset
 				value = {
-					x = localPosition.x - anchor.position.x,
+					x = localPosition.x - anchor.position.x + if type(grabOffset) == "table"
+						then grabOffset.x
+						else 0,
 					y = if target.handleId == "Out" then edge.outHandleOffset.y else edge.inHandleOffset.y,
-					z = localPosition.z - anchor.position.z,
+					z = localPosition.z - anchor.position.z + if type(grabOffset) == "table"
+						then grabOffset.z
+						else 0,
 				}
 				self.lastDragValue = value
 			elseif finished then
@@ -617,8 +794,7 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 			if value == nil then
 				return false
 			end
-			self.callbacks.moveHandle(target.id, target.handleId, value, finished)
-			return true
+			return self.callbacks.moveHandle(target.id, target.handleId, value, finished)
 		end
 		return false
 	end
@@ -652,40 +828,122 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		return nil
 	end
 
+	local function clearNodeClickCycle()
+		self.lastNodeClickAt = 0
+		self.lastNodeClickPosition = nil
+		self.lastNodeCandidateKey = nil
+		self.lastNodeClickId = nil
+	end
+
+	local function clickedNodeHit(position: PointerDrag.Point2): HitTest.Hit?
+		local canvas = self.canvas
+		if canvas == nil or canvas.Parent == nil then
+			return nil
+		end
+		local canvasPosition = Vector2.new(position.x, position.y) - canvas.AbsolutePosition
+		local hits = HitTest.resolveAll({ x = canvasPosition.X, y = canvasPosition.Y }, self.hitPrimitives)
+		local candidateIds: { string } = {}
+		for _, hit in hits do
+			if hit.kind == "Node" then
+				table.insert(candidateIds, hit.id)
+			end
+		end
+		table.sort(candidateIds)
+		local candidateKey = table.concat(candidateIds, "\0")
+		local pointer = Vector2.new(position.x, position.y)
+		local lastPosition = self.lastNodeClickPosition
+		local now = os.clock()
+		local repeated = candidateKey ~= ""
+			and candidateKey == self.lastNodeCandidateKey
+			and lastPosition ~= nil
+			and (pointer - lastPosition).Magnitude <= NODE_CYCLE_RADIUS
+			and now - self.lastNodeClickAt <= NODE_CYCLE_SECONDS
+		local chosen = HitTest.cycleNode(hits, if repeated then self.lastNodeClickId else nil)
+		self.lastNodeClickAt = now
+		self.lastNodeClickPosition = pointer
+		self.lastNodeCandidateKey = candidateKey
+		self.lastNodeClickId = if chosen ~= nil then chosen.id else nil
+		return chosen
+	end
+
 	local function dispatchPointerActions(actions: { PointerDrag.Action })
 		for _, action in actions do
 			if action.kind == "DragStarted" then
-				self.lastDragRenderAt = os.clock()
-				if updateDrag(action.target, Vector2.new(action.position.x, action.position.y), false) then
-					self:rerender()
-				end
-			elseif action.kind == "DragMoved" then
-				local now = os.clock()
-				if now - self.lastDragRenderAt >= 0.08 then
-					self.lastDragRenderAt = now
+				clearNodeClickCycle()
+				if self.tool == "Select" then
+					if action.target.kind == "Node" then
+						self.selectedNodeId = action.target.id
+						self.selectedEdgeId = nil
+						self.callbacks.selectNode(action.target.id)
+						self.tracedEdgeIds = {}
+					end
+					self.lastDragRenderAt = os.clock()
 					if
 						updateDrag(action.target, Vector2.new(action.position.x, action.position.y), false)
 					then
 						self:rerender()
 					end
 				end
+			elseif action.kind == "DragMoved" then
+				if self.tool == "Select" then
+					local now = os.clock()
+					if now - self.lastDragRenderAt >= DRAG_RENDER_INTERVAL then
+						self.lastDragRenderAt = now
+						if
+							updateDrag(
+								action.target,
+								Vector2.new(action.position.x, action.position.y),
+								false
+							)
+						then
+							self:rerender()
+						end
+					end
+				end
 			elseif action.kind == "Committed" then
-				local committed =
-					updateDrag(action.target, Vector2.new(action.position.x, action.position.y), true)
+				local committed = self.tool == "Select"
+					and updateDrag(action.target, Vector2.new(action.position.x, action.position.y), true)
 				self.lastDragRenderAt = 0
 				self.lastDragValue = nil
-				if not committed then
+				self.dragGrabOffset = nil
+				if self.tool == "Select" and not committed then
 					self:rerender()
 				end
 			elseif action.kind == "Clicked" then
 				self.lastDragRenderAt = 0
 				self.lastDragValue = nil
-				if action.target.kind == "Edge" then
-					self.callbacks.selectEdge(action.target.id)
+				self.dragGrabOffset = nil
+				if action.target.kind == "Node" then
+					local hit = clickedNodeHit(action.position)
+					if hit ~= nil then
+						if self.tool == "Connect" then
+							self.callbacks.connectNode(hit.id)
+						elseif self.tool == "Select" then
+							self.selectedNodeId = hit.id
+							self.selectedEdgeId = nil
+							self.callbacks.selectNode(hit.id)
+							self.tracedEdgeIds = {}
+							self:rerender()
+						end
+					end
+				elseif action.target.kind == "Edge" then
+					clearNodeClickCycle()
+					if self.tool == "Split" then
+						self.callbacks.splitEdge(action.target.id)
+					elseif self.tool == "Select" then
+						self.selectedEdgeId = action.target.id
+						self.selectedNodeId = nil
+						self.callbacks.selectEdge(action.target.id)
+						self.tracedEdgeIds = {}
+						self:rerender()
+					end
+				else
+					clearNodeClickCycle()
 				end
 			elseif action.kind == "Cancelled" then
 				self.lastDragRenderAt = 0
 				self.lastDragValue = nil
+				self.dragGrabOffset = nil
 			end
 		end
 	end
@@ -701,6 +959,31 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 			current = current.Parent
 		end
 		return true
+	end
+
+	local pluginGui: PluginGui? = nil
+	local ancestor: Instance? = root.Parent
+	while ancestor ~= nil do
+		if ancestor:IsA("PluginGui") then
+			pluginGui = ancestor :: PluginGui
+			break
+		end
+		ancestor = ancestor.Parent
+	end
+
+	local function pointerPosition(input: InputObject): Vector2
+		if
+			pluginGui ~= nil
+			and (
+				input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.MouseButton3
+				or input.UserInputType == Enum.UserInputType.MouseMovement
+				or input.UserInputType == Enum.UserInputType.MouseWheel
+			)
+		then
+			return pluginGui:GetRelativeMousePosition()
+		end
+		return Vector2.new(input.Position.X, input.Position.Y)
 	end
 
 	local function viewportPoint(pointer: Vector2): (CanvasTransform.Point2?, CanvasTransform.Transform?)
@@ -719,6 +1002,33 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		end
 		return { x = point.X, y = point.Y }, transform
 	end
+
+	table.insert(
+		self.connections,
+		interactionSurface.InputChanged:Connect(function(input)
+			if
+				input.UserInputType ~= Enum.UserInputType.MouseWheel
+				or not input:IsModifierKeyDown(Enum.ModifierKey.Ctrl)
+				or not isVisible()
+				or PointerDrag.isActive(self.pointerState)
+				or self.panLastScreen ~= nil
+				or input.Position.Z == 0
+			then
+				return
+			end
+			local pointer = pointerPosition(input)
+			local point, transform = viewportPoint(pointer)
+			if point == nil or transform == nil then
+				return
+			end
+			local factor = if input.Position.Z > 0 then 1.12 else 1 / 1.12
+			local requestedZoom = transform.zoom * factor
+			self.transform = if requestedZoom <= MIN_WORLD_ZOOM
+				then CanvasTransform.resetFit(transform)
+				else CanvasTransform.zoomAt(transform, factor, point)
+			self:rerender()
+		end)
+	)
 
 	local function pointerId(input: InputObject, createTouchId: boolean): string?
 		if
@@ -806,9 +1116,22 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 			or canvasPosition.X > canvasSize.X
 			or canvasPosition.Y > canvasSize.Y
 		)
-		local hit = nil
+		local hit: HitTest.Hit? = nil
 		if insideCanvas then
-			hit = HitTest.resolve({ x = canvasPosition.X, y = canvasPosition.Y }, self.hitPrimitives)
+			local hits =
+				HitTest.resolveAll({ x = canvasPosition.X, y = canvasPosition.Y }, self.hitPrimitives)
+			if self.tool == "Connect" then
+				hit = HitTest.cycleNode(hits, nil)
+			elseif self.tool == "Split" then
+				for _, candidate in hits do
+					if candidate.kind == "Edge" then
+						hit = candidate
+						break
+					end
+				end
+			else
+				hit = HitTest.preferSelectedNode(hits, self.selectedNodeId)
+			end
 		end
 		local addKind = if self.tool == "AddSpawn"
 			then "Spawn"
@@ -864,84 +1187,61 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 			}
 		end
 		self.lastDragRenderAt = 0
-		self.lastDragValue = seedDragValue(target)
+		self.lastDragValue = if self.tool == "Select" then seedDragValue(target) else nil
+		self.dragGrabOffset = nil
+		local pointerLocal = pointToLocal(pointer, true)
+		if self.tool == "Select" and pointerLocal ~= nil and target.kind == "Node" then
+			local node = if self.graph ~= nil then self.graph.nodes[target.id] else nil
+			if node ~= nil then
+				self.dragGrabOffset = {
+					x = node.position.x - pointerLocal.x,
+					z = node.position.z - pointerLocal.z,
+				}
+			end
+		elseif
+			self.tool == "Select"
+			and pointerLocal ~= nil
+			and target.kind == "Handle"
+			and target.handleId ~= nil
+		then
+			local edge = if self.graph ~= nil then self.graph.edges[target.id] else nil
+			if edge ~= nil then
+				local anchorId = if target.handleId == "Out" then edge.fromNodeId else edge.toNodeId
+				local anchor = self.graph.nodes[anchorId]
+				local offset = if target.handleId == "Out" then edge.outHandleOffset else edge.inHandleOffset
+				if anchor ~= nil then
+					self.dragGrabOffset = {
+						x = anchor.position.x + offset.x - pointerLocal.x,
+						z = anchor.position.z + offset.z - pointerLocal.z,
+					}
+				end
+			end
+		end
 		local result =
 			PointerDrag.press(self.pointerState, resolvedPointerId, target, { x = pointer.X, y = pointer.Y })
 		self.pointerState = result.state
-		if hit.kind == "Node" then
-			self.callbacks.selectNode(hit.id)
-		end
 	end
 
-	table.insert(
-		self.connections,
-		UserInputService.InputBegan:Connect(function(input)
-			if not isVisible() then
-				return
+	local function moveCapturedPointer(pointer: Vector2)
+		local input = self.activePointerInput
+		if input == nil or not isVisible() then
+			return
+		end
+		self.lastPointerPosition = pointer
+		local resolvedPointerId = pointerId(input, false)
+		local pendingPointerId = self.pendingAddPointerId
+		if pendingPointerId ~= nil and resolvedPointerId == pendingPointerId then
+			local start = self.pendingAddStart
+			if start ~= nil and (pointer - start).Magnitude > CLICK_DRAG_THRESHOLD then
+				self.pendingAddKind = nil
 			end
-			local pointer = Vector2.new(input.Position.X, input.Position.Y)
-			if input.UserInputType == Enum.UserInputType.MouseButton3 then
-				if
-					self.panLastScreen == nil
-					and not PointerDrag.isActive(self.pointerState)
-					and viewportPoint(pointer) ~= nil
-				then
-					self.panLastScreen = pointer
-					self.panPointerId = "mouse-middle"
-				end
-			elseif
-				input.UserInputType == Enum.UserInputType.MouseButton1
-				or input.UserInputType == Enum.UserInputType.Touch
-			then
-				beginPrimaryPointer(input, pointer)
-			end
-		end)
-	)
-
-	table.insert(
-		self.connections,
-		UserInputService.InputChanged:Connect(function(input)
-			if not isVisible() then
-				return
-			end
-			local pointer = Vector2.new(input.Position.X, input.Position.Y)
-			if input.UserInputType == Enum.UserInputType.MouseWheel then
-				if PointerDrag.isActive(self.pointerState) or self.panLastScreen ~= nil then
-					return
-				end
-				local point, transform = viewportPoint(pointer)
-				if point ~= nil and transform ~= nil and input.Position.Z ~= 0 then
-					self.transform = CanvasTransform.zoomAt(
-						transform,
-						if input.Position.Z > 0 then 1.12 else 1 / 1.12,
-						point
-					)
-					self:rerender()
-				end
-				return
-			end
-			local pendingPointerId = self.pendingAddPointerId
-			if pendingPointerId ~= nil and pointerId(input, false) == pendingPointerId then
-				local start = self.pendingAddStart
-				if start ~= nil and (pointer - start).Magnitude > CLICK_DRAG_THRESHOLD then
-					self.pendingAddKind = nil
-				end
-				return
-			end
-			local isPanMovement = false
-			if self.panLastScreen ~= nil then
-				if self.panPointerId == "mouse-middle" then
-					isPanMovement = input.UserInputType == Enum.UserInputType.MouseMovement
-				else
-					isPanMovement = pointerId(input, false) == self.panPointerId
-				end
-			end
-			if isPanMovement then
+			return
+		end
+		if self.panLastScreen ~= nil then
+			local matchesPan = self.panPointerId == "mouse-middle" or resolvedPointerId == self.panPointerId
+			if matchesPan then
 				local transform = self.transform
 				local panLastScreen = self.panLastScreen
-				if panLastScreen == nil then
-					return
-				end
 				local delta = pointer - panLastScreen
 				self.panLastScreen = pointer
 				if transform ~= nil and delta.Magnitude > 0 then
@@ -960,71 +1260,159 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 				end
 				return
 			end
-			if not PointerDrag.isActive(self.pointerState) then
+		end
+		if not PointerDrag.isActive(self.pointerState) or resolvedPointerId == nil then
+			return
+		end
+		local result = PointerDrag.move(
+			self.pointerState,
+			resolvedPointerId,
+			{ x = pointer.X, y = pointer.Y },
+			CLICK_DRAG_THRESHOLD
+		)
+		self.pointerState = result.state
+		dispatchPointerActions(result.actions)
+	end
+
+	local function clearPointerCapture()
+		local stateConnection = self.activePointerStateConnection
+		self.activePointerStateConnection = nil
+		if stateConnection ~= nil then
+			stateConnection:Disconnect()
+		end
+		self.activePointerInput = nil
+		self.lastPointerPosition = nil
+	end
+
+	local function finishCapturedPointer(input: InputObject, canceled: boolean)
+		if self.activePointerInput ~= input then
+			return
+		end
+		local isMousePointer = input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.MouseButton3
+		local pointer = if isMousePointer and not canceled
+			then pointerPosition(input)
+			else self.lastPointerPosition or pointerPosition(input)
+		local resolvedPointerId = pointerId(input, false)
+		clearPointerCapture()
+		if canceled then
+			self.callbacks.cancelInteraction()
+			return
+		end
+		if resolvedPointerId == nil and self.panPointerId ~= "mouse-middle" then
+			return
+		end
+		if resolvedPointerId == self.pendingAddPointerId then
+			local start = self.pendingAddStart
+			local addKind = self.pendingAddKind
+			self.pendingAddPointerId = nil
+			self.pendingAddStart = nil
+			self.pendingAddKind = nil
+			if start ~= nil and addKind ~= nil and (pointer - start).Magnitude <= CLICK_DRAG_THRESHOLD then
+				local localPosition = emptyCanvasPosition(pointer)
+				if localPosition ~= nil then
+					self.callbacks.addNode(addKind, localPosition)
+				end
+			end
+		elseif self.panPointerId == "mouse-middle" or resolvedPointerId == self.panPointerId then
+			self.panLastScreen = nil
+			self.panPointerId = nil
+		else
+			local result = PointerDrag.release(self.pointerState, resolvedPointerId :: string, {
+				x = pointer.X,
+				y = pointer.Y,
+			}, CLICK_DRAG_THRESHOLD)
+			self.pointerState = result.state
+			dispatchPointerActions(result.actions)
+		end
+		if input.UserInputType == Enum.UserInputType.Touch then
+			self.touchPointerIds[input] = nil
+		end
+	end
+
+	local function capturePointer(input: InputObject, pointer: Vector2)
+		clearPointerCapture()
+		self.activePointerInput = input
+		self.lastPointerPosition = pointer
+		self.activePointerStateConnection = input
+			:GetPropertyChangedSignal("UserInputState")
+			:Connect(function()
+				local inputState = input.UserInputState
+				if inputState == Enum.UserInputState.End or inputState == Enum.UserInputState.Cancel then
+					finishCapturedPointer(input, inputState == Enum.UserInputState.Cancel)
+				end
+			end)
+	end
+
+	table.insert(
+		self.connections,
+		interactionSurface.InputBegan:Connect(function(input)
+			if not isVisible() or self.activePointerInput ~= nil then
 				return
 			end
-			local resolvedPointerId = pointerId(input, false)
-			if resolvedPointerId ~= nil then
-				local result =
-					PointerDrag.move(self.pointerState, resolvedPointerId, { x = pointer.X, y = pointer.Y })
-				self.pointerState = result.state
-				dispatchPointerActions(result.actions)
+			local pointer = pointerPosition(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton3 then
+				if
+					self.panLastScreen == nil
+					and not PointerDrag.isActive(self.pointerState)
+					and viewportPoint(pointer) ~= nil
+				then
+					self.panLastScreen = pointer
+					self.panPointerId = "mouse-middle"
+					capturePointer(input, pointer)
+				end
+			elseif
+				input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch
+			then
+				beginPrimaryPointer(input, pointer)
+				if
+					PointerDrag.isActive(self.pointerState)
+					or self.panLastScreen ~= nil
+					or self.pendingAddPointerId ~= nil
+				then
+					capturePointer(input, pointer)
+				end
 			end
 		end)
 	)
 
 	table.insert(
 		self.connections,
-		UserInputService.InputEnded:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton3 then
-				if self.panPointerId == "mouse-middle" then
-					self.panLastScreen = nil
-					self.panPointerId = nil
-				end
+		interactionSurface.InputChanged:Connect(function(input)
+			local activeInput = self.activePointerInput
+			if activeInput == nil then
 				return
 			end
-			local resolvedPointerId = pointerId(input, false)
-			if resolvedPointerId == nil then
+			if input == activeInput or input.UserInputType == Enum.UserInputType.MouseMovement then
+				moveCapturedPointer(pointerPosition(activeInput))
+			end
+		end)
+	)
+
+	table.insert(
+		self.connections,
+		interactionSurface.InputEnded:Connect(function(input)
+			finishCapturedPointer(input, false)
+		end)
+	)
+
+	table.insert(
+		self.connections,
+		RunService.Heartbeat:Connect(function()
+			local input = self.activePointerInput
+			if
+				input == nil
+				or (
+					input.UserInputType ~= Enum.UserInputType.MouseButton1
+					and input.UserInputType ~= Enum.UserInputType.MouseButton3
+				)
+			then
 				return
 			end
-			if resolvedPointerId == self.pendingAddPointerId then
-				local start = self.pendingAddStart
-				local addKind = self.pendingAddKind
-				self.pendingAddPointerId = nil
-				self.pendingAddStart = nil
-				self.pendingAddKind = nil
-				local pointer = Vector2.new(input.Position.X, input.Position.Y)
-				if
-					start ~= nil
-					and addKind ~= nil
-					and (pointer - start).Magnitude <= CLICK_DRAG_THRESHOLD
-				then
-					local localPosition = emptyCanvasPosition(pointer)
-					if localPosition ~= nil then
-						self.callbacks.addNode(addKind, localPosition)
-					end
-				end
-				if input.UserInputType == Enum.UserInputType.Touch then
-					self.touchPointerIds[input] = nil
-				end
-				return
-			end
-			if resolvedPointerId == self.panPointerId then
-				self.panLastScreen = nil
-				self.panPointerId = nil
-				if input.UserInputType == Enum.UserInputType.Touch then
-					self.touchPointerIds[input] = nil
-				end
-				return
-			end
-			local result = PointerDrag.release(self.pointerState, resolvedPointerId, {
-				x = input.Position.X,
-				y = input.Position.Y,
-			})
-			self.pointerState = result.state
-			dispatchPointerActions(result.actions)
-			if input.UserInputType == Enum.UserInputType.Touch then
-				self.touchPointerIds[input] = nil
+			local pointer = pointerPosition(input)
+			if self.lastPointerPosition == nil or (pointer - self.lastPointerPosition).Magnitude > 0.1 then
+				moveCapturedPointer(pointer)
 			end
 		end)
 	)
@@ -1056,10 +1444,12 @@ function WorldPathView.render(
 	tracedEdgeIds: { [string]: boolean }
 )
 	local nextStageId = if stage ~= nil and type(stage.id) == "string" then stage.id else nil
-	if self.transformStageId ~= nextStageId then
+	local nextGraphId = if graph ~= nil and type(graph.id) == "string" then graph.id else nil
+	if self.transformStageId ~= nextStageId or self.transformGraphId ~= nextGraphId then
 		self.transform = nil
-		self.transformStageId = nextStageId
 	end
+	self.transformStageId = nextStageId
+	self.transformGraphId = nextGraphId
 	self.stage = stage
 	self.graph = graph
 	self.preview = preview
@@ -1070,18 +1460,17 @@ function WorldPathView.render(
 end
 
 function WorldPathView.fitToView(self: Controller)
-	if self.transform ~= nil then
-		self.transform = CanvasTransform.resetFit(self.transform)
-	end
+	self.transform = nil
 	self:rerender()
 end
 
 function WorldPathView.rerender(self: Controller)
 	self.canvas = nil
+	self.interactionSurface.Visible = false
 	table.clear(self.hitPrimitives)
 	table.clear(self.hitBlockers)
 	for _, child in self.root:GetChildren() do
-		if child:IsA("GuiObject") and child ~= self.backdropHost then
+		if child:IsA("GuiObject") and child ~= self.backdropHost and child ~= self.interactionSurface then
 			child:Destroy()
 		end
 	end
@@ -1110,12 +1499,17 @@ function WorldPathView.rerender(self: Controller)
 	end
 	local backdropHost = ensureBackdropHost(self, inspectorHeight)
 	local mapHost = create("Frame", {
-		BackgroundColor3 = WATER,
+		-- A neutral full-bleed ground fallback keeps wide widgets useful even
+		-- before an authored island model exists. The stage grid remains the
+		-- truthful coordinate boundary without reading as a tiny map in water.
+		BackgroundColor3 = Color3.fromRGB(24, 52, 45),
 		BorderSizePixel = 0,
 		ClipsDescendants = true,
 		Size = UDim2.new(1, 0, 1, -inspectorHeight - 4),
 		ZIndex = 1,
 	}, self.root) :: Frame
+	self.interactionSurface.Size = mapHost.Size
+	self.interactionSurface.Visible = true
 	local grid = stage.grid
 	local available = mapHost.AbsoluteSize
 	if available.X <= CANVAS_PADDING * 2 or available.Y <= CANVAS_PADDING * 2 then
@@ -1124,10 +1518,10 @@ function WorldPathView.rerender(self: Controller)
 	local worldWidth = math.max(grid.columns * grid.cellSize, 1)
 	local worldHeight = math.max(grid.rows * grid.cellSize, 1)
 	local viewportSize = { x = available.X, y = available.Y }
-	local worldSize = { x = worldWidth, y = worldHeight }
 	local transform = self.transform
-	if transform == nil or transform.worldSize.x ~= worldWidth or transform.worldSize.y ~= worldHeight then
-		transform = CanvasTransform.fit(viewportSize, worldSize, CANVAS_PADDING)
+	if transform == nil then
+		local focusSize, focusCenter = graphFocusBounds(graph, grid)
+		transform = CanvasTransform.fit(viewportSize, focusSize, CANVAS_PADDING, focusCenter)
 	elseif transform.viewportSize.x ~= available.X or transform.viewportSize.y ~= available.Y then
 		transform = CanvasTransform.resize(transform, viewportSize)
 	end
@@ -1194,7 +1588,7 @@ function WorldPathView.rerender(self: Controller)
 				and row >= 1
 				and row <= grid.rows
 			then
-				local cell = resolvedCell(grid, key)
+				local cell = StageCell.resolve(grid.defaultCell, grid.cells[key])
 				if cell.terrainId ~= defaultTerrainId then
 					create("Frame", {
 						BackgroundColor3 = if cell.terrainId == "void"
@@ -1242,19 +1636,26 @@ function WorldPathView.rerender(self: Controller)
 
 	local bakedGraph = preview.pathGraphs[graph.id]
 	if bakedGraph ~= nil then
+		local dragging = PointerDrag.isActive(self.pointerState)
+		local renderGraph = if dragging then graph else bakedGraph
 		local edgeIds: { string } = {}
-		for edgeId in bakedGraph.edges do
+		for edgeId in renderGraph.edges do
 			table.insert(edgeIds, edgeId)
 		end
 		table.sort(edgeIds)
-		local maximumSegmentsPerEdge = math.clamp(math.floor(200 / math.max(#edgeIds, 1)), 6, 32)
+		local segmentBudget = if dragging then 96 else 240
+		local maximumSegmentsPerEdge = math.clamp(math.floor(segmentBudget / math.max(#edgeIds, 1)), 8, 36)
 		for _, edgeId in edgeIds do
-			local edge = bakedGraph.edges[edgeId]
-			local profile = bakedGraph.laneProfiles[edge.laneProfileId]
+			local edge = renderGraph.edges[edgeId]
+			local profile = renderGraph.laneProfiles[edge.laneProfileId]
+			local metadata = if type(edge.metadata) == "table" then edge.metadata else {}
+			local assetBase, assetDark, assetLight = pathAssetColors(metadata.pathAssetId)
 			local radius = if profile ~= nil then profile.clearanceRadius else grid.cellSize * 0.5
 			local routeScale = scale
 			local walkwayWidth = math.max(radius * 2 * routeScale, 8)
-			local samples = edge.samples or {}
+			local samples = if dragging
+				then liveEdgeSamples(graph, edge, maximumSegmentsPerEdge)
+				else edge.samples or {}
 			local edgeHitPoints: { HitTest.Point2 } = {}
 			if #samples > 0 then
 				local firstPoint = worldPoint(samples[1].position)
@@ -1264,27 +1665,30 @@ function WorldPathView.rerender(self: Controller)
 			local previousIndex = 1
 			local selected = self.selectedEdgeId == edgeId
 			local traced = self.tracedEdgeIds[edgeId] == true
-			for index = math.min(1 + step, #samples), #samples, step do
-				local resolvedIndex = if index + step > #samples then #samples else index
-				local first = worldPoint(samples[previousIndex].position)
-				local second = worldPoint(samples[resolvedIndex].position)
-				if selected then
-					line(canvas, first, second, SELECTED, walkwayWidth + 6, 4, 0.02)
-				elseif traced then
-					line(canvas, first, second, self.theme.success, walkwayWidth + 5, 4, 0.4)
-				end
-				if self.assetPreview then
-					line(canvas, first, second, GRAVEL_DARK, walkwayWidth + 4, 5, 0)
-					line(canvas, first, second, GRAVEL, walkwayWidth, 7, 0)
-					line(canvas, first, second, GRAVEL_LIGHT, math.max(walkwayWidth * 0.08, 1), 8, 0.68)
-				else
-					line(canvas, first, second, Color3.fromRGB(58, 77, 81), walkwayWidth, 5, 0.16)
-					line(canvas, first, second, LANE, 2, 7, 0.16)
-				end
-				table.insert(edgeHitPoints, { x = second.X, y = second.Y })
-				previousIndex = resolvedIndex
-				if resolvedIndex == #samples then
-					break
+			if #samples >= 2 then
+				for index = math.min(1 + step, #samples), #samples, step do
+					local resolvedIndex = if index + step > #samples then #samples else index
+					local first = worldPoint(samples[previousIndex].position)
+					local second = worldPoint(samples[resolvedIndex].position)
+					if traced then
+						line(canvas, first, second, self.theme.success, walkwayWidth + 10, 3, 0.24)
+					end
+					if selected then
+						line(canvas, first, second, SELECTED, walkwayWidth + 6, 4, 0.02)
+					end
+					if self.assetPreview then
+						line(canvas, first, second, assetDark, walkwayWidth + 4, 5, 0)
+						line(canvas, first, second, assetBase, walkwayWidth, 7, 0)
+						line(canvas, first, second, assetLight, math.max(walkwayWidth * 0.08, 1), 8, 0.68)
+					else
+						line(canvas, first, second, Color3.fromRGB(58, 77, 81), walkwayWidth, 5, 0.16)
+						line(canvas, first, second, LANE, 2, 7, 0.16)
+					end
+					table.insert(edgeHitPoints, { x = second.X, y = second.Y })
+					previousIndex = resolvedIndex
+					if resolvedIndex == #samples then
+						break
+					end
 				end
 			end
 			if #edgeHitPoints > 0 then
@@ -1298,27 +1702,29 @@ function WorldPathView.rerender(self: Controller)
 
 			if selected and profile ~= nil and self.showLanes then
 				for laneIndex, laneOffset in profile.offsets do
-					local lanePrevious = 1
-					local dashIndex = 0
-					for index = math.min(1 + step, #samples), #samples, step do
-						local resolvedIndex = if index + step > #samples then #samples else index
-						local firstSample = samples[lanePrevious]
-						local secondSample = samples[resolvedIndex]
-						local first = worldPoint({
-							x = firstSample.position.x - firstSample.tangent.z * laneOffset,
-							z = firstSample.position.z + firstSample.tangent.x * laneOffset,
-						})
-						local second = worldPoint({
-							x = secondSample.position.x - secondSample.tangent.z * laneOffset,
-							z = secondSample.position.z + secondSample.tangent.x * laneOffset,
-						})
-						dashIndex += 1
-						if dashIndex % 3 ~= 0 then
-							line(canvas, first, second, LANE, 2, 9, 0.06)
-						end
-						lanePrevious = resolvedIndex
-						if resolvedIndex == #samples then
-							break
+					if #samples >= 2 then
+						local lanePrevious = 1
+						local dashIndex = 0
+						for index = math.min(1 + step, #samples), #samples, step do
+							local resolvedIndex = if index + step > #samples then #samples else index
+							local firstSample = samples[lanePrevious]
+							local secondSample = samples[resolvedIndex]
+							local first = worldPoint({
+								x = firstSample.position.x - firstSample.tangent.z * laneOffset,
+								z = firstSample.position.z + firstSample.tangent.x * laneOffset,
+							})
+							local second = worldPoint({
+								x = secondSample.position.x - secondSample.tangent.z * laneOffset,
+								z = secondSample.position.z + secondSample.tangent.x * laneOffset,
+							})
+							dashIndex += 1
+							if dashIndex % 3 ~= 0 then
+								line(canvas, first, second, LANE, 2, 9, 0.06)
+							end
+							lanePrevious = resolvedIndex
+							if resolvedIndex == #samples then
+								break
+							end
 						end
 					end
 					if #samples > 0 then
@@ -1397,25 +1803,25 @@ function WorldPathView.rerender(self: Controller)
 		local column = if columnText ~= nil then tonumber(columnText) else nil
 		local row = if rowText ~= nil then tonumber(rowText) else nil
 		if column ~= nil and row ~= nil then
-			local cell = resolvedCell(grid, key)
+			local cell = StageCell.resolve(grid.defaultCell, grid.cells[key])
 			local traversalConflict = cell.enemyTraversalPolicy == "Blocked"
-			if
-				not PointerDrag.isActive(self.pointerState)
-				and ((self.showConflicts and traversalConflict) or self.showBuildMask)
-			then
+			if traversalConflict then
+				conflictCount += 1
+				conflictCenter += Vector2.new((column - 0.5) * cellPixel.X, (row - 0.5) * cellPixel.Y)
+			end
+			local showConflictCell = self.showConflicts and traversalConflict
+			if not PointerDrag.isActive(self.pointerState) and (showConflictCell or self.showBuildMask) then
 				local conflict = create("Frame", {
-					BackgroundColor3 = if traversalConflict then self.theme.warning else SELECTED,
-					BackgroundTransparency = if traversalConflict then 0.76 else 0.88,
+					BackgroundColor3 = if showConflictCell then self.theme.warning else SELECTED,
+					BackgroundTransparency = if showConflictCell then 0.76 else 0.88,
 					BorderSizePixel = 0,
 					ClipsDescendants = true,
 					Position = UDim2.fromOffset((column - 1) * cellPixel.X + 1, (row - 1) * cellPixel.Y + 1),
 					Size = UDim2.fromOffset(math.max(cellPixel.X - 2, 2), math.max(cellPixel.Y - 2, 2)),
 					ZIndex = 12,
 				}, canvas) :: Frame
-				if traversalConflict then
+				if showConflictCell then
 					stroke(conflict, self.theme.warning, 2)
-					conflictCount += 1
-					conflictCenter += Vector2.new((column - 0.5) * cellPixel.X, (row - 0.5) * cellPixel.Y)
 					for stripeIndex = -1, 1 do
 						create("Frame", {
 							AnchorPoint = Vector2.new(0.5, 0.5),
@@ -1458,6 +1864,7 @@ function WorldPathView.rerender(self: Controller)
 			id = nodeId,
 			center = { x = point.X, y = point.Y },
 			radius = NODE_HIT_RADIUS,
+			area = "Marker",
 		})
 		if node.kind == "Spawn" or node.kind == "Goal" then
 			local glow = create("Frame", {
@@ -1472,6 +1879,10 @@ function WorldPathView.rerender(self: Controller)
 			rounded(glow, 24)
 			stroke(glow, nodeColor(node.kind), 3, 0.36)
 		end
+		local nodeSize = if self.selectedNodeId == nodeId
+			then 24
+			elseif node.kind == "Junction" then 19
+			else 21
 		local nodeButton = create("TextLabel", {
 			Active = false,
 			AnchorPoint = Vector2.new(0.5, 0.5),
@@ -1479,10 +1890,7 @@ function WorldPathView.rerender(self: Controller)
 			BorderSizePixel = 0,
 			Font = Enum.Font.BuilderSansBold,
 			Position = UDim2.fromOffset(point.X, point.Y),
-			Size = UDim2.fromOffset(
-				if self.selectedNodeId == nodeId then 24 elseif node.kind == "Junction" then 19 else 21,
-				if self.selectedNodeId == nodeId then 24 elseif node.kind == "Junction" then 19 else 21
-			),
+			Size = UDim2.fromOffset(nodeSize, nodeSize),
 			Text = if node.kind == "Spawn" then "S" elseif node.kind == "Goal" then "G" else "+",
 			TextColor3 = self.theme.text,
 			TextSize = 9,
@@ -1508,22 +1916,64 @@ function WorldPathView.rerender(self: Controller)
 			if self.selectedNodeId == nodeId then 3 else 1,
 			0.15
 		)
+		local labelWidth = math.clamp(#node.name * 7 + 22, 70, 138)
+		local labelHeight = 22
+		local labelGap = 9
+		local labelCenter: Vector2
+		if node.kind == "Spawn" then
+			local above = point.Y - nodeSize * 0.5 - labelGap - labelHeight * 0.5
+			local resolvedY = if above - labelHeight * 0.5 >= 4
+				then above
+				else point.Y + nodeSize * 0.5 + labelGap + labelHeight * 0.5
+			labelCenter = Vector2.new(point.X, resolvedY)
+		else
+			local right = point.X + nodeSize * 0.5 + labelGap + labelWidth * 0.5
+			local resolvedX = if right + labelWidth * 0.5 <= mapSize.X - 4
+				then right
+				else point.X - nodeSize * 0.5 - labelGap - labelWidth * 0.5
+			labelCenter = Vector2.new(resolvedX, point.Y)
+		end
+		local halfLabelWidth = labelWidth * 0.5
+		local halfLabelHeight = labelHeight * 0.5
+		labelCenter = Vector2.new(
+			if mapSize.X >= labelWidth + 8
+				then math.clamp(labelCenter.X, halfLabelWidth + 4, mapSize.X - halfLabelWidth - 4)
+				else mapSize.X * 0.5,
+			if mapSize.Y >= labelHeight + 8
+				then math.clamp(labelCenter.Y, halfLabelHeight + 4, mapSize.Y - halfLabelHeight - 4)
+				else mapSize.Y * 0.5
+		)
 		local label = create("TextLabel", {
-			AnchorPoint = if node.kind == "Spawn" then Vector2.new(0.5, 1) else Vector2.new(0, 0.5),
+			AnchorPoint = Vector2.new(0.5, 0.5),
 			BackgroundColor3 = Color3.fromRGB(17, 21, 24),
 			BackgroundTransparency = 0.08,
 			BorderSizePixel = 0,
 			Font = Enum.Font.BuilderSansBold,
-			Position = if node.kind == "Spawn" then UDim2.new(0.5, 0, 0, -10) else UDim2.new(1, 9, 0.5, 0),
-			Size = UDim2.fromOffset(math.clamp(#node.name * 7 + 22, 70, 138), 22),
+			Position = UDim2.fromOffset(labelCenter.X, labelCenter.Y),
+			Size = UDim2.fromOffset(labelWidth, labelHeight),
 			Text = `  {node.name}  `,
 			TextColor3 = self.theme.text,
 			TextSize = 10,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 			ZIndex = 19,
-		}, nodeButton) :: TextLabel
+		}, canvas) :: TextLabel
 		rounded(label, 5)
-		label.Visible = true
+		local labelHitRadius = 13
+		local hitSpan = math.max(labelWidth - labelHitRadius * 2, 0)
+		local hitCount = math.max(math.ceil(hitSpan / (labelHitRadius * 1.5)) + 1, 1)
+		for hitIndex = 1, hitCount do
+			local alpha = if hitCount == 1 then 0.5 else (hitIndex - 1) / (hitCount - 1)
+			table.insert(self.hitPrimitives, {
+				kind = "Node",
+				id = nodeId,
+				center = {
+					x = labelCenter.X - hitSpan * 0.5 + hitSpan * alpha,
+					y = labelCenter.Y,
+				},
+				radius = labelHitRadius,
+				area = "Label",
+			})
+		end
 	end
 
 	local selectedEdge = if self.selectedEdgeId ~= nil then graph.edges[self.selectedEdgeId] else nil
@@ -1567,16 +2017,40 @@ function WorldPathView.rerender(self: Controller)
 		end
 	end
 
+	local legendWidth = 156
+	local legendHeight = 126
+	local legendInset = 20
+	local legendLeft = legendInset
+	local legendTop = available.Y - legendInset - legendHeight
+	local legendRight = legendLeft + legendWidth
+	local legendBottom = legendTop + legendHeight
+	local legendHasClearSpace = true
+	for _, primitive in self.hitPrimitives do
+		if primitive.kind == "Node" or primitive.kind == "Handle" then
+			local centerX = topLeft.X + primitive.center.x
+			local centerY = topLeft.Y + primitive.center.y
+			local radius = primitive.radius
+			if
+				centerX + radius >= legendLeft
+				and centerX - radius <= legendRight
+				and centerY + radius >= legendTop
+				and centerY - radius <= legendBottom
+			then
+				legendHasClearSpace = false
+				break
+			end
+		end
+	end
 	local legend = create("Frame", {
 		AnchorPoint = Vector2.new(0, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 22, 27),
 		BackgroundTransparency = 0.04,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0, 20, 1, -20),
-		Size = UDim2.fromOffset(156, 126),
+		Position = UDim2.new(0, legendInset, 1, -legendInset),
+		Size = UDim2.fromOffset(legendWidth, legendHeight),
 		ZIndex = 25,
 	}, mapHost) :: Frame
-	legend.Visible = available.X >= 600 and available.Y >= 300
+	legend.Visible = available.X >= 1_000 and available.Y >= 300 and legendHasClearSpace
 	if legend.Visible then
 		table.insert(self.hitBlockers, legend)
 	end
@@ -1595,19 +2069,23 @@ function WorldPathView.rerender(self: Controller)
 			ZIndex = 26,
 		}, legend)
 	end
+	local selectedAssetId = if selectedEdge ~= nil and type(selectedEdge.metadata) == "table"
+		then selectedEdge.metadata.pathAssetId
+		else StagePathAssets.DEFAULT_ASSET_ID
+	local selectedAssetBase, selectedAssetDark, selectedAssetLight = pathAssetColors(selectedAssetId)
 	local gravelSwatch = create("Frame", {
-		BackgroundColor3 = GRAVEL,
-		BorderColor3 = GRAVEL_DARK,
+		BackgroundColor3 = selectedAssetBase,
+		BorderColor3 = selectedAssetDark,
 		BorderSizePixel = 2,
 		Position = UDim2.fromOffset(14, 12),
 		Size = UDim2.fromOffset(24, 18),
 		ZIndex = 26,
 	}, legend) :: Frame
 	create("UIGradient", {
-		Color = ColorSequence.new(GRAVEL_DARK, GRAVEL_LIGHT),
+		Color = ColorSequence.new(selectedAssetDark, selectedAssetLight),
 		Rotation = 35,
 	}, gravelSwatch)
-	legendLabel("Gravel asset", 1)
+	legendLabel(`{StagePathAssets.label(selectedAssetId)} asset`, 1)
 	for dash = 0, 2 do
 		create("Frame", {
 			BackgroundColor3 = LANE,
@@ -1671,7 +2149,7 @@ function WorldPathView.rerender(self: Controller)
 			elseif self.selectedNodeId ~= nil then `Selected node  |  {displayName(
 				graph.nodes[self.selectedNodeId]
 			)}`
-			else "Select a gravel spline or route marker to edit it",
+			else "Select a path spline or route marker to edit it",
 		TextColor3 = self.theme.text,
 		TextSize = 14,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -1689,22 +2167,18 @@ function WorldPathView.rerender(self: Controller)
 		local profile = graph.laneProfiles[selectedEdge.laneProfileId]
 		local laneCount = if profile ~= nil then #profile.offsets else 1
 		local metadata = if type(selectedEdge.metadata) == "table" then selectedEdge.metadata else {}
-		local pathAssetId = if type(metadata.pathAssetId) == "string" then metadata.pathAssetId else "gravel"
-		local pathAssetLabel = if string.lower(pathAssetId) == "gravel" then "Gravel" else pathAssetId
+		local pathAssetId = if type(metadata.pathAssetId) == "string"
+			then metadata.pathAssetId
+			else StagePathAssets.DEFAULT_ASSET_ID
+		local pathAssetLabel = StagePathAssets.label(pathAssetId)
 		local laneWidth = if type(metadata.laneWidth) == "number" then metadata.laneWidth else 4
-		local surfaceMode = if type(metadata.surfaceMode) == "string"
-			then metadata.surfaceMode
-			else "FollowTerrain"
-		local surfaceLabel = if surfaceMode == "FollowTerrain" then "Follow terrain" else surfaceMode
 		local curveMode = if type(metadata.curveMode) == "string" then metadata.curveMode else "Free"
-		local fieldLabelY = if compactInspector then 48 else 52
-		local fieldY = if compactInspector then 63 else 69
 		local fieldHeight = if compactInspector then 32 else 36
-		local function fieldLabel(text: string, x: number, width: number)
+		local function fieldLabel(text: string, x: number, width: number, labelY: number)
 			create("TextLabel", {
 				BackgroundTransparency = 1,
 				Font = Enum.Font.BuilderSansMedium,
-				Position = UDim2.fromOffset(x, fieldLabelY),
+				Position = UDim2.fromOffset(x, labelY),
 				Size = UDim2.fromOffset(width, 14),
 				Text = text,
 				TextColor3 = self.theme.muted,
@@ -1713,7 +2187,7 @@ function WorldPathView.rerender(self: Controller)
 				ZIndex = 30,
 			}, inspector)
 		end
-		local function field(text: string, x: number, width: number): TextLabel
+		local function field(text: string, x: number, width: number, fieldY: number): TextLabel
 			local result = create("TextLabel", {
 				BackgroundColor3 = self.theme.surface,
 				BorderSizePixel = 0,
@@ -1735,8 +2209,32 @@ function WorldPathView.rerender(self: Controller)
 			}, result)
 			return result
 		end
-		local function lanesField(x: number, width: number)
-			fieldLabel("Lanes", x, width)
+		local function cycleField(
+			label: string,
+			value: string,
+			x: number,
+			width: number,
+			labelY: number,
+			fieldY: number,
+			callback: () -> ()
+		)
+			fieldLabel(label, x, width, labelY)
+			local control = button(
+				inspector,
+				self.theme,
+				`{value}  · Next`,
+				UDim2.fromOffset(x, fieldY),
+				UDim2.fromOffset(width, fieldHeight),
+				callback
+			)
+			control.TextXAlignment = Enum.TextXAlignment.Left
+			create("UIPadding", {
+				PaddingLeft = UDim.new(0, 10),
+				PaddingRight = UDim.new(0, 10),
+			}, control)
+		end
+		local function lanesField(x: number, width: number, labelY: number, fieldY: number)
+			fieldLabel("Lanes", x, width, labelY)
 			local laneHost = create("Frame", {
 				BackgroundColor3 = self.theme.surface,
 				BorderSizePixel = 0,
@@ -1761,88 +2259,325 @@ function WorldPathView.rerender(self: Controller)
 				)
 			end
 		end
+		local function segmentedCurve(x: number, width: number, labelY: number, fieldY: number)
+			fieldLabel("Curve", x, width, labelY)
+			local host = create("Frame", {
+				BackgroundColor3 = self.theme.surface,
+				BorderSizePixel = 0,
+				Position = UDim2.fromOffset(x, fieldY),
+				Size = UDim2.fromOffset(width, fieldHeight),
+				ZIndex = 30,
+			}, inspector) :: Frame
+			rounded(host, 6)
+			stroke(host, self.theme.border, 1)
+			for index, mode in { "Smooth", "Mirrored", "Free" } do
+				local selectedMode = mode
+				button(
+					host,
+					self.theme,
+					mode,
+					UDim2.fromOffset(math.floor((index - 1) * width / 3), 0),
+					UDim2.fromOffset(math.ceil(width / 3), fieldHeight),
+					function()
+						self.callbacks.setCurveMode(edgeId, selectedMode)
+					end,
+					curveMode == mode
+				)
+			end
+		end
+		local function stepper(
+			label: string,
+			value: string,
+			x: number,
+			width: number,
+			labelY: number,
+			fieldY: number,
+			decrease: () -> (),
+			increase: () -> ()
+		)
+			fieldLabel(label, x, width, labelY)
+			local stepWidth = math.clamp(math.floor(width * 0.24), 26, 34)
+			button(
+				inspector,
+				self.theme,
+				"-",
+				UDim2.fromOffset(x, fieldY),
+				UDim2.fromOffset(stepWidth, fieldHeight),
+				decrease
+			)
+			local valueField = field(value, x + stepWidth + 3, width - stepWidth * 2 - 6, fieldY)
+			valueField.TextXAlignment = Enum.TextXAlignment.Center
+			button(
+				inspector,
+				self.theme,
+				"+",
+				UDim2.fromOffset(x + width - stepWidth, fieldY),
+				UDim2.fromOffset(stepWidth, fieldHeight),
+				increase
+			)
+		end
 
-		if compactInspector then
-			local gap = 10
-			local usableWidth = math.max(self.root.AbsoluteSize.X - 36 - gap * 3, 400)
-			local pathWidth = math.floor(usableWidth * 0.29)
-			local lanesWidth = math.floor(usableWidth * 0.27)
-			local laneWidthWidth = math.floor(usableWidth * 0.22)
-			local priorityWidth = usableWidth - pathWidth - lanesWidth - laneWidthWidth
+		if shortViewport then
+			local gap = 8
+			local usableWidth = math.max(self.root.AbsoluteSize.X - 36, 520)
+			local pathWidth = math.floor(usableWidth * 0.3)
+			local lanesWidth = math.floor(usableWidth * 0.26)
+			local actionWidth = math.floor((usableWidth - pathWidth - lanesWidth - gap * 3) * 0.5)
 			local pathX = 18
 			local lanesX = pathX + pathWidth + gap
-			local laneWidthX = lanesX + lanesWidth + gap
-			local priorityX = laneWidthX + laneWidthWidth + gap
-			fieldLabel("Path asset", pathX, pathWidth)
-			field(pathAssetLabel, pathX, pathWidth)
-			lanesField(lanesX, lanesWidth)
-			fieldLabel("Lane width", laneWidthX, laneWidthWidth)
-			field(`{math.round(laneWidth)} studs`, laneWidthX, laneWidthWidth)
-			fieldLabel("Priority", priorityX, priorityWidth)
-			field(tostring(selectedEdge.priority or 1), priorityX, priorityWidth)
-		else
-			fieldLabel("Path asset", 28, 220)
-			field(pathAssetLabel, 28, 220)
-			fieldLabel("Surface mode", 280, 166)
-			field(surfaceLabel, 280, 166)
-			lanesField(480, 190)
-			fieldLabel("Lane width", 704, 152)
-			field(`{math.round(laneWidth)} studs`, 704, 152)
-			fieldLabel("Curve mode", 888, 154)
-			field(curveMode, 888, 154)
-			fieldLabel("Priority", 1074, 92)
-			field(tostring(selectedEdge.priority or 1), 1074, 92)
-		end
-		if shortViewport then
+			local editX = lanesX + lanesWidth + gap
+			local testX = editX + actionWidth + gap
+			local testWidth = pathX + usableWidth - testX
+			local pathControl = button(
+				inspector,
+				self.theme,
+				`Asset: {pathAssetLabel}  · Next`,
+				UDim2.fromOffset(pathX, 52),
+				UDim2.fromOffset(pathWidth, fieldHeight),
+				function()
+					self.callbacks.setPathAsset(edgeId, StagePathAssets.next(pathAssetId))
+				end
+			)
+			pathControl.TextXAlignment = Enum.TextXAlignment.Left
+			create("UIPadding", {
+				PaddingLeft = UDim.new(0, 10),
+				PaddingRight = UDim.new(0, 10),
+			}, pathControl)
+			local shortLaneHost = create("Frame", {
+				BackgroundColor3 = self.theme.surface,
+				BorderSizePixel = 0,
+				Position = UDim2.fromOffset(lanesX, 52),
+				Size = UDim2.fromOffset(lanesWidth, fieldHeight),
+				ZIndex = 30,
+			}, inspector) :: Frame
+			rounded(shortLaneHost, 6)
+			stroke(shortLaneHost, self.theme.border, 1)
+			for count = 1, 3 do
+				local laneChoice = count
+				button(
+					shortLaneHost,
+					self.theme,
+					`{laneChoice} {if laneChoice == 1 then "lane" else "lanes"}`,
+					UDim2.fromOffset(math.floor((laneChoice - 1) * lanesWidth / 3), 0),
+					UDim2.fromOffset(math.ceil(lanesWidth / 3), fieldHeight),
+					function()
+						self.callbacks.setLanes(edgeId, laneChoice)
+					end,
+					laneCount == laneChoice
+				)
+			end
+			button(
+				inspector,
+				self.theme,
+				"Edit handles",
+				UDim2.fromOffset(editX, 52),
+				UDim2.fromOffset(actionWidth, fieldHeight),
+				function()
+					self.callbacks.focusWorld(edgeId)
+				end
+			)
+			button(
+				inspector,
+				self.theme,
+				"Test segment",
+				UDim2.fromOffset(testX, 52),
+				UDim2.fromOffset(testWidth, fieldHeight),
+				function()
+					self.callbacks.testSegment(edgeId)
+				end
+			)
 			return
+		elseif compactInspector then
+			local gap = 8
+			local usableWidth = math.max(self.root.AbsoluteSize.X - 36, 520)
+			local rowWidth = usableWidth - gap * 2
+			local pathWidth = math.floor(rowWidth * 0.34)
+			local surfaceWidth = math.floor(rowWidth * 0.28)
+			local lanesWidth = rowWidth - pathWidth - surfaceWidth
+			local pathX = 18
+			local surfaceX = pathX + pathWidth + gap
+			local lanesX = surfaceX + surfaceWidth + gap
+			cycleField("Path asset", pathAssetLabel, pathX, pathWidth, 48, 63, function()
+				self.callbacks.setPathAsset(edgeId, StagePathAssets.next(pathAssetId))
+			end)
+			fieldLabel("Surface", surfaceX, surfaceWidth, 48)
+			field("Route plane", surfaceX, surfaceWidth, 63)
+			lanesField(lanesX, lanesWidth, 48, 63)
+
+			local secondRowWidth = usableWidth - gap * 4
+			local laneWidthWidth = math.floor(secondRowWidth * 0.2)
+			local curveWidth = math.floor(secondRowWidth * 0.28)
+			local priorityWidth = math.floor(secondRowWidth * 0.16)
+			local actionWidth =
+				math.floor((secondRowWidth - laneWidthWidth - curveWidth - priorityWidth) * 0.5)
+			local laneWidthX = 18
+			local curveX = laneWidthX + laneWidthWidth + gap
+			local priorityX = curveX + curveWidth + gap
+			local editX = priorityX + priorityWidth + gap
+			local testX = editX + actionWidth + gap
+			stepper(
+				"Lane width",
+				`{math.round(laneWidth)} studs`,
+				laneWidthX,
+				laneWidthWidth,
+				103,
+				118,
+				function()
+					self.callbacks.setLaneWidth(edgeId, laneWidth - 1)
+				end,
+				function()
+					self.callbacks.setLaneWidth(edgeId, laneWidth + 1)
+				end
+			)
+			segmentedCurve(curveX, curveWidth, 103, 118)
+			stepper(
+				"Priority",
+				tostring(selectedEdge.priority or 1),
+				priorityX,
+				priorityWidth,
+				103,
+				118,
+				function()
+					self.callbacks.setPriority(edgeId, (selectedEdge.priority or 1) - 1)
+				end,
+				function()
+					self.callbacks.setPriority(edgeId, (selectedEdge.priority or 1) + 1)
+				end
+			)
+			fieldLabel("Handles", editX, actionWidth, 103)
+			button(
+				inspector,
+				self.theme,
+				"Edit handles",
+				UDim2.fromOffset(editX, 118),
+				UDim2.fromOffset(actionWidth, fieldHeight),
+				function()
+					self.callbacks.focusWorld(edgeId)
+				end
+			)
+			fieldLabel("Preview", testX, actionWidth, 103)
+			button(
+				inspector,
+				self.theme,
+				"Test segment",
+				UDim2.fromOffset(testX, 118),
+				UDim2.fromOffset(actionWidth, fieldHeight),
+				function()
+					self.callbacks.testSegment(edgeId)
+				end
+			)
+		else
+			cycleField("Path asset", pathAssetLabel, 28, 220, 52, 69, function()
+				self.callbacks.setPathAsset(edgeId, StagePathAssets.next(pathAssetId))
+			end)
+			fieldLabel("Surface", 280, 166, 52)
+			field("Route plane", 280, 166, 69)
+			lanesField(480, 190, 52, 69)
+			stepper("Lane width", `{math.round(laneWidth)} studs`, 704, 152, 52, 69, function()
+				self.callbacks.setLaneWidth(edgeId, laneWidth - 1)
+			end, function()
+				self.callbacks.setLaneWidth(edgeId, laneWidth + 1)
+			end)
+			segmentedCurve(888, 154, 52, 69)
+			stepper("Priority", tostring(selectedEdge.priority or 1), 1074, 92, 52, 69, function()
+				self.callbacks.setPriority(edgeId, (selectedEdge.priority or 1) - 1)
+			end, function()
+				self.callbacks.setPriority(edgeId, (selectedEdge.priority or 1) + 1)
+			end)
+			button(
+				inspector,
+				self.theme,
+				"Edit handles",
+				UDim2.new(1, -352, 0, 69),
+				UDim2.fromOffset(150, fieldHeight),
+				function()
+					self.callbacks.focusWorld(edgeId)
+				end
+			)
+			button(
+				inspector,
+				self.theme,
+				"Test segment",
+				UDim2.new(1, -184, 0, 69),
+				UDim2.fromOffset(164, fieldHeight),
+				function()
+					self.callbacks.testSegment(edgeId)
+				end
+			)
 		end
-		local actionY = if compactInspector then 104 else fieldY
-		local actionHeight = if compactInspector then 32 else fieldHeight
-		local editWidth = if compactInspector then 140 else 150
-		local testWidth = if compactInspector then 150 else 164
-		button(
-			inspector,
-			self.theme,
-			"Edit handles",
-			UDim2.new(1, -(editWidth + testWidth + 38), 0, actionY),
-			UDim2.fromOffset(editWidth, actionHeight),
-			function()
-				self.callbacks.focusWorld(edgeId)
-			end
-		)
-		button(
-			inspector,
-			self.theme,
-			"Highlight segment",
-			UDim2.new(1, -(testWidth + 20), 0, actionY),
-			UDim2.fromOffset(testWidth, actionHeight),
-			function()
-				self.callbacks.testSegment(edgeId)
-			end
-		)
 		create("Frame", {
 			BackgroundColor3 = self.theme.border,
 			BorderSizePixel = 0,
-			Position = UDim2.fromOffset(0, if compactInspector then 140 else 123),
+			Position = UDim2.fromOffset(0, if compactInspector then 158 else 123),
 			Size = UDim2.new(1, 0, 0, 1),
 			ZIndex = 30,
 		}, inspector)
 		create("TextLabel", {
 			BackgroundTransparency = 1,
 			Font = Enum.Font.BuilderSans,
-			Position = UDim2.fromOffset(20, if compactInspector then 145 else 132),
+			Position = UDim2.fromOffset(20, if compactInspector then 166 else 132),
 			Size = UDim2.new(1, -40, 0, if compactInspector then 24 else 30),
 			Text = `Walkway width {if profile ~= nil
 				then math.round(profile.clearanceRadius * 2)
-				else grid.cellSize} studs  |  Build mask derived automatically  |  {conflictCount} conflicts{if compactInspector
-				then `  |  {surfaceLabel}  |  {curveMode}`
-				else ""}`,
+				else grid.cellSize} studs  |  {conflictCount} conflicts  |  Drag markers to move  |  Drag cyan handles to shape  |  Esc cancels`,
 			TextColor3 = if conflictCount > 0 then self.theme.warning else self.theme.muted,
 			TextSize = 11,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			ZIndex = 30,
 		}, inspector)
+	elseif self.selectedNodeId ~= nil and graph.nodes[self.selectedNodeId] ~= nil then
+		local node = graph.nodes[self.selectedNodeId]
+		local nudge = math.max(grid.cellSize * 0.25, 1)
+		local labelY = if shortViewport then 46 else 52
+		local fieldY = if shortViewport then 62 else 69
+		local fieldHeight = if shortViewport then 32 else 36
+		local halfWidth = grid.columns * grid.cellSize * 0.5
+		local halfHeight = grid.rows * grid.cellSize * 0.5
+		local function nodeControl(label: string, text: string, x: number, deltaX: number, deltaZ: number)
+			create("TextLabel", {
+				BackgroundTransparency = 1,
+				Font = Enum.Font.BuilderSansMedium,
+				Position = UDim2.fromOffset(x, labelY),
+				Size = UDim2.fromOffset(190, 14),
+				Text = label,
+				TextColor3 = self.theme.muted,
+				TextSize = 10,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				ZIndex = 30,
+			}, inspector)
+			button(
+				inspector,
+				self.theme,
+				text,
+				UDim2.fromOffset(x, fieldY),
+				UDim2.fromOffset(190, fieldHeight),
+				function()
+					self.callbacks.moveNode(node.id, {
+						x = math.clamp(node.position.x + deltaX, -halfWidth, halfWidth),
+						y = node.position.y,
+						z = math.clamp(node.position.z + deltaZ, -halfHeight, halfHeight),
+					}, true)
+				end
+			)
+		end
+		nodeControl("Horizontal", `<  X {math.round(node.position.x * 10) / 10}  (-{nudge})`, 28, -nudge, 0)
+		nodeControl("Horizontal", `X {math.round(node.position.x * 10) / 10}  (+{nudge})  >`, 230, nudge, 0)
+		nodeControl("Vertical", `<  Z {math.round(node.position.z * 10) / 10}  (-{nudge})`, 448, 0, -nudge)
+		nodeControl("Vertical", `Z {math.round(node.position.z * 10) / 10}  (+{nudge})  >`, 650, 0, nudge)
+		if not shortViewport then
+			create("TextLabel", {
+				BackgroundTransparency = 1,
+				Font = Enum.Font.BuilderSans,
+				Position = UDim2.fromOffset(28, 122),
+				Size = UDim2.new(1, -56, 0, 30),
+				Text = "Drag the marker directly for free movement, or use these one-stud nudges for precision.",
+				TextColor3 = self.theme.muted,
+				TextSize = 11,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				ZIndex = 30,
+			}, inspector)
+		end
 	end
 end
 

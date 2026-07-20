@@ -56,6 +56,12 @@ local function assertPoint(point: Point2, label: string)
 	assert(isFinite(point.x) and isFinite(point.y), `{label} must be finite`)
 end
 
+local function thresholdSquared(thresholdPixels: number?): number
+	local resolved = thresholdPixels or PointerDrag.THRESHOLD_PIXELS
+	assert(isFinite(resolved) and resolved >= 0, "drag threshold must be finite and non-negative")
+	return resolved * resolved
+end
+
 local function frozenPoint(point: Point2): Point2
 	return table.freeze({
 		x = point.x,
@@ -172,7 +178,7 @@ function PointerDrag.press(state: State, pointerId: string, target: Target?, pos
 	return acted(nextState, action("Pressed", nextState, position, nil))
 end
 
-function PointerDrag.move(state: State, pointerId: string, position: Point2): Result
+function PointerDrag.move(state: State, pointerId: string, position: Point2, thresholdPixels: number?): Result
 	if state.phase == "Idle" or state.pointerId ~= pointerId then
 		return ignored(state)
 	end
@@ -186,7 +192,7 @@ function PointerDrag.move(state: State, pointerId: string, position: Point2): Re
 	if state.phase == "Pressed" then
 		local deltaX = position.x - startPosition.x
 		local deltaY = position.y - startPosition.y
-		if deltaX * deltaX + deltaY * deltaY >= PointerDrag.THRESHOLD_PIXELS ^ 2 then
+		if deltaX * deltaX + deltaY * deltaY >= thresholdSquared(thresholdPixels) then
 			nextPhase = "Dragging"
 			actionKind = "DragStarted"
 		end
@@ -201,7 +207,12 @@ function PointerDrag.move(state: State, pointerId: string, position: Point2): Re
 	return acted(nextState, action(actionKind, nextState, position, nil))
 end
 
-function PointerDrag.release(state: State, pointerId: string, position: Point2): Result
+function PointerDrag.release(
+	state: State,
+	pointerId: string,
+	position: Point2,
+	thresholdPixels: number?
+): Result
 	if state.phase == "Idle" or state.pointerId ~= pointerId then
 		return ignored(state)
 	end
@@ -212,7 +223,7 @@ function PointerDrag.release(state: State, pointerId: string, position: Point2):
 		assert(startPosition ~= nil and target ~= nil, "active pointer state is incomplete")
 		local deltaX = position.x - startPosition.x
 		local deltaY = position.y - startPosition.y
-		if deltaX * deltaX + deltaY * deltaY < PointerDrag.THRESHOLD_PIXELS ^ 2 then
+		if deltaX * deltaX + deltaY * deltaY < thresholdSquared(thresholdPixels) then
 			return acted(IDLE, action("Clicked", state, position, nil))
 		end
 		local draggingState = activeState("Dragging", pointerId, target, startPosition, position)

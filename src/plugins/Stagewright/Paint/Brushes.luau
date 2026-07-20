@@ -1,9 +1,11 @@
 --!strict
 
+export type Layer = "All" | "Terrain" | "Build" | "Traversal" | "Roles"
+
 export type Brush = {
 	id: string,
 	label: string,
-	category: string,
+	layer: Layer,
 	help: string,
 	apply: (cell: any) -> (),
 }
@@ -15,9 +17,9 @@ Brushes.RESET_ID = "reset_cell"
 local definitions: { Brush } = {
 	{
 		id = Brushes.RESET_ID,
-		label = "Reset to default",
-		category = "Quick tools",
-		help = "Remove authored overrides so the cell inherits the level default.",
+		label = "Reset cell (all properties)",
+		layer = "All",
+		help = "Remove every authored cell property so the cell inherits all level defaults.",
 		apply = function(cell)
 			for key in cell do
 				cell[key] = nil
@@ -27,8 +29,8 @@ local definitions: { Brush } = {
 	{
 		id = "terrain_ground",
 		label = "Ground",
-		category = "Terrain",
-		help = "Paint normal playable ground.",
+		layer = "Terrain",
+		help = "Set Surface to Ground. Tower placement, route access, and roles stay unchanged.",
 		apply = function(cell)
 			cell.terrainId = "ground"
 		end,
@@ -36,8 +38,8 @@ local definitions: { Brush } = {
 	{
 		id = "terrain_void",
 		label = "Void",
-		category = "Terrain",
-		help = "Paint empty terrain outside the playable surface.",
+		layer = "Terrain",
+		help = "Set Surface to Void. Tower placement, route access, and roles stay unchanged.",
 		apply = function(cell)
 			cell.terrainId = "void"
 		end,
@@ -45,8 +47,8 @@ local definitions: { Brush } = {
 	{
 		id = "build_allowed",
 		label = "Build allowed",
-		category = "Build policy",
-		help = "Allow players to place towers in this cell.",
+		layer = "Build",
+		help = "Set Tower placement to Allowed without changing the cell surface or route access.",
 		apply = function(cell)
 			cell.buildPolicy = "Allowed"
 		end,
@@ -54,8 +56,8 @@ local definitions: { Brush } = {
 	{
 		id = "build_blocked",
 		label = "Build blocked",
-		category = "Build policy",
-		help = "Prevent tower placement without changing terrain.",
+		layer = "Build",
+		help = "Set Tower placement to Blocked without changing the cell surface or route access.",
 		apply = function(cell)
 			cell.buildPolicy = "Blocked"
 		end,
@@ -63,8 +65,8 @@ local definitions: { Brush } = {
 	{
 		id = "build_auto",
 		label = "Auto-place only",
-		category = "Build policy",
-		help = "Reserve this cell for automatic placement systems.",
+		layer = "Build",
+		help = "Set Tower placement to Auto-place only; other cell properties stay unchanged.",
 		apply = function(cell)
 			cell.buildPolicy = "AutoOnly"
 		end,
@@ -72,8 +74,8 @@ local definitions: { Brush } = {
 	{
 		id = "traversal_allowed",
 		label = "Traversal allowed",
-		category = "Enemy traversal",
-		help = "Allow route corridors to cross this cell.",
+		layer = "Traversal",
+		help = "Set Route access to Allowed without changing the surface or tower placement.",
 		apply = function(cell)
 			cell.enemyTraversalPolicy = "Allowed"
 		end,
@@ -81,8 +83,8 @@ local definitions: { Brush } = {
 	{
 		id = "traversal_blocked",
 		label = "Traversal blocked",
-		category = "Enemy traversal",
-		help = "Prevent route corridors from crossing this cell.",
+		layer = "Traversal",
+		help = "Set Route access to Blocked without changing the surface or tower placement.",
 		apply = function(cell)
 			cell.enemyTraversalPolicy = "Blocked"
 		end,
@@ -91,18 +93,37 @@ local definitions: { Brush } = {
 
 local function roleBrush(role: string): Brush
 	local label = string.gsub(role, "(%l)(%u)", "%1 %2")
+	local help = if role == "EnemySpawn" or role == "EnemyGoal"
+		then `Toggle the {label} role. Enabling it also blocks tower placement on this cell.`
+		elseif
+			role == "AutoPlace"
+		then "Toggle the Auto Place role. Enabling it also sets Tower placement to Allowed."
+		else `Toggle the {label} role. Surface, tower placement, and route access stay unchanged.`
 	return {
 		id = `role_{role}`,
 		label = label,
-		category = "Cell roles",
-		help = `Toggle the {label} role on painted cells.`,
+		layer = "Roles",
+		help = help,
 		apply = function(cell)
 			cell.roles = cell.roles or {}
-			cell.roles[role] = not cell.roles[role]
-			if role == "EnemySpawn" or role == "EnemyGoal" then
-				cell.buildPolicy = "Blocked"
-			elseif role == "AutoPlace" and cell.buildPolicy == "Blocked" then
-				cell.buildPolicy = "Allowed"
+			local enabled = cell.roles[role] ~= true
+			cell.roles[role] = if enabled then true else nil
+			if enabled and (role == "EnemySpawn" or role == "EnemyGoal" or role == "AutoPlace") then
+				for _, primaryRole in { "EnemySpawn", "EnemyGoal", "AutoPlace" } do
+					if primaryRole ~= role then
+						cell.roles[primaryRole] = nil
+					end
+				end
+			end
+			if enabled then
+				if role == "EnemySpawn" or role == "EnemyGoal" then
+					cell.buildPolicy = "Blocked"
+				elseif role == "AutoPlace" then
+					cell.buildPolicy = "Allowed"
+				end
+			end
+			if next(cell.roles) == nil then
+				cell.roles = nil
 			end
 		end,
 	}
@@ -123,7 +144,60 @@ do
 	table.insert(definitions, roleBrush(role))
 end
 
+local eraseBrushes: { [Layer]: Brush } = {
+	All = definitions[1],
+	Terrain = {
+		id = "erase_terrain",
+		label = "Reset Surface",
+		layer = "Terrain",
+		help = "Restore Surface from the level default; other cell properties stay unchanged.",
+		apply = function(cell)
+			cell.terrainId = nil
+		end,
+	},
+	Build = {
+		id = "erase_build",
+		label = "Reset Tower placement",
+		layer = "Build",
+		help = "Restore Tower placement from the level default; other cell properties stay unchanged.",
+		apply = function(cell)
+			cell.buildPolicy = nil
+		end,
+	},
+	Traversal = {
+		id = "erase_traversal",
+		label = "Reset Route access",
+		layer = "Traversal",
+		help = "Restore Route access from the level default; other cell properties stay unchanged.",
+		apply = function(cell)
+			cell.enemyTraversalPolicy = nil
+		end,
+	},
+	Roles = {
+		id = "erase_roles",
+		label = "Clear optional roles",
+		layer = "Roles",
+		help = "Remove optional roles from this cell; other cell properties stay unchanged.",
+		apply = function(cell)
+			cell.roles = nil
+		end,
+	},
+}
+
 Brushes.all = table.freeze(definitions)
+
+function Brushes.layerLabel(layer: Layer): string
+	if layer == "Terrain" then
+		return "Surface"
+	elseif layer == "Build" then
+		return "Tower placement"
+	elseif layer == "Traversal" then
+		return "Route access"
+	elseif layer == "Roles" then
+		return "Cell roles"
+	end
+	return "All properties"
+end
 
 function Brushes.find(id: string): Brush
 	for _, brush in definitions do
@@ -131,7 +205,16 @@ function Brushes.find(id: string): Brush
 			return brush
 		end
 	end
+	for _, brush in eraseBrushes do
+		if brush.id == id then
+			return brush
+		end
+	end
 	return definitions[1]
+end
+
+function Brushes.eraseId(layer: Layer): string
+	return eraseBrushes[layer].id
 end
 
 function Brushes.applyArea(

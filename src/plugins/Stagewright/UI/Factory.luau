@@ -15,7 +15,7 @@ function Factory.create(className: string, properties: { [string]: any }, parent
 	return instance
 end
 
-function Factory.button(parent: Instance, text: string, width: number?, callback: () -> ()): TextButton
+function Factory.button(parent: Instance, text: string, width: number?, callback: (() -> ())?): TextButton
 	local result = Factory.create("TextButton", {
 		AutoButtonColor = false,
 		BackgroundColor3 = COLORS.field,
@@ -57,7 +57,9 @@ function Factory.button(parent: Instance, text: string, width: number?, callback
 		restingBackground = nil
 		restingStroke = nil
 	end)
-	result.Activated:Connect(callback)
+	if callback ~= nil then
+		result.Activated:Connect(callback)
+	end
 	return result
 end
 

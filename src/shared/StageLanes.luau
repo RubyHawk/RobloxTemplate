@@ -7,6 +7,8 @@ StageLanes.MAX_COUNT = 3
 StageLanes.DEFAULT_COUNT = 2
 StageLanes.DEFAULT_SPACING = 4
 StageLanes.DEFAULT_HALF_WIDTH = 2
+StageLanes.MIN_WIDTH = 2
+StageLanes.MAX_WIDTH = 12
 
 function StageLanes.offsets(laneCount: number, spacing: number?): { number }
 	assert(laneCount % 1 == 0, "lane count must be an integer")
@@ -45,6 +47,15 @@ function StageLanes.clearanceRadius(offsets: { number }, halfWidth: number?): nu
 		furthestOffset = math.max(furthestOffset, math.abs(offset))
 	end
 	return furthestOffset + (halfWidth or StageLanes.DEFAULT_HALF_WIDTH)
+end
+
+function StageLanes.resolveWidth(metadata: any, fallback: number?): number
+	local resolvedFallback = fallback or StageLanes.DEFAULT_SPACING
+	local candidate = if type(metadata) == "table" then metadata.laneWidth else nil
+	if type(candidate) ~= "number" or candidate ~= candidate or math.abs(candidate) == math.huge then
+		candidate = resolvedFallback
+	end
+	return math.clamp(candidate, StageLanes.MIN_WIDTH, StageLanes.MAX_WIDTH)
 end
 
 return table.freeze(StageLanes)

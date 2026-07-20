@@ -20,6 +20,7 @@ export type NodePrimitive = {
 	id: string,
 	center: Point2,
 	radius: number,
+	area: ("Marker" | "Label")?,
 }
 
 export type EdgePrimitive = {
@@ -35,13 +36,14 @@ export type Hit = {
 	kind: HitKind,
 	id: string,
 	handleId: string?,
+	area: ("Marker" | "Label")?,
 	distance: number,
 }
 
-local PRIORITY = {
-	Handle = 1,
-	Node = 2,
-	Edge = 3,
+type RankedHit = {
+	hit: Hit,
+	priority: number,
+	key: string,
 }
 
 local function isFinite(value: number): boolean
@@ -95,17 +97,35 @@ end
 
 local function stableKey(primitive: Primitive): string
 	if primitive.kind == "Handle" then
-		return `{primitive.id}\0{primitive.handleId}`
+		return `Handle\0{primitive.id}\0{primitive.handleId}`
+	elseif primitive.kind == "Node" then
+		return `Node\0{primitive.id}`
 	end
-	return primitive.id
+	return `Edge\0{primitive.id}`
 end
 
-function HitTest.resolve(point: Point2, primitives: { Primitive }): Hit?
+local function primitivePriority(primitive: Primitive): number
+	if primitive.kind == "Handle" then
+		return 1
+	elseif primitive.kind == "Node" then
+		return if primitive.area == "Label" then 3 else 2
+	end
+	return 4
+end
+
+local function rankedBefore(left: RankedHit, right: RankedHit): boolean
+	return left.priority < right.priority
+		or (left.priority == right.priority and left.hit.distance < right.hit.distance)
+		or (
+			left.priority == right.priority
+			and left.hit.distance == right.hit.distance
+			and left.key < right.key
+		)
+end
+
+function HitTest.resolveAll(point: Point2, primitives: { Primitive }): { Hit }
 	assertPoint(point, "point")
-	local bestPriority = math.huge
-	local bestDistance = math.huge
-	local bestKey = ""
-	local bestHit: Hit? = nil
+	local bestByKey: { [string]: RankedHit } = {}
 
 	for _, primitive in primitives do
 		assert(primitive.id ~= "", "primitive id cannot be empty")
@@ -116,6 +136,7 @@ function HitTest.resolve(point: Point2, primitives: { Primitive }): Hit?
 
 		local distance: number?
 		local handleId: string? = nil
+		local area: ("Marker" | "Label")? = nil
 		if primitive.kind == "Edge" then
 			distance = edgeDistance(point, primitive.points)
 		else
@@ -124,31 +145,87 @@ function HitTest.resolve(point: Point2, primitives: { Primitive }): Hit?
 			if primitive.kind == "Handle" then
 				assert(primitive.handleId ~= "", "handle id cannot be empty")
 				handleId = primitive.handleId
+			else
+				assert(
+					primitive.area == nil or primitive.area == "Marker" or primitive.area == "Label",
+					"node area must be Marker or Label"
+				)
+				area = primitive.area or "Marker"
 			end
 		end
 
 		if distance == nil or distance > primitive.radius then
 			continue
 		end
-		local priority = PRIORITY[primitive.kind]
 		local key = stableKey(primitive)
-		local isBetter = priority < bestPriority
-			or (priority == bestPriority and distance < bestDistance)
-			or (priority == bestPriority and distance == bestDistance and key < bestKey)
-		if isBetter then
-			bestPriority = priority
-			bestDistance = distance
-			bestKey = key
-			bestHit = table.freeze({
+		local ranked = {
+			priority = primitivePriority(primitive),
+			key = key,
+			hit = table.freeze({
 				kind = primitive.kind,
 				id = primitive.id,
 				handleId = handleId,
+				area = area,
 				distance = distance,
-			})
+			}),
+		}
+		local existing = bestByKey[key]
+		if existing == nil or rankedBefore(ranked, existing) then
+			bestByKey[key] = ranked
 		end
 	end
 
-	return bestHit
+	local rankedHits: { RankedHit } = {}
+	for _, ranked in bestByKey do
+		table.insert(rankedHits, ranked)
+	end
+	table.sort(rankedHits, rankedBefore)
+	local hits: { Hit } = {}
+	for _, ranked in rankedHits do
+		table.insert(hits, ranked.hit)
+	end
+	return table.freeze(hits)
+end
+
+function HitTest.resolve(point: Point2, primitives: { Primitive }): Hit?
+	return HitTest.resolveAll(point, primitives)[1]
+end
+
+function HitTest.cycleNode(hits: { Hit }, previousNodeId: string?): Hit?
+	local nodes: { Hit } = {}
+	for _, hit in hits do
+		if hit.kind == "Node" then
+			table.insert(nodes, hit)
+		end
+	end
+	if #nodes == 0 then
+		return nil
+	end
+	if previousNodeId ~= nil then
+		for index, hit in nodes do
+			if hit.id == previousNodeId then
+				return nodes[index % #nodes + 1]
+			end
+		end
+	end
+	return nodes[1]
+end
+
+function HitTest.preferSelectedNode(hits: { Hit }, selectedNodeId: string?): Hit?
+	local primary = hits[1]
+	if primary == nil or primary.kind ~= "Node" or selectedNodeId == nil then
+		return primary
+	end
+	for _, hit in hits do
+		if
+			hit.kind == "Node"
+			and hit.id == selectedNodeId
+			and (hit.area ~= "Label" or primary.area == "Label")
+		then
+			return hit
+		end
+	end
+	return primary
 end
 
 return table.freeze(HitTest)

@@ -5,10 +5,13 @@ local HttpService = if script ~= nil then game:GetService("HttpService") else ni
 local StageLanes = if script ~= nil
 	then require(script.Parent.Parent.Shared.StageLanes)
 	else require("../../../shared/StageLanes")
+local StagePathAssets = if script ~= nil
+	then require(script.Parent.Parent.Shared.StagePathAssets)
+	else require("../../../shared/StagePathAssets")
 
 local Operations = {}
 
-local DEFAULT_LANE_WIDTH = 4
+local DEFAULT_LANE_WIDTH = StageLanes.DEFAULT_SPACING
 local fallbackGuid = 0
 
 local function isFiniteNumber(value: any): boolean
@@ -25,12 +28,14 @@ local function edgeMetadata(edge: any): any
 		metadata = {}
 		edge.metadata = metadata
 	end
-	metadata.pathAssetId = if type(metadata.pathAssetId) == "string" then metadata.pathAssetId else "gravel"
+	metadata.pathAssetId = if type(metadata.pathAssetId) == "string"
+		then metadata.pathAssetId
+		else StagePathAssets.DEFAULT_ASSET_ID
 	metadata.curveMode = if type(metadata.curveMode) == "string" then metadata.curveMode else "Free"
 	metadata.surfaceMode = if type(metadata.surfaceMode) == "string"
 		then metadata.surfaceMode
-		else "FollowTerrain"
-	metadata.laneWidth = math.clamp(finiteNumber(metadata.laneWidth, DEFAULT_LANE_WIDTH), 2, 12)
+		else StagePathAssets.DEFAULT_SURFACE_MODE
+	metadata.laneWidth = StageLanes.resolveWidth(metadata, DEFAULT_LANE_WIDTH)
 	return metadata
 end
 
@@ -286,9 +291,9 @@ function Operations.connect(graph: any, fromId: string, toId: string): string?
 		inHandleOffset = { x = -delta.x, y = -delta.y, z = -delta.z },
 		laneProfileId = laneProfileId,
 		metadata = {
-			pathAssetId = "gravel",
+			pathAssetId = StagePathAssets.DEFAULT_ASSET_ID,
 			curveMode = "Smooth",
-			surfaceMode = "FollowTerrain",
+			surfaceMode = StagePathAssets.DEFAULT_SURFACE_MODE,
 			laneWidth = DEFAULT_LANE_WIDTH,
 		},
 		priority = 1,
@@ -399,7 +404,7 @@ function Operations.setLaneWidth(graph: any, edgeId: string, laneWidth: number):
 	if edge == nil or not isFiniteNumber(laneWidth) then
 		return false
 	end
-	local resolvedWidth = math.clamp(math.floor(laneWidth + 0.5), 2, 12)
+	local resolvedWidth = math.clamp(math.floor(laneWidth + 0.5), StageLanes.MIN_WIDTH, StageLanes.MAX_WIDTH)
 	local previousWidth = profileLaneWidth(edge)
 	if resolvedWidth == previousWidth then
 		return true
@@ -439,6 +444,28 @@ function Operations.setCurveMode(graph: any, edgeId: string, curveMode: string):
 		edge.inHandleOffset = constrainedOpposite(edge.outHandleOffset, edge.inHandleOffset, curveMode)
 	end
 	return true
+end
+
+function Operations.setPathAsset(graph: any, edgeId: string, assetId: string): boolean
+	local edge = graph.edges[edgeId]
+	if edge == nil or not StagePathAssets.isValid(assetId) then
+		return false
+	end
+	edgeMetadata(edge).pathAssetId = assetId
+	return true
+end
+
+function Operations.setEdgeProperty(graph: any, edgeId: string, property: string, value: any): boolean
+	if property == "LaneWidth" then
+		return Operations.setLaneWidth(graph, edgeId, value)
+	elseif property == "Priority" then
+		return Operations.setPriority(graph, edgeId, value)
+	elseif property == "CurveMode" then
+		return Operations.setCurveMode(graph, edgeId, value)
+	elseif property == "PathAsset" then
+		return Operations.setPathAsset(graph, edgeId, value)
+	end
+	return false
 end
 
 function Operations.deleteEdge(graph: any, edgeId: string): boolean

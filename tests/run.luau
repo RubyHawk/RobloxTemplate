@@ -9,10 +9,12 @@ local TowerDefenseCatalog = require("../src/shared/TowerDefenseCatalog")
 local TowerDefenseLogic = require("../src/shared/TowerDefenseLogic")
 local TowerDefenseRequest = require("../src/shared/TowerDefenseRequest")
 local StageGraph = require("../src/shared/StageGraph")
+local StageCell = require("../src/shared/StageCell")
 local StageHierarchy = require("../src/shared/StageHierarchy")
 local StageLanes = require("../src/shared/StageLanes")
 local StageLegacy = require("../src/shared/StageLegacy")
 local StagePath = require("../src/shared/StagePath")
+local StagePathAssets = require("../src/shared/StagePathAssets")
 local StagePlatformLayout = require("../src/shared/StagePlatformLayout")
 local StageSchema = require("../src/shared/StageSchema")
 local StageStarterProject = require("../src/shared/StageStarterProject")
@@ -24,6 +26,7 @@ local PointerDrag = require("../src/plugins/Stagewright/Interaction/PointerDrag"
 local PaintRouteDragSession = require("../src/plugins/Stagewright/Controllers/PaintRouteDragSession")
 local PaintStrokeSession = require("../src/plugins/Stagewright/Controllers/PaintStrokeSession")
 local WorldPathEditSession = require("../src/plugins/Stagewright/Controllers/WorldPathEditSession")
+local GraphToolController = require("../src/plugins/Stagewright/Controllers/GraphToolController")
 local GraphOperations = require("../src/plugins/Stagewright/Graph/Operations")
 local PredicateFields = require("../src/plugins/Stagewright/Graph/PredicateFields")
 local PaintBrushes = require("../src/plugins/Stagewright/Paint/Brushes")
@@ -172,6 +175,103 @@ do
 end
 
 do
+	local defaultCell: any = {
+		terrainId = "ground",
+		buildPolicy = "Blocked",
+		enemyTraversalPolicy = "Allowed",
+		roles = {},
+		metadata = { biome = "forest" },
+	}
+	local terrainOverride: any = { terrainId = "void" }
+	local resolved = StageCell.resolve(defaultCell, terrainOverride)
+	expectEqual(resolved.terrainId, "void", "cell resolver applies the authored layer value")
+	expectEqual(resolved.buildPolicy, "Blocked", "cell resolver inherits omitted tower-placement policy")
+	expectEqual(
+		resolved.enemyTraversalPolicy,
+		"Allowed",
+		"cell resolver inherits omitted route-access policy"
+	)
+	expectEqual(resolved.metadata.biome, "forest", "cell resolver preserves default metadata")
+	expectEqual(defaultCell.terrainId, "ground", "cell resolver does not mutate the level default")
+	expectEqual(
+		StageCell.resolve(defaultCell, nil),
+		defaultCell,
+		"cell resolver reuses the default when there is no authored override"
+	)
+end
+
+do
+	expectEqual(#StagePathAssets.ASSETS, 3, "path asset catalog exposes the built-in authoring styles")
+	expectEqual(
+		assert(StagePathAssets.find("dirt"), "dirt path asset").label,
+		"Dirt",
+		"path asset lookup resolves a stable ID"
+	)
+	expectEqual(
+		assert(StagePathAssets.find("stone"), "stone path asset").materialName,
+		"Cobblestone",
+		"path assets expose a Studio material name"
+	)
+	expectEqual(
+		assert(StagePathAssets.find("gravel"), "gravel path asset").rgb[1],
+		166,
+		"path assets expose RGB triplets"
+	)
+	expectEqual(StagePathAssets.find("custom_pack"), nil, "unknown path assets are not catalog entries")
+	expectEqual(
+		StagePathAssets.label("custom_pack"),
+		"custom_pack (missing; using Gravel)",
+		"unknown saved path assets identify the visible fallback"
+	)
+	expectEqual(StagePathAssets.resolve("stone").id, "stone", "known path assets resolve without fallback")
+	expectEqual(
+		StagePathAssets.resolve("custom_pack").id,
+		StagePathAssets.DEFAULT_ASSET_ID,
+		"unknown path assets resolve to the safe visual fallback"
+	)
+	local edgeAsset, requestedAssetId = StagePathAssets.forEdge({ metadata = { pathAssetId = "dirt" } })
+	expectEqual(edgeAsset.id, "dirt", "edge asset resolution reads baked metadata")
+	expectEqual(requestedAssetId, "dirt", "edge asset resolution preserves the requested ID")
+	expectEqual(StagePathAssets.next("gravel"), "dirt", "path assets cycle in catalog order")
+	expectEqual(
+		StagePathAssets.next("custom_pack"),
+		StagePathAssets.DEFAULT_ASSET_ID,
+		"cycling an unknown path asset starts from the safe default"
+	)
+end
+
+do
+	local nextId = 0
+	local project = StageStarterProject.build(1, function(prefix: string): string
+		nextId += 1
+		return `{prefix}_asset_test_{nextId}`
+	end, "stage_asset_test", "stage_group_asset_test")
+	local stage = project.stages.stage_asset_test
+	local graph: any = nil
+	for _, candidate in stage.pathGraphs do
+		graph = candidate
+		break
+	end
+	local edgeId: string? = nil
+	for candidateId, edge in graph.edges do
+		edgeId = candidateId
+		edge.metadata.pathAssetId = "dirt"
+		break
+	end
+	local preview = assert(StageExport.preview(stage), "path asset preview")
+	local bakedEdge = preview.pathGraphs[graph.id].edges[assert(edgeId, "path asset edge")]
+	expectEqual(bakedEdge.metadata.pathAssetId, "dirt", "path style metadata survives deterministic baking")
+	graph.edges[edgeId].metadata.pathAssetId = "custom_pack"
+	local foundUnknownAssetWarning = false
+	for _, issue in StageSchema.validateStage(stage) do
+		if issue.code == "UnknownPathAsset" and issue.objectId == edgeId then
+			foundUnknownAssetWarning = true
+		end
+	end
+	expectEqual(foundUnknownAssetWarning, true, "validation reports unavailable imported path assets")
+end
+
+do
 	local edge: any = {
 		kind = "Edge",
 		id = "edge_main",
@@ -214,6 +314,104 @@ do
 		nearestNodeHit and nearestNodeHit.id,
 		"node_near",
 		"hit test chooses the nearest same-kind target"
+	)
+
+	local layeredNodeHits = HitTest.resolveAll({ x = 0, y = 0 }, {
+		{
+			kind = "Node",
+			id = "nearby_label",
+			center = { x = 0, y = 0 },
+			radius = 13,
+			area = "Label",
+		},
+		{
+			kind = "Node",
+			id = "visible_marker",
+			center = { x = 5, y = 0 },
+			radius = 24,
+			area = "Marker",
+		},
+	})
+	expectEqual(
+		layeredNodeHits[1] and layeredNodeHits[1].id,
+		"visible_marker",
+		"visible node markers outrank overlapping labels from nearby nodes"
+	)
+	expectEqual(
+		layeredNodeHits[2] and layeredNodeHits[2].id,
+		"nearby_label",
+		"overlapping labels remain available as secondary node candidates"
+	)
+
+	local sharedIdHits = HitTest.resolveAll({ x = 0, y = 0 }, {
+		{ kind = "Node", id = "shared", center = { x = 0, y = 0 }, radius = 8 },
+		{ kind = "Edge", id = "shared", points = { { x = -4, y = 0 }, { x = 4, y = 0 } }, radius = 8 },
+	})
+	expectEqual(#sharedIdHits, 2, "node and edge namespaces do not suppress one another")
+	expectEqual(sharedIdHits[1].kind, "Node", "shared-id node keeps normal hit priority")
+	expectEqual(sharedIdHits[2].kind, "Edge", "shared-id spline remains available to Split")
+
+	local coincidentNodeHits = HitTest.resolveAll({ x = 0, y = 0 }, {
+		{ kind = "Node", id = "node_a", center = { x = 0, y = 0 }, radius = 8 },
+		{ kind = "Node", id = "node_b", center = { x = 0, y = 0 }, radius = 8 },
+	})
+	expectEqual(
+		HitTest.preferSelectedNode(coincidentNodeHits, "node_b")
+			and HitTest.preferSelectedNode(coincidentNodeHits, "node_b").id,
+		"node_b",
+		"a cycled overlapping node remains the next drag target"
+	)
+	local handleAndNodes = table.clone(coincidentNodeHits)
+	table.insert(handleAndNodes, 1, {
+		kind = "Handle",
+		id = "edge",
+		handleId = "Out",
+		distance = 0,
+	})
+	expectEqual(
+		HitTest.preferSelectedNode(handleAndNodes, "node_b")
+			and HitTest.preferSelectedNode(handleAndNodes, "node_b").kind,
+		"Handle",
+		"selected nodes never steal handle drag priority"
+	)
+	expectEqual(
+		HitTest.preferSelectedNode(layeredNodeHits, "nearby_label")
+			and HitTest.preferSelectedNode(layeredNodeHits, "nearby_label").id,
+		"visible_marker",
+		"a selected label never overrides another node's visible marker"
+	)
+	local overlappingLabelHits = HitTest.resolveAll({ x = 0, y = 0 }, {
+		{ kind = "Node", id = "label_a", center = { x = 0, y = 0 }, radius = 8, area = "Label" },
+		{ kind = "Node", id = "label_b", center = { x = 0, y = 0 }, radius = 8, area = "Label" },
+	})
+	expectEqual(
+		HitTest.preferSelectedNode(overlappingLabelHits, "label_b")
+			and HitTest.preferSelectedNode(overlappingLabelHits, "label_b").id,
+		"label_b",
+		"a cycled overlapping label remains the next drag target"
+	)
+
+	local duplicateLabelHits = HitTest.resolveAll({ x = 0, y = 0 }, {
+		{ kind = "Node", id = "wide_label", center = { x = -4, y = 0 }, radius = 8, area = "Label" },
+		{ kind = "Node", id = "wide_label", center = { x = 4, y = 0 }, radius = 8, area = "Label" },
+	})
+	expectEqual(#duplicateLabelHits, 1, "repeated hit circles for one label collapse to one candidate")
+	expectEqual(
+		HitTest.cycleNode(layeredNodeHits, nil) and HitTest.cycleNode(layeredNodeHits, nil).id,
+		"visible_marker",
+		"node cycling starts with the highest-ranked candidate"
+	)
+	expectEqual(
+		HitTest.cycleNode(layeredNodeHits, "visible_marker")
+			and HitTest.cycleNode(layeredNodeHits, "visible_marker").id,
+		"nearby_label",
+		"node cycling advances to an overlapping node"
+	)
+	expectEqual(
+		HitTest.cycleNode(layeredNodeHits, "nearby_label")
+			and HitTest.cycleNode(layeredNodeHits, "nearby_label").id,
+		"visible_marker",
+		"node cycling wraps deterministically"
 	)
 
 	local tiedNodes = {
@@ -332,8 +530,20 @@ do
 	local invalidPointAccepted = pcall(function()
 		HitTest.resolve({ x = math.huge, y = 0 }, {})
 	end)
+	local invalidNodeAreaAccepted = pcall(function()
+		HitTest.resolve({ x = 0, y = 0 }, {
+			{
+				kind = "Node",
+				id = "node_bad_area",
+				center = { x = 0, y = 0 },
+				radius = 5,
+				area = "Badge",
+			} :: any,
+		})
+	end)
 	expectEqual(invalidRadiusAccepted, false, "hit test rejects negative target radii")
 	expectEqual(invalidPointAccepted, false, "hit test rejects non-finite pointer positions")
+	expectEqual(invalidNodeAreaAccepted, false, "hit test rejects unknown node hit areas")
 end
 
 do
@@ -392,6 +602,22 @@ do
 	expectEqual(PointerDrag.isDragging(dragStarted.state), true, "dragging state is reported explicitly")
 	expectEqual(dragStarted.actions[1].kind, "DragStarted", "threshold crossing emits one drag-start action")
 	expectEqual(dragStarted.actions[1].position.x, 14, "drag-start action carries the current point")
+
+	local worldPress = PointerDrag.press(idle, "mouse-primary", target, { x = 0, y = 0 })
+	local worldBelowThreshold = PointerDrag.move(worldPress.state, "mouse-primary", { x = 7, y = 0 }, 8)
+	expectEqual(
+		worldBelowThreshold.state.phase,
+		"Pressed",
+		"World Path can use an eight-pixel threshold to tolerate selection jitter"
+	)
+	local worldClicked = PointerDrag.release(worldBelowThreshold.state, "mouse-primary", { x = 7, y = 0 }, 8)
+	expectEqual(worldClicked.actions[1].kind, "Clicked", "seven-pixel World Path motion remains a click")
+	local worldDragStarted = PointerDrag.move(worldPress.state, "mouse-primary", { x = 8, y = 0 }, 8)
+	expectEqual(
+		worldDragStarted.actions[1].kind,
+		"DragStarted",
+		"eight-pixel World Path motion starts a deliberate drag"
+	)
 
 	local dragMoved = PointerDrag.move(dragStarted.state, "mouse-primary", { x = 18, y = 16 })
 	expectEqual(dragMoved.state.phase, "Dragging", "captured movement remains dragging")
@@ -469,11 +695,15 @@ do
 	local invalidCancelReasonAccepted = pcall(function()
 		PointerDrag.cancel(clickPress.state, "")
 	end)
+	local invalidThresholdAccepted = pcall(function()
+		PointerDrag.move(worldPress.state, "mouse-primary", { x = 1, y = 0 }, -1)
+	end)
 	expectEqual(invalidPointerAccepted, false, "pointer drag rejects empty pointer ids")
 	expectEqual(invalidTargetAccepted, false, "pointer drag rejects empty target ids")
 	expectEqual(invalidTargetKindAccepted, false, "pointer drag rejects unknown target kinds")
 	expectEqual(missingHandleIdAccepted, false, "pointer drag requires handle target ids")
 	expectEqual(invalidCancelReasonAccepted, false, "pointer drag rejects empty cancellation reasons")
+	expectEqual(invalidThresholdAccepted, false, "pointer drag rejects invalid custom thresholds")
 end
 
 do
@@ -990,6 +1220,41 @@ do
 	expectEqual(profile.clearanceRadius, 6, "lane width updates the no-build clearance radius")
 	expectEqual(GraphOperations.setPriority(graph, edgeId, 200), true, "priority mutation accepts a spline")
 	expectEqual(edge.priority, 99, "priority mutation clamps unsafe values")
+	edge.metadata.pathAssetId = "external_path_pack"
+	edge.metadata.surfaceMode = "ProjectedSurface"
+	expectEqual(
+		GraphOperations.setPathAsset(graph, edgeId, "external_path_pack"),
+		false,
+		"path asset mutation rejects unknown catalog IDs"
+	)
+	expectEqual(
+		edge.metadata.pathAssetId,
+		"external_path_pack",
+		"rejecting a path asset preserves unknown loaded metadata"
+	)
+	expectEqual(
+		edge.metadata.surfaceMode,
+		"ProjectedSurface",
+		"editing other spline properties preserves legacy surface metadata"
+	)
+	expectEqual(GraphOperations.setPathAsset(graph, edgeId, "dirt"), true, "path asset metadata is editable")
+	expectEqual(edge.metadata.pathAssetId, "dirt", "valid path asset mutation persists")
+	expectEqual(
+		GraphOperations.setEdgeProperty(graph, edgeId, "PathAsset", "stone"),
+		true,
+		"generic inspector mutation delegates to the validated graph operation"
+	)
+	expectEqual(edge.metadata.pathAssetId, "stone", "generic inspector mutation persists the selected style")
+	expectEqual(
+		GraphOperations.setEdgeProperty(graph, edgeId, "UnknownProperty", "value"),
+		false,
+		"generic inspector mutation rejects undeclared properties"
+	)
+	expectEqual(
+		GraphOperations.setPathAsset(graph, "missing_edge", "stone"),
+		false,
+		"path asset mutation rejects a missing spline"
+	)
 	expectEqual(GraphOperations.setCurveMode(graph, edgeId, "Free"), true, "curve metadata is editable")
 	expectEqual(edge.metadata.curveMode, "Free", "curve mutation persists on the selected spline")
 	local previousIncomingX = edge.inHandleOffset.x
@@ -1010,6 +1275,176 @@ do
 		false,
 		"curve mutation rejects unsupported modes"
 	)
+end
+
+do
+	local graph = {
+		nodes = {
+			spawn = { id = "spawn", kind = "Spawn", name = "Spawn", position = { x = 0, y = 0, z = 0 } },
+			spawn_2 = {
+				id = "spawn_2",
+				kind = "Spawn",
+				name = "Spawn 2",
+				position = { x = 0, y = 0, z = 10 },
+			},
+			junction = {
+				id = "junction",
+				kind = "Junction",
+				name = "Junction",
+				position = { x = 10, y = 0, z = 0 },
+			},
+			junction_2 = {
+				id = "junction_2",
+				kind = "Junction",
+				name = "Junction 2",
+				position = { x = 20, y = 0, z = 0 },
+			},
+			goal = { id = "goal", kind = "Goal", name = "Goal", position = { x = 30, y = 0, z = 0 } },
+		},
+		edges = {},
+		laneProfiles = {},
+	}
+	local sourceNodeId: string? = nil
+	local selectedNodeId: string? = nil
+	local selectedEdgeId: string? = nil
+	local lastStatus = ""
+	local statusWasError = false
+	local finishCount = 0
+	local renderCount = 0
+	local mutateCount = 0
+	local allowMutation = true
+	local controller = GraphToolController.new({
+		currentGraph = function()
+			return graph
+		end,
+		sourceNodeId = function()
+			return sourceNodeId
+		end,
+		setSourceNodeId = function(value: string?)
+			sourceNodeId = value
+		end,
+		mutate = function(_label: string, operation: () -> ()): boolean
+			mutateCount += 1
+			if not allowMutation then
+				return false
+			end
+			operation()
+			return true
+		end,
+		select = function(nodeId: string?, edgeId: string?)
+			selectedNodeId = nodeId
+			selectedEdgeId = edgeId
+		end,
+		setStatus = function(message: string, isError: boolean?)
+			lastStatus = message
+			statusWasError = isError == true
+		end,
+		finishTool = function()
+			finishCount += 1
+		end,
+		render = function()
+			renderCount += 1
+		end,
+	})
+
+	sourceNodeId = "spawn"
+	expectEqual(controller:beginSource("goal"), false, "Connect rejects Goal as a source")
+	expectEqual(sourceNodeId, nil, "rejected Goal source cannot wedge Connect")
+	expectEqual(statusWasError, true, "rejected Goal source reports a useful error")
+	sourceNodeId = "spawn"
+	expectEqual(controller:beginSource("missing"), false, "Connect rejects a deleted source")
+	expectEqual(sourceNodeId, nil, "deleted source is cleared")
+	expectEqual(controller:beginSource("spawn"), true, "Connect explicitly arms a valid source")
+	expectEqual(sourceNodeId, "spawn", "Connect stores the armed source")
+	expectEqual(selectedNodeId, "spawn", "arming Connect selects its source")
+	expectEqual(renderCount, 1, "arming Connect refreshes its source feedback")
+	expectEqual(controller:activateNode("spawn"), nil, "Connect rejects a node connected to itself")
+	expectEqual(sourceNodeId, "spawn", "self-connect rejection keeps the valid source armed")
+	expectEqual(
+		controller:activateNode("spawn_2"),
+		nil,
+		"Connect rejects directions that would enter a Spawn"
+	)
+	expectEqual(sourceNodeId, "spawn", "invalid destination keeps the source for a retry")
+	expectEqual(controller:activateNode("junction"), true, "Connect creates a directed spline on valid retry")
+	expectEqual(sourceNodeId, nil, "successful Connect clears its source")
+	expectEqual(selectedNodeId, nil, "successful Connect clears node selection")
+	expectEqual(type(selectedEdgeId), "string", "successful Connect selects the created spline")
+	expectEqual(finishCount, 1, "successful Connect returns to Select exactly once")
+	expectEqual(renderCount, 2, "successful Connect refreshes the graph")
+
+	sourceNodeId = "deleted"
+	expectEqual(controller:activateNode("missing"), nil, "Connect rejects a deleted destination")
+	expectEqual(sourceNodeId, nil, "a deleted destination also clears a stale source")
+	sourceNodeId = "deleted"
+	expectEqual(
+		controller:activateNode("junction_2"),
+		false,
+		"Connect recovers from a stale source by arming the clicked node"
+	)
+	expectEqual(sourceNodeId, "junction_2", "stale source recovery stores the replacement source")
+	sourceNodeId = "goal"
+	expectEqual(controller:activateNode("junction"), false, "Connect recovers from an invalid Goal source")
+	expectEqual(sourceNodeId, "junction", "Goal source recovery arms the clicked valid node")
+	expectEqual(
+		controller:connectNodes("goal", "junction"),
+		nil,
+		"port-drag Connect rejects an invalid explicit source"
+	)
+	expectEqual(sourceNodeId, nil, "invalid port-drag source is never retained")
+	expectEqual(
+		controller:connectNodes("missing", "junction"),
+		nil,
+		"port-drag Connect rejects a deleted explicit source"
+	)
+	expectEqual(sourceNodeId, nil, "deleted port-drag source is never retained")
+	expectEqual(
+		controller:connectNodes("junction", "goal"),
+		true,
+		"port-drag Connect creates a valid directed spline"
+	)
+	expectEqual(sourceNodeId, nil, "successful port-drag Connect clears its shared source")
+	expectEqual(finishCount, 2, "successful port-drag Connect returns to Select")
+
+	allowMutation = false
+	expectEqual(
+		controller:connectNodes("spawn", "junction_2"),
+		nil,
+		"Connect reports a transaction that did not commit"
+	)
+	expectEqual(sourceNodeId, "spawn", "failed Connect transaction keeps its valid source for retry")
+	expectEqual(
+		lastStatus,
+		"The route connection could not be created.",
+		"failed Connect explains the result"
+	)
+	allowMutation = true
+	expectEqual(controller:activateNode("junction_2"), true, "Connect can retry after a failed transaction")
+
+	local edgeToSplit = assert(selectedEdgeId, "connected edge selected for split")
+	allowMutation = false
+	expectEqual(controller:splitEdge(edgeToSplit), false, "Split reports a transaction that did not commit")
+	expectEqual(graph.edges[edgeToSplit] ~= nil, true, "failed Split preserves the original spline")
+	allowMutation = true
+	expectEqual(controller:splitEdge(edgeToSplit), true, "Split replaces a valid spline with two halves")
+	expectEqual(graph.edges[edgeToSplit], nil, "successful Split retires the original spline")
+	expectEqual(type(selectedNodeId), "string", "successful Split selects its inserted junction")
+	expectEqual(selectedEdgeId, nil, "successful Split clears spline selection")
+	expectEqual(finishCount, 4, "Connect and Split each finish their tool after success")
+	local mutationCountBeforeMissingSplit = mutateCount
+	expectEqual(controller:splitEdge("missing"), false, "Split rejects a deleted spline")
+	expectEqual(mutateCount, mutationCountBeforeMissingSplit, "deleted spline never opens a mutation")
+	graph.edges.corrupt = {
+		id = "corrupt",
+		fromNodeId = "missing",
+		toNodeId = "goal",
+	}
+	expectEqual(
+		controller:splitEdge("corrupt"),
+		false,
+		"Split rejects a corrupt spline with a deleted endpoint"
+	)
+	expectEqual(graph.edges.corrupt ~= nil, true, "rejected corrupt Split preserves imported data")
 end
 
 do
@@ -1281,7 +1716,7 @@ do
 	)
 	expectEqual(beginCount, 2, "one captured drag begins exactly one additional transaction")
 	expectEqual(#finishCommits, 0, "preview movement does not finish the transaction")
-	expectEqual(previewCount, 2, "every accepted preview movement refreshes the baked preview")
+	expectEqual(previewCount, 0, "preview movement defers the expensive baked preview")
 	expectEqual(session:isActive(), true, "node preview keeps its edit transaction active")
 	expectEqual(
 		session:moveNode("node_1", { x = 4, y = 7, z = 5 }, true),
@@ -1291,6 +1726,7 @@ do
 	expectEqual(beginCount, 2, "the final node update does not begin a second transaction")
 	expectEqual(finishCommits[1], true, "the captured node drag commits once")
 	expectEqual(committedCount, 1, "successful commit emits one committed callback")
+	expectEqual(previewCount, 1, "release publishes one fresh baked preview")
 	expectEqual(session:isActive(), false, "successful commit clears the active edit")
 	expectEqual(finishSawInactive[1], true, "transaction identity clears before the finish adapter runs")
 	expectEqual(session:cancel(), false, "cancel after commit is idempotent")
@@ -1526,6 +1962,51 @@ do
 	PaintBrushes.applyArea(grid, PaintBrushes.find("role_AutoPlace"), 3, 2, 1, {})
 	expectEqual(grid.cells["3:2"].roles.AutoPlace, true, "role brush toggles the requested role")
 	expectEqual(grid.cells["3:2"].buildPolicy, "Allowed", "auto-place role preserves its compatibility rule")
+	PaintBrushes.applyArea(grid, PaintBrushes.find("role_EnemySpawn"), 3, 2, 1, {})
+	expectEqual(
+		grid.cells["3:2"].roles.AutoPlace,
+		nil,
+		"enabling a primary role clears an incompatible primary role"
+	)
+	expectEqual(grid.cells["3:2"].roles.EnemySpawn, true, "the newly painted primary role remains")
+	expectEqual(
+		grid.cells["3:2"].buildPolicy,
+		"Blocked",
+		"enabling an enemy endpoint visibly enforces its placement rule"
+	)
+	PaintBrushes.applyArea(grid, PaintBrushes.find("role_EnemySpawn"), 3, 2, 1, {})
+	expectEqual(grid.cells["3:2"].roles, nil, "disabling the last optional role removes dead state")
+	expectEqual(
+		grid.cells["3:2"].buildPolicy,
+		"Blocked",
+		"disabling a role does not silently rewrite another cell property"
+	)
+	grid.cells["2:1"] = { buildPolicy = "Allowed" }
+	PaintBrushes.applyArea(grid, PaintBrushes.find("terrain_ground"), 2, 1, 1, {})
+	expectEqual(
+		grid.cells["2:1"].buildPolicy,
+		"Allowed",
+		"surface painting preserves the independent tower-placement layer"
+	)
+	grid.cells["1:2"] = {
+		terrainId = "void",
+		buildPolicy = "Blocked",
+		roles = { Hazard = true },
+	}
+	PaintBrushes.applyArea(grid, PaintBrushes.find(PaintBrushes.eraseId("Build")), 1, 2, 1, {})
+	expectEqual(grid.cells["1:2"].buildPolicy, nil, "Erase restores only the active property")
+	expectEqual(grid.cells["1:2"].terrainId, "void", "property Erase preserves Surface")
+	expectEqual(grid.cells["1:2"].roles.Hazard, true, "property Erase preserves optional roles")
+	expectEqual(
+		PaintBrushes.find("terrain_ground").layer,
+		"Terrain",
+		"surface brushes declare their visualization layer"
+	)
+	expectEqual(
+		PaintBrushes.layerLabel(PaintBrushes.find("build_allowed").layer),
+		"Tower placement",
+		"tower brushes expose an unambiguous layer label"
+	)
 	expectEqual(
 		PaintBrushes.find("unknown-brush").id,
 		PaintBrushes.RESET_ID,
@@ -2803,10 +3284,6 @@ for _, authoredGridObject in
 		'"Name": "GamePlatform"',
 		'"Name": "PlatformBase"',
 		'"Name": "PlatformOrigin"',
-		'"Name": "GridOverlay"',
-		'"Name": "Cells"',
-		'"Name": "Cell_01_01"',
-		'"Name": "Cell_32_27"',
 		'"Name": "CellMap"',
 		'"Name": "Row_01"',
 		'"Name": "Row_27"',
@@ -2816,15 +3293,29 @@ for _, authoredGridObject in
 		'"Name": "Rows"',
 		'"Name": "PlatformEnabled"',
 		'"Name": "GridVisible"',
-		'"Name": "PathTiles"',
-		'"Name": "PathPoints"',
-		'"Name": "GridNpc"',
 	}
 do
 	expectEqual(
 		string.find(firstPrivateIsland, authoredGridObject, 1, true) ~= nil,
 		true,
 		`first private island pre-authors {authoredGridObject}`
+	)
+end
+for _, retiredGridObject in
+	{
+		'"Name": "GridOverlay"',
+		'"Name": "Cells"',
+		'"Name": "Cell_01_01"',
+		'"Name": "Cell_32_27"',
+		'"Name": "PathTiles"',
+		'"Name": "PathPoints"',
+		'"Name": "GridNpc"',
+	}
+do
+	expectEqual(
+		string.find(firstPrivateIsland, retiredGridObject, 1, true),
+		nil,
+		`first private island omits retired authored artifact {retiredGridObject}`
 	)
 end
 expectEqual(
@@ -2864,24 +3355,26 @@ expectEqual(
 	"empty stage template does not pre-bake spline control handles"
 )
 expectEqual(
-	namedChild(gamePlatformModel, "PathPoints") ~= nil,
-	true,
-	"spline path controls move with GamePlatform"
+	namedChild(gamePlatformModel, "PathPoints"),
+	nil,
+	"empty stage template does not retain legacy spline control folders"
 )
 expectEqual(
-	namedChild(gamePlatformModel, "PathTiles") ~= nil,
-	true,
-	"spline path visuals move with GamePlatform"
+	namedChild(gamePlatformModel, "PathTiles"),
+	nil,
+	"empty stage template does not retain legacy route visual folders"
+)
+local platformBaseModel = namedChild(gamePlatformModel, "PlatformBase")
+expectEqual(platformBaseModel ~= nil, true, "first private island has a platform base")
+expectEqual(
+	namedChild(platformBaseModel, "GridOverlay"),
+	nil,
+	"empty stage template does not retain the legacy SurfaceGui grid"
 )
 expectEqual(
-	#namedChild(gamePlatformModel, "PathPoints").Children,
-	0,
-	"empty template starts with no spline handles"
-)
-expectEqual(
-	#namedChild(gamePlatformModel, "PathTiles").Children,
-	0,
-	"empty template starts with no route visuals"
+	namedChild(firstPrivateIslandModel, "GridNpc"),
+	nil,
+	"first private island does not retain the retired demo walker"
 )
 expectEqual(
 	namedChild(firstPrivateIslandModel, "PathPoints"),
@@ -3012,6 +3505,10 @@ do
 	local stagewrightWorldPathSource = fs.readFile("src/plugins/Stagewright/WorldPathView.luau")
 	local stagewrightWorldPathControllerSource =
 		fs.readFile("src/plugins/Stagewright/Controllers/WorldPathController.luau")
+	local stagewrightGraphToolControllerSource =
+		fs.readFile("src/plugins/Stagewright/Controllers/GraphToolController.luau")
+	local stagewrightMapNavigationControllerSource =
+		fs.readFile("src/plugins/Stagewright/Controllers/MapNavigationController.luau")
 	local stagewrightWorldPathEditSessionSource =
 		fs.readFile("src/plugins/Stagewright/Controllers/WorldPathEditSession.luau")
 	local stagewrightPaintRouteDragSessionSource =
@@ -3023,8 +3520,11 @@ do
 	local stagewrightFactorySource = fs.readFile("src/plugins/Stagewright/UI/Factory.luau")
 	local stagewrightHeaderControllerSource = fs.readFile("src/plugins/Stagewright/UI/HeaderController.luau")
 	local stagewrightPaintAppearanceSource = fs.readFile("src/plugins/Stagewright/UI/PaintAppearance.luau")
+	local stagewrightPaintCellOverlaySource = fs.readFile("src/plugins/Stagewright/UI/PaintCellOverlay.luau")
+	local stagewrightPaintInspectorSource = fs.readFile("src/plugins/Stagewright/UI/PaintInspector.luau")
 	local stagewrightToolbarSource = fs.readFile("src/plugins/Stagewright/UI/Toolbar.luau")
 	local stagewrightGraphOperationsSource = fs.readFile("src/plugins/Stagewright/Graph/Operations.luau")
+	local stagePathAssetsSource = fs.readFile("src/shared/StagePathAssets.luau")
 	local stagewrightPredicateFieldsSource = fs.readFile("src/plugins/Stagewright/Graph/PredicateFields.luau")
 	local stagewrightPaintBrushesSource = fs.readFile("src/plugins/Stagewright/Paint/Brushes.luau")
 	local stagewrightStageSettingsSource = fs.readFile("src/plugins/Stagewright/Stage/Settings.luau")
@@ -3035,6 +3535,8 @@ do
 		.. stagewrightFactorySource
 		.. stagewrightHeaderControllerSource
 		.. stagewrightPaintAppearanceSource
+		.. stagewrightPaintCellOverlaySource
+		.. stagewrightPaintInspectorSource
 		.. stagewrightToolbarSource
 	local stagewrightGraphSource = stagewrightGraphOperationsSource .. stagewrightPredicateFieldsSource
 	local stagewrightPaintSource = stagewrightPaintBrushesSource
@@ -3047,6 +3549,11 @@ do
 	expectCompiles(stagewrightRouteOverviewSource, "Stagewright 2D route overview compiles as Luau")
 	expectCompiles(stagewrightWorldPathSource, "Stagewright real-world path view compiles as Luau")
 	expectCompiles(stagewrightWorldPathControllerSource, "Stagewright world-path controller compiles as Luau")
+	expectCompiles(stagewrightGraphToolControllerSource, "Stagewright graph-tool controller compiles as Luau")
+	expectCompiles(
+		stagewrightMapNavigationControllerSource,
+		"Stagewright map navigation controller compiles as Luau"
+	)
 	expectCompiles(
 		stagewrightWorldPathEditSessionSource,
 		"Stagewright world-path edit session compiles as Luau"
@@ -3061,13 +3568,46 @@ do
 	expectCompiles(stagewrightFactorySource, "Stagewright UI factory compiles as Luau")
 	expectCompiles(stagewrightHeaderControllerSource, "Stagewright header controller compiles as Luau")
 	expectCompiles(stagewrightPaintAppearanceSource, "Stagewright paint appearance compiles as Luau")
+	expectCompiles(stagewrightPaintCellOverlaySource, "Stagewright paint cell overlay compiles as Luau")
+	expectCompiles(stagewrightPaintInspectorSource, "Stagewright paint inspector compiles as Luau")
 	expectCompiles(stagewrightToolbarSource, "Stagewright toolbar compiles as Luau")
 	expectCompiles(stagewrightGraphOperationsSource, "Stagewright graph operations compile as Luau")
+	expectCompiles(stagePathAssetsSource, "shared Stagewright path asset catalog compiles as Luau")
 	expectCompiles(stagewrightPredicateFieldsSource, "Stagewright predicate fields compile as Luau")
 	expectCompiles(stagewrightPaintBrushesSource, "Stagewright paint brushes compile as Luau")
 	expectCompiles(stagewrightStageSettingsSource, "Stagewright stage settings compile as Luau")
 	expectCompiles(stagewrightIssueModelSource, "Stagewright validation issue model compiles as Luau")
 	expectCompiles(stagewrightImportSource, "Stagewright repository importer compiles as Luau")
+	expectEqual(
+		string.find(gridPluginProject, '"StagePathAssets"', 1, true) ~= nil
+			and string.find(gridPluginProject, '"../src/shared/StagePathAssets.luau"', 1, true) ~= nil,
+		true,
+		"Stagewright plugin maps the shared path asset catalog"
+	)
+	expectEqual(
+		string.find(gridPluginProject, '"GraphToolController"', 1, true) ~= nil
+			and string.find(
+					gridPluginProject,
+					'"../src/plugins/Stagewright/Controllers/GraphToolController.luau"',
+					1,
+					true
+				)
+				~= nil,
+		true,
+		"Stagewright plugin maps the extracted graph-tool controller"
+	)
+	expectEqual(
+		string.find(gridPluginProject, '"MapNavigationController"', 1, true) ~= nil
+			and string.find(
+					gridPluginProject,
+					'"../src/plugins/Stagewright/Controllers/MapNavigationController.luau"',
+					1,
+					true
+				)
+				~= nil,
+		true,
+		"Stagewright plugin maps the extracted map navigation controller"
+	)
 	expectEqual(
 		string.find(stagewrightToolbarSource, "resolvedOffsetX -= padding.PaddingLeft.Offset", 1, true) ~= nil,
 		true,
@@ -3076,32 +3616,178 @@ do
 	expectEqual(
 		string.find(stagewrightThemeSource, "resolveHeaderLayout", 1, true) ~= nil
 			and string.find(stagewrightHeaderControllerSource, "styleIconOnlyButton", 1, true) ~= nil
-			and string.find(stagewrightAppShellSource, "Stagewright 2.5", 1, true) ~= nil,
+			and string.find(stagewrightAppShellSource, 'Name = "MapNavigation"', 1, true) ~= nil
+			and string.find(stagewrightAppShellSource, 'Name = "MapPlayable"', 1, true) ~= nil
+			and string.find(stagewrightAppShellSource, 'Name = "MapAdmin"', 1, true) ~= nil,
 		true,
-		"Stagewright shell uses responsive header density and the refreshed plugin version"
+		"Stagewright responsive shell keeps persistent playable and admin map navigation"
 	)
+	expectEqual(
+		string.find(stagewrightAppShellSource, 'Factory.button(mapPanel, "PLAYABLE"', 1, true) ~= nil
+			and string.find(stagewrightAppShellSource, 'Factory.button(mapPanel, "ADMIN"', 1, true) ~= nil,
+		true,
+		"Stagewright MAP panel labels its playable and admin destinations"
+	)
+	expectEqual(
+		string.find(gridPluginSource, "require(script.Controllers.MapNavigationController)", 1, true) ~= nil
+			and string.find(
+				gridPluginSource,
+				"MapNavigationController.bind(shell.mapPlayable, shell.mapAdmin, {",
+				1,
+				true
+			) ~= nil
+			and string.find(gridPluginSource, "cancelInteraction = function()", 1, true) ~= nil
+			and string.find(gridPluginSource, "reportBlocked = flowRuntime.reportBlocked", 1, true) ~= nil
+			and string.find(gridPluginSource, "setStatus = setStatus", 1, true) ~= nil
+			and string.find(gridPluginSource, "shell.mapPlayable.Activated:Connect", 1, true) == nil
+			and string.find(gridPluginSource, "shell.mapAdmin.Activated:Connect", 1, true) == nil,
+		true,
+		"Stagewright bootstrap delegates MAP behavior to the extracted navigation controller"
+	)
+	for _, mapNavigationBehavior in
+		{
+			"playableButton.Activated:Connect",
+			"adminButton.Activated:Connect",
+			"callbacks.cancelInteraction()",
+			"AuthoringArea.focusPlayable()",
+			"AuthoringArea.focus()",
+			"ProjectStore.isWritable()",
+			'callbacks.reportBlocked("Focus authoring area")',
+			"callbacks.setStatus(",
+			"Focused the playable map.",
+			"The playable map could not be found.",
+			"Focused the Stagewright admin work area.",
+			"The admin work area could not be found.",
+			"not focused",
+		}
+	do
+		expectEqual(
+			string.find(stagewrightMapNavigationControllerSource, mapNavigationBehavior, 1, true) ~= nil,
+			true,
+			`Stagewright map navigation controller preserves {mapNavigationBehavior}`
+		)
+	end
 	expectEqual(
 		string.find(stagewrightAppShellSource, 'Name = "CompactToolsButton"', 1, true) ~= nil
 			and string.find(stagewrightAppShellSource, 'Name = "CompactInspectorButton"', 1, true) ~= nil
 			and string.find(stagewrightAppShellSource, 'Name = "CompactPanelDismiss"', 1, true) ~= nil
 			and string.find(stagewrightAppShellSource, 'compactPanel == "Left"', 1, true) ~= nil
-			and string.find(stagewrightAppShellSource, 'compactPanel == "Right"', 1, true) ~= nil,
+			and string.find(stagewrightAppShellSource, 'compactPanel == "Right"', 1, true) ~= nil
+			and string.find(stagewrightAppShellSource, "isWorkspaceInputAllowed", 1, true) ~= nil
+			and string.find(stagewrightAppShellSource, "popupLayer:GetChildren()", 1, true) ~= nil
+			and string.find(stagewrightAppShellSource, "PAINT_DESKTOP_SIDEBAR_MIN_WIDTH", 1, true) ~= nil,
 		true,
-		"Stagewright compact shell keeps authored tools and inspectors available through drawers"
+		"Stagewright compact shell keeps authored tools available without canvas click-through or overlap"
+	)
+	expectEqual(
+		string.find(gridPluginSource, "shell:isWorkspaceInputAllowed(position)", 1, true) ~= nil
+			and string.find(gridPluginSource, "paintPanState", 1, true) ~= nil
+			and string.find(gridPluginSource, "Enum.UserInputType.MouseButton3", 1, true) ~= nil
+			and string.find(gridPluginSource, "gridScroll.CanvasPosition = Vector2.new(", 1, true) ~= nil,
+		true,
+		"Stagewright Paint blocks drawer click-through and supports explicit canvas panning"
+	)
+	expectEqual(
+		string.find(gridPluginSource, "cellButton.InputBegan:Connect", 1, true) ~= nil
+			and string.find(gridPluginSource, "input:IsModifierKeyDown(Enum.ModifierKey.Shift)", 1, true) ~= nil
+			and string.find(gridPluginSource, 'input:GetPropertyChangedSignal("UserInputState")', 1, true) ~= nil
+			and string.find(gridPluginSource, "activePaintPointer", 1, true) ~= nil
+			and string.find(gridPluginSource, "paintStrokeSession:move(column, row, true)", 1, true) ~= nil
+			and string.find(gridPluginSource, "UserInputService:IsKeyDown", 1, true) == nil
+			and string.find(
+					gridPluginSource,
+					'paintStrokeSession:cancel("Rectangle requires Shift through release")',
+					1,
+					true
+				)
+				~= nil,
+		true,
+		"Stagewright Paint owns its Shift-gated gesture lifecycle inside the Studio widget"
+	)
+	expectEqual(
+		string.find(stagewrightPaintCellOverlaySource, '"HoverCellOutline"', 1, true) ~= nil
+			and string.find(stagewrightPaintCellOverlaySource, '"SelectedCellOutline"', 1, true) ~= nil
+			and string.find(stagewrightPaintCellOverlaySource, "Interactable = false", 1, true) ~= nil
+			and string.find(gridPluginSource, "cellButton.BorderColor3 = if", 1, true) == nil,
+		true,
+		"Stagewright Paint uses input-transparent logical hover and selection outlines"
+	)
+	expectEqual(
+		string.find(stagewrightPaintBrushesSource, 'layer = "Terrain"', 1, true) ~= nil
+			and string.find(stagewrightPaintBrushesSource, 'layer = "Build"', 1, true) ~= nil
+			and string.find(stagewrightPaintBrushesSource, "function Brushes.eraseId", 1, true) ~= nil
+			and string.find(stagewrightPaintAppearanceSource, "PaintAppearance.token", 1, true) ~= nil
+			and string.find(stagewrightPaintInspectorSource, "Each cell has one Surface", 1, true) ~= nil
+			and string.find(gridPluginSource, "PaintAppearance.resolve(", 1, true) ~= nil
+			and string.find(gridPluginSource, "paintLayer", 1, true) ~= nil,
+		true,
+		"Stagewright Paint visualizes one independent cell layer and explains the resolved cell state"
+	)
+	expectEqual(
+		string.find(stagewrightRouteOverviewSource, "ScrollingEnabled = false", 1, true) ~= nil
+			and string.find(
+				stagewrightRouteOverviewSource,
+				"local minimumZoom = fitZoom(self) or MIN_ZOOM",
+				1,
+				true
+			) ~= nil
+			and string.find(stagewrightWorldPathSource, "interactionSurface.InputChanged:Connect", 1, true) ~= nil
+			and string.find(stagewrightWorldPathSource, "Enum.ModifierKey.Ctrl", 1, true) ~= nil
+			and string.find(stagewrightWorldPathSource, "MIN_WORLD_ZOOM", 1, true) ~= nil
+			and string.find(stagewrightWorldPathSource, "UserInputService", 1, true) == nil
+			and string.find(gridPluginSource, "graphViewBecameVisible", 1, true) ~= nil
+			and string.find(gridPluginSource, 'if activeMode == "Graph" then', 1, true) ~= nil
+			and string.find(gridPluginSource, "renderedFlowMode ~= flowRuntime.mode", 1, true) ~= nil,
+		true,
+		"Stagewright Flow navigation ignores ordinary wheel input and recovers each active view"
 	)
 	expectEqual(
 		string.find(stagewrightAppShellSource, 'Name = "PopupLayer"', 1, true) ~= nil
 			and string.find(stagewrightHeaderControllerSource, "config.popupLayer", 1, true) ~= nil
-			and string.find(stagewrightHeaderControllerSource, "stageDropdown.Visible = false", 1, true)
+			and string.find(
+				stagewrightHeaderControllerSource,
+				'createSelector(header, config.popupLayer, "Stage", "Stage --")',
+				1,
+				true
+			) ~= nil
+			and string.find(
+				stagewrightHeaderControllerSource,
+				'createSelector(header, config.popupLayer, "Level", "Level --")',
+				1,
+				true
+			) ~= nil
+			and string.find(
+				stagewrightHeaderControllerSource,
+				"stageSelector.dropdown.Visible = false",
+				1,
+				true
+			) ~= nil
+			and string.find(
+				stagewrightHeaderControllerSource,
+				"levelSelector.dropdown.Visible = false",
+				1,
+				true
+			) ~= nil
+			and string.find(stagewrightHeaderControllerSource, "config.levelOptions()", 1, true) ~= nil,
+		true,
+		"Stagewright header separates Stage and Level selectors and closes competing popovers"
+	)
+	expectEqual(
+		string.find(gridPluginSource, "seenGroups[address.groupId]", 1, true) ~= nil
+			and string.find(gridPluginSource, "levelOptions = function()", 1, true) ~= nil
+			and string.find(gridPluginSource, "address.groupId == selectedAddress.groupId", 1, true)
 				~= nil,
 		true,
-		"Stagewright header menus use an interactive overlay and close competing popovers"
+		"Stagewright header groups Stages by stable hierarchy ID and scopes Levels to the selection"
 	)
 	expectEqual(
 		string.find(gridPluginSource, "require(script.UI.AppShell)", 1, true) ~= nil
+			and string.find(gridPluginSource, "require(script.Controllers.GraphToolController)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.Controllers.PaintRouteDragSession)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.Controllers.PaintStrokeSession)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.Controllers.WorldPathController)", 1, true) ~= nil
+			and string.find(gridPluginSource, "require(script.UI.PaintCellOverlay)", 1, true) ~= nil
+			and string.find(gridPluginSource, "require(script.UI.PaintInspector)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.UI.Theme)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.Graph.Operations)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.WorkspacePreview)", 1, true) ~= nil,
@@ -3340,6 +4026,13 @@ do
 			`Stagewright graph domain stays independent from {forbiddenDependency}`
 		)
 	end
+	for _, forbiddenDependency in { "ProjectStore", "Workspace", "TextButton", "Instance.new" } do
+		expectEqual(
+			string.find(stagewrightGraphToolControllerSource, forbiddenDependency, 1, true),
+			nil,
+			`Stagewright graph-tool controller stays independent from {forbiddenDependency}`
+		)
+	end
 	for _, forbiddenDependency in { "ProjectStore", "Workspace", "TextButton", "Instance.new", "UI.Theme" } do
 		expectEqual(
 			string.find(stagewrightPaintSource, forbiddenDependency, 1, true),
@@ -3413,6 +4106,10 @@ do
 			"edge.inHandleOffset",
 			"callbacks.moveHandle",
 			'if self.tool == "Select"',
+			'if self.tool == "Connect"',
+			'if self.tool == "Split"',
+			"destinationDistance",
+			"suppressNodeActivationId",
 		}
 	do
 		expectEqual(
@@ -3423,7 +4120,7 @@ do
 	end
 	for _, behavior in
 		{
-			"GRAVEL",
+			"StagePathAssets",
 			"ViewportFrame",
 			"worldSource",
 			"worldOrigin",
@@ -3431,21 +4128,31 @@ do
 			"CLICK_DRAG_THRESHOLD",
 			"Lane centerline",
 			"Selected spline",
-			"Highlight segment",
-			"Build mask derived automatically",
+			"Test segment",
+			"Drag cyan handles to shape",
 			"setLanes",
 			"require(script.Parent.Interaction.HitTest)",
 			"require(script.Parent.Interaction.PointerDrag)",
-			"HitTest.resolve",
+			"HitTest.resolveAll",
+			"HitTest.cycleNode",
 			"PointerDrag.press",
 			"PointerDrag.move",
 			"PointerDrag.release",
 			"PointerDrag.cancel",
 			"seedDragValue",
+			"GetRelativeMousePosition",
+			"UserInputState",
+			"DRAG_RENDER_INTERVAL",
+			"liveEdgeSamples",
 			"setTool",
 			"AddSpawn",
 			"SHORT_INSPECTOR_HEIGHT",
 			"backdropCamera.Parent",
+			'area = "Marker"',
+			'area = "Label"',
+			'if self.tool == "Connect"',
+			'if self.tool == "Split"',
+			"LEGACY_PATH_FOLDERS",
 		}
 	do
 		expectEqual(
@@ -3454,6 +4161,165 @@ do
 			`Stagewright world path view includes {behavior}`
 		)
 	end
+	for _, graphToolBehavior in
+		{
+			"GraphOperations.canConnect",
+			"GraphOperations.connect",
+			"GraphOperations.splitEdge",
+			"sourceNodeId",
+			"setSourceNodeId",
+			"finishTool",
+		}
+	do
+		expectEqual(
+			string.find(stagewrightGraphToolControllerSource, graphToolBehavior, 1, true) ~= nil,
+			true,
+			`Stagewright graph-tool controller preserves {graphToolBehavior}`
+		)
+	end
+	expectEqual(
+		string.find(stagewrightWorkspacePreviewSource, "LocalTransparencyModifier", 1, true) ~= nil
+			and string.find(stagewrightWorkspacePreviewSource, "PathPoints", 1, true) ~= nil
+			and string.find(stagewrightWorkspacePreviewSource, "PathTiles", 1, true) ~= nil
+			and string.find(stagewrightWorkspacePreviewSource, "restoreLegacyPathArtifacts", 1, true)
+				~= nil,
+		true,
+		"Stagewright hides legacy path helpers reversibly while the Studio preview is active"
+	)
+	do
+		local cleanupStart = string.find(
+			stagewrightAuthoringAreaSource,
+			"local function legacyGridNpc(candidate: Instance?): Model?",
+			1,
+			true
+		)
+		local cleanupEnd = if cleanupStart ~= nil
+			then string.find(
+				stagewrightAuthoringAreaSource,
+				"function AuthoringArea.ensure",
+				cleanupStart,
+				true
+			)
+			else nil
+		local cleanupSource = if cleanupStart ~= nil and cleanupEnd ~= nil
+			then string.sub(stagewrightAuthoringAreaSource, cleanupStart, cleanupEnd - 1)
+			else ""
+		for _, cleanupMarker in
+			{
+				'candidate.Name ~= "GridNpc"',
+				'local requiredParts = { "Root", "Body", "Head", "LeftArm", "RightArm", "LeftLeg", "RightLeg" }',
+				"#candidate:GetChildren() ~= #requiredParts",
+				'not part:IsA("BasePart") or not part.Anchored or part.CanCollide',
+				"root.Transparency == 1 and not root.CanQuery and not root.CanTouch",
+				'ServerScriptService:FindFirstChild("GridNpcDemo")',
+				"candidate.Source",
+				'"WALK_SPEED_STUDS_PER_SECOND"',
+				'"StagePath.sample"',
+				'Workspace:FindFirstChild("FirstPrivateIsland")',
+				"function AuthoringArea.removeLegacyArtifacts(existingRecording: boolean?): number",
+				"root:FindFirstChild(templateConfig.towerDefense.platformModelName)",
+				'"PathPoints"',
+				'"PathTiles"',
+				"platform:FindFirstChild(name)",
+				'"GridOverlay"',
+				'base:FindFirstChild("GridOverlay")',
+				"add(legacyGridNpc(",
+				"add(legacyGridNpcScript())",
+				"if existingRecording ~= true then",
+				"candidate:Destroy()",
+			}
+		do
+			expectEqual(
+				string.find(cleanupSource, cleanupMarker, 1, true) ~= nil,
+				true,
+				`Stagewright permanent legacy cleanup includes {cleanupMarker}`
+			)
+		end
+		expectEqual(
+			string.find(cleanupSource, "root:GetDescendants()", 1, true) == nil
+				and string.find(cleanupSource, "ServerScriptService:GetDescendants()", 1, true) == nil,
+			true,
+			"Stagewright cleanup only inspects direct known legacy locations"
+		)
+		local recordingGuardPosition =
+			string.find(cleanupSource, "if existingRecording ~= true then", 1, true)
+		local recordingBeginPosition =
+			string.find(cleanupSource, "ChangeHistoryService:TryBeginRecording", 1, true)
+		local recordingUnavailablePosition = string.find(cleanupSource, "if recording == nil then", 1, true)
+		local destructionPosition = string.find(cleanupSource, "candidate:Destroy()", 1, true)
+		expectEqual(
+			recordingGuardPosition ~= nil
+				and recordingBeginPosition ~= nil
+				and recordingUnavailablePosition ~= nil
+				and destructionPosition ~= nil
+				and recordingGuardPosition < recordingBeginPosition
+				and recordingBeginPosition < recordingUnavailablePosition
+				and recordingUnavailablePosition < destructionPosition,
+			true,
+			"Stagewright defers permanent cleanup when Studio cannot create an undo recording"
+		)
+
+		local loadedPlanStart =
+			string.find(stagewrightProjectStoreSource, "local function applyLoadedPlan", 1, true)
+		local loadStart = if loadedPlanStart ~= nil
+			then string.find(
+				stagewrightProjectStoreSource,
+				"function ProjectStore.load",
+				loadedPlanStart,
+				true
+			)
+			else nil
+		local loadedPlanSource = if loadedPlanStart ~= nil and loadStart ~= nil
+			then string.sub(stagewrightProjectStoreSource, loadedPlanStart, loadStart - 1)
+			else ""
+		local normalizedPosition = string.find(loadedPlanSource, "if not normalizeSuccess", 1, true)
+		local loadedCleanupPosition =
+			string.find(loadedPlanSource, "AuthoringArea.removeLegacyArtifacts()", 1, true)
+		local saveStart = string.find(stagewrightProjectStoreSource, "local function saveUnchecked", 1, true)
+		local publicSaveStart = if saveStart ~= nil
+			then string.find(stagewrightProjectStoreSource, "function ProjectStore.save", saveStart, true)
+			else nil
+		local saveSource = if saveStart ~= nil and publicSaveStart ~= nil
+			then string.sub(stagewrightProjectStoreSource, saveStart, publicSaveStart - 1)
+			else ""
+		local storageWritePosition = string.find(saveSource, "ProjectStorage.writeProject", 1, true)
+		local savedCleanupPosition =
+			string.find(saveSource, "AuthoringArea.removeLegacyArtifacts(existingRecording)", 1, true)
+		expectEqual(
+			normalizedPosition ~= nil
+				and loadedCleanupPosition ~= nil
+				and normalizedPosition < loadedCleanupPosition
+				and storageWritePosition ~= nil
+				and savedCleanupPosition ~= nil
+				and storageWritePosition < savedCleanupPosition,
+			true,
+			"Stagewright removes legacy scene artifacts only after a valid load or successful canonical save"
+		)
+		local _, existingRecordingSaveCount =
+			string.gsub(stagewrightProjectStoreSource, "pcall%(saveUnchecked, true%)", "")
+		expectEqual(
+			string.find(
+				saveSource,
+				"local function saveUnchecked(existingRecording: boolean?): string",
+				1,
+				true
+			)
+					~= nil
+				and existingRecordingSaveCount == 2,
+			true,
+			"Stagewright transaction and import saves reuse their active undo recording during cleanup"
+		)
+	end
+	expectEqual(
+		string.find(
+			stagewrightWorkspacePreviewSource,
+			"function Controller.destroy(self: Controller)\n\tself.enabled = false\n\tself:cancelInteraction()\n\tself:clear()\n\tself.lastState = nil\nend",
+			1,
+			true
+		) ~= nil,
+		true,
+		"Stagewright Workspace preview teardown restores legacy helpers even when preview is already disabled"
+	)
 	for _, graphBehavior in
 		{
 			"Operations.canConnect",
@@ -3473,7 +4339,9 @@ do
 	for _, responsiveBootstrapBehavior in
 		{
 			"stackedActions",
-			"connectRouteNodes",
+			"GraphToolController.new",
+			"graphTools:activateNode",
+			"graphTools:splitEdge",
 			"flowUi.activateTool",
 			"GraphOperations.setLaneWidth",
 			"GraphOperations.setPriority",
@@ -3529,7 +4397,8 @@ do
 	for _, navigationSafety in
 		{
 			'current:IsA("LayerCollector") and not current.Enabled',
-			"PointerDrag.isActive(self.pointerState) or self.panLastScreen ~= nil",
+			"PointerDrag.isActive(self.pointerState)",
+			"self.panLastScreen ~= nil",
 			"canvasPosition.X < 0",
 			"for _, blocker in self.hitBlockers do",
 			"self.callbacks.cancelInteraction()",
@@ -3694,7 +4563,7 @@ do
 			"showIslandOutlines",
 			"StagewrightIslandOutlinePreview",
 			"Brush 1 x 1",
-			"Shift + drag to paint",
+			"SHIFT TO PAINT",
 			"World Path",
 			"Route Logic",
 			"RouteConflict_",
@@ -4096,6 +4965,16 @@ do
 		"lane sequence advances independently after distributing across spawns"
 	)
 	expectEqual(StageLanes.clearanceRadius(triple), 6, "lane clearance covers the full corridor")
+	expectEqual(
+		StageLanes.resolveWidth({ laneWidth = 7 }, 2.4),
+		7,
+		"runtime route strips use the edge's authored lane width"
+	)
+	expectEqual(
+		StageLanes.resolveWidth({ laneWidth = 0 / 0 }, 2.4),
+		2.4,
+		"runtime route strips safely fall back for invalid legacy metadata"
+	)
 end
 do
 	local firstPlatformOffset = { x = 183.524, y = 13.344, z = 94.169 }
@@ -4229,21 +5108,118 @@ local finiteJsonOk = pcall(function()
 	StageSchema.encodeCanonical({ invalid = 0 / 0 })
 end)
 expectEqual(finiteJsonOk, false, "Stagewright serialization rejects NaN payloads")
-local invalidCellIssues = StageSchema.validateStage({
-	id = "invalid_cell_stage",
-	stageGroupId = "invalid_cell_group",
-	stageNumber = 1,
-	levelNumber = 1,
-	grid = {
-		columns = 2,
-		rows = 2,
-		cellSize = 4,
-		defaultCell = {},
-		cells = { ["3:1"] = { buildPolicy = "Allowed" } },
-	},
-	pathGraphs = {},
-})
-expectEqual(invalidCellIssues[1].code, "CellOutOfBounds", "out-of-range stage cells fail validation")
+do
+	local invalidCellIssues = StageSchema.validateStage({
+		id = "invalid_cell_stage",
+		stageGroupId = "invalid_cell_group",
+		stageNumber = 1,
+		levelNumber = 1,
+		grid = {
+			columns = 2,
+			rows = 2,
+			cellSize = 4,
+			defaultCell = {},
+			cells = { ["3:1"] = { buildPolicy = "Allowed" } },
+		},
+		pathGraphs = {},
+	})
+	expectEqual(invalidCellIssues[1].code, "CellOutOfBounds", "out-of-range stage cells fail validation")
+	local inheritedEndpointIssues = StageSchema.validateStage({
+		id = "inherited_endpoint_stage",
+		stageGroupId = "inherited_endpoint_group",
+		stageNumber = 1,
+		levelNumber = 1,
+		grid = {
+			columns = 1,
+			rows = 1,
+			cellSize = 4,
+			defaultCell = { buildPolicy = "Blocked" },
+			cells = { ["1:1"] = { roles = { EnemySpawn = true } } },
+		},
+		pathGraphs = {},
+	})
+	local inheritedEndpointPolicyError = false
+	for _, issue in inheritedEndpointIssues do
+		if issue.code == "EndpointBuildPolicy" then
+			inheritedEndpointPolicyError = true
+			break
+		end
+	end
+	expectEqual(
+		inheritedEndpointPolicyError,
+		false,
+		"cell validation resolves inherited tower-placement policy before checking roles"
+	)
+	local conflictingRoleIssues = StageSchema.validateStage({
+		id = "conflicting_role_stage",
+		stageGroupId = "conflicting_role_group",
+		stageNumber = 1,
+		levelNumber = 1,
+		grid = {
+			columns = 1,
+			rows = 1,
+			cellSize = 4,
+			defaultCell = { buildPolicy = "Blocked" },
+			cells = {
+				["1:1"] = { roles = { EnemySpawn = true, EnemyGoal = true } },
+			},
+		},
+		pathGraphs = {},
+	})
+	local conflictingPrimaryRoleError = false
+	for _, issue in conflictingRoleIssues do
+		if issue.code == "ConflictingPrimaryRoles" then
+			conflictingPrimaryRoleError = true
+			break
+		end
+	end
+	expectEqual(conflictingPrimaryRoleError, true, "a cell cannot stack incompatible primary roles")
+	local malformedDefaultCellAccepted, malformedDefaultCellIssues = pcall(function()
+		return StageSchema.validateStage({
+			id = "malformed_default_cell_stage",
+			stageGroupId = "malformed_default_cell_group",
+			stageNumber = 1,
+			levelNumber = 1,
+			grid = {
+				columns = 1,
+				rows = 1,
+				cellSize = 4,
+				cells = { ["1:1"] = { terrainId = "ground" } },
+			},
+			pathGraphs = {},
+		})
+	end)
+	expectEqual(malformedDefaultCellAccepted, true, "malformed default cell validation remains diagnostic")
+	expectEqual(
+		malformedDefaultCellIssues[1].code,
+		"InvalidDefaultCell",
+		"missing level defaults produce a validation issue"
+	)
+	local malformedRolesAccepted, malformedRolesIssues = pcall(function()
+		return StageSchema.validateStage({
+			id = "malformed_roles_stage",
+			stageGroupId = "malformed_roles_group",
+			stageNumber = 1,
+			levelNumber = 1,
+			grid = {
+				columns = 1,
+				rows = 1,
+				cellSize = 4,
+				defaultCell = { buildPolicy = "Allowed" },
+				cells = { ["1:1"] = { roles = 7 } },
+			},
+			pathGraphs = {},
+		})
+	end)
+	expectEqual(malformedRolesAccepted, true, "malformed imported roles remain diagnostic")
+	local foundMalformedRolesIssue = false
+	for _, issue in malformedRolesIssues do
+		if issue.code == "CellRoles" then
+			foundMalformedRolesIssue = true
+		end
+	end
+	expectEqual(foundMalformedRolesIssue, true, "malformed imported roles produce a validation issue")
+end
 local legacyLayered = StageSchema.legacyCells({ ".#PGA?" }, 6)
 expectEqual(legacyLayered["2:1"].buildPolicy, "Blocked", "legacy path blocks remain authored manual blocks")
 expectEqual(legacyLayered["3:1"].roles.EnemySpawn, true, "legacy portal migrates to spawn role")
@@ -4266,6 +5242,11 @@ local importedLegacy, legacyNotices = StageLegacy.project({
 })
 local importedLegacyStage = importedLegacy.stages.stage_default
 local importedLegacyGraph = importedLegacyStage.pathGraphs.graph_main
+expectEqual(
+	StageLanes.resolveWidth(importedLegacyGraph.edges.edge_001.metadata),
+	StageLanes.DEFAULT_SPACING,
+	"legacy routes use the same default width in editor and runtime"
+)
 expectEqual(
 	importedLegacyStage.grid.cells["1:2"].roles.EnemySpawn,
 	true,
@@ -5572,8 +6553,14 @@ expectEqual(
 )
 local stageRuntimeSource = fs.readFile("src/server/Services/StageRuntimeService.luau")
 expectCompiles(fs.readFile("src/shared/StageTypes.luau"), "shared stage DTO contracts")
+expectCompiles(fs.readFile("src/shared/StageCell.luau"), "shared layered-cell resolver")
 expectCompiles(fs.readFile("src/shared/StageCatalog.luau"), "typed runtime stage catalog")
 expectCompiles(stageRuntimeSource, "typed stage runtime service")
+expectEqual(
+	string.find(stageRuntimeSource, "StageCell.resolve(stage.grid.defaultCell", 1, true) ~= nil,
+	true,
+	"runtime stage cells inherit every omitted layer from the level default"
+)
 for _, typedRuntimeMarker in
 	{
 		"StageTypes.RuntimeStageDefinition",
@@ -5708,8 +6695,12 @@ for _, gridRendererMarker in
 		"StageCatalog.defaultStageId",
 		"platformOriginsFolderName",
 		"StagePath.sample",
+		"StageCell.resolve(grid.defaultCell, authoredCell)",
 		"laneProfile.offsets",
+		"StageLanes.resolveWidth(edge.metadata)",
 		"routePoint",
+		"StagewrightLaneWidth",
+		"StagewrightRequestedPathAsset",
 		"ActiveStageId",
 		"StageCatalog.get(activeStageId)",
 		"gridVisuals",
