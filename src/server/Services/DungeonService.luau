@@ -43,6 +43,8 @@ type Run = {
 	health: number,
 	maxHealth: number,
 	startClock: number,
+	-- Set while a boss slam is telegraphing; nil otherwise.
+	telegraphUntil: number?,
 }
 
 local dungeon = Config.dungeon
@@ -95,11 +97,32 @@ local function isAlive(player: Player): boolean
 	return humanoid ~= nil and humanoid.Health > 0
 end
 
-local function moveToArena(player: Player, index: number)
+local function pivotToArena(player: Player, index: number)
 	local character = player.Character
-	if character ~= nil then
-		character:PivotTo(spawnCFrame(index))
+	if character == nil then
+		return
 	end
+	-- Wait briefly for the body to assemble so PivotTo has a root to move.
+	local root = character:FindFirstChild("HumanoidRootPart") or character:WaitForChild("HumanoidRootPart", 5)
+	if root == nil or character.Parent == nil then
+		return
+	end
+	character:PivotTo(spawnCFrame(index))
+end
+
+-- Places the party on the arena and keeps every (re)spawn there for the duration
+-- of the fight, so dying and respawning drops you back into the arena instead of
+-- the lobby spawn far below. Returns connections to disconnect when it ends.
+local function positionParty(party: { Player }): { RBXScriptConnection }
+	local connections: { RBXScriptConnection } = {}
+	for index, player in party do
+		task.spawn(pivotToArena, player, index)
+		local connection = player.CharacterAdded:Connect(function()
+			task.spawn(pivotToArena, player, index)
+		end)
+		table.insert(connections, connection)
+	end
+	return connections
 end
 
 local function findArena(): Model?
@@ -139,29 +162,33 @@ local function attackersInRing(party: { Player }, center: Vector3, radius: numbe
 	return count
 end
 
-local function livingParty(party: { Player }): { Player }
-	local alive: { Player } = {}
+-- Players still in the server (whether currently alive or mid-respawn). The
+-- fight only ends early when EVERY member has left; a momentary all-dead state is
+-- normal because death respawns you back into the arena.
+local function presentParty(party: { Player }): { Player }
+	local present: { Player } = {}
 	for _, player in party do
-		if player.Parent ~= nil and isAlive(player) then
-			table.insert(alive, player)
+		if player.Parent ~= nil then
+			table.insert(present, player)
 		end
 	end
-	return alive
+	return present
 end
 
-local function bossAttack(party: { Player }, core: BasePart, boss: DungeonConfig.Boss)
-	-- Brief telegraph flash so the AoE reads on the client without a per-frame
-	-- stream; the damage decision itself is server-side.
+-- Boss telegraph: color the eye/core to warn of an incoming slam (danger=true) or
+-- return to idle (danger=false). Purely visual; damage is resolved separately.
+local function setBossDanger(core: BasePart, danger: boolean)
 	local bossModel = core.Parent
 	local eye = if bossModel ~= nil then bossModel:FindFirstChild("Eye") else nil
 	if eye ~= nil and eye:IsA("BasePart") then
-		eye.Color = Color3.fromRGB(255, 60, 60)
-		task.delay(0.3, function()
-			if eye.Parent ~= nil then
-				eye.Color = Color3.fromRGB(255, 217, 77)
-			end
-		end)
+		eye.Color = if danger then Color3.fromRGB(255, 60, 60) else Color3.fromRGB(255, 217, 77)
 	end
+	core.Color = if danger then Color3.fromRGB(150, 20, 20) else Color3.fromRGB(107, 13, 20)
+end
+
+-- Resolves a telegraphed slam: everyone still inside the (larger) attack ring
+-- when the warning ends takes the hit. Players who ran out in time are safe.
+local function resolveSlam(party: { Player }, core: BasePart, boss: DungeonConfig.Boss)
 	for _, player in party do
 		local root, humanoid = characterRoot(player)
 		if root ~= nil and humanoid ~= nil and humanoid.Health > 0 then
@@ -187,6 +214,7 @@ local function publishRun(phase: string, result: string?)
 		fraction = DungeonLogic.healthFraction(current.health, current.maxHealth),
 		phase = phase,
 		result = result,
+		danger = current.telegraphUntil ~= nil,
 		timeLeft = DungeonLogic.countdownRemaining(
 			current.startClock + current.boss.timeLimitSeconds,
 			os.clock()
@@ -206,10 +234,6 @@ local function runFight(party: { Player }, bossId: string): (string, { Player })
 		core.CFrame = CFrame.new(center)
 	end
 
-	for index, player in party do
-		moveToArena(player, index)
-	end
-
 	local maxHealth = DungeonLogic.bossMaxHealth(boss, #party)
 	local current: Run = {
 		active = true,
@@ -219,9 +243,11 @@ local function runFight(party: { Player }, bossId: string): (string, { Player })
 		health = maxHealth,
 		maxHealth = maxHealth,
 		startClock = os.clock(),
+		telegraphUntil = nil,
 	}
 	run = current
 	table.clear(lastHitAt)
+	local connections = positionParty(party)
 
 	local lastClock = current.startClock
 	local lastAttack = current.startClock
@@ -235,8 +261,9 @@ local function runFight(party: { Player }, bossId: string): (string, { Player })
 		local dt = now - lastClock
 		lastClock = now
 
-		local alive = livingParty(party)
-		if #alive == 0 then
+		-- End early only when the whole party has left the server; respawns
+		-- (a momentary all-dead state) are expected and must not end the run.
+		if #presentParty(party) == 0 then
 			result = "defeat"
 			break
 		end
@@ -257,9 +284,22 @@ local function runFight(party: { Player }, bossId: string): (string, { Player })
 			break
 		end
 
-		if core ~= nil and now - lastAttack >= dungeon.attackIntervalSeconds then
-			lastAttack = now
-			bossAttack(party, core, boss)
+		-- Telegraphed slam: warn first (danger flash), then after telegraphSeconds
+		-- hit everyone still inside the attack ring. Running out in time avoids it.
+		if core ~= nil then
+			if current.telegraphUntil == nil then
+				if now - lastAttack >= dungeon.attackIntervalSeconds then
+					current.telegraphUntil = now + dungeon.telegraphSeconds
+					setBossDanger(core, true)
+					publishRun("fight")
+				end
+			elseif now >= current.telegraphUntil then
+				resolveSlam(party, core, boss)
+				setBossDanger(core, false)
+				current.telegraphUntil = nil
+				lastAttack = now
+				publishRun("fight")
+			end
 		end
 
 		if now - lastSnapshot >= dungeon.snapshotSeconds then
@@ -268,8 +308,14 @@ local function runFight(party: { Player }, bossId: string): (string, { Player })
 		end
 	end
 
+	for _, connection in connections do
+		connection:Disconnect()
+	end
+	if core ~= nil then
+		setBossDanger(core, false)
+	end
 	current.active = false
-	local survivors = livingParty(party)
+	local survivors = presentParty(party)
 	publishRun(result, result)
 
 	if result == "victory" and deps ~= nil then
@@ -456,13 +502,16 @@ function DungeonService.launchParty(players: { Player }): boolean
 		return false
 	end
 	local bossId = dungeon.defaultBossId
-	if RunService:IsStudio() then
-		task.spawn(function()
+	-- Run off the caller's thread so the portal tick loop never blocks on the
+	-- teleport (and its retry backoff) or the Studio simulation.
+	task.spawn(function()
+		if RunService:IsStudio() then
 			simulateInPlace(players, bossId)
-		end)
-		return true
-	end
-	return teleportPartyToReservedServer(players, bossId)
+		else
+			teleportPartyToReservedServer(players, bossId)
+		end
+	end)
+	return true
 end
 
 function DungeonService.start(dependencies: Deps)

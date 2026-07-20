@@ -6961,8 +6961,19 @@ do
 		90,
 		"dungeon default boss keeps its authored hit damage"
 	)
+	expectEqual(defaults.telegraphSeconds, 1.1, "dungeon defaults keep the authored slam telegraph window")
+	expectEqual(
+		defaults.attackRingRadius > defaults.damageRingRadius,
+		true,
+		"the boss slam out-reaches attack range so attacking is a real risk"
+	)
 
 	expectEqual(DungeonConfig.normalize({ partyMax = 999 }).partyMax, 12, "party max clamps to the ceiling")
+	expectEqual(
+		DungeonConfig.normalize({ telegraphSeconds = 100 }).telegraphSeconds,
+		10,
+		"telegraph window clamps to the ceiling"
+	)
 	expectEqual(
 		DungeonConfig.normalize({ proximityAutoDps = true }).proximityAutoDps,
 		true,

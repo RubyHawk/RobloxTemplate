@@ -39,6 +39,7 @@ export type Dungeon = {
 	damageRingRadius: number,
 	attackRingRadius: number,
 	attackIntervalSeconds: number,
+	telegraphSeconds: number,
 	attackCooldownSeconds: number,
 	proximityAutoDps: boolean,
 	teleportRetries: number,
@@ -73,9 +74,14 @@ local DEFAULTS: Dungeon = {
 	-- pivots arrivals onto it. Keep these in sync with the authored geometry.
 	arenaSpawn = { 0, 503, 0 },
 	bossOffset = { 0, 4, 55 },
-	damageRingRadius = 46,
-	attackRingRadius = 22,
+	-- Players must be within damageRingRadius to hit the boss. The boss slam
+	-- reaches attackRingRadius, which is LARGER, so attacking puts you in danger:
+	-- when the boss telegraphs (telegraphSeconds warning) you must run out past
+	-- the slam or take the hit. This is the core dodge rhythm of the fight.
+	damageRingRadius = 40,
+	attackRingRadius = 46,
 	attackIntervalSeconds = 3,
+	telegraphSeconds = 1.1,
 	-- Players attack by clicking/tapping; the server enforces this per-player
 	-- cooldown between accepted hits. proximityAutoDps keeps the old "stand in
 	-- the ring and auto-damage" behavior available as an opt-in fallback.
@@ -262,6 +268,7 @@ function DungeonConfig.normalize(raw: any): Dungeon
 		damageRingRadius = number(raw, "damageRingRadius", DEFAULTS.damageRingRadius, 1, 500),
 		attackRingRadius = number(raw, "attackRingRadius", DEFAULTS.attackRingRadius, 1, 500),
 		attackIntervalSeconds = number(raw, "attackIntervalSeconds", DEFAULTS.attackIntervalSeconds, 0.5, 30),
+		telegraphSeconds = number(raw, "telegraphSeconds", DEFAULTS.telegraphSeconds, 0.1, 10),
 		attackCooldownSeconds = number(raw, "attackCooldownSeconds", DEFAULTS.attackCooldownSeconds, 0.05, 5),
 		proximityAutoDps = boolean(raw, "proximityAutoDps", DEFAULTS.proximityAutoDps),
 		teleportRetries = math.floor(number(raw, "teleportRetries", DEFAULTS.teleportRetries, 0, 10)),

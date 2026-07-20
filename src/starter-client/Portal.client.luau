@@ -147,8 +147,18 @@ local function applyDungeonState(data: any)
 		return
 	end
 	-- Show the attack prompt only while the fight is live (hidden once a
-	-- victory/defeat result arrives).
+	-- victory/defeat result arrives), and switch it to a dodge warning while the
+	-- boss telegraphs a slam.
 	setVisible(attackHint, data.result == nil)
+	if attackHint ~= nil and attackHint:IsA("TextLabel") and data.result == nil then
+		if data.danger == true then
+			attackHint.Text = "⚠ SLAM INCOMING — RUN OUT!"
+			attackHint.TextColor3 = Color3.fromRGB(255, 120, 120)
+		else
+			attackHint.Text = "CLICK / TAP TO ATTACK"
+			attackHint.TextColor3 = Color3.fromRGB(245, 235, 255)
+		end
+	end
 
 	if bossBar ~= nil then
 		setText(
