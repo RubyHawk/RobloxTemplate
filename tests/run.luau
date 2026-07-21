@@ -3573,6 +3573,15 @@ expectEqual(
 	true,
 	"sandbox launcher reads the two-experience config"
 )
+do
+	local smokeGuard = string.find(sandboxSource, "if (-not $SmokeTest) {", 1, true)
+	local machinePluginCheck = string.find(sandboxSource, "Get-RojoStudioPluginState", 1, true)
+	expectEqual(
+		smokeGuard ~= nil and machinePluginCheck ~= nil and smokeGuard < machinePluginCheck,
+		true,
+		"sandbox smoke validation never installs a host-specific Studio plugin"
+	)
+end
 
 do
 	local setupSource = fs.readFile("scripts/setup.ps1")

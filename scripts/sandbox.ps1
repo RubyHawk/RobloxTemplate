@@ -84,17 +84,19 @@ function Stop-StaleRojoServer {
 
 Push-Location $root
 try {
-    $rojoPluginState = Get-RojoStudioPluginState
-    if ($rojoPluginState.HasConflict) {
-        throw (Get-RojoStudioPluginConflictMessage)
-    }
-    $setupNeeded = -not (Get-Command rojo -ErrorAction SilentlyContinue) `
-        -or -not (Get-Command lune -ErrorAction SilentlyContinue) `
-        -or -not $rojoPluginState.HasAny
-    if ($setupNeeded) {
-        Write-Host "Installing the pinned project tools first..." -ForegroundColor Yellow
-        & (Join-Path $PSScriptRoot "setup.ps1") -SkipWorker
-        if ($LASTEXITCODE -ne 0) { throw "First-time setup failed." }
+    if (-not $SmokeTest) {
+        $rojoPluginState = Get-RojoStudioPluginState
+        if ($rojoPluginState.HasConflict) {
+            throw (Get-RojoStudioPluginConflictMessage)
+        }
+        $setupNeeded = -not (Get-Command rojo -ErrorAction SilentlyContinue) `
+            -or -not (Get-Command lune -ErrorAction SilentlyContinue) `
+            -or -not $rojoPluginState.HasAny
+        if ($setupNeeded) {
+            Write-Host "Installing the pinned project tools first..." -ForegroundColor Yellow
+            & (Join-Path $PSScriptRoot "setup.ps1") -SkipWorker
+            if ($LASTEXITCODE -ne 0) { throw "First-time setup failed." }
+        }
     }
 
     Write-Host "Building recipe $recipeId with UI preset $preset for the permanent sandbox..." -ForegroundColor Cyan
