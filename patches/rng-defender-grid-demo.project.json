@@ -10,6 +10,9 @@
         "DungeonWeapons": {
           "$path": "../src/assets/DungeonWeapons.model.json"
         },
+        "EnemyRigs": {
+          "$path": "../src/world/EnemyRigs.model.json"
+        },
         "Shared": {
           "$className": "Folder",
           "Calculations": {
@@ -111,6 +114,9 @@
           "StageTypes": {
             "$path": "../src/shared/StageTypes.luau"
           },
+          "StageWaveDefaults": {
+            "$path": "../src/shared/StageWaveDefaults.luau"
+          },
           "TemplateConfig": {
             "$path": "../src/shared/TemplateConfig.luau"
           },
@@ -125,6 +131,9 @@
           },
           "TowerDefenseRequest": {
             "$path": "../src/shared/TowerDefenseRequest.luau"
+          },
+          "TowerDefenseWaves": {
+            "$path": "../src/shared/TowerDefenseWaves.luau"
           },
           "Types": {
             "$path": "../src/shared/Types.luau"

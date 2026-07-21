@@ -8,9 +8,11 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):Wai
 local Config = require(Shared.TemplateConfig)
 local StageCatalog = require(Shared.StageCatalog)
 local StageLanes = require(Shared.StageLanes)
+local StageTypes = require(Shared.StageTypes)
 local TowerDefenseCatalog = require(Shared.TowerDefenseCatalog)
 local TowerDefenseLogic = require(Shared.TowerDefenseLogic)
 local TowerDefenseRequest = require(Shared.TowerDefenseRequest)
+local TowerDefenseWaves = require(Shared.TowerDefenseWaves)
 local Types = require(Shared.Types)
 
 local EconomyService = require(script.Parent.EconomyService)
@@ -37,12 +39,15 @@ type Placement = {
 
 type Enemy = {
 	id: string,
+	enemyTypeId: string,
 	name: string,
 	health: number,
 	maxHealth: number,
 	speed: number,
 	reward: number,
 	baseDamage: number,
+	armorMultiplier: number,
+	isBoss: boolean,
 	distance: number,
 	edgeId: string,
 	edgeDistance: number,
@@ -62,12 +67,9 @@ type MatchState = {
 	enemyOrder: { string },
 	nextPlacementId: number,
 	nextEnemyId: number,
-	pendingSpawns: number,
-	nextSpawnAt: number,
-	spawnSpacing: number,
-	spawnEnemyId: string,
-	enemyHealthScale: number,
-	enemyRewardScale: number,
+	spawnStreams: { TowerDefenseWaves.SpawnStream },
+	waveIsBoss: boolean,
+	waveCount: number,
 	stageId: string,
 	graphId: string,
 	graph: any?,
@@ -152,12 +154,9 @@ local function defaultMatch(): MatchState
 		enemyOrder = {},
 		nextPlacementId = 0,
 		nextEnemyId = 0,
-		pendingSpawns = 0,
-		nextSpawnAt = 0,
-		spawnSpacing = 0,
-		spawnEnemyId = "",
-		enemyHealthScale = 1,
-		enemyRewardScale = 1,
+		spawnStreams = {},
+		waveIsBoss = false,
+		waveCount = 0,
 		stageId = "",
 		graphId = "",
 		graph = nil,
@@ -414,24 +413,53 @@ function TowerDefenseService.autoPlaceBest(player: Player): (boolean, string)
 		if placed > 0 then `Auto-placed {placed} unit(s)` else "No auto-place slots were available"
 end
 
-local function spawnEnemy(player: Player, match: MatchState)
-	local enemyDefinition = TowerDefenseCatalog.enemy(match.spawnEnemyId)
+-- Authored Stagewright enemy types are authoritative; the legacy catalog keeps
+-- older generated bundles (and the gallery place) playable.
+local function enemyDefinitionFor(enemyTypeId: string): StageTypes.EnemyTypeDefinition?
+	local authored = StageCatalog.enemyType(enemyTypeId)
+	if authored ~= nil then
+		return authored
+	end
+	local legacy = TowerDefenseCatalog.enemy(enemyTypeId)
+	if legacy == nil then
+		return nil
+	end
+	return {
+		id = legacy.id,
+		name = legacy.name,
+		tags = legacy.tags,
+		health = legacy.health,
+		speed = legacy.speed,
+		reward = legacy.reward,
+		baseDamage = legacy.baseDamage,
+		modelId = "",
+		renderScale = 1,
+	}
+end
+
+local function abortWave(match: MatchState)
+	match.waveRunning = false
+	table.clear(match.spawnStreams)
+end
+
+local function spawnEnemy(player: Player, match: MatchState, stream: TowerDefenseWaves.SpawnStream): boolean
+	local enemyDefinition = enemyDefinitionFor(stream.enemyTypeId)
 	local graph = match.graph
 	if enemyDefinition == nil or graph == nil then
-		return
+		warn(`Tower defense spawn rejected: unknown enemy type {stream.enemyTypeId}`)
+		abortWave(match)
+		return false
 	end
 	if #match.enemyOrder >= Config.towerDefense.maximumEnemiesPerPlayer then
 		warn(`Tower defense spawn rejected: enemy cap reached for {player.Name}`)
-		match.waveRunning = false
-		match.pendingSpawns = 0
-		return
+		abortWave(match)
+		return false
 	end
 	local spawnNodes = StageRuntimeService.spawnNodes(graph)
 	if #spawnNodes == 0 then
 		warn(`Tower defense graph {match.graphId} has no spawn node`)
-		match.waveRunning = false
-		match.pendingSpawns = 0
-		return
+		abortWave(match)
+		return false
 	end
 	local enemySequence = match.nextEnemyId + 1
 	local spawnNode = spawnNodes[StageLanes.index(enemySequence, #spawnNodes)]
@@ -442,22 +470,27 @@ local function spawnEnemy(player: Player, match: MatchState)
 	local firstEdge, reason = StageRuntimeService.chooseEdge(graph, spawnNode.id, context)
 	if firstEdge == nil then
 		warn(`Tower defense route failed at {spawnNode.id}: {reason or "no eligible edge"}`)
-		match.waveRunning = false
-		match.pendingSpawns = 0
-		return
+		abortWave(match)
+		return false
 	end
 	local laneProfile = graph.laneProfiles[firstEdge.laneProfileId]
 	local laneCount = if laneProfile ~= nil and #laneProfile.offsets > 0 then #laneProfile.offsets else 1
 	match.nextEnemyId += 1
-	local maxHealth = math.floor(enemyDefinition.health * match.enemyHealthScale)
+	local maxHealth = math.max(math.floor(enemyDefinition.health * stream.healthScale), 1)
 	local enemy: Enemy = {
 		id = `Enemy_{match.nextEnemyId}`,
+		enemyTypeId = enemyDefinition.id,
 		name = enemyDefinition.name,
 		health = maxHealth,
 		maxHealth = maxHealth,
-		speed = enemyDefinition.speed,
-		reward = math.floor(enemyDefinition.reward * match.enemyRewardScale),
+		speed = math.max(enemyDefinition.speed * stream.speedScale, 0.1),
+		reward = math.floor(enemyDefinition.reward * stream.rewardScale),
 		baseDamage = enemyDefinition.baseDamage,
+		armorMultiplier = TowerDefenseWaves.armorMultiplier(
+			tags,
+			Config.towerDefense.armoredDamageMultiplier
+		),
+		isBoss = TowerDefenseWaves.hasTag(tags, "Boss"),
 		distance = 0,
 		edgeId = firstEdge.id,
 		edgeDistance = 0,
@@ -468,6 +501,7 @@ local function spawnEnemy(player: Player, match: MatchState)
 	}
 	match.enemies[enemy.id] = enemy
 	table.insert(match.enemyOrder, enemy.id)
+	return true
 end
 
 function TowerDefenseService.startWave(player: Player): (boolean, string)
@@ -498,14 +532,19 @@ function TowerDefenseService.startWave(player: Player): (boolean, string)
 	match.stageId = grid.stage.id
 	match.graphId = graph.id
 	match.graph = graph
-	local wave = TowerDefenseCatalog.wave(match.wave)
-	local loopScale = TowerDefenseLogic.waveScale(match.wave)
-	match.pendingSpawns = math.max(wave.count, 1)
-	match.nextSpawnAt = os.clock()
-	match.spawnSpacing = math.max(wave.spacingSeconds, 0.1)
-	match.spawnEnemyId = wave.enemyId
-	match.enemyHealthScale = wave.healthScale * loopScale
-	match.enemyRewardScale = wave.rewardScale * loopScale
+	local waveSet = StageCatalog.waveSetForStage(grid.stage.id)
+	local wave: StageTypes.WaveDefinition
+	local waveCount: number
+	if waveSet ~= nil then
+		wave, waveCount = TowerDefenseWaves.waveForIndex(waveSet, match.wave)
+	else
+		wave = TowerDefenseWaves.fromCatalogWave(TowerDefenseCatalog.wave(match.wave))
+		waveCount = #TowerDefenseCatalog.waves
+	end
+	local loopScale = TowerDefenseLogic.waveScale(match.wave, waveCount)
+	match.spawnStreams = TowerDefenseWaves.buildStreams(wave, os.clock(), loopScale)
+	match.waveIsBoss = TowerDefenseWaves.isBossWave(wave)
+	match.waveCount = waveCount
 	profile.towerDefense.stats.bestWave = math.max(profile.towerDefense.stats.bestWave, match.wave)
 	ProfileService.markDirty(player, "towerDefense:startWave")
 	return true, `Started wave {match.wave}`
@@ -549,12 +588,24 @@ local function removeEnemy(match: MatchState, enemyId: string)
 end
 
 local function tickSpawns(player: Player, match: MatchState, now: number)
-	if not match.waveRunning or match.pendingSpawns <= 0 or now < match.nextSpawnAt then
+	if not match.waveRunning then
 		return
 	end
-	spawnEnemy(player, match)
-	match.pendingSpawns -= 1
-	match.nextSpawnAt = now + match.spawnSpacing
+	-- Each due stream spawns at most one enemy per pass: advancing nextSpawnAt
+	-- past `now` guarantees the loop terminates within one simulation step.
+	local dueIndex = TowerDefenseWaves.dueStreamIndex(match.spawnStreams, now)
+	while dueIndex ~= nil do
+		local stream = match.spawnStreams[dueIndex]
+		if not spawnEnemy(player, match, stream) then
+			return
+		end
+		stream.remaining -= 1
+		stream.nextSpawnAt = now + stream.spacingSeconds
+		if stream.remaining <= 0 then
+			table.remove(match.spawnStreams, dueIndex)
+		end
+		dueIndex = TowerDefenseWaves.dueStreamIndex(match.spawnStreams, now)
+	end
 end
 
 local function tickEnemies(player: Player, match: MatchState, deltaTime: number)
@@ -565,8 +616,7 @@ local function tickEnemies(player: Player, match: MatchState, deltaTime: number)
 	end
 	local function invalidateRoute(nodeOrEdgeId: string, reason: string)
 		warn(`Invalid Stagewright route {match.stageId}/{match.graphId} at {nodeOrEdgeId}: {reason}`)
-		match.waveRunning = false
-		match.pendingSpawns = 0
+		abortWave(match)
 		for _, id in table.clone(match.enemyOrder) do
 			removeEnemy(match, id)
 		end
@@ -620,8 +670,7 @@ local function tickEnemies(player: Player, match: MatchState, deltaTime: number)
 						profile.towerDefense.stats.losses += 1
 						ProfileService.markDirty(player, "towerDefense:loss")
 					end
-					match.waveRunning = false
-					match.pendingSpawns = 0
+					abortWave(match)
 					for _, id in table.clone(match.enemyOrder) do
 						removeEnemy(match, id)
 					end
@@ -745,7 +794,7 @@ local function tickTowers(player: Player, match: MatchState, now: number)
 		if target == nil then
 			continue
 		end
-		target.health -= unit.damage
+		target.health -= unit.damage * target.armorMultiplier
 		placement.nextAttackAt = now + unit.fireRate
 		if target.health <= 0 then
 			EconomyService.awardCurrencyRaw(
@@ -762,7 +811,7 @@ end
 local function tickWaveCompletion(player: Player, match: MatchState)
 	if
 		match.waveRunning
-		and match.pendingSpawns <= 0
+		and #match.spawnStreams == 0
 		and next(match.enemies) == nil
 		and match.baseHealth > 0
 	then
@@ -891,6 +940,8 @@ function TowerDefenseService.snapshotFor(player: Player): TowerDefenseClientStat
 			local edgeLength = if edge ~= nil then edge.length else 1
 			table.insert(enemies, {
 				id = enemy.id,
+				enemyTypeId = enemy.enemyTypeId,
+				isBoss = enemy.isBoss,
 				health = enemy.health,
 				maxHealth = enemy.maxHealth,
 				progress = math.clamp(enemy.edgeDistance / math.max(edgeLength, 1), 0, 1),
@@ -917,6 +968,8 @@ function TowerDefenseService.snapshotFor(player: Player): TowerDefenseClientStat
 		maxBaseHealth = Config.towerDefense.baseHealth,
 		wave = match.wave,
 		waveRunning = match.waveRunning,
+		waveIsBoss = match.waveIsBoss,
+		waveCount = match.waveCount,
 		placements = placements,
 		enemies = enemies,
 		autoPlaceCells = if grid ~= nil then grid.autoPlaceCells else {},

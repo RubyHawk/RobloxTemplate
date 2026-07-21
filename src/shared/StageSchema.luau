@@ -9,11 +9,16 @@ local StageLanes = if script ~= nil then require(script.Parent.StageLanes) else 
 local StagePathAssets = if script ~= nil
 	then require(script.Parent.StagePathAssets)
 	else require("./StagePathAssets")
+local StageWaveDefaults = if script ~= nil
+	then require(script.Parent.StageWaveDefaults)
+	else require("./StageWaveDefaults")
 
 local StageSchema = {}
 
-StageSchema.AUTHORING_VERSION = 4
-StageSchema.RUNTIME_VERSION = 2
+StageSchema.AUTHORING_VERSION = 5
+StageSchema.RUNTIME_VERSION = 3
+
+StageSchema.MAX_WAVE_SPAWNS = 500
 
 export type JsonValue = string | number | boolean | { JsonValue } | { [string]: JsonValue }
 export type Issue = {
@@ -39,6 +44,10 @@ local VALID_ROLES = {
 }
 local VALID_BUILD_POLICIES = { Allowed = true, Blocked = true, AutoOnly = true }
 local VALID_TRAVERSAL_POLICIES = { Allowed = true, Blocked = true }
+local KNOWN_ENEMY_TAGS: { [string]: boolean } = {}
+for _, tag in StageWaveDefaults.KNOWN_TAGS do
+	KNOWN_ENEMY_TAGS[tag] = true
+end
 
 local function escapeString(value: string): string
 	local escaped = string.gsub(value, "\\", "\\\\")
@@ -222,7 +231,7 @@ function StageSchema.migrateProject(project: any): any
 					error("Stagewright legacy Map ownership is incomplete")
 				end
 				stage.mapId = assignedMapId
-				stage.schemaVersion = StageSchema.AUTHORING_VERSION
+				stage.schemaVersion = 4
 				mapHasLevel[assignedMapId] = true
 			end
 			for existingMapId, ownsLevel in mapHasLevel do
@@ -259,8 +268,16 @@ function StageSchema.migrateProject(project: any): any
 			}
 			for _, stage in project.stages do
 				stage.mapId = mapId
-				stage.schemaVersion = StageSchema.AUTHORING_VERSION
+				stage.schemaVersion = 4
 			end
+		end
+		project.schemaVersion = 4
+		version = 4
+	end
+	if version == 4 then
+		StageWaveDefaults.seed(project)
+		for _, stage in project.stages do
+			stage.schemaVersion = StageSchema.AUTHORING_VERSION
 		end
 		project.schemaVersion = StageSchema.AUTHORING_VERSION
 	end
@@ -714,6 +731,169 @@ function StageSchema.validateStage(stage: any): { Issue }
 				graphId = graphId,
 				objectId = issue.objectId,
 			})
+		end
+	end
+	return issues
+end
+
+local function finiteInRange(value: any, minimum: number, maximum: number): boolean
+	return type(value) == "number" and value == value and value >= minimum and value <= maximum
+end
+
+function StageSchema.validateEnemyType(enemyType: any): { Issue }
+	if
+		type(enemyType) ~= "table"
+		or type(enemyType.id) ~= "string"
+		or enemyType.id == ""
+		or #enemyType.id > 80
+	then
+		return {
+			{ severity = "Error", code = "InvalidEnemyType", message = "Enemy type has no valid stable ID" },
+		}
+	end
+	local issues: { Issue } = {}
+	local enemyTypeId = enemyType.id
+	local function issue(code: string, message: string)
+		table.insert(issues, {
+			severity = "Error",
+			code = code,
+			message = message,
+			objectId = enemyTypeId,
+		})
+	end
+	if type(enemyType.name) ~= "string" or enemyType.name == "" or #enemyType.name > 120 then
+		issue("InvalidEnemyTypeName", "Enemy type name must contain between 1 and 120 characters")
+	end
+	if not finiteInRange(enemyType.health, 1, 1_000_000_000) then
+		issue("EnemyTypeHealth", "Enemy type health must be between 1 and 1e9")
+	end
+	if not finiteInRange(enemyType.speed, 0.1, 1_000) then
+		issue("EnemyTypeSpeed", "Enemy type speed must be between 0.1 and 1000")
+	end
+	if not finiteInRange(enemyType.reward, 0, 1_000_000_000) then
+		issue("EnemyTypeReward", "Enemy type reward must be between 0 and 1e9")
+	end
+	if not finiteInRange(enemyType.baseDamage, 0, 1_000_000) then
+		issue("EnemyTypeBaseDamage", "Enemy type base damage must be between 0 and 1e6")
+	end
+	if not finiteInRange(enemyType.renderScale, 0.1, 10) then
+		issue("EnemyTypeRenderScale", "Enemy type render scale must be between 0.1 and 10")
+	end
+	if type(enemyType.modelId) ~= "string" or #enemyType.modelId > 80 then
+		issue("EnemyTypeModel", "Enemy type model ID must be a string of at most 80 characters")
+	end
+	if type(enemyType.tags) ~= "table" or #enemyType.tags > 8 then
+		issue("EnemyTypeTags", "Enemy type tags must be an array of at most 8 entries")
+	else
+		for _, tag in enemyType.tags do
+			if type(tag) ~= "string" or tag == "" or #tag > 40 then
+				issue("EnemyTypeTag", "Enemy type tags must be strings between 1 and 40 characters")
+			elseif KNOWN_ENEMY_TAGS[tag] ~= true then
+				table.insert(issues, {
+					severity = "Warning",
+					code = "UnknownEnemyTag",
+					message = `Enemy type {enemyTypeId} has unknown tag {tag}`,
+					objectId = enemyTypeId,
+				})
+			end
+		end
+	end
+	if enemyType.tint ~= nil then
+		local tint = enemyType.tint
+		if
+			type(tint) ~= "table"
+			or not finiteInRange(tint.r, 0, 1)
+			or not finiteInRange(tint.g, 0, 1)
+			or not finiteInRange(tint.b, 0, 1)
+		then
+			issue("EnemyTypeTint", "Enemy type tint must have r, g, and b components between 0 and 1")
+		end
+	end
+	return issues
+end
+
+function StageSchema.validateWaveSet(waveSet: any, enemyTypeIds: { [string]: boolean }): { Issue }
+	if type(waveSet) ~= "table" or type(waveSet.id) ~= "string" or waveSet.id == "" or #waveSet.id > 80 then
+		return { { severity = "Error", code = "InvalidWaveSet", message = "Wave set has no valid stable ID" } }
+	end
+	local issues: { Issue } = {}
+	local waveSetId = waveSet.id
+	local function issue(code: string, message: string)
+		table.insert(issues, {
+			severity = "Error",
+			code = code,
+			message = message,
+			objectId = waveSetId,
+		})
+	end
+	if type(waveSet.name) ~= "string" or waveSet.name == "" or #waveSet.name > 120 then
+		issue("InvalidWaveSetName", "Wave set name must contain between 1 and 120 characters")
+	end
+	if type(waveSet.waves) ~= "table" or #waveSet.waves < 1 or #waveSet.waves > 100 then
+		issue("WaveSetWaves", "Wave set must contain between 1 and 100 waves")
+		return issues
+	end
+	for waveIndex, wave in waveSet.waves do
+		if type(wave) ~= "table" then
+			issue("InvalidWave", `Wave {waveIndex} must be a table`)
+			continue
+		end
+		if wave.isBoss ~= nil and type(wave.isBoss) ~= "boolean" then
+			issue("WaveBossFlag", `Wave {waveIndex} boss flag must be a boolean`)
+		end
+		if type(wave.entries) ~= "table" or #wave.entries < 1 or #wave.entries > 20 then
+			issue("WaveEntries", `Wave {waveIndex} must contain between 1 and 20 entries`)
+			continue
+		end
+		local totalSpawns = 0
+		for entryIndex, waveEntry in wave.entries do
+			if type(waveEntry) ~= "table" then
+				issue("InvalidWaveEntry", `Wave {waveIndex} entry {entryIndex} must be a table`)
+				continue
+			end
+			if type(waveEntry.enemyTypeId) ~= "string" or enemyTypeIds[waveEntry.enemyTypeId] ~= true then
+				issue(
+					"MissingEnemyType",
+					`Wave {waveIndex} entry {entryIndex} references missing enemy type {tostring(
+						waveEntry.enemyTypeId
+					)}`
+				)
+			end
+			if
+				not finiteInRange(waveEntry.count, 1, 200)
+				or (type(waveEntry.count) == "number" and waveEntry.count % 1 ~= 0)
+			then
+				issue("WaveEntryCount", `Wave {waveIndex} entry {entryIndex} count must be an integer 1-200`)
+			else
+				totalSpawns += waveEntry.count
+			end
+			if not finiteInRange(waveEntry.spacingSeconds, 0.05, 60) then
+				issue(
+					"WaveEntrySpacing",
+					`Wave {waveIndex} entry {entryIndex} spacing must be between 0.05 and 60 seconds`
+				)
+			end
+			if not finiteInRange(waveEntry.startDelaySeconds, 0, 300) then
+				issue(
+					"WaveEntryDelay",
+					`Wave {waveIndex} entry {entryIndex} start delay must be between 0 and 300 seconds`
+				)
+			end
+			for _, scaleField in { "healthScale", "rewardScale", "speedScale" } do
+				local scale = waveEntry[scaleField]
+				if scale ~= nil and not finiteInRange(scale, 0.01, 100) then
+					issue(
+						"WaveEntryScale",
+						`Wave {waveIndex} entry {entryIndex} {scaleField} must be between 0.01 and 100`
+					)
+				end
+			end
+		end
+		if totalSpawns > StageSchema.MAX_WAVE_SPAWNS then
+			issue(
+				"WaveSpawnCap",
+				`Wave {waveIndex} spawns {totalSpawns} enemies; the cap is {StageSchema.MAX_WAVE_SPAWNS}`
+			)
 		end
 	end
 	return issues

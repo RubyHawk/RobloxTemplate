@@ -1,0 +1,726 @@
+{
+  "ClassName": "Folder",
+  "Children": [
+    {
+      "Name": "Fallback",
+      "ClassName": "Model",
+      "Children": [
+        {
+          "Name": "Body",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [0.373, 0.224, 0.137],
+            "Material": "SmoothPlastic",
+            "Position": [0, 0, 0],
+            "Shape": "Ball",
+            "Size": [1.4, 1.4, 1.4]
+          },
+          "Children": [
+            {
+              "Name": "HealthBar",
+              "ClassName": "BillboardGui",
+              "Properties": {
+                "AlwaysOnTop": true,
+                "Enabled": false,
+                "LightInfluence": 0,
+                "MaxDistance": 120,
+                "Size": { "UDim2": [[0, 46], [0, 6]] },
+                "StudsOffset": [0, 2.4, 0]
+              },
+              "Children": [
+                {
+                  "Name": "Back",
+                  "ClassName": "Frame",
+                  "Properties": {
+                    "BackgroundColor3": [0.05, 0.06, 0.08],
+                    "BackgroundTransparency": 0.2,
+                    "BorderSizePixel": 0,
+                    "Size": { "UDim2": [[1, 0], [1, 0]] }
+                  },
+                  "Children": [
+                    {
+                      "Name": "Fill",
+                      "ClassName": "Frame",
+                      "Properties": {
+                        "BackgroundColor3": [0.3, 0.85, 0.4],
+                        "BorderSizePixel": 0,
+                        "Size": { "UDim2": [[1, 0], [1, 0]] }
+                      },
+                      "Children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "Name": "DeathPoofAttachment",
+              "ClassName": "Attachment",
+              "Properties": {
+                "Position": [0, 0.4, 0]
+              },
+              "Children": [
+                {
+                  "Name": "DeathPoof",
+                  "ClassName": "ParticleEmitter",
+                  "Properties": {
+                    "Enabled": false,
+                    "LightEmission": 0.5,
+                    "Lifetime": { "NumberRange": [0.2, 0.45] },
+                    "Rate": 0,
+                    "Speed": { "NumberRange": [4, 8] },
+                    "SpreadAngle": [180, 180]
+                  },
+                  "Children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Name": "Eye",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [1, 1, 1],
+            "Material": "Neon",
+            "Position": [0, 0.3, -0.55],
+            "Shape": "Ball",
+            "Size": [0.3, 0.3, 0.3]
+          },
+          "Children": []
+        }
+      ]
+    },
+    {
+      "Name": "forest_grunt",
+      "ClassName": "Model",
+      "Children": [
+        {
+          "Name": "Body",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [0.5, 0.375, 0.25],
+            "Material": "SmoothPlastic",
+            "Position": [0, 0, 0],
+            "Size": [1.2, 1.2, 1]
+          },
+          "Children": [
+            {
+              "Name": "HealthBar",
+              "ClassName": "BillboardGui",
+              "Properties": {
+                "AlwaysOnTop": true,
+                "Enabled": false,
+                "LightInfluence": 0,
+                "MaxDistance": 120,
+                "Size": { "UDim2": [[0, 46], [0, 6]] },
+                "StudsOffset": [0, 2.4, 0]
+              },
+              "Children": [
+                {
+                  "Name": "Back",
+                  "ClassName": "Frame",
+                  "Properties": {
+                    "BackgroundColor3": [0.05, 0.06, 0.08],
+                    "BackgroundTransparency": 0.2,
+                    "BorderSizePixel": 0,
+                    "Size": { "UDim2": [[1, 0], [1, 0]] }
+                  },
+                  "Children": [
+                    {
+                      "Name": "Fill",
+                      "ClassName": "Frame",
+                      "Properties": {
+                        "BackgroundColor3": [0.3, 0.85, 0.4],
+                        "BorderSizePixel": 0,
+                        "Size": { "UDim2": [[1, 0], [1, 0]] }
+                      },
+                      "Children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "Name": "DeathPoofAttachment",
+              "ClassName": "Attachment",
+              "Properties": {
+                "Position": [0, 0.4, 0]
+              },
+              "Children": [
+                {
+                  "Name": "DeathPoof",
+                  "ClassName": "ParticleEmitter",
+                  "Properties": {
+                    "Enabled": false,
+                    "LightEmission": 0.5,
+                    "Lifetime": { "NumberRange": [0.2, 0.45] },
+                    "Rate": 0,
+                    "Speed": { "NumberRange": [4, 8] },
+                    "SpreadAngle": [180, 180]
+                  },
+                  "Children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Name": "Head",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [0.45, 0.33, 0.21],
+            "Material": "SmoothPlastic",
+            "Position": [0, 0.95, 0],
+            "Size": [0.8, 0.7, 0.8]
+          },
+          "Children": []
+        },
+        {
+          "Name": "EyeLeft",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [1, 0.95, 0.7],
+            "Material": "Neon",
+            "Position": [-0.2, 1, -0.42],
+            "Shape": "Ball",
+            "Size": [0.18, 0.18, 0.18]
+          },
+          "Children": []
+        },
+        {
+          "Name": "EyeRight",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [1, 0.95, 0.7],
+            "Material": "Neon",
+            "Position": [0.2, 1, -0.42],
+            "Shape": "Ball",
+            "Size": [0.18, 0.18, 0.18]
+          },
+          "Children": []
+        }
+      ]
+    },
+    {
+      "Name": "forest_runner",
+      "ClassName": "Model",
+      "Children": [
+        {
+          "Name": "Body",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [0.375, 0.75, 0.375],
+            "Material": "SmoothPlastic",
+            "Position": [0, 0, 0],
+            "Size": [0.8, 1.3, 0.9]
+          },
+          "Children": [
+            {
+              "Name": "HealthBar",
+              "ClassName": "BillboardGui",
+              "Properties": {
+                "AlwaysOnTop": true,
+                "Enabled": false,
+                "LightInfluence": 0,
+                "MaxDistance": 120,
+                "Size": { "UDim2": [[0, 46], [0, 6]] },
+                "StudsOffset": [0, 2.4, 0]
+              },
+              "Children": [
+                {
+                  "Name": "Back",
+                  "ClassName": "Frame",
+                  "Properties": {
+                    "BackgroundColor3": [0.05, 0.06, 0.08],
+                    "BackgroundTransparency": 0.2,
+                    "BorderSizePixel": 0,
+                    "Size": { "UDim2": [[1, 0], [1, 0]] }
+                  },
+                  "Children": [
+                    {
+                      "Name": "Fill",
+                      "ClassName": "Frame",
+                      "Properties": {
+                        "BackgroundColor3": [0.3, 0.85, 0.4],
+                        "BorderSizePixel": 0,
+                        "Size": { "UDim2": [[1, 0], [1, 0]] }
+                      },
+                      "Children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "Name": "DeathPoofAttachment",
+              "ClassName": "Attachment",
+              "Properties": {
+                "Position": [0, 0.4, 0]
+              },
+              "Children": [
+                {
+                  "Name": "DeathPoof",
+                  "ClassName": "ParticleEmitter",
+                  "Properties": {
+                    "Enabled": false,
+                    "LightEmission": 0.5,
+                    "Lifetime": { "NumberRange": [0.2, 0.45] },
+                    "Rate": 0,
+                    "Speed": { "NumberRange": [4, 8] },
+                    "SpreadAngle": [180, 180]
+                  },
+                  "Children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Name": "Fin",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [0.25, 0.55, 0.28],
+            "Material": "SmoothPlastic",
+            "Position": [0, 0.9, 0.15],
+            "Size": [0.15, 0.7, 0.9]
+          },
+          "Children": []
+        },
+        {
+          "Name": "Eye",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [1, 1, 1],
+            "Material": "Neon",
+            "Position": [0, 0.35, -0.5],
+            "Shape": "Ball",
+            "Size": [0.2, 0.2, 0.2]
+          },
+          "Children": []
+        }
+      ]
+    },
+    {
+      "Name": "bark_bruiser",
+      "ClassName": "Model",
+      "Children": [
+        {
+          "Name": "Body",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [0.375, 0.25, 0.125],
+            "Material": "Wood",
+            "Position": [0, 0, 0],
+            "Size": [1.6, 1.5, 1.3]
+          },
+          "Children": [
+            {
+              "Name": "HealthBar",
+              "ClassName": "BillboardGui",
+              "Properties": {
+                "AlwaysOnTop": true,
+                "Enabled": false,
+                "LightInfluence": 0,
+                "MaxDistance": 120,
+                "Size": { "UDim2": [[0, 46], [0, 6]] },
+                "StudsOffset": [0, 2.4, 0]
+              },
+              "Children": [
+                {
+                  "Name": "Back",
+                  "ClassName": "Frame",
+                  "Properties": {
+                    "BackgroundColor3": [0.05, 0.06, 0.08],
+                    "BackgroundTransparency": 0.2,
+                    "BorderSizePixel": 0,
+                    "Size": { "UDim2": [[1, 0], [1, 0]] }
+                  },
+                  "Children": [
+                    {
+                      "Name": "Fill",
+                      "ClassName": "Frame",
+                      "Properties": {
+                        "BackgroundColor3": [0.3, 0.85, 0.4],
+                        "BorderSizePixel": 0,
+                        "Size": { "UDim2": [[1, 0], [1, 0]] }
+                      },
+                      "Children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "Name": "DeathPoofAttachment",
+              "ClassName": "Attachment",
+              "Properties": {
+                "Position": [0, 0.4, 0]
+              },
+              "Children": [
+                {
+                  "Name": "DeathPoof",
+                  "ClassName": "ParticleEmitter",
+                  "Properties": {
+                    "Enabled": false,
+                    "LightEmission": 0.5,
+                    "Lifetime": { "NumberRange": [0.2, 0.45] },
+                    "Rate": 0,
+                    "Speed": { "NumberRange": [4, 8] },
+                    "SpreadAngle": [180, 180]
+                  },
+                  "Children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Name": "PlateLeft",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [0.22, 0.16, 0.1],
+            "Material": "Slate",
+            "Position": [-1, 0.35, 0],
+            "Size": [0.4, 1.1, 1.1]
+          },
+          "Children": []
+        },
+        {
+          "Name": "PlateRight",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [0.22, 0.16, 0.1],
+            "Material": "Slate",
+            "Position": [1, 0.35, 0],
+            "Size": [0.4, 1.1, 1.1]
+          },
+          "Children": []
+        },
+        {
+          "Name": "Eye",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [1, 0.6, 0.25],
+            "Material": "Neon",
+            "Position": [0, 0.4, -0.68],
+            "Shape": "Ball",
+            "Size": [0.22, 0.22, 0.22]
+          },
+          "Children": []
+        }
+      ]
+    },
+    {
+      "Name": "sky_wisp",
+      "ClassName": "Model",
+      "Children": [
+        {
+          "Name": "Body",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [0.625, 0.875, 1],
+            "Material": "Neon",
+            "Position": [0, 1.4, 0],
+            "Shape": "Ball",
+            "Size": [1, 1, 1]
+          },
+          "Children": [
+            {
+              "Name": "HealthBar",
+              "ClassName": "BillboardGui",
+              "Properties": {
+                "AlwaysOnTop": true,
+                "Enabled": false,
+                "LightInfluence": 0,
+                "MaxDistance": 120,
+                "Size": { "UDim2": [[0, 46], [0, 6]] },
+                "StudsOffset": [0, 1.4, 0]
+              },
+              "Children": [
+                {
+                  "Name": "Back",
+                  "ClassName": "Frame",
+                  "Properties": {
+                    "BackgroundColor3": [0.05, 0.06, 0.08],
+                    "BackgroundTransparency": 0.2,
+                    "BorderSizePixel": 0,
+                    "Size": { "UDim2": [[1, 0], [1, 0]] }
+                  },
+                  "Children": [
+                    {
+                      "Name": "Fill",
+                      "ClassName": "Frame",
+                      "Properties": {
+                        "BackgroundColor3": [0.3, 0.85, 0.4],
+                        "BorderSizePixel": 0,
+                        "Size": { "UDim2": [[1, 0], [1, 0]] }
+                      },
+                      "Children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "Name": "DeathPoofAttachment",
+              "ClassName": "Attachment",
+              "Properties": {
+                "Position": [0, 0.4, 0]
+              },
+              "Children": [
+                {
+                  "Name": "DeathPoof",
+                  "ClassName": "ParticleEmitter",
+                  "Properties": {
+                    "Enabled": false,
+                    "LightEmission": 0.5,
+                    "Lifetime": { "NumberRange": [0.2, 0.45] },
+                    "Rate": 0,
+                    "Speed": { "NumberRange": [4, 8] },
+                    "SpreadAngle": [180, 180]
+                  },
+                  "Children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Name": "Halo",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [0.75, 0.92, 1],
+            "Material": "Neon",
+            "Orientation": [0, 0, 90],
+            "Position": [0, 0.9, 0],
+            "Shape": "Cylinder",
+            "Size": [0.15, 1.8, 1.8],
+            "Transparency": 0.4
+          },
+          "Children": []
+        },
+        {
+          "Name": "Eye",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [0.1, 0.25, 0.5],
+            "Material": "SmoothPlastic",
+            "Position": [0, 1.45, -0.45],
+            "Shape": "Ball",
+            "Size": [0.22, 0.22, 0.22]
+          },
+          "Children": []
+        }
+      ]
+    },
+    {
+      "Name": "grove_titan",
+      "ClassName": "Model",
+      "Children": [
+        {
+          "Name": "Body",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [0.25, 0.5, 0.25],
+            "Material": "Grass",
+            "Position": [0, 0, 0],
+            "Size": [1.8, 2.2, 1.4]
+          },
+          "Children": [
+            {
+              "Name": "HealthBar",
+              "ClassName": "BillboardGui",
+              "Properties": {
+                "AlwaysOnTop": true,
+                "Enabled": false,
+                "LightInfluence": 0,
+                "MaxDistance": 160,
+                "Size": { "UDim2": [[0, 64], [0, 8]] },
+                "StudsOffset": [0, 2.6, 0]
+              },
+              "Children": [
+                {
+                  "Name": "Back",
+                  "ClassName": "Frame",
+                  "Properties": {
+                    "BackgroundColor3": [0.05, 0.06, 0.08],
+                    "BackgroundTransparency": 0.2,
+                    "BorderSizePixel": 0,
+                    "Size": { "UDim2": [[1, 0], [1, 0]] }
+                  },
+                  "Children": [
+                    {
+                      "Name": "Fill",
+                      "ClassName": "Frame",
+                      "Properties": {
+                        "BackgroundColor3": [0.3, 0.85, 0.4],
+                        "BorderSizePixel": 0,
+                        "Size": { "UDim2": [[1, 0], [1, 0]] }
+                      },
+                      "Children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "Name": "DeathPoofAttachment",
+              "ClassName": "Attachment",
+              "Properties": {
+                "Position": [0, 0.4, 0]
+              },
+              "Children": [
+                {
+                  "Name": "DeathPoof",
+                  "ClassName": "ParticleEmitter",
+                  "Properties": {
+                    "Enabled": false,
+                    "LightEmission": 0.5,
+                    "Lifetime": { "NumberRange": [0.2, 0.45] },
+                    "Rate": 0,
+                    "Speed": { "NumberRange": [4, 8] },
+                    "SpreadAngle": [180, 180]
+                  },
+                  "Children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Name": "Head",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [0.2, 0.4, 0.2],
+            "Material": "Grass",
+            "Position": [0, 1.55, 0],
+            "Size": [1.1, 0.9, 1]
+          },
+          "Children": []
+        },
+        {
+          "Name": "ArmLeft",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [0.3, 0.22, 0.14],
+            "Material": "Wood",
+            "Position": [-1.15, 0.1, 0],
+            "Size": [0.5, 1.8, 0.5]
+          },
+          "Children": []
+        },
+        {
+          "Name": "ArmRight",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": false,
+            "Color": [0.3, 0.22, 0.14],
+            "Material": "Wood",
+            "Position": [1.15, 0.1, 0],
+            "Size": [0.5, 1.8, 0.5]
+          },
+          "Children": []
+        }
+      ]
+    }
+  ]
+}

@@ -19,6 +19,7 @@ local StagePlatformLayout = require("../src/shared/StagePlatformLayout")
 local StageSchema = require("../src/shared/StageSchema")
 local StageStarterProject = require("../src/shared/StageStarterProject")
 local StageExport = require("../src/shared/StageExport")
+local StageWaveDefaults = require("../src/shared/StageWaveDefaults")
 local StageTrace = require("../src/shared/StageTrace")
 local CanvasTransform = require("../src/plugins/Stagewright/Interaction/CanvasTransform")
 local HitTest = require("../src/plugins/Stagewright/Interaction/HitTest")
@@ -2072,10 +2073,506 @@ do
 	expectEqual(definition.grid.cells["1:1"].metadata.keep, true, "grid shrink preserves in-bounds data")
 	expectEqual(definition.grid.cells["4:3"], nil, "grid shrink removes out-of-bounds data")
 	expectEqual(definition.grid.cells.malformed, nil, "grid shrink removes malformed cell keys")
+	local pickerRejected, pickerMessage = StageSettings.parse({
+		name = "Level",
+		waveSetId = "missing_set",
+		themeId = "default",
+		columns = "4",
+		rows = "4",
+		cellSize = "4",
+	}, { default = true })
+	expectEqual(pickerRejected, nil, "stage settings reject a wave set the project does not define")
+	expectEqual(
+		type(pickerMessage) == "string" and string.find(pickerMessage, "missing_set", 1, true) ~= nil,
+		true,
+		"unknown wave set rejection names the missing set"
+	)
+	local pickerAccepted = StageSettings.parse({
+		name = "Level",
+		waveSetId = "default",
+		themeId = "default",
+		columns = "4",
+		rows = "4",
+		cellSize = "4",
+	}, { default = true })
+	expectEqual(pickerAccepted ~= nil, true, "stage settings accept an authored wave set")
 end
 
-expectEqual(StageSchema.AUTHORING_VERSION, 4, "Stagewright Map-first authoring schema is version 4")
-expectEqual(StageSchema.RUNTIME_VERSION, 2, "Stagewright runtime exports include the Map registry")
+-- Wave Designer model: pure enemy-type and wave-set mutations with guards.
+do
+	local WavesModel = require("../src/plugins/Stagewright/Waves/Model")
+	local designerGuid = 0
+	local designerProject = StageStarterProject.build(1, function(prefix: string): string
+		designerGuid += 1
+		return `{prefix}_wave_designer_{designerGuid}`
+	end, "stage_wave_designer", "stage_group_wave_designer")
+
+	expectEqual(
+		WavesModel.sortedWaveSetIds(designerProject)[1],
+		"default",
+		"wave designer lists the seeded default set"
+	)
+	expectEqual(
+		table.find(WavesModel.sortedEnemyTypeIds(designerProject), "forest_grunt") ~= nil,
+		true,
+		"wave designer lists the seeded roster"
+	)
+
+	local parsedEnemy, enemyParseError = WavesModel.parseEnemyType({
+		name = "Ember Imp",
+		tags = "Ground, Fast",
+		health = "60",
+		speed = "9",
+		reward = "14",
+		baseDamage = "1",
+		modelId = "forest_runner",
+		renderScale = "1.1",
+	})
+	expectEqual(enemyParseError, nil, "valid enemy type input parses")
+	expectEqual(
+		parsedEnemy ~= nil and parsedEnemy.tags[2] == "Fast" and parsedEnemy.health == 60,
+		true,
+		"enemy type parsing splits tags and converts stats"
+	)
+	local normalizedTagEnemy = WavesModel.parseEnemyType({
+		name = "Case-safe Enemy",
+		tags = "ground, FLYING, spooky_custom",
+		health = "60",
+		speed = "9",
+		reward = "14",
+		baseDamage = "1",
+		modelId = "forest_runner",
+		renderScale = "1.1",
+	})
+	expectEqual(
+		normalizedTagEnemy ~= nil
+			and normalizedTagEnemy.tags[1] == "Ground"
+			and normalizedTagEnemy.tags[2] == "Flying"
+			and normalizedTagEnemy.tags[3] == "spooky_custom",
+		true,
+		"enemy type parsing canonicalizes known tags without rewriting custom tags"
+	)
+	local invalidEnemy, invalidEnemyError = WavesModel.parseEnemyType({
+		name = "Broken",
+		tags = "Ground",
+		health = "0",
+		speed = "7",
+		reward = "10",
+		baseDamage = "1",
+		modelId = "",
+		renderScale = "1",
+	})
+	expectEqual(
+		invalidEnemy == nil and type(invalidEnemyError) == "string",
+		true,
+		"out-of-range enemy stats are rejected with the schema message"
+	)
+
+	local createdEnemyId = WavesModel.createEnemyType(designerProject, "ember_imp")
+	expectEqual(createdEnemyId, "ember_imp", "new enemy types are created with a sanitized ID")
+	local duplicateEnemyId, duplicateEnemyError = WavesModel.createEnemyType(designerProject, "ember_imp")
+	expectEqual(
+		duplicateEnemyId == nil and type(duplicateEnemyError) == "string",
+		true,
+		"duplicate enemy type IDs are rejected"
+	)
+	local badEnemyId = WavesModel.createEnemyType(designerProject, "Bad Name!")
+	expectEqual(badEnemyId, nil, "enemy type IDs must be lowercase identifiers")
+	expectEqual(
+		parsedEnemy ~= nil and (WavesModel.applyEnemyType(designerProject, "ember_imp", parsedEnemy)),
+		true,
+		"parsed enemy updates apply to the roster"
+	)
+	expectEqual(
+		designerProject.enemyTypes.ember_imp.name == "Ember Imp"
+			and designerProject.enemyTypes.ember_imp.modelId == "forest_runner",
+		true,
+		"applied enemy updates persist stats and model binding"
+	)
+
+	local referencedDelete, referencedDeleteError =
+		WavesModel.deleteEnemyType(designerProject, "forest_grunt")
+	expectEqual(
+		referencedDelete == false and type(referencedDeleteError) == "string",
+		true,
+		"enemy types referenced by wave entries cannot be deleted"
+	)
+	expectEqual(
+		(WavesModel.deleteEnemyType(designerProject, "ember_imp")),
+		true,
+		"unreferenced enemy types delete cleanly"
+	)
+
+	local copiedSetId = WavesModel.createWaveSet(designerProject, "hard_mode", "default")
+	expectEqual(copiedSetId, "hard_mode", "wave sets can be created as copies of an existing set")
+	expectEqual(
+		#designerProject.waveSets.hard_mode.waves,
+		#designerProject.waveSets.default.waves,
+		"copied wave sets duplicate every wave"
+	)
+	designerProject.waveSets.hard_mode.waves[1].entries[1].count = 999
+	expectEqual(
+		designerProject.waveSets.default.waves[1].entries[1].count ~= 999,
+		true,
+		"copied wave sets are deep copies, not aliases"
+	)
+	designerProject.waveSets.hard_mode.waves[1].entries[1].count = 8
+	local defaultDelete, defaultDeleteError = WavesModel.deleteWaveSet(designerProject, "default")
+	expectEqual(
+		defaultDelete == false and type(defaultDeleteError) == "string",
+		true,
+		"the default wave set cannot be deleted"
+	)
+	designerProject.stages.stage_wave_designer.waveSetId = "hard_mode"
+	local referencedSetDelete = WavesModel.deleteWaveSet(designerProject, "hard_mode")
+	expectEqual(referencedSetDelete, false, "wave sets referenced by a level cannot be deleted")
+	designerProject.stages.stage_wave_designer.waveSetId = "default"
+	expectEqual(
+		(WavesModel.deleteWaveSet(designerProject, "hard_mode")),
+		true,
+		"unreferenced wave sets delete cleanly"
+	)
+
+	local editSetId = WavesModel.createWaveSet(designerProject, "edit_lab", nil)
+	expectEqual(editSetId, "edit_lab", "wave sets can start from the starter wave template")
+	expectEqual((WavesModel.addWave(designerProject, "edit_lab")), true, "waves append to a set")
+	expectEqual(
+		(WavesModel.setBossFlag(designerProject, "edit_lab", 2, true)),
+		true,
+		"waves can be flagged as boss waves"
+	)
+	expectEqual(designerProject.waveSets.edit_lab.waves[2].isBoss, true, "boss flags persist on the wave")
+	expectEqual(
+		(WavesModel.moveWave(designerProject, "edit_lab", 2, -1)),
+		true,
+		"waves reorder within their set"
+	)
+	expectEqual(
+		designerProject.waveSets.edit_lab.waves[1].isBoss,
+		true,
+		"reordering carries the wave payload"
+	)
+	expectEqual(
+		WavesModel.moveWave(designerProject, "edit_lab", 1, -1),
+		false,
+		"waves cannot move past the start of the set"
+	)
+
+	local enemyTypeIds = WavesModel.enemyTypeIdSet(designerProject)
+	local parsedEntry, entryParseError = WavesModel.parseEntry({
+		enemyTypeId = "forest_runner",
+		count = "6",
+		spacingSeconds = "0.4",
+		startDelaySeconds = "2",
+		healthScale = "1.5",
+		rewardScale = "",
+		speedScale = "",
+	}, enemyTypeIds)
+	expectEqual(entryParseError, nil, "valid wave entry input parses")
+	expectEqual(
+		parsedEntry ~= nil and parsedEntry.healthScale == 1.5 and parsedEntry.rewardScale == nil,
+		true,
+		"blank entry scales stay unset instead of defaulting to text"
+	)
+	local danglingEntry = WavesModel.parseEntry({
+		enemyTypeId = "missing_enemy",
+		count = "6",
+		spacingSeconds = "0.4",
+		startDelaySeconds = "0",
+		healthScale = "",
+		rewardScale = "",
+		speedScale = "",
+	}, enemyTypeIds)
+	expectEqual(danglingEntry, nil, "wave entries must reference an authored enemy type")
+	expectEqual(
+		(WavesModel.addEntry(designerProject, "edit_lab", 1, parsedEntry)),
+		true,
+		"entries append to a wave"
+	)
+	expectEqual(
+		(WavesModel.updateEntry(designerProject, "edit_lab", 1, 2, parsedEntry)),
+		true,
+		"entries update in place"
+	)
+	local overCapEntry =
+		{ enemyTypeId = "forest_grunt", count = 200, spacingSeconds = 0.5, startDelaySeconds = 0 }
+	expectEqual(
+		(WavesModel.addEntry(designerProject, "edit_lab", 1, overCapEntry))
+			and (WavesModel.addEntry(designerProject, "edit_lab", 1, overCapEntry)),
+		true,
+		"waves accept entries up to the spawn cap"
+	)
+	local cappedAdd = WavesModel.addEntry(designerProject, "edit_lab", 1, overCapEntry)
+	expectEqual(cappedAdd, false, "waves reject entries beyond the runtime spawn cap")
+	expectEqual(
+		(WavesModel.deleteEntry(designerProject, "edit_lab", 1, 4)),
+		true,
+		"entries delete from a wave"
+	)
+	local soloWaveIndex = #designerProject.waveSets.edit_lab.waves
+	local soloEntryDelete = WavesModel.deleteEntry(designerProject, "edit_lab", soloWaveIndex, 1)
+	expectEqual(soloEntryDelete, false, "the final entry of a wave cannot be deleted")
+	expectEqual(
+		(WavesModel.deleteWave(designerProject, "edit_lab", 1)),
+		true,
+		"waves delete while at least one remains"
+	)
+	local soloWaveDelete = WavesModel.deleteWave(designerProject, "edit_lab", 1)
+	expectEqual(soloWaveDelete, false, "the final wave of a set cannot be deleted")
+end
+
+expectEqual(StageSchema.AUTHORING_VERSION, 5, "Stagewright wave-authoring schema is version 5")
+expectEqual(StageSchema.RUNTIME_VERSION, 3, "Stagewright runtime exports include the wave registries")
+
+-- Stagewright wave authoring: enemy types + wave sets live at project scope,
+-- migrate in from schema 4, validate strictly, and bake into the bundle.
+do
+	local waveGuid = 0
+	local waveProject = StageStarterProject.build(2, function(prefix: string): string
+		waveGuid += 1
+		return `{prefix}_wave_test_{waveGuid}`
+	end, "stage_wave_test", "stage_group_wave_test")
+
+	-- v4 -> v5 migration seeds the collections and clones dangling wave set ids.
+	local legacyWaveProject = serde.decode("json", StageSchema.encodeCanonical(waveProject))
+	legacyWaveProject.enemyTypes = nil
+	legacyWaveProject.waveSets = nil
+	legacyWaveProject.schemaVersion = 4
+	local danglingWaveStageId: string? = nil
+	for stageId, stage in legacyWaveProject.stages do
+		stage.schemaVersion = 4
+		if danglingWaveStageId == nil then
+			danglingWaveStageId = stageId
+			stage.waveSetId = "hard_mode"
+		end
+	end
+	local seededWaveProject = StageSchema.migrateProject(legacyWaveProject)
+	expectEqual(seededWaveProject.schemaVersion, 5, "schema 4 projects migrate to the wave-authoring schema")
+	expectEqual(
+		type(seededWaveProject.enemyTypes) == "table"
+			and seededWaveProject.enemyTypes.forest_grunt ~= nil
+			and seededWaveProject.enemyTypes.grove_titan ~= nil,
+		true,
+		"wave migration seeds the starter enemy roster"
+	)
+	expectEqual(
+		type(seededWaveProject.waveSets) == "table" and seededWaveProject.waveSets.default ~= nil,
+		true,
+		"wave migration seeds the default wave set"
+	)
+	expectEqual(
+		seededWaveProject.waveSets.hard_mode ~= nil
+			and seededWaveProject.waveSets.hard_mode.id == "hard_mode"
+			and #seededWaveProject.waveSets.hard_mode.waves == #seededWaveProject.waveSets.default.waves,
+		true,
+		"wave migration clones the default set under formerly free-text wave set ids"
+	)
+	local reMigrated =
+		StageSchema.migrateProject(serde.decode("json", StageSchema.encodeCanonical(seededWaveProject)))
+	expectEqual(
+		StageSchema.encodeCanonical(reMigrated),
+		StageSchema.encodeCanonical(seededWaveProject),
+		"wave migration is idempotent"
+	)
+
+	-- The seeded default wave set reproduces the legacy hardcoded wave loop exactly.
+	local TowerDefenseCatalogForWaves = require("../src/shared/TowerDefenseCatalog")
+	local seededDefault = StageWaveDefaults.defaultWaveSet()
+	for waveIndex, legacyWave in TowerDefenseCatalogForWaves.waves do
+		local seededWave = seededDefault.waves[waveIndex]
+		local seededEntry = seededWave.entries[1]
+		expectEqual(
+			#seededWave.entries == 1
+				and seededEntry.enemyTypeId == legacyWave.enemyId
+				and seededEntry.count == legacyWave.count
+				and seededEntry.spacingSeconds == legacyWave.spacingSeconds
+				and seededEntry.healthScale == legacyWave.healthScale
+				and seededEntry.rewardScale == legacyWave.rewardScale,
+			true,
+			`seeded default wave {waveIndex} matches the legacy catalog wave`
+		)
+	end
+	local seededGrunt = StageWaveDefaults.enemyTypes().forest_grunt
+	local legacyGrunt = TowerDefenseCatalogForWaves.enemy("forest_grunt")
+	expectEqual(
+		legacyGrunt ~= nil
+			and seededGrunt.health == legacyGrunt.health
+			and seededGrunt.speed == legacyGrunt.speed
+			and seededGrunt.reward == legacyGrunt.reward
+			and seededGrunt.baseDamage == legacyGrunt.baseDamage,
+		true,
+		"seeded forest grunt keeps the legacy catalog stats"
+	)
+
+	-- Enemy type and wave set validators.
+	local enemyTypeIds: { [string]: boolean } = { forest_grunt = true }
+	local badEnemy = {
+		id = "bad_enemy",
+		name = "",
+		tags = { "Ground", "Mysterious" },
+		health = 0,
+		speed = 5000,
+		reward = -1,
+		baseDamage = 1,
+		modelId = "bad_enemy",
+		renderScale = 99,
+		tint = { r = 2, g = 0, b = 0 },
+	}
+	local badEnemyCodes: { [string]: boolean } = {}
+	for _, issue in StageSchema.validateEnemyType(badEnemy) do
+		badEnemyCodes[issue.code] = true
+	end
+	expectEqual(
+		badEnemyCodes.InvalidEnemyTypeName == true
+			and badEnemyCodes.EnemyTypeHealth == true
+			and badEnemyCodes.EnemyTypeSpeed == true
+			and badEnemyCodes.EnemyTypeReward == true
+			and badEnemyCodes.EnemyTypeRenderScale == true
+			and badEnemyCodes.EnemyTypeTint == true,
+		true,
+		"enemy type validation rejects out-of-range stats"
+	)
+	local unknownTagIssues = StageSchema.validateEnemyType(StageWaveDefaults.enemyTypes().forest_grunt)
+	expectEqual(#unknownTagIssues, 0, "seeded enemy types validate cleanly")
+	local taggedEnemy = StageWaveDefaults.enemyTypes().forest_grunt
+	taggedEnemy.tags = { "Ground", "Spooky" }
+	local foundUnknownTagWarning = false
+	for _, issue in StageSchema.validateEnemyType(taggedEnemy) do
+		if issue.code == "UnknownEnemyTag" and issue.severity == "Warning" then
+			foundUnknownTagWarning = true
+		end
+	end
+	expectEqual(foundUnknownTagWarning, true, "unknown enemy tags warn without blocking export")
+
+	local danglingEntrySet = {
+		id = "broken",
+		name = "Broken",
+		waves = {
+			{
+				entries = {
+					{ enemyTypeId = "missing_enemy", count = 3, spacingSeconds = 0.5, startDelaySeconds = 0 },
+				},
+			},
+		},
+	}
+	local foundMissingEnemyType = false
+	for _, issue in StageSchema.validateWaveSet(danglingEntrySet, enemyTypeIds) do
+		if issue.code == "MissingEnemyType" then
+			foundMissingEnemyType = true
+		end
+	end
+	expectEqual(foundMissingEnemyType, true, "wave entries must reference an authored enemy type")
+	local cappedSet = {
+		id = "capped",
+		name = "Capped",
+		waves = {
+			{
+				entries = {
+					{
+						enemyTypeId = "forest_grunt",
+						count = 200,
+						spacingSeconds = 0.5,
+						startDelaySeconds = 0,
+					},
+					{
+						enemyTypeId = "forest_grunt",
+						count = 200,
+						spacingSeconds = 0.5,
+						startDelaySeconds = 0,
+					},
+					{
+						enemyTypeId = "forest_grunt",
+						count = 200,
+						spacingSeconds = 0.5,
+						startDelaySeconds = 0,
+					},
+				},
+			},
+		},
+	}
+	local foundSpawnCap = false
+	for _, issue in StageSchema.validateWaveSet(cappedSet, enemyTypeIds) do
+		if issue.code == "WaveSpawnCap" then
+			foundSpawnCap = true
+		end
+	end
+	expectEqual(foundSpawnCap, true, "waves cannot schedule more spawns than the runtime enemy cap")
+	expectEqual(#StageSchema.validateWaveSet(StageWaveDefaults.defaultWaveSet(), {
+		forest_grunt = true,
+		forest_runner = true,
+		bark_bruiser = true,
+		sky_wisp = true,
+		grove_titan = true,
+	}), 0, "seeded default wave set validates cleanly")
+
+	-- Baking requires the collections and carries them into the bundle.
+	local function cloneWaveProject(): any
+		return serde.decode("json", StageSchema.encodeCanonical(waveProject))
+	end
+	local function bakeIssueCodes(project: any): { [string]: boolean }
+		local codes: { [string]: boolean } = {}
+		for _, issue in StageExport.bake(project).issues do
+			codes[issue.code] = true
+		end
+		return codes
+	end
+	local missingRosterProject = cloneWaveProject()
+	missingRosterProject.enemyTypes = nil
+	missingRosterProject.waveSets = nil
+	local missingRosterCodes = bakeIssueCodes(missingRosterProject)
+	expectEqual(
+		missingRosterCodes.MissingEnemyTypes == true and missingRosterCodes.MissingWaveSets == true,
+		true,
+		"baking rejects projects without the wave-authoring collections"
+	)
+	local missingDefaultProject = cloneWaveProject()
+	missingDefaultProject.waveSets = {
+		alternate = { id = "alternate", name = "Alternate", waves = StageWaveDefaults.defaultWaveSet().waves },
+	}
+	for _, stage in missingDefaultProject.stages do
+		stage.waveSetId = "alternate"
+	end
+	expectEqual(
+		bakeIssueCodes(missingDefaultProject).MissingDefaultWaveSet,
+		true,
+		"baking requires the default wave set fallback"
+	)
+	local danglingWaveSetProject = cloneWaveProject()
+	danglingWaveSetProject.stages.stage_wave_test.waveSetId = "wave_set_missing"
+	expectEqual(
+		bakeIssueCodes(danglingWaveSetProject).MissingWaveSet,
+		true,
+		"baking rejects levels that reference a missing wave set"
+	)
+	local wavesBundle = assert(StageExport.bake(cloneWaveProject()).bundle, "wave project bakes a bundle")
+	expectEqual(
+		wavesBundle.enemyTypes.forest_grunt ~= nil
+			and wavesBundle.waveSets.default ~= nil
+			and #wavesBundle.enemyTypeOrder > 0
+			and #wavesBundle.waveSetOrder > 0
+			and wavesBundle.enemyTypeOrder[1] <= wavesBundle.enemyTypeOrder[#wavesBundle.enemyTypeOrder]
+			and table.find(wavesBundle.waveSetOrder, "default") ~= nil,
+		true,
+		"runtime bundle carries sorted enemy type and wave set registries"
+	)
+	local editorOnlyProject = cloneWaveProject()
+	editorOnlyProject.enemyTypes.forest_grunt.editorOnlyField = true
+	editorOnlyProject.waveSets.default.waves[1].entries[1].editorOnlyField = true
+	local editorOnlyBundle =
+		assert(StageExport.bake(editorOnlyProject).bundle, "editor-only wave project bakes")
+	expectEqual(
+		editorOnlyBundle.enemyTypes.forest_grunt.editorOnlyField == nil
+			and editorOnlyBundle.waveSets.default.waves[1].entries[1].editorOnlyField == nil,
+		true,
+		"wave projection strips undeclared authoring fields"
+	)
+	local cleanWavesBundle = assert(StageExport.bake(cloneWaveProject()).bundle, "clean wave project bakes")
+	expectEqual(
+		editorOnlyBundle.checksum,
+		cleanWavesBundle.checksum,
+		"unknown wave-authoring fields do not change the runtime bundle checksum"
+	)
+end
 
 do
 	local StagePayload = require("../src/shared/StagePayload")
@@ -2361,6 +2858,41 @@ do
 		directSnapshot(StageSchema.encodeCanonical(malformedGraph)),
 		"InvalidProjectShape",
 		"current project with a malformed graph"
+	)
+	local missingEnemyRoster = cloneJson(renderableProject)
+	missingEnemyRoster.enemyTypes = nil
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(missingEnemyRoster)),
+		"InvalidProjectShape",
+		"current project without an enemy type registry"
+	)
+	local malformedEnemyStat = cloneJson(renderableProject)
+	malformedEnemyStat.enemyTypes.forest_grunt.health = "many"
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(malformedEnemyStat)),
+		"InvalidProjectShape",
+		"current project with a non-numeric enemy stat"
+	)
+	local missingDefaultWaveSet = cloneJson(renderableProject)
+	missingDefaultWaveSet.waveSets = {}
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(missingDefaultWaveSet)),
+		"InvalidProjectShape",
+		"current project without the default wave set"
+	)
+	local danglingWaveSetReference = cloneJson(renderableProject)
+	danglingWaveSetReference.stages[danglingWaveSetReference.startingStageId].waveSetId = "wave_set_missing"
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(danglingWaveSetReference)),
+		"InvalidProjectShape",
+		"current Level that references a missing wave set"
+	)
+	local danglingWaveEntry = cloneJson(renderableProject)
+	danglingWaveEntry.waveSets.default.waves[1].entries[1].enemyTypeId = "enemy_missing"
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(danglingWaveEntry)),
+		"InvalidProjectShape",
+		"current wave entry that references a missing enemy type"
 	)
 
 	-- ProjectStore.createStage clones an existing definition and deleteStage preserves the final one,
@@ -3605,6 +4137,8 @@ do
 	local stagewrightPaintBrushesSource = fs.readFile("src/plugins/Stagewright/Paint/Brushes.luau")
 	local stagewrightStageSettingsSource = fs.readFile("src/plugins/Stagewright/Stage/Settings.luau")
 	local stagewrightIssueModelSource = fs.readFile("src/plugins/Stagewright/Validation/IssueModel.luau")
+	local stagewrightWaveModelSource = fs.readFile("src/plugins/Stagewright/Waves/Model.luau")
+	local stagewrightWaveDesignerSource = fs.readFile("src/plugins/Stagewright/UI/WaveDesignerView.luau")
 	local stagewrightImportSource = fs.readFile("scripts/stagewright-import.luau")
 	local stagewrightUiSource = stagewrightAppShellSource
 		.. stagewrightThemeSource
@@ -3658,7 +4192,97 @@ do
 	expectCompiles(stagewrightPaintBrushesSource, "Stagewright paint brushes compile as Luau")
 	expectCompiles(stagewrightStageSettingsSource, "Stagewright stage settings compile as Luau")
 	expectCompiles(stagewrightIssueModelSource, "Stagewright validation issue model compiles as Luau")
+	expectCompiles(stagewrightWaveModelSource, "Stagewright wave designer model compiles as Luau")
+	expectCompiles(stagewrightWaveDesignerSource, "Stagewright wave designer view compiles as Luau")
 	expectCompiles(stagewrightImportSource, "Stagewright repository importer compiles as Luau")
+	expectEqual(
+		string.find(
+			stagewrightAppShellSource,
+			'local usesFullWorkspace = mode == "Graph" or mode == "Waves"',
+			1,
+			true
+		) ~= nil,
+		true,
+		"Graph and Waves modes both receive the unclipped full workspace"
+	)
+	expectEqual(
+		string.find(stagewrightAppShellSource, "CellSize = UDim2.new(0.2, -1.6, 1, 0)", 1, true) ~= nil
+			and string.find(
+					gridPluginSource,
+					'{ "Graph", "Paint", "Stage", "Waves", "Validate" }',
+					1,
+					true
+				)
+				~= nil,
+		true,
+		"five Stagewright workspace modes remain on one unclipped navigation row"
+	)
+	for _, waveDesignerMarker in
+		{
+			'"Waves"',
+			"WaveDesignerView.new",
+			"WaveDesignerView.newWaveSetPicker",
+			"revision = ProjectStore.workingChecksum",
+			"renderedWavesChecksum ~= wavesChecksum",
+			"waveSetPicker:validIds()",
+			"StageSettings.parse",
+		}
+	do
+		expectEqual(
+			string.find(gridPluginSource, waveDesignerMarker, 1, true) ~= nil,
+			true,
+			`plugin bootstrap wires the wave designer: {waveDesignerMarker}`
+		)
+	end
+	for _, draftMarker in
+		{
+			"local entryDraftKey: string? = nil",
+			"local entryDraftDirty = false",
+			"local revisionChanged = revision ~= renderedRevision",
+			"entryDraftKey ~= selectionKey",
+			"enemyButton.Text = `Enemy: {currentDraft.enemyTypeId}`",
+			"return resultOk, resultMessage",
+		}
+	do
+		expectEqual(
+			string.find(stagewrightWaveDesignerSource, draftMarker, 1, true) ~= nil,
+			true,
+			`wave entry drafts remain keyed and refresh safely: {draftMarker}`
+		)
+	end
+	local mutateFunctionAt = assert(
+		string.find(gridPluginSource, "function mutate(name: string, callback: () -> ()): boolean", 1, true),
+		"Stagewright mutate wrapper exists"
+	)
+	local mutateStoreAt = assert(
+		string.find(
+			gridPluginSource,
+			"local committed, message = ProjectStore.mutate(name, callback)",
+			mutateFunctionAt,
+			true
+		),
+		"Stagewright mutate wrapper delegates to ProjectStore"
+	)
+	local mutateResyncAt = assert(
+		string.find(gridPluginSource, "project = ProjectStore.get()", mutateStoreAt, true),
+		"Stagewright mutate wrapper resynchronizes its project reference"
+	)
+	local mutateRejectionAt = assert(
+		string.find(gridPluginSource, "if not committed then", mutateStoreAt, true),
+		"Stagewright mutate wrapper handles rejected edits"
+	)
+	expectEqual(
+		mutateResyncAt < mutateRejectionAt,
+		true,
+		"rejected Stagewright edits resynchronize the restored ProjectStore table before returning"
+	)
+	expectEqual(
+		string.find(gridPluginProject, '"WaveDesignerView"', 1, true) ~= nil
+			and string.find(gridPluginProject, "Waves/Model.luau", 1, true) ~= nil
+			and string.find(gridPluginProject, "StageWaveDefaults.luau", 1, true) ~= nil,
+		true,
+		"plugin project maps the wave designer modules"
+	)
 	for _, mapTypeContract in
 		{
 			"export type MapDefinition = {",
@@ -5572,6 +6196,95 @@ expectEqual(bestTowerLoadout[1], "ancient_treant", "equip best favors the strong
 expectEqual(#bestTowerLoadout, 2, "equip best respects loadout slot cap")
 expectEqual(TowerDefenseLogic.waveScale(1), 1, "first tower defense wave uses base scale")
 expectEqual(TowerDefenseLogic.waveScale(5) > 1, true, "later tower defense waves scale up")
+expectEqual(
+	TowerDefenseLogic.waveScale(5),
+	TowerDefenseLogic.waveScale(5, 4),
+	"wave scaling defaults to the legacy four-wave loop"
+)
+expectEqual(TowerDefenseLogic.waveScale(6, 6), 1, "wave scaling adapts to the authored wave-set length")
+expectEqual(TowerDefenseLogic.waveScale(7, 6) > 1, true, "authored wave sets scale after a full loop")
+
+-- Wave scheduling: authored waves expand into per-entry spawn streams.
+do
+	local TowerDefenseWaves = require("../src/shared/TowerDefenseWaves")
+	local defaultSet = StageWaveDefaults.defaultWaveSet()
+	local firstWave, waveCount = TowerDefenseWaves.waveForIndex(defaultSet, 1)
+	expectEqual(waveCount, #defaultSet.waves, "wave lookup reports the authored set length")
+	expectEqual(firstWave.entries[1].enemyTypeId, "forest_grunt", "wave one sends the starter grunt")
+	local loopedWave = TowerDefenseWaves.waveForIndex(defaultSet, #defaultSet.waves + 1)
+	expectEqual(
+		StageSchema.encodeCanonical(loopedWave :: any),
+		StageSchema.encodeCanonical(firstWave :: any),
+		"wave numbers past the set length loop back to wave one"
+	)
+	local legacyAdapter = TowerDefenseWaves.fromCatalogWave(TowerDefenseCatalog.waves[1])
+	expectEqual(
+		#legacyAdapter.entries == 1
+			and legacyAdapter.entries[1].enemyTypeId == TowerDefenseCatalog.waves[1].enemyId
+			and legacyAdapter.entries[1].count == TowerDefenseCatalog.waves[1].count
+			and legacyAdapter.entries[1].startDelaySeconds == 0,
+		true,
+		"legacy catalog waves adapt into single-entry authored waves"
+	)
+	local mixedWave: any = {
+		entries = {
+			{ enemyTypeId = "forest_grunt", count = 2, spacingSeconds = 0.5, startDelaySeconds = 0 },
+			{
+				enemyTypeId = "bark_bruiser",
+				count = 1,
+				spacingSeconds = 0.01,
+				startDelaySeconds = 4,
+				healthScale = 2,
+				rewardScale = 3,
+				speedScale = 0.5,
+			},
+		},
+	}
+	local streams = TowerDefenseWaves.buildStreams(mixedWave, 100, 1.35)
+	expectEqual(#streams, 2, "each wave entry becomes one spawn stream")
+	expectEqual(TowerDefenseWaves.remainingSpawns(streams), 3, "stream bookkeeping counts pending spawns")
+	expectEqual(streams[1].nextSpawnAt, 100, "immediate entries are due at wave start")
+	expectEqual(streams[2].nextSpawnAt, 104, "delayed entries wait out their start delay")
+	expectEqual(
+		streams[2].spacingSeconds,
+		TowerDefenseWaves.MINIMUM_SPACING_SECONDS,
+		"spawn spacing clamps to the simulation minimum"
+	)
+	expectEqual(
+		streams[2].healthScale == 2 * 1.35
+			and streams[2].rewardScale == 3 * 1.35
+			and streams[2].speedScale == 0.5
+			and streams[1].healthScale == 1.35,
+		true,
+		"entry scales multiply with the loop difficulty scale"
+	)
+	expectEqual(TowerDefenseWaves.dueStreamIndex(streams, 100), 1, "only elapsed streams are due")
+	expectEqual(TowerDefenseWaves.dueStreamIndex(streams, 104.5), 1, "earlier streams win due-stream ties")
+	streams[1].remaining = 0
+	expectEqual(TowerDefenseWaves.dueStreamIndex(streams, 104.5), 2, "exhausted streams are skipped")
+	expectEqual(TowerDefenseWaves.dueStreamIndex(streams, 103), nil, "no stream is due before its delay")
+	expectEqual(
+		TowerDefenseWaves.armorMultiplier({ "Ground", "Armored" }, 0.6),
+		0.6,
+		"armored enemies reduce incoming tower damage"
+	)
+	expectEqual(
+		TowerDefenseWaves.armorMultiplier({ "Ground" }, 0.6),
+		1,
+		"unarmored enemies take full tower damage"
+	)
+	expectEqual(
+		TowerDefenseWaves.isBossWave(defaultSet.waves[#defaultSet.waves]),
+		true,
+		"the seeded default set ends with a boss wave"
+	)
+	expectEqual(TowerDefenseWaves.isBossWave(firstWave), false, "regular waves are not boss waves")
+	expectEqual(
+		TowerDefenseWaves.hasTag(StageWaveDefaults.enemyTypes().grove_titan.tags, "Boss"),
+		true,
+		"the seeded titan carries the Boss tag"
+	)
+end
 
 -- Stagewright: shared Bezier geometry and deterministic conditional graph traversal.
 local straightSamples, straightLength = StagePath.bake(
@@ -5976,7 +6689,7 @@ local schemaOneProject = {
 	},
 }
 local migratedStageProject = StageSchema.migrateProject(schemaOneProject)
-expectEqual(migratedStageProject.schemaVersion, 4, "Stagewright authoring schemas migrate sequentially")
+expectEqual(migratedStageProject.schemaVersion, 5, "Stagewright authoring schemas migrate sequentially")
 expectEqual(
 	migratedStageProject.stages.legacy.stageNumber == 1
 		and migratedStageProject.stages.legacy.levelNumber == 1
@@ -5991,7 +6704,7 @@ expectEqual(
 )
 expectEqual(
 	StageSchema.migrateProject(migratedStageProject).schemaVersion,
-	4,
+	5,
 	"Stagewright migration is idempotent"
 )
 do
@@ -6039,7 +6752,7 @@ do
 	}
 	local migratedMapProject = StageSchema.migrateProject(schemaThreeProject)
 	local migratedMap = migratedMapProject.maps[StageHierarchy.LEGACY_MAP_ID]
-	expectEqual(migratedMapProject.schemaVersion, 4, "schema 3 migrates to the Map-first schema")
+	expectEqual(migratedMapProject.schemaVersion, 5, "schema 3 migrates through Map-first to the wave schema")
 	expectEqual(
 		migratedMap ~= nil and migratedMap.backdropImageId,
 		"110986082479051",
@@ -7431,6 +8144,10 @@ for _, towerDefenseMarker in
 		"buildEnemySpatialIndex",
 		"simulationAccumulator",
 		"StageCatalog.nextLevelId",
+		"StageCatalog.waveSetForStage",
+		"TowerDefenseWaves.buildStreams",
+		"TowerDefenseWaves.dueStreamIndex",
+		"target.armorMultiplier",
 		"publishEnemies",
 		"publishPlacements",
 		"placementRevision",
@@ -7758,6 +8475,126 @@ do
 		nil,
 		`client tower renderer avoids dynamic GUI and clones: {forbiddenTowerRendererMarker}`
 	)
+end
+local stageEnemyRendererSource = fs.readFile("src/client/Controllers/StageEnemyRenderer.luau")
+expectCompiles(stageEnemyRendererSource, "client enemy rig renderer")
+for _, enemyRendererMarker in
+	{
+		"StagewrightClientEnemies",
+		"EnemyRigs",
+		"Fallback",
+		"modelPools",
+		"acquireModel",
+		"releaseModel",
+		"ScaleTo",
+		"PivotTo",
+		"StageCatalog.enemyType",
+		"HealthBar",
+		"UDim2.fromScale",
+		"DeathPoof",
+		"GetServerTimeNow",
+		"StagePath.sample",
+		"laneOffset",
+	}
+do
+	expectEqual(
+		string.find(stageEnemyRendererSource, enemyRendererMarker, 1, true) ~= nil,
+		true,
+		`client enemy renderer includes {enemyRendererMarker}`
+	)
+end
+for _, forbiddenEnemyRendererMarker in
+	{
+		'Instance.new("BillboardGui")',
+		'Instance.new("SurfaceGui")',
+		'Instance.new("Frame")',
+		'Instance.new("TextLabel")',
+		'Instance.new("Part")',
+		":Destroy(",
+	}
+do
+	expectEqual(
+		string.find(stageEnemyRendererSource, forbiddenEnemyRendererMarker, 1, true),
+		nil,
+		`client enemy renderer clones authored rigs instead of constructing: {forbiddenEnemyRendererMarker}`
+	)
+end
+do
+	local enemyRigsModel = serde.decode("json", fs.readFile("src/world/EnemyRigs.model.json"))
+	local rigNames: { [string]: any } = {}
+	for _, rig in enemyRigsModel.Children do
+		rigNames[rig.Name] = rig
+	end
+	for _, requiredRig in
+		{ "Fallback", "forest_grunt", "forest_runner", "bark_bruiser", "sky_wisp", "grove_titan" }
+	do
+		local rig = rigNames[requiredRig]
+		expectEqual(rig ~= nil and rig.ClassName == "Model", true, `enemy rig {requiredRig} is authored`)
+		local body: any = nil
+		local partCount = 0
+		for _, child in rig.Children do
+			if child.ClassName == "Part" then
+				partCount += 1
+				expectEqual(
+					child.Properties.Anchored == true and child.Properties.CanCollide == false,
+					true,
+					`enemy rig {requiredRig} part {child.Name} is anchored and non-colliding`
+				)
+			end
+			if child.Name == "Body" then
+				body = child
+			end
+		end
+		expectEqual(partCount <= 4, true, `enemy rig {requiredRig} stays within the four-part budget`)
+		expectEqual(body ~= nil, true, `enemy rig {requiredRig} has a Body part`)
+		local hasHealthFill = false
+		local hasDeathPoof = false
+		for _, child in body.Children do
+			if child.Name == "HealthBar" and child.ClassName == "BillboardGui" then
+				expectEqual(
+					child.Properties.Enabled,
+					false,
+					`enemy rig {requiredRig} health bar starts hidden`
+				)
+				for _, back in child.Children do
+					if back.Name == "Back" then
+						for _, fill in back.Children do
+							if fill.Name == "Fill" and fill.ClassName == "Frame" then
+								hasHealthFill = true
+							end
+						end
+					end
+				end
+			elseif child.Name == "DeathPoofAttachment" then
+				for _, emitter in child.Children do
+					if emitter.Name == "DeathPoof" and emitter.ClassName == "ParticleEmitter" then
+						expectEqual(
+							emitter.Properties.Enabled,
+							false,
+							`enemy rig {requiredRig} death poof only fires on demand`
+						)
+						hasDeathPoof = true
+					end
+				end
+			end
+		end
+		expectEqual(hasHealthFill, true, `enemy rig {requiredRig} authors a Back/Fill health bar`)
+		expectEqual(hasDeathPoof, true, `enemy rig {requiredRig} authors a death poof emitter`)
+	end
+	for enemyTypeId, seededEnemyType in StageWaveDefaults.enemyTypes() do
+		expectEqual(
+			rigNames[seededEnemyType.modelId] ~= nil,
+			true,
+			`seeded enemy type {enemyTypeId} has an authored rig`
+		)
+	end
+	for _, projectFile in { "default.project.json", "patches/rng-defender-grid-demo.project.json" } do
+		expectEqual(
+			string.find(fs.readFile(projectFile), "EnemyRigs.model.json", 1, true) ~= nil,
+			true,
+			`{projectFile} ships the authored enemy rigs`
+		)
+	end
 end
 local stageOwnerControllerSource = fs.readFile("src/client/Controllers/StagePlatformOwnerController.luau")
 local stageOwnerControllerCompiles = pcall(function()
@@ -8226,102 +9063,115 @@ do
 		true,
 		"boss Core owns stable collision and hit queries while every Visual part stays presentation-only"
 	)
-	do
-		local spectatorSpawn = authoredDescendant(dungeonArena, "SpectatorSpawn")
-		local spectatorPlatform = authoredDescendant(dungeonArena, "SpectatorPlatform")
-		expectEqual(
-			spectatorSpawn ~= nil
-				and spectatorSpawn.ClassName == "Part"
-				and spectatorPlatform ~= nil
-				and spectatorPlatform.ClassName == "Part"
-				and spectatorPlatform.Properties.Anchored == true
-				and spectatorPlatform.Properties.CanCollide == true
-				and spectatorPlatform.Properties.CanQuery == true
-				and spectatorPlatform.Properties.CanTouch == false
-				and spectatorPlatform.Properties.Position[2] < spectatorSpawn.Properties.Position[2],
-			true,
-			"the authored spectator spawn stands above its stable collidable platform"
-		)
-	end
+	-- Keep this assertion-heavy tail in its own register frame. Luau limits each
+	-- function to 200 local registers, and adding authored dungeon coverage can
+	-- otherwise make unrelated declarations in this test chunk fail to compile.
+	local function assertAuthoredDungeonTail()
+		do
+			local spectatorSpawn = authoredDescendant(dungeonArena, "SpectatorSpawn")
+			local spectatorPlatform = authoredDescendant(dungeonArena, "SpectatorPlatform")
+			expectEqual(
+				spectatorSpawn ~= nil
+					and spectatorSpawn.ClassName == "Part"
+					and spectatorPlatform ~= nil
+					and spectatorPlatform.ClassName == "Part"
+					and spectatorPlatform.Properties.Anchored == true
+					and spectatorPlatform.Properties.CanCollide == true
+					and spectatorPlatform.Properties.CanQuery == true
+					and spectatorPlatform.Properties.CanTouch == false
+					and spectatorPlatform.Properties.Position[2] < spectatorSpawn.Properties.Position[2],
+				true,
+				"the authored spectator spawn stands above its stable collidable platform"
+			)
+		end
 
-	local rateDenied = string.find(
-		remoteServiceSource,
-		"if not limiter:allow(player, action, rateCapacity, rateRefill) then",
-		1,
-		true
-	)
-	local attackRateDrop = if rateDenied ~= nil
-		then string.find(
+		local rateDenied = string.find(
 			remoteServiceSource,
-			'if action == "DungeonAttack" or action == "DungeonDodge" then',
-			rateDenied,
+			"if not limiter:allow(player, action, rateCapacity, rateRefill) then",
+			1,
 			true
 		)
-		else nil
-	local fullSnapshotRejection = if rateDenied ~= nil
-		then string.find(remoteServiceSource, 'result(player, false, "Please slow down")', rateDenied, true)
-		else nil
-	expectEqual(
-		rateDenied ~= nil
-			and attackRateDrop ~= nil
-			and fullSnapshotRejection ~= nil
-			and attackRateDrop < fullSnapshotRejection,
-		true,
-		"rate-limited dungeon combat intent drops before the full snapshot result path"
-	)
-	expectEqual(
-		string.find(remoteServiceSource, "local noPayloadActions", 1, true) ~= nil
-			and string.find(remoteServiceSource, "DungeonAttack = true", 1, true) ~= nil
-			and string.find(remoteServiceSource, "DungeonDodge = true", 1, true) ~= nil
-			and string.find(
+		local attackRateDrop = if rateDenied ~= nil
+			then string.find(
+				remoteServiceSource,
+				'if action == "DungeonAttack" or action == "DungeonDodge" then',
+				rateDenied,
+				true
+			)
+			else nil
+		local fullSnapshotRejection = if rateDenied ~= nil
+			then string.find(
+				remoteServiceSource,
+				'result(player, false, "Please slow down")',
+				rateDenied,
+				true
+			)
+			else nil
+		expectEqual(
+			rateDenied ~= nil
+				and attackRateDrop ~= nil
+				and fullSnapshotRejection ~= nil
+				and attackRateDrop < fullSnapshotRejection,
+			true,
+			"rate-limited dungeon combat intent drops before the full snapshot result path"
+		)
+		expectEqual(
+			string.find(remoteServiceSource, "local noPayloadActions", 1, true) ~= nil
+				and string.find(remoteServiceSource, "DungeonAttack = true", 1, true) ~= nil
+				and string.find(remoteServiceSource, "DungeonDodge = true", 1, true) ~= nil
+				and string.find(
+						remoteServiceSource,
+						"if noPayloadActions[action] and not TowerDefenseRequest.acceptsNoPayload(payload) then",
+						1,
+						true
+					)
+					~= nil,
+			true,
+			"dungeon attack and dodge reuse the strict no-payload request contract"
+		)
+		expectEqual(
+			string.find(remoteServiceSource, "local runtimeFeatures", 1, true) ~= nil
+				and string.find(remoteServiceSource, 'then "dungeon"', 1, true) ~= nil
+				and string.find(remoteServiceSource, "runtimeFeatures.towerDefense = false", 1, true) ~= nil
+				and string.find(remoteServiceSource, "runtimeFeatures.runes = false", 1, true) ~= nil
+				and string.find(remoteServiceSource, "features = runtimeFeatures", 1, true) ~= nil
+				and string.find(remoteServiceSource, "runtimeMode = runtimeMode", 1, true) ~= nil
+				and string.find(remoteServiceSource, "not featureEnabled(requiredFeature)", 1, true)
+					~= nil,
+			true,
+			"reserved dungeon servers identify their mode and hide/reject unstarted lobby runtimes"
+		)
+		expectEqual(
+			string.find(remoteServiceSource, "DungeonService.registerHit(player)", 1, true) ~= nil
+				and string.find(
 					remoteServiceSource,
-					"if noPayloadActions[action] and not TowerDefenseRequest.acceptsNoPayload(payload) then",
+					'RemoteService.sendEvent(player, "DungeonAttackResult"',
 					1,
 					true
-				)
-				~= nil,
-		true,
-		"dungeon attack and dodge reuse the strict no-payload request contract"
-	)
-	expectEqual(
-		string.find(remoteServiceSource, "local runtimeFeatures", 1, true) ~= nil
-			and string.find(remoteServiceSource, 'then "dungeon"', 1, true) ~= nil
-			and string.find(remoteServiceSource, "runtimeFeatures.towerDefense = false", 1, true) ~= nil
-			and string.find(remoteServiceSource, "runtimeFeatures.runes = false", 1, true) ~= nil
-			and string.find(remoteServiceSource, "features = runtimeFeatures", 1, true) ~= nil
-			and string.find(remoteServiceSource, "runtimeMode = runtimeMode", 1, true) ~= nil
-			and string.find(remoteServiceSource, "not featureEnabled(requiredFeature)", 1, true) ~= nil,
-		true,
-		"reserved dungeon servers identify their mode and hide/reject unstarted lobby runtimes"
-	)
-	expectEqual(
-		string.find(remoteServiceSource, "DungeonService.registerHit(player)", 1, true) ~= nil
-			and string.find(
-				remoteServiceSource,
-				'RemoteService.sendEvent(player, "DungeonAttackResult"',
-				1,
-				true
-			) ~= nil
-			and string.find(remoteServiceSource, "DungeonService.registerDodge(player)", 1, true) ~= nil,
-		true,
-		"combat remotes delegate intent to dungeon authority and return a lightweight attack result"
-	)
-	expectEqual(
-		string.find(portalClientSource, "padChildAddedConnection", 1, true) ~= nil
-			and string.find(portalClientSource, "padChildRemovedConnection", 1, true) ~= nil
-			and string.find(portalClientSource, "refreshPortalPadParts", 1, true) ~= nil,
-		true,
-		"streamed portal descendants can bind after the portal model arrives"
-	)
-	expectEqual(
-		string.find(portalClientSource, "portalNoticeRevision", 1, true) ~= nil
-			and string.find(portalClientSource, "task.delay(6", 1, true) ~= nil
-			and string.find(portalClientSource, "latestPortalNotice", 1, true) ~= nil
-			and string.find(portalClientSource, "restoreAfterPortalNotice", 1, true) ~= nil
-			and string.find(portalClientSource, "applyPortalNotice", 1, true) ~= nil,
-		true,
-		"portal failure notices remain visible on-screen across frequent roster refreshes"
-	)
+				) ~= nil
+				and string.find(remoteServiceSource, "DungeonService.registerDodge(player)", 1, true)
+					~= nil,
+			true,
+			"combat remotes delegate intent to dungeon authority and return a lightweight attack result"
+		)
+		expectEqual(
+			string.find(portalClientSource, "padChildAddedConnection", 1, true) ~= nil
+				and string.find(portalClientSource, "padChildRemovedConnection", 1, true) ~= nil
+				and string.find(portalClientSource, "refreshPortalPadParts", 1, true) ~= nil,
+			true,
+			"streamed portal descendants can bind after the portal model arrives"
+		)
+		expectEqual(
+			string.find(portalClientSource, "portalNoticeRevision", 1, true) ~= nil
+				and string.find(portalClientSource, "task.delay(6", 1, true) ~= nil
+				and string.find(portalClientSource, "latestPortalNotice", 1, true) ~= nil
+				and string.find(portalClientSource, "restoreAfterPortalNotice", 1, true) ~= nil
+				and string.find(portalClientSource, "applyPortalNotice", 1, true) ~= nil,
+			true,
+			"portal failure notices remain visible on-screen across frequent roster refreshes"
+		)
+	end
+	assertAuthoredDungeonTail()
 end
 
 do

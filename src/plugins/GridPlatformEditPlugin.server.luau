@@ -39,6 +39,7 @@ local PaintAppearance = require(script.UI.PaintAppearance)
 local PaintCellOverlay = require(script.UI.PaintCellOverlay)
 local PaintInspector = require(script.UI.PaintInspector)
 local Toolbar = require(script.UI.Toolbar)
+local WaveDesignerView = require(script.UI.WaveDesignerView)
 local IssueModel = require(script.Validation.IssueModel)
 local WorkspacePreview = require(script.WorkspacePreview)
 
@@ -54,7 +55,7 @@ local button = Factory.button
 local sectionLabel = Factory.sectionLabel
 local setButtonSelected = Factory.setSelected
 
-type Mode = "Paint" | "Graph" | "Stage" | "Validate"
+type Mode = "Paint" | "Graph" | "Stage" | "Waves" | "Validate"
 type GraphViewMode = "World" | "Logic"
 type StagePropertiesScope = "Map" | "Stage" | "Level"
 type PaintPanPointerId = "Primary" | "Middle"
@@ -455,7 +456,7 @@ local function renderWorkspacePreview()
 	})
 end
 
-for order, modeName in { "Graph", "Paint", "Stage", "Validate" } :: { Mode } do
+for order, modeName in { "Graph", "Paint", "Stage", "Waves", "Validate" } :: { Mode } do
 	local mode = modeName :: Mode
 	local label = if mode == "Graph" then "Flow + Graph" elseif mode == "Stage" then "Stages" else mode
 	modeButtons[mode] = button(modes, label, 88, function()
@@ -1902,40 +1903,11 @@ create("UIGridLayout", {
 	FillDirectionMaxCells = 1,
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, stageForm)
-local function textField(parent: Instance, label: string, order: number): TextBox
-	local group = create("Frame", {
-		BackgroundTransparency = 1,
-		LayoutOrder = order,
-	}, parent) :: Frame
-	create("TextLabel", {
-		BackgroundTransparency = 1,
-		Font = Enum.Font.BuilderSansBold,
-		Size = UDim2.new(1, 0, 0, 13),
-		Text = label,
-		TextColor3 = COLORS.muted,
-		TextSize = 9,
-		TextXAlignment = Enum.TextXAlignment.Left,
-	}, group)
-	local field = create("TextBox", {
-		BackgroundColor3 = COLORS.field,
-		BorderSizePixel = 0,
-		ClearTextOnFocus = false,
-		Font = Enum.Font.BuilderSans,
-		Position = UDim2.fromOffset(0, 14),
-		Size = UDim2.new(1, 0, 0, 24),
-		Text = "",
-		TextColor3 = COLORS.text,
-		TextSize = 11,
-		TextTruncate = Enum.TextTruncate.AtEnd,
-		TextXAlignment = Enum.TextXAlignment.Left,
-	}, group) :: TextBox
-	create("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) }, field)
-	create("UICorner", { CornerRadius = UDim.new(0, 5) }, field)
-	create("UIStroke", { Color = COLORS.border, Thickness = 1 }, field)
-	return field
-end
+local textField = Factory.labeledTextField
 local stageNameField = textField(stageForm, "LEVEL NAME", 1)
-local waveSetField = textField(stageForm, "WAVE SET", 2)
+local waveSetPicker = WaveDesignerView.newWaveSetPicker(stageForm, 2, function()
+	return project
+end)
 local themeField = textField(stageForm, "THEME", 3)
 local columnsField = textField(stageForm, "GRID WIDTH (CELLS)", 4)
 local rowsField = textField(stageForm, "GRID HEIGHT (CELLS)", 5)
@@ -1947,16 +1919,17 @@ local applyStageButton = button(stageInspector, "Apply changes", 124, function()
 	end
 	local update, parseError = StageSettings.parse({
 		name = stageNameField.Text,
-		waveSetId = waveSetField.Text,
+		waveSetId = waveSetPicker.field.Text,
 		themeId = themeField.Text,
 		columns = columnsField.Text,
 		rows = rowsField.Text,
 		cellSize = cellSizeField.Text,
-	})
+	}, waveSetPicker:validIds())
 	if update == nil then
 		setStatus(parseError or StageSettings.INVALID_GRID_MESSAGE, true)
 		return
 	end
+	waveSetPicker:markApplied()
 	local truncated = StageSettings.countTruncated(current.grid, update.columns, update.rows)
 	if
 		truncated > 0
@@ -2319,6 +2292,8 @@ function mutate(name: string, callback: () -> ()): boolean
 		return false
 	end
 	local committed, message = ProjectStore.mutate(name, callback)
+	project = ProjectStore.get()
+	stageIds = ProjectStore.stageIds()
 	if not committed then
 		if message ~= nil then
 			setStatus(message, true)
@@ -2327,13 +2302,25 @@ function mutate(name: string, callback: () -> ()): boolean
 		end
 		return false
 	end
-	project = ProjectStore.get()
-	stageIds = ProjectStore.stageIds()
 	renderCanvas()
 	renderWorkspacePreview()
 	setStatus(message or `Working changes - {ProjectStore.workingChecksum()}`)
 	return true
 end
+
+-- WAVE DESIGNER page: project-level enemy types and wave sets.
+local waveDesigner = WaveDesignerView.new({
+	parent = contentByMode.Waves,
+	project = function()
+		return project
+	end,
+	revision = ProjectStore.workingChecksum,
+	mutate = function(name: string, callback: () -> ()): boolean
+		return mutate(name, callback)
+	end,
+	setStatus = setStatus,
+	confirm = confirm,
+})
 
 local stageActionOrder = 0
 local function stageAction(text: string, callback: () -> ()): TextButton
@@ -4515,6 +4502,7 @@ local renderedStageId = selectedStageId
 local renderedGraphId = selectedGraphId
 local renderedFlowMode = flowRuntime.mode
 local renderedWidgetEnabled = widget.Enabled
+local renderedWavesChecksum: string? = nil
 
 renderAll = function()
 	if activeMode == "Graph" then
@@ -4528,6 +4516,9 @@ renderAll = function()
 			or renderedGraphId ~= selectedGraphId
 			or (widget.Enabled and not renderedWidgetEnabled)
 		)
+	local wavesChecksum = if activeMode == "Waves" then ProjectStore.workingChecksum() else nil
+	local wavesNeedRefresh = activeMode == "Waves"
+		and (renderedActiveMode ~= "Waves" or renderedWavesChecksum ~= wavesChecksum)
 	local contextChanged = renderedActiveMode ~= activeMode
 		or renderedPaintMode ~= paintRuntime.mode
 		or renderedStageId ~= selectedStageId
@@ -4551,6 +4542,7 @@ renderAll = function()
 	sidebarTitle.Text = if activeMode == "Paint"
 		then if paintRuntime.mode == "Route" then "ROUTE TOOLS" else "CELL PROPERTIES"
 		elseif activeMode == "Validate" then "VALIDATION"
+		elseif activeMode == "Waves" then "WAVE DESIGNER"
 		else "MAPS / STAGES / LEVELS"
 	stageSearchField.Visible = browsingLevels
 	stageList.Visible = browsingLevels
@@ -4579,6 +4571,7 @@ renderAll = function()
 		elseif activeMode == "Stage" then if stagePropertiesScope == "Map"
 			then "MAP PROPERTIES"
 			else "LEVEL PROPERTIES"
+		elseif activeMode == "Waves" then "WAVE DESIGNER"
 		else ""
 	renderPaintChrome()
 	renderIssues()
@@ -4718,9 +4711,7 @@ renderAll = function()
 		if not cellSizeField:IsFocused() then
 			cellSizeField.Text = tostring(current.grid.cellSize)
 		end
-		if not waveSetField:IsFocused() then
-			waveSetField.Text = current.waveSetId
-		end
+		waveSetPicker:sync(current)
 		if not themeField:IsFocused() then
 			themeField.Text = current.themeId
 		end
@@ -4768,6 +4759,10 @@ renderAll = function()
 	flowRuntime.refreshStageSelector()
 	renderCanvas()
 	renderStageList()
+	if wavesNeedRefresh then
+		waveDesigner:refresh()
+		renderedWavesChecksum = wavesChecksum
+	end
 	if activeMode == "Graph" then
 		flowRuntime.render()
 		if graphViewBecameVisible then
