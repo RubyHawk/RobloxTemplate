@@ -19,6 +19,7 @@ local StagePlatformLayout = require("../src/shared/StagePlatformLayout")
 local StageSchema = require("../src/shared/StageSchema")
 local StageStarterProject = require("../src/shared/StageStarterProject")
 local StageExport = require("../src/shared/StageExport")
+local StageWaveDefaults = require("../src/shared/StageWaveDefaults")
 local StageTrace = require("../src/shared/StageTrace")
 local CanvasTransform = require("../src/plugins/Stagewright/Interaction/CanvasTransform")
 local HitTest = require("../src/plugins/Stagewright/Interaction/HitTest")
@@ -2074,8 +2075,258 @@ do
 	expectEqual(definition.grid.cells.malformed, nil, "grid shrink removes malformed cell keys")
 end
 
-expectEqual(StageSchema.AUTHORING_VERSION, 4, "Stagewright Map-first authoring schema is version 4")
-expectEqual(StageSchema.RUNTIME_VERSION, 2, "Stagewright runtime exports include the Map registry")
+expectEqual(StageSchema.AUTHORING_VERSION, 5, "Stagewright wave-authoring schema is version 5")
+expectEqual(StageSchema.RUNTIME_VERSION, 3, "Stagewright runtime exports include the wave registries")
+
+-- Stagewright wave authoring: enemy types + wave sets live at project scope,
+-- migrate in from schema 4, validate strictly, and bake into the bundle.
+do
+	local waveGuid = 0
+	local waveProject = StageStarterProject.build(2, function(prefix: string): string
+		waveGuid += 1
+		return `{prefix}_wave_test_{waveGuid}`
+	end, "stage_wave_test", "stage_group_wave_test")
+
+	-- v4 -> v5 migration seeds the collections and clones dangling wave set ids.
+	local legacyWaveProject = serde.decode("json", StageSchema.encodeCanonical(waveProject))
+	legacyWaveProject.enemyTypes = nil
+	legacyWaveProject.waveSets = nil
+	legacyWaveProject.schemaVersion = 4
+	local danglingWaveStageId: string? = nil
+	for stageId, stage in legacyWaveProject.stages do
+		stage.schemaVersion = 4
+		if danglingWaveStageId == nil then
+			danglingWaveStageId = stageId
+			stage.waveSetId = "hard_mode"
+		end
+	end
+	local seededWaveProject = StageSchema.migrateProject(legacyWaveProject)
+	expectEqual(seededWaveProject.schemaVersion, 5, "schema 4 projects migrate to the wave-authoring schema")
+	expectEqual(
+		type(seededWaveProject.enemyTypes) == "table"
+			and seededWaveProject.enemyTypes.forest_grunt ~= nil
+			and seededWaveProject.enemyTypes.grove_titan ~= nil,
+		true,
+		"wave migration seeds the starter enemy roster"
+	)
+	expectEqual(
+		type(seededWaveProject.waveSets) == "table" and seededWaveProject.waveSets.default ~= nil,
+		true,
+		"wave migration seeds the default wave set"
+	)
+	expectEqual(
+		seededWaveProject.waveSets.hard_mode ~= nil
+			and seededWaveProject.waveSets.hard_mode.id == "hard_mode"
+			and #seededWaveProject.waveSets.hard_mode.waves == #seededWaveProject.waveSets.default.waves,
+		true,
+		"wave migration clones the default set under formerly free-text wave set ids"
+	)
+	local reMigrated =
+		StageSchema.migrateProject(serde.decode("json", StageSchema.encodeCanonical(seededWaveProject)))
+	expectEqual(
+		StageSchema.encodeCanonical(reMigrated),
+		StageSchema.encodeCanonical(seededWaveProject),
+		"wave migration is idempotent"
+	)
+
+	-- The seeded default wave set reproduces the legacy hardcoded wave loop exactly.
+	local TowerDefenseCatalogForWaves = require("../src/shared/TowerDefenseCatalog")
+	local seededDefault = StageWaveDefaults.defaultWaveSet()
+	for waveIndex, legacyWave in TowerDefenseCatalogForWaves.waves do
+		local seededWave = seededDefault.waves[waveIndex]
+		local seededEntry = seededWave.entries[1]
+		expectEqual(
+			#seededWave.entries == 1
+				and seededEntry.enemyTypeId == legacyWave.enemyId
+				and seededEntry.count == legacyWave.count
+				and seededEntry.spacingSeconds == legacyWave.spacingSeconds
+				and seededEntry.healthScale == legacyWave.healthScale
+				and seededEntry.rewardScale == legacyWave.rewardScale,
+			true,
+			`seeded default wave {waveIndex} matches the legacy catalog wave`
+		)
+	end
+	local seededGrunt = StageWaveDefaults.enemyTypes().forest_grunt
+	local legacyGrunt = TowerDefenseCatalogForWaves.enemy("forest_grunt")
+	expectEqual(
+		legacyGrunt ~= nil
+			and seededGrunt.health == legacyGrunt.health
+			and seededGrunt.speed == legacyGrunt.speed
+			and seededGrunt.reward == legacyGrunt.reward
+			and seededGrunt.baseDamage == legacyGrunt.baseDamage,
+		true,
+		"seeded forest grunt keeps the legacy catalog stats"
+	)
+
+	-- Enemy type and wave set validators.
+	local enemyTypeIds: { [string]: boolean } = { forest_grunt = true }
+	local badEnemy = {
+		id = "bad_enemy",
+		name = "",
+		tags = { "Ground", "Mysterious" },
+		health = 0,
+		speed = 5000,
+		reward = -1,
+		baseDamage = 1,
+		modelId = "bad_enemy",
+		renderScale = 99,
+		tint = { r = 2, g = 0, b = 0 },
+	}
+	local badEnemyCodes: { [string]: boolean } = {}
+	for _, issue in StageSchema.validateEnemyType(badEnemy) do
+		badEnemyCodes[issue.code] = true
+	end
+	expectEqual(
+		badEnemyCodes.InvalidEnemyTypeName == true
+			and badEnemyCodes.EnemyTypeHealth == true
+			and badEnemyCodes.EnemyTypeSpeed == true
+			and badEnemyCodes.EnemyTypeReward == true
+			and badEnemyCodes.EnemyTypeRenderScale == true
+			and badEnemyCodes.EnemyTypeTint == true,
+		true,
+		"enemy type validation rejects out-of-range stats"
+	)
+	local unknownTagIssues = StageSchema.validateEnemyType(StageWaveDefaults.enemyTypes().forest_grunt)
+	expectEqual(#unknownTagIssues, 0, "seeded enemy types validate cleanly")
+	local taggedEnemy = StageWaveDefaults.enemyTypes().forest_grunt
+	taggedEnemy.tags = { "Ground", "Spooky" }
+	local foundUnknownTagWarning = false
+	for _, issue in StageSchema.validateEnemyType(taggedEnemy) do
+		if issue.code == "UnknownEnemyTag" and issue.severity == "Warning" then
+			foundUnknownTagWarning = true
+		end
+	end
+	expectEqual(foundUnknownTagWarning, true, "unknown enemy tags warn without blocking export")
+
+	local danglingEntrySet = {
+		id = "broken",
+		name = "Broken",
+		waves = {
+			{
+				entries = {
+					{ enemyTypeId = "missing_enemy", count = 3, spacingSeconds = 0.5, startDelaySeconds = 0 },
+				},
+			},
+		},
+	}
+	local foundMissingEnemyType = false
+	for _, issue in StageSchema.validateWaveSet(danglingEntrySet, enemyTypeIds) do
+		if issue.code == "MissingEnemyType" then
+			foundMissingEnemyType = true
+		end
+	end
+	expectEqual(foundMissingEnemyType, true, "wave entries must reference an authored enemy type")
+	local cappedSet = {
+		id = "capped",
+		name = "Capped",
+		waves = {
+			{
+				entries = {
+					{
+						enemyTypeId = "forest_grunt",
+						count = 200,
+						spacingSeconds = 0.5,
+						startDelaySeconds = 0,
+					},
+					{
+						enemyTypeId = "forest_grunt",
+						count = 200,
+						spacingSeconds = 0.5,
+						startDelaySeconds = 0,
+					},
+					{
+						enemyTypeId = "forest_grunt",
+						count = 200,
+						spacingSeconds = 0.5,
+						startDelaySeconds = 0,
+					},
+				},
+			},
+		},
+	}
+	local foundSpawnCap = false
+	for _, issue in StageSchema.validateWaveSet(cappedSet, enemyTypeIds) do
+		if issue.code == "WaveSpawnCap" then
+			foundSpawnCap = true
+		end
+	end
+	expectEqual(foundSpawnCap, true, "waves cannot schedule more spawns than the runtime enemy cap")
+	expectEqual(#StageSchema.validateWaveSet(StageWaveDefaults.defaultWaveSet(), {
+		forest_grunt = true,
+		forest_runner = true,
+		bark_bruiser = true,
+		sky_wisp = true,
+		grove_titan = true,
+	}), 0, "seeded default wave set validates cleanly")
+
+	-- Baking requires the collections and carries them into the bundle.
+	local function cloneWaveProject(): any
+		return serde.decode("json", StageSchema.encodeCanonical(waveProject))
+	end
+	local function bakeIssueCodes(project: any): { [string]: boolean }
+		local codes: { [string]: boolean } = {}
+		for _, issue in StageExport.bake(project).issues do
+			codes[issue.code] = true
+		end
+		return codes
+	end
+	local missingRosterProject = cloneWaveProject()
+	missingRosterProject.enemyTypes = nil
+	missingRosterProject.waveSets = nil
+	local missingRosterCodes = bakeIssueCodes(missingRosterProject)
+	expectEqual(
+		missingRosterCodes.MissingEnemyTypes == true and missingRosterCodes.MissingWaveSets == true,
+		true,
+		"baking rejects projects without the wave-authoring collections"
+	)
+	local missingDefaultProject = cloneWaveProject()
+	missingDefaultProject.waveSets = {
+		alternate = { id = "alternate", name = "Alternate", waves = StageWaveDefaults.defaultWaveSet().waves },
+	}
+	for _, stage in missingDefaultProject.stages do
+		stage.waveSetId = "alternate"
+	end
+	expectEqual(
+		bakeIssueCodes(missingDefaultProject).MissingDefaultWaveSet,
+		true,
+		"baking requires the default wave set fallback"
+	)
+	local danglingWaveSetProject = cloneWaveProject()
+	danglingWaveSetProject.stages.stage_wave_test.waveSetId = "wave_set_missing"
+	expectEqual(
+		bakeIssueCodes(danglingWaveSetProject).MissingWaveSet,
+		true,
+		"baking rejects levels that reference a missing wave set"
+	)
+	local wavesBundle = assert(StageExport.bake(cloneWaveProject()).bundle, "wave project bakes a bundle")
+	expectEqual(
+		wavesBundle.enemyTypes.forest_grunt ~= nil
+			and wavesBundle.waveSets.default ~= nil
+			and #wavesBundle.enemyTypeOrder > 0
+			and #wavesBundle.waveSetOrder > 0
+			and wavesBundle.enemyTypeOrder[1] <= wavesBundle.enemyTypeOrder[#wavesBundle.enemyTypeOrder]
+			and table.find(wavesBundle.waveSetOrder, "default") ~= nil,
+		true,
+		"runtime bundle carries sorted enemy type and wave set registries"
+	)
+	local editorOnlyProject = cloneWaveProject()
+	editorOnlyProject.enemyTypes.forest_grunt.editorOnlyField = true
+	editorOnlyProject.waveSets.default.waves[1].entries[1].editorOnlyField = true
+	local editorOnlyBundle =
+		assert(StageExport.bake(editorOnlyProject).bundle, "editor-only wave project bakes")
+	expectEqual(
+		editorOnlyBundle.enemyTypes.forest_grunt.editorOnlyField == nil
+			and editorOnlyBundle.waveSets.default.waves[1].entries[1].editorOnlyField == nil,
+		true,
+		"wave projection strips undeclared authoring fields"
+	)
+	local cleanWavesBundle = assert(StageExport.bake(cloneWaveProject()).bundle, "clean wave project bakes")
+	expectEqual(
+		editorOnlyBundle.checksum,
+		cleanWavesBundle.checksum,
+		"unknown wave-authoring fields do not change the runtime bundle checksum"
+	)
+end
 
 do
 	local StagePayload = require("../src/shared/StagePayload")
@@ -2361,6 +2612,41 @@ do
 		directSnapshot(StageSchema.encodeCanonical(malformedGraph)),
 		"InvalidProjectShape",
 		"current project with a malformed graph"
+	)
+	local missingEnemyRoster = cloneJson(renderableProject)
+	missingEnemyRoster.enemyTypes = nil
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(missingEnemyRoster)),
+		"InvalidProjectShape",
+		"current project without an enemy type registry"
+	)
+	local malformedEnemyStat = cloneJson(renderableProject)
+	malformedEnemyStat.enemyTypes.forest_grunt.health = "many"
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(malformedEnemyStat)),
+		"InvalidProjectShape",
+		"current project with a non-numeric enemy stat"
+	)
+	local missingDefaultWaveSet = cloneJson(renderableProject)
+	missingDefaultWaveSet.waveSets = {}
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(missingDefaultWaveSet)),
+		"InvalidProjectShape",
+		"current project without the default wave set"
+	)
+	local danglingWaveSetReference = cloneJson(renderableProject)
+	danglingWaveSetReference.stages[danglingWaveSetReference.startingStageId].waveSetId = "wave_set_missing"
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(danglingWaveSetReference)),
+		"InvalidProjectShape",
+		"current Level that references a missing wave set"
+	)
+	local danglingWaveEntry = cloneJson(renderableProject)
+	danglingWaveEntry.waveSets.default.waves[1].entries[1].enemyTypeId = "enemy_missing"
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(danglingWaveEntry)),
+		"InvalidProjectShape",
+		"current wave entry that references a missing enemy type"
 	)
 
 	-- ProjectStore.createStage clones an existing definition and deleteStage preserves the final one,
@@ -5976,7 +6262,7 @@ local schemaOneProject = {
 	},
 }
 local migratedStageProject = StageSchema.migrateProject(schemaOneProject)
-expectEqual(migratedStageProject.schemaVersion, 4, "Stagewright authoring schemas migrate sequentially")
+expectEqual(migratedStageProject.schemaVersion, 5, "Stagewright authoring schemas migrate sequentially")
 expectEqual(
 	migratedStageProject.stages.legacy.stageNumber == 1
 		and migratedStageProject.stages.legacy.levelNumber == 1
@@ -5991,7 +6277,7 @@ expectEqual(
 )
 expectEqual(
 	StageSchema.migrateProject(migratedStageProject).schemaVersion,
-	4,
+	5,
 	"Stagewright migration is idempotent"
 )
 do
@@ -6039,7 +6325,7 @@ do
 	}
 	local migratedMapProject = StageSchema.migrateProject(schemaThreeProject)
 	local migratedMap = migratedMapProject.maps[StageHierarchy.LEGACY_MAP_ID]
-	expectEqual(migratedMapProject.schemaVersion, 4, "schema 3 migrates to the Map-first schema")
+	expectEqual(migratedMapProject.schemaVersion, 5, "schema 3 migrates through Map-first to the wave schema")
 	expectEqual(
 		migratedMap ~= nil and migratedMap.backdropImageId,
 		"110986082479051",

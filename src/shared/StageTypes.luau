@@ -119,6 +119,46 @@ export type PathGraphDefinition = {
 
 export type StageUnlockPredicate = StageUnlockedPredicate | UpgradeLevelPredicate | CurrencyPredicate
 
+export type EnemyTint = {
+	r: number,
+	g: number,
+	b: number,
+}
+
+export type EnemyTypeDefinition = {
+	id: string,
+	name: string,
+	tags: { string },
+	health: number,
+	speed: number,
+	reward: number,
+	baseDamage: number,
+	modelId: string,
+	renderScale: number,
+	tint: EnemyTint?,
+}
+
+export type WaveEntryDefinition = {
+	enemyTypeId: string,
+	count: number,
+	spacingSeconds: number,
+	startDelaySeconds: number,
+	healthScale: number?,
+	rewardScale: number?,
+	speedScale: number?,
+}
+
+export type WaveDefinition = {
+	entries: { WaveEntryDefinition },
+	isBoss: boolean?,
+}
+
+export type WaveSetDefinition = {
+	id: string,
+	name: string,
+	waves: { WaveDefinition },
+}
+
 export type MapDefinition = {
 	id: string,
 	name: string,
@@ -151,6 +191,8 @@ export type StageProject = {
 	selectedStageId: string?,
 	maps: { [string]: MapDefinition },
 	stages: { [string]: StageDefinition },
+	enemyTypes: { [string]: EnemyTypeDefinition },
+	waveSets: { [string]: WaveSetDefinition },
 	metadata: { [string]: JsonValue }?,
 }
 
@@ -220,6 +262,10 @@ export type RuntimeStageBundle = {
 	maps: { [string]: RuntimeMapDefinition },
 	stageOrder: { string },
 	stages: { [string]: RuntimeStageDefinition },
+	enemyTypeOrder: { string },
+	enemyTypes: { [string]: EnemyTypeDefinition },
+	waveSetOrder: { string },
+	waveSets: { [string]: WaveSetDefinition },
 	checksum: string,
 }
 

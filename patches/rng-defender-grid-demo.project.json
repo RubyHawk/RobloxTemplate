@@ -108,6 +108,9 @@
           "StageTypes": {
             "$path": "../src/shared/StageTypes.luau"
           },
+          "StageWaveDefaults": {
+            "$path": "../src/shared/StageWaveDefaults.luau"
+          },
           "TemplateConfig": {
             "$path": "../src/shared/TemplateConfig.luau"
           },

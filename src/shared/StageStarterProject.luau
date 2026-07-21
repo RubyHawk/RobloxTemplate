@@ -1,5 +1,9 @@
 --!strict
 
+local StageWaveDefaults = if script ~= nil
+	then require(script.Parent.StageWaveDefaults)
+	else require("./StageWaveDefaults")
+
 local StageStarterProject = {}
 
 StageStarterProject.REVISION = 1
@@ -188,7 +192,7 @@ function StageStarterProject.build(
 		local stageId = if levelNumber == 1 then startingStageId else idFactory("stage")
 		local graphId, graph = makeGraph(idFactory)
 		stages[stageId] = {
-			schemaVersion = 4,
+			schemaVersion = 5,
 			id = stageId,
 			mapId = mapId,
 			name = `Level {levelNumber}`,
@@ -212,7 +216,7 @@ function StageStarterProject.build(
 		previousId = stageId
 	end
 	return {
-		schemaVersion = 4,
+		schemaVersion = 5,
 		startingStageId = startingStageId,
 		selectedStageId = startingStageId,
 		maps = {
@@ -225,6 +229,10 @@ function StageStarterProject.build(
 			},
 		},
 		stages = stages,
+		enemyTypes = StageWaveDefaults.enemyTypes(),
+		waveSets = {
+			[StageWaveDefaults.DEFAULT_WAVE_SET_ID] = StageWaveDefaults.defaultWaveSet(),
+		},
 		metadata = {
 			["stagewright.starterLevelCount"] = count,
 			["stagewright.starterMapId"] = mapId,

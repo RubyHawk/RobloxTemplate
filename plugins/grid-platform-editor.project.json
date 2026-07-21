@@ -168,6 +168,9 @@
       },
       "StageExport": {
         "$path": "../src/shared/StageExport.luau"
+      },
+      "StageWaveDefaults": {
+        "$path": "../src/shared/StageWaveDefaults.luau"
       }
     }
   }

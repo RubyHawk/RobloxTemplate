@@ -75,6 +75,7 @@ for _, requiredName in
 		"StageExport",
 		"StageTrace",
 		"StageTypes",
+		"StageWaveDefaults",
 		"WorldPathController",
 		"WorldPathEditSession",
 		"WorkspacePreview",
