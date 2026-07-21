@@ -13,6 +13,7 @@ $patchProjectPath = Join-Path $root "patches\rng-defender-grid-demo.project.json
 $expectedUniverseId = [long]10479279603
 $expectedPlaceId = [long]128136881672145
 $rojoPort = 34872
+. (Join-Path $PSScriptRoot "rojo-plugin-state.ps1")
 
 function Find-RobloxStudio {
     $candidates = @(
@@ -103,10 +104,19 @@ try {
             throw "Stagewright could not be installed. Save your work, close every Studio window, and try again."
         }
 
-        Write-Host "Installing the matching official Rojo Studio plugin..." -ForegroundColor Yellow
-        & rojo plugin install
-        if ($LASTEXITCODE -ne 0) {
-            throw "The matching Rojo Studio plugin could not be installed. Close Studio and try again."
+        $rojoPluginState = Get-RojoStudioPluginState
+        if ($rojoPluginState.HasConflict) {
+            throw (Get-RojoStudioPluginConflictMessage)
+        }
+        if ($rojoPluginState.HasCreatorStore) {
+            Write-Host "Using the single installed Creator Store Rojo plugin." -ForegroundColor Green
+        }
+        else {
+            Write-Host "Installing or refreshing the matching local Rojo Studio plugin..." -ForegroundColor Yellow
+            & rojo plugin install
+            if ($LASTEXITCODE -ne 0) {
+                throw "The matching Rojo Studio plugin could not be installed. Close Studio and try again."
+            }
         }
     }
 

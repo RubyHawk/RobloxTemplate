@@ -122,7 +122,9 @@ In Studio:
 10. Rejoin with a schema 6 profile fixture and confirm schema 7 migration preserves unit/loadout/stat data.
 11. Clear Level 1 for one player and confirm only that profile unlocks Level 2. Confirm one player's level, towers, enemies, currencies, unlocks, and flags never affect another player.
 
-Before live testing, open **File > Game Settings > Places > ... > Configure Place** and set **Maximum Players** to `6`. Roblox then admits at most six players to each server and creates additional servers for further players. The server also rejects a player before profile loading if no authoritative platform is available, so nobody can remain in gameplay without an island.
+Before live tower-defense testing, open **File > Game Settings > Places > ... > Configure Place** and set **Maximum Players** to `6`. Roblox then admits at most six players to each server and creates additional servers for further players. Platform-exclusive recipes reject a player before profile loading if no authoritative platform is available, so nobody can remain in gameplay without an island.
+
+RNG Defender is currently an explicit hybrid-lobby exception: `towerDefense.requirePlatformOnJoin = false` allows the rune lobby and reserved dungeon flow to load while the Team Create platform world is absent. Tower-defense activation, placement, and wave requests still fail server-side until the authored six-island layout has one unique `center_grass` anchor. This exception must not be implemented by synthesizing or sharing a platform origin.
 
 Use MicroProfiler captures for the agreed device/server baseline. The pure local gate checks:
 

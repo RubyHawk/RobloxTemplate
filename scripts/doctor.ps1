@@ -9,6 +9,7 @@ Set-StrictMode -Version Latest
 $root = Split-Path -Parent $PSScriptRoot
 $failures = 0
 $warnings = 0
+. (Join-Path $PSScriptRoot "rojo-plugin-state.ps1")
 
 function Write-Pass([string]$Message) {
     Write-Host "[OK]   $Message" -ForegroundColor Green
@@ -61,9 +62,15 @@ try {
         }
     }
 
-    $plugin = Join-Path $env:LOCALAPPDATA "Roblox\Plugins\RojoManagedPlugin.rbxm"
-    if (Test-Path $plugin -PathType Leaf) {
-        Write-Pass "Rojo Studio plugin is installed"
+    $rojoPluginState = Get-RojoStudioPluginState
+    if ($rojoPluginState.HasConflict) {
+        Write-Fail (Get-RojoStudioPluginConflictMessage)
+    }
+    elseif ($rojoPluginState.HasManaged) {
+        Write-Pass "Rojo Studio plugin is installed (local managed copy)"
+    }
+    elseif ($rojoPluginState.HasCreatorStore) {
+        Write-Pass "Rojo Studio plugin is installed (Creator Store asset 13916111004)"
     }
     else {
         Write-Fail "Rojo Studio plugin is missing. Run 1_SETUP.cmd."

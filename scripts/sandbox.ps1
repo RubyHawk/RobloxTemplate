@@ -8,6 +8,7 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "rojo-plugin-state.ps1")
 $configPath = Join-Path $root "experiences.config.json"
 $experiences = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
 foreach ($requiredEntry in @("template", "playerTest")) {
@@ -83,10 +84,13 @@ function Stop-StaleRojoServer {
 
 Push-Location $root
 try {
-    $rojoPlugin = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Roblox/Plugins/RojoManagedPlugin.rbxm" } else { $null }
+    $rojoPluginState = Get-RojoStudioPluginState
+    if ($rojoPluginState.HasConflict) {
+        throw (Get-RojoStudioPluginConflictMessage)
+    }
     $setupNeeded = -not (Get-Command rojo -ErrorAction SilentlyContinue) `
         -or -not (Get-Command lune -ErrorAction SilentlyContinue) `
-        -or ($rojoPlugin -and -not (Test-Path -LiteralPath $rojoPlugin -PathType Leaf))
+        -or -not $rojoPluginState.HasAny
     if ($setupNeeded) {
         Write-Host "Installing the pinned project tools first..." -ForegroundColor Yellow
         & (Join-Path $PSScriptRoot "setup.ps1") -SkipWorker

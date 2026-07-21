@@ -120,6 +120,10 @@ local function layout(): (CFrame?, CFrame?)
 end
 
 local function claimSlot(player: Player): number?
+	if layout() == nil then
+		player:SetAttribute("TowerDefensePlatformSlot", nil)
+		return nil
+	end
 	local existing = slotsByPlayer[player]
 	if existing ~= nil then
 		player:SetAttribute("TowerDefensePlatformSlot", existing)

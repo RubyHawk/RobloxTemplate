@@ -26,6 +26,13 @@ local designerRunes: { [string]: any } = if type((DesignerConfig :: any).runes) 
 	then (DesignerConfig :: any).runes
 	else {}
 
+-- Hybrid experiences can expose tower-defense progression from a lobby that
+-- does not itself contain a playable platform. Opting out must be explicit;
+-- malformed or missing values retain the fail-closed template behavior.
+local designerTowerDefense: { [string]: any } = if type((DesignerConfig :: any).towerDefense) == "table"
+	then (DesignerConfig :: any).towerDefense
+	else {}
+
 local function runeNumber(key: string, fallback: number, minimum: number, maximum: number): number
 	local value = designerRunes[key]
 	if type(value) ~= "number" or value ~= value or value == math.huge or value == -math.huge then
@@ -198,6 +205,7 @@ local Config = {
 		maximumEnemiesPerPlayer = 500,
 		armoredDamageMultiplier = 0.6,
 		starterLevelsPerStage = 10,
+		requirePlatformOnJoin = designerTowerDefense.requirePlatformOnJoin ~= false,
 		platformSlotCount = 6,
 		centerPartNames = { "center_grass", "ccenter_grass" },
 		firstPlatformIslandName = "FirstPrivateIsland",

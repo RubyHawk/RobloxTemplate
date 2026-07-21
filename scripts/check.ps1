@@ -113,6 +113,9 @@ Invoke-Checked "Stagewright shared source configuration" {
 Invoke-Checked "RNG Defender gameplay delivery configuration" {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\rng-defender.ps1 -SmokeTest
 }
+Invoke-Checked "Rojo Studio plugin install-state detector" {
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-rojo-plugin-state.ps1
+}
 Invoke-Checked "Figma bridge syntax" { node --check figma\roblox-ui-bridge\code.js }
 $presetDirectories = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot "..\src\ui\presets") -Directory | Sort-Object Name)
 foreach ($presetDirectory in $presetDirectories) {

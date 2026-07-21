@@ -77,6 +77,8 @@ export type Controller = {
 	backdropOrigin: CFrame?,
 	backdropObservedSource: Instance?,
 	backdropDirty: boolean,
+	backdropDirtyAt: number,
+	backdropRefreshScheduled: boolean,
 	backdropRefreshToken: number,
 	backdropSourceConnections: { RBXScriptConnection },
 	backdropVisualConnections: { [Instance]: RBXScriptConnection },
@@ -139,6 +141,53 @@ local BACKDROP_ASPECT_RATIO = 16 / 9
 local LEGACY_PATH_FOLDERS = {
 	PathPoints = true,
 	PathTiles = true,
+}
+local BACKDROP_VISUAL_PROPERTIES: { [string]: boolean } = {
+	AlphaMode = true,
+	Archivable = true,
+	BackSurface = true,
+	BottomSurface = true,
+	BrickColor = true,
+	CastShadow = true,
+	CFrame = true,
+	Color = true,
+	Color3 = true,
+	ColorMap = true,
+	DoubleSided = true,
+	Face = true,
+	FrontSurface = true,
+	LeftSurface = true,
+	LocalTransparencyModifier = true,
+	Material = true,
+	MaterialVariant = true,
+	MeshId = true,
+	MeshType = true,
+	MetalnessMap = true,
+	Name = true,
+	NormalMap = true,
+	Offset = true,
+	OffsetStudsU = true,
+	OffsetStudsV = true,
+	Orientation = true,
+	PivotOffset = true,
+	Position = true,
+	Reflectance = true,
+	RenderFidelity = true,
+	RightSurface = true,
+	RoughnessMap = true,
+	Scale = true,
+	Shape = true,
+	Size = true,
+	StudsPerTileU = true,
+	StudsPerTileV = true,
+	Texture = true,
+	TextureID = true,
+	TextureId = true,
+	TopSurface = true,
+	Transparency = true,
+	UsePartColor = true,
+	VertexColor = true,
+	ZIndex = true,
 }
 
 local function backdropSource(self: Controller): Instance?
@@ -235,12 +284,48 @@ local function affectsBackdrop(instance: Instance): boolean
 		or instance:IsA("SpecialMesh")
 end
 
+local function isLegacyBackdropDescendant(instance: Instance, source: Instance): boolean
+	local current: Instance? = instance
+	while current ~= nil and current ~= source do
+		if LEGACY_PATH_FOLDERS[current.Name] == true then
+			return true
+		end
+		current = current.Parent
+	end
+	return false
+end
+
+local function shouldObserveBackdrop(instance: Instance, source: Instance): boolean
+	return affectsBackdrop(instance) and not isLegacyBackdropDescendant(instance, source)
+end
+
+local function cancelBackdropRefresh(self: Controller)
+	self.backdropRefreshToken += 1
+	self.backdropRefreshScheduled = false
+end
+
 local function markBackdropDirty(self: Controller)
 	self.backdropDirty = true
+	self.backdropDirtyAt = os.clock()
+	if self.backdropRefreshScheduled then
+		return
+	end
+	self.backdropRefreshScheduled = true
 	self.backdropRefreshToken += 1
 	local token = self.backdropRefreshToken
 	task.delay(BACKDROP_REFRESH_DELAY, function()
-		if token == self.backdropRefreshToken and self.backdropDirty and self.root.Parent ~= nil then
+		while token == self.backdropRefreshToken do
+			local remaining = BACKDROP_REFRESH_DELAY - (os.clock() - self.backdropDirtyAt)
+			if remaining <= 0 then
+				break
+			end
+			task.wait(remaining)
+		end
+		if token ~= self.backdropRefreshToken then
+			return
+		end
+		self.backdropRefreshScheduled = false
+		if self.backdropDirty and self.root.Parent ~= nil then
 			self:rerender()
 		end
 	end)
@@ -255,9 +340,11 @@ local function observeBackdropSource(self: Controller, source: Instance)
 	markBackdropDirty(self)
 
 	local function observeVisual(instance: Instance)
-		if affectsBackdrop(instance) and self.backdropVisualConnections[instance] == nil then
-			self.backdropVisualConnections[instance] = instance.Changed:Connect(function()
-				markBackdropDirty(self)
+		if shouldObserveBackdrop(instance, source) and self.backdropVisualConnections[instance] == nil then
+			self.backdropVisualConnections[instance] = instance.Changed:Connect(function(propertyName)
+				if BACKDROP_VISUAL_PROPERTIES[propertyName] == true then
+					markBackdropDirty(self)
+				end
 			end)
 		end
 	end
@@ -269,16 +356,18 @@ local function observeBackdropSource(self: Controller, source: Instance)
 	table.insert(
 		self.backdropSourceConnections,
 		source.DescendantAdded:Connect(function(descendant)
-			markBackdropDirty(self)
-			observeVisual(descendant)
+			if shouldObserveBackdrop(descendant, source) then
+				markBackdropDirty(self)
+				observeVisual(descendant)
+			end
 		end)
 	)
 	table.insert(
 		self.backdropSourceConnections,
 		source.DescendantRemoving:Connect(function(descendant)
-			markBackdropDirty(self)
 			local connection = self.backdropVisualConnections[descendant]
 			if connection ~= nil then
+				markBackdropDirty(self)
 				connection:Disconnect()
 				self.backdropVisualConnections[descendant] = nil
 			end
@@ -461,7 +550,7 @@ local function createWorldBackdrop(self: Controller, host: Frame): boolean
 	local source = backdropSource(self)
 	if source == nil then
 		disconnectBackdropSource(self)
-		self.backdropRefreshToken += 1
+		cancelBackdropRefresh(self)
 		self.backdropDirty = false
 		self.backdropSource = nil
 		self.backdropOrigin = nil
@@ -785,6 +874,8 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		backdropOrigin = nil,
 		backdropObservedSource = nil,
 		backdropDirty = true,
+		backdropDirtyAt = 0,
+		backdropRefreshScheduled = false,
 		backdropRefreshToken = 0,
 		backdropSourceConnections = {},
 		backdropVisualConnections = {},
@@ -2769,7 +2860,7 @@ end
 
 function WorldPathView.destroy(self: Controller)
 	self:cancelInteraction()
-	self.backdropRefreshToken += 1
+	cancelBackdropRefresh(self)
 	disconnectBackdropSource(self)
 	clearWorldBackdrop(self)
 	for _, connection in self.connections do

@@ -31,7 +31,7 @@ In the cloud template experience, keep changes with File > Publish to Roblox bef
 
 ## There is no Rojo button in Studio
 
-Close Studio, run `1_SETUP.cmd`, and reopen it. Setup installs `RojoManagedPlugin.rbxm` into your Roblox Plugins folder.
+Close Studio, run `1_SETUP.cmd`, and reopen it. Setup uses the official Creator Store Rojo plugin when asset `13916111004` is already installed; otherwise it installs the pinned `RojoManagedPlugin.rbxm` into your Roblox Plugins folder. Keep exactly one copy. If both appear in **Manage Plugins**, remove either the Creator Store copy or the local managed copy before reopening Studio—two copies create duplicate widgets, connections, and sync work.
 
 ## Rojo says it cannot connect
 

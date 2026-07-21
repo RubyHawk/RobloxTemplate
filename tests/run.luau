@@ -3574,6 +3574,52 @@ expectEqual(
 	"sandbox launcher reads the two-experience config"
 )
 
+do
+	local setupSource = fs.readFile("scripts/setup.ps1")
+	local doctorSource = fs.readFile("scripts/doctor.ps1")
+	local rngDefenderLauncherSource = fs.readFile("scripts/rng-defender.ps1")
+	local rojoPluginStateSource = fs.readFile("scripts/rojo-plugin-state.ps1")
+	for _, pluginStateMarker in
+		{
+			"RojoManagedPlugin.rbxm",
+			"InstalledPlugins\\13916111004",
+			"HasManaged",
+			"HasCreatorStore",
+			"HasConflict",
+			'Filter "Plugin.rbxm"',
+			"Where-Object Length -gt 0",
+		}
+	do
+		expectEqual(
+			string.find(rojoPluginStateSource, pluginStateMarker, 1, true) ~= nil,
+			true,
+			`Rojo plugin state detects {pluginStateMarker}`
+		)
+	end
+	for scriptName, launcherSource in
+		{
+			setup = setupSource,
+			doctor = doctorSource,
+			sandbox = sandboxSource,
+			rngDefender = rngDefenderLauncherSource,
+		}
+	do
+		expectEqual(
+			string.find(launcherSource, "rojo-plugin-state.ps1", 1, true) ~= nil,
+			true,
+			`{scriptName} shares the one-copy Rojo plugin detector`
+		)
+	end
+	local rngCreatorStoreBranch =
+		string.find(rngDefenderLauncherSource, "if ($rojoPluginState.HasCreatorStore)", 1, true)
+	local rngPluginInstall = string.find(rngDefenderLauncherSource, "& rojo plugin install", 1, true)
+	expectEqual(
+		rngCreatorStoreBranch ~= nil and rngPluginInstall ~= nil and rngCreatorStoreBranch < rngPluginInstall,
+		true,
+		"RNG Defender preserves a verified Creator Store plugin and refreshes the sole managed copy"
+	)
+end
+
 local experiences = serde.decode("json", fs.readFile("experiences.config.json"))
 expectEqual(type(experiences.template) == "table", true, "template experience entry exists")
 expectEqual(type(experiences.playerTest) == "table", true, "player-test experience entry exists")
@@ -3603,6 +3649,11 @@ expectEqual(
 	string.find(startSource, "servePlaceIds", 1, true) ~= nil,
 	true,
 	"template serve project is restricted to the template place"
+)
+expectEqual(
+	string.find(startSource, "rojo-plugin-state.ps1", 1, true) ~= nil,
+	true,
+	"template launcher recognizes either official Rojo installation without creating a duplicate"
 )
 
 local figmaUiSource = fs.readFile("scripts/figma-ui.ps1")
@@ -4025,6 +4076,8 @@ for _, patchConfigObject in
 		"placeId = 128136881672145",
 		"startingAmount = 100_000_000_000",
 		"towerDefense = true",
+		"dungeon = true",
+		"requirePlatformOnJoin = false",
 	}
 do
 	expectEqual(
@@ -4033,6 +4086,11 @@ do
 		`RNG Defender patch config includes {patchConfigObject}`
 	)
 end
+expectEqual(
+	string.find(gridPatchProject, '"FirstPrivateIsland"', 1, true),
+	nil,
+	"RNG Defender safe patch does not take ownership of the Team Create platform world"
+)
 local runeCircleWorld = fs.readFile("src/world/RuneCircle.model.json")
 for _, runeCircleObject in
 	{
@@ -5398,6 +5456,10 @@ do
 			"worldSource",
 			"worldOrigin",
 			"backdropDirty",
+			"backdropDirtyAt",
+			"backdropRefreshScheduled",
+			"BACKDROP_VISUAL_PROPERTIES",
+			"isLegacyBackdropDescendant",
 			"CLICK_DRAG_THRESHOLD",
 			"Lane centerline",
 			"Selected spline",
@@ -5436,6 +5498,25 @@ do
 			`Stagewright world path view includes {behavior}`
 		)
 	end
+	expectEqual(
+		string.find(stagewrightWorldPathSource, "if self.backdropRefreshScheduled then", 1, true) ~= nil
+			and string.find(
+				stagewrightWorldPathSource,
+				"BACKDROP_REFRESH_DELAY - (os.clock() - self.backdropDirtyAt)",
+				1,
+				true
+			) ~= nil
+			and string.find(stagewrightWorldPathSource, "BACKDROP_VISUAL_PROPERTIES[propertyName]", 1, true) ~= nil
+			and string.find(
+					stagewrightWorldPathSource,
+					"shouldObserveBackdrop(descendant, source)",
+					1,
+					true
+				)
+				~= nil,
+		true,
+		"Stagewright world backdrop coalesces trailing refreshes and ignores non-visual changes"
+	)
 	for _, graphToolBehavior in
 		{
 			"GraphOperations.canConnect",
@@ -8368,9 +8449,23 @@ expectEqual(
 )
 local serverBootstrapSource = fs.readFile("src/server/init.server.luau")
 expectEqual(
-	string.find(serverBootstrapSource, "not StagePlatformService.hasPlatform(player)", 1, true) ~= nil,
+	string.find(
+		templateConfigSource,
+		"requirePlatformOnJoin = designerTowerDefense.requirePlatformOnJoin ~= false",
+		1,
+		true
+	)
+			~= nil
+		and string.find(serverBootstrapSource, "Config.towerDefense.requirePlatformOnJoin", 1, true) ~= nil
+		and string.find(serverBootstrapSource, "not StagePlatformService.hasPlatform(player)", 1, true)
+			~= nil,
 	true,
-	"players without an authoritative platform are rejected before profile load"
+	"platform-exclusive recipes reject unavailable players while hybrid lobbies may admit them"
+)
+expectEqual(
+	string.find(stagePlatformSource, "if layout() == nil then", 1, true) ~= nil,
+	true,
+	"unavailable layouts never publish a misleading player platform slot"
 )
 local stageGridRendererSource = fs.readFile("src/client/Controllers/StageGridRenderer.luau")
 local gridRendererCompiles = pcall(function()

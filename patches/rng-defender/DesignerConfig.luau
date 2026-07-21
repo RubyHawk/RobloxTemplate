@@ -25,4 +25,10 @@ return {
 		towerDefense = true,
 		dungeon = true,
 	},
+	towerDefense = {
+		-- RNG Defender is a hybrid lobby. Missing Stagewright world anchors must
+		-- disable tower-defense actions, not eject players before they can use the
+		-- rune and dungeon systems.
+		requirePlatformOnJoin = false,
+	},
 }
