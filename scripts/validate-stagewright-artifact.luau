@@ -172,10 +172,15 @@ for _, requiredName in
 		"StagePlatformService",
 		"StageRuntimeService",
 		"StageTypes",
+		"StageWaveDefaults",
 		"StageEnemyRenderer",
 		"StageGridRenderer",
 		"StageTowerRenderer",
 		"TowerDefenseRequest",
+		"TowerDefenseWaves",
+		"EnemyRigs",
+		"HealthBar",
+		"DeathPoof",
 	}
 do
 	assert(runtimeNames[requiredName], `Tower-defense artifact is missing {requiredName}`)
@@ -230,6 +235,9 @@ for _, requiredName in
 		"StagePlatformService",
 		"StagePlatformOwnerController",
 		"TowerDefenseRequest",
+		"TowerDefenseWaves",
+		"StageWaveDefaults",
+		"EnemyRigs",
 	}
 do
 	assert(safePatchNames[requiredName], `Shared-place safe patch is missing {requiredName}`)

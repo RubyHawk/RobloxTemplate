@@ -8138,6 +8138,126 @@ do
 		`client tower renderer avoids dynamic GUI and clones: {forbiddenTowerRendererMarker}`
 	)
 end
+local stageEnemyRendererSource = fs.readFile("src/client/Controllers/StageEnemyRenderer.luau")
+expectCompiles(stageEnemyRendererSource, "client enemy rig renderer")
+for _, enemyRendererMarker in
+	{
+		"StagewrightClientEnemies",
+		"EnemyRigs",
+		"Fallback",
+		"modelPools",
+		"acquireModel",
+		"releaseModel",
+		"ScaleTo",
+		"PivotTo",
+		"StageCatalog.enemyType",
+		"HealthBar",
+		"UDim2.fromScale",
+		"DeathPoof",
+		"GetServerTimeNow",
+		"StagePath.sample",
+		"laneOffset",
+	}
+do
+	expectEqual(
+		string.find(stageEnemyRendererSource, enemyRendererMarker, 1, true) ~= nil,
+		true,
+		`client enemy renderer includes {enemyRendererMarker}`
+	)
+end
+for _, forbiddenEnemyRendererMarker in
+	{
+		'Instance.new("BillboardGui")',
+		'Instance.new("SurfaceGui")',
+		'Instance.new("Frame")',
+		'Instance.new("TextLabel")',
+		'Instance.new("Part")',
+		":Destroy(",
+	}
+do
+	expectEqual(
+		string.find(stageEnemyRendererSource, forbiddenEnemyRendererMarker, 1, true),
+		nil,
+		`client enemy renderer clones authored rigs instead of constructing: {forbiddenEnemyRendererMarker}`
+	)
+end
+do
+	local enemyRigsModel = serde.decode("json", fs.readFile("src/world/EnemyRigs.model.json"))
+	local rigNames: { [string]: any } = {}
+	for _, rig in enemyRigsModel.Children do
+		rigNames[rig.Name] = rig
+	end
+	for _, requiredRig in
+		{ "Fallback", "forest_grunt", "forest_runner", "bark_bruiser", "sky_wisp", "grove_titan" }
+	do
+		local rig = rigNames[requiredRig]
+		expectEqual(rig ~= nil and rig.ClassName == "Model", true, `enemy rig {requiredRig} is authored`)
+		local body: any = nil
+		local partCount = 0
+		for _, child in rig.Children do
+			if child.ClassName == "Part" then
+				partCount += 1
+				expectEqual(
+					child.Properties.Anchored == true and child.Properties.CanCollide == false,
+					true,
+					`enemy rig {requiredRig} part {child.Name} is anchored and non-colliding`
+				)
+			end
+			if child.Name == "Body" then
+				body = child
+			end
+		end
+		expectEqual(partCount <= 4, true, `enemy rig {requiredRig} stays within the four-part budget`)
+		expectEqual(body ~= nil, true, `enemy rig {requiredRig} has a Body part`)
+		local hasHealthFill = false
+		local hasDeathPoof = false
+		for _, child in body.Children do
+			if child.Name == "HealthBar" and child.ClassName == "BillboardGui" then
+				expectEqual(
+					child.Properties.Enabled,
+					false,
+					`enemy rig {requiredRig} health bar starts hidden`
+				)
+				for _, back in child.Children do
+					if back.Name == "Back" then
+						for _, fill in back.Children do
+							if fill.Name == "Fill" and fill.ClassName == "Frame" then
+								hasHealthFill = true
+							end
+						end
+					end
+				end
+			elseif child.Name == "DeathPoofAttachment" then
+				for _, emitter in child.Children do
+					if emitter.Name == "DeathPoof" and emitter.ClassName == "ParticleEmitter" then
+						expectEqual(
+							emitter.Properties.Enabled,
+							false,
+							`enemy rig {requiredRig} death poof only fires on demand`
+						)
+						hasDeathPoof = true
+					end
+				end
+			end
+		end
+		expectEqual(hasHealthFill, true, `enemy rig {requiredRig} authors a Back/Fill health bar`)
+		expectEqual(hasDeathPoof, true, `enemy rig {requiredRig} authors a death poof emitter`)
+	end
+	for enemyTypeId, seededEnemyType in StageWaveDefaults.enemyTypes() do
+		expectEqual(
+			rigNames[seededEnemyType.modelId] ~= nil,
+			true,
+			`seeded enemy type {enemyTypeId} has an authored rig`
+		)
+	end
+	for _, projectFile in { "default.project.json", "patches/rng-defender-grid-demo.project.json" } do
+		expectEqual(
+			string.find(fs.readFile(projectFile), "EnemyRigs.model.json", 1, true) ~= nil,
+			true,
+			`{projectFile} ships the authored enemy rigs`
+		)
+	end
+end
 local stageOwnerControllerSource = fs.readFile("src/client/Controllers/StagePlatformOwnerController.luau")
 local stageOwnerControllerCompiles = pcall(function()
 	luau.load(stageOwnerControllerSource)

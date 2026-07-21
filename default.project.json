@@ -11,6 +11,9 @@
         "$className": "Folder",
         "Shared": {
           "$path": "src/shared"
+        },
+        "EnemyRigs": {
+          "$path": "src/world/EnemyRigs.model.json"
         }
       }
     },

@@ -7,6 +7,9 @@
       "$ignoreUnknownInstances": true,
       "Template": {
         "$className": "Folder",
+        "EnemyRigs": {
+          "$path": "../src/world/EnemyRigs.model.json"
+        },
         "Shared": {
           "$className": "Folder",
           "Calculations": {
