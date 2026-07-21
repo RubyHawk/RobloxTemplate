@@ -1,0 +1,125 @@
+{
+  "ClassName": "Folder",
+  "Children": [
+    {
+      "Name": "WardenBlade",
+      "ClassName": "Tool",
+      "Properties": {
+        "CanBeDropped": false,
+        "ManualActivationOnly": true,
+        "RequiresHandle": true,
+        "ToolTip": "Balanced close-range blade"
+      },
+      "Children": [
+        {
+          "Name": "Handle",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": false,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": true,
+            "Color": [0.68, 0.82, 0.72],
+            "Massless": true,
+            "Material": "Metal",
+            "Size": [0.45, 4.8, 0.7]
+          },
+          "Children": [
+            {
+              "Name": "Glow",
+              "ClassName": "PointLight",
+              "Properties": {
+                "Brightness": 0.65,
+                "Color": [0.42, 1, 0.55],
+                "Range": 8,
+                "Shadows": false
+              },
+              "Children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "ThornSpear",
+      "ClassName": "Tool",
+      "Properties": {
+        "CanBeDropped": false,
+        "ManualActivationOnly": true,
+        "RequiresHandle": true,
+        "ToolTip": "Fast long-range spear"
+      },
+      "Children": [
+        {
+          "Name": "Handle",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": false,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": true,
+            "Color": [0.24, 0.66, 0.34],
+            "Massless": true,
+            "Material": "Neon",
+            "Size": [0.34, 7.2, 0.34]
+          },
+          "Children": [
+            {
+              "Name": "Glow",
+              "ClassName": "PointLight",
+              "Properties": {
+                "Brightness": 0.8,
+                "Color": [0.35, 1, 0.48],
+                "Range": 9,
+                "Shadows": false
+              },
+              "Children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "GroveHammer",
+      "ClassName": "Tool",
+      "Properties": {
+        "CanBeDropped": false,
+        "ManualActivationOnly": true,
+        "RequiresHandle": true,
+        "ToolTip": "Slow, heavy boss-reward hammer"
+      },
+      "Children": [
+        {
+          "Name": "Handle",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": false,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "CastShadow": true,
+            "Color": [0.38, 0.22, 0.12],
+            "Massless": true,
+            "Material": "Wood",
+            "Size": [1.25, 4.8, 1.25]
+          },
+          "Children": [
+            {
+              "Name": "Glow",
+              "ClassName": "PointLight",
+              "Properties": {
+                "Brightness": 0.7,
+                "Color": [1, 0.62, 0.18],
+                "Range": 9,
+                "Shadows": false
+              },
+              "Children": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

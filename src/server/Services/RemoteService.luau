@@ -30,6 +30,24 @@ local stateRemote: RemoteEvent
 local requestRemote: RemoteEvent
 local queryRemote: RemoteFunction
 
+-- The shared RNG Defender place uses a reserved server as its dungeon. Keep the
+-- authored/configured feature table intact, but expose and accept only the
+-- systems that are actually started in this runtime mode. Otherwise a dungeon
+-- client can call tower-defense remotes against an intentionally unstarted
+-- service and the snapshot misleadingly renders lobby gameplay as available.
+local runtimeFeatures: { [string]: boolean } = table.clone(Config.features)
+local runtimeMode = if Config.features.dungeon == true and DungeonService.isDungeonServer()
+	then "dungeon"
+	else "lobby"
+if runtimeMode == "dungeon" then
+	runtimeFeatures.towerDefense = false
+	runtimeFeatures.runes = false
+end
+
+local function featureEnabled(name: string): boolean
+	return runtimeFeatures[name] == true
+end
+
 local requestFeatures: { [string]: string } = {
 	BuyItem = "store",
 	UseItem = "inventory",
@@ -49,6 +67,7 @@ local requestFeatures: { [string]: string } = {
 	ResetTowerDefense = "towerDefense",
 	ActivateTowerStage = "towerDefense",
 	DungeonAttack = "dungeon",
+	DungeonDodge = "dungeon",
 }
 
 -- Per-action rate-limit overrides (capacity, tokens/second). Actions absent here
@@ -56,6 +75,7 @@ local requestFeatures: { [string]: string } = {
 -- by DungeonService's per-player cooldown, so its bucket only guards raw spam.
 local requestRates: { [string]: { number } } = {
 	DungeonAttack = { 12, 8 },
+	DungeonDodge = { 4, 2 },
 }
 
 local queryActions: { [string]: boolean } = {
@@ -64,12 +84,14 @@ local queryActions: { [string]: boolean } = {
 	GlobalLeaderboard = true,
 }
 
-local towerDefenseNoPayloadActions: { [string]: boolean } = {
+local noPayloadActions: { [string]: boolean } = {
 	RollUnit = true,
 	EquipBestUnits = true,
 	AutoPlaceBestUnits = true,
 	StartTowerWave = true,
 	ResetTowerDefense = true,
+	DungeonAttack = true,
+	DungeonDodge = true,
 }
 
 local function getOrCreate(className: string, name: string, parent: Instance): Instance
@@ -94,14 +116,15 @@ function RemoteService.snapshot(player: Player): any
 	local likes = LikesService.getLikes()
 	local towerPlacements = {}
 	local towerPlacementRevision = 0
-	if Config.features.towerDefense == true then
+	if featureEnabled("towerDefense") then
 		towerPlacements, towerPlacementRevision = TowerDefenseService.presentationSnapshot()
 	end
 	return {
 		profile = profile,
 		currencyDefinitions = Config.economy.currencies,
 		catalog = Catalogs.items,
-		features = Config.features,
+		features = runtimeFeatures,
+		runtimeMode = runtimeMode,
 		version = Config.version,
 		serverTime = os.time(),
 		friendBonus = Calculations.friendBonus(
@@ -118,8 +141,8 @@ function RemoteService.snapshot(player: Player): any
 			os.time(),
 			RuneService.channelEarningsMultiplier(player)
 		),
-		runes = if Config.features.runes == true then RuneService.snapshotFor(player) else nil,
-		towerDefense = if Config.features.towerDefense == true
+		runes = if featureEnabled("runes") then RuneService.snapshotFor(player) else nil,
+		towerDefense = if featureEnabled("towerDefense")
 			then TowerDefenseService.snapshotFor(player)
 			else nil,
 		towerPlacements = towerPlacements,
@@ -155,7 +178,7 @@ function RemoteService.publish(player: Player)
 end
 
 function RemoteService.publishTowerEnemies(player: Player)
-	if stateRemote and player.Parent then
+	if featureEnabled("towerDefense") and stateRemote and player.Parent then
 		stateRemote:FireClient(
 			player,
 			{ kind = "TowerEnemies", data = TowerDefenseService.snapshotFor(player) }
@@ -164,7 +187,7 @@ function RemoteService.publishTowerEnemies(player: Player)
 end
 
 function RemoteService.publishTowerPlacements()
-	if stateRemote then
+	if featureEnabled("towerDefense") and stateRemote then
 		local placements, revision = TowerDefenseService.presentationSnapshot()
 		stateRemote:FireAllClients({
 			kind = "TowerPlacements",
@@ -198,15 +221,23 @@ local function handleRequest(player: Player, packet: any)
 		rateCapacity, rateRefill = rateOverride[1], rateOverride[2]
 	end
 	if not limiter:allow(player, action, rateCapacity, rateRefill) then
+		-- Dungeon attacks are fire-and-forget. Silently drop excess clicks so an
+		-- attacker cannot turn rate-limit rejection into an unbounded stream of
+		-- full profile snapshots through result().
+		if action == "DungeonAttack" or action == "DungeonDodge" then
+			return
+		end
 		result(player, false, "Please slow down")
 		return
 	end
-	if requiredFeature and Config.features[requiredFeature] ~= true then
+	if requiredFeature and not featureEnabled(requiredFeature) then
 		result(player, false, "This system is not enabled in this game")
 		return
 	end
-	if towerDefenseNoPayloadActions[action] and not TowerDefenseRequest.acceptsNoPayload(payload) then
-		result(player, false, "Invalid request")
+	if noPayloadActions[action] and not TowerDefenseRequest.acceptsNoPayload(payload) then
+		if action ~= "DungeonAttack" and action ~= "DungeonDodge" then
+			result(player, false, "Invalid request")
+		end
 		return
 	end
 
@@ -296,10 +327,22 @@ local function handleRequest(player: Player, packet: any)
 		end
 		result(player, TowerDefenseService.activateStage(player, activation.stageId))
 	elseif action == "DungeonAttack" then
-		-- Fire-and-forget: the boss HUD updates through DungeonService's own
-		-- broadcast, so we skip the heavy per-request profile snapshot that
-		-- `result` sends. All validation (range, cooldown, liveness) is server-side.
-		DungeonService.registerHit(player)
+		-- Combat stays payload-free and server-authoritative. A tiny acknowledgement
+		-- powers hit/rejection feedback without sending a full profile snapshot.
+		local accepted, reason, damage = DungeonService.registerHit(player)
+		RemoteService.sendEvent(player, "DungeonAttackResult", {
+			action = "attack",
+			accepted = accepted,
+			reason = reason,
+			damage = damage,
+		})
+	elseif action == "DungeonDodge" then
+		local accepted, reason = DungeonService.registerDodge(player)
+		RemoteService.sendEvent(player, "DungeonAttackResult", {
+			action = "dodge",
+			accepted = accepted,
+			reason = reason,
+		})
 	elseif action == "AfkRollover" then
 		local profile = ProfileService.get(player)
 		if profile == nil or not profile.settings.afKRollOver then
@@ -374,9 +417,8 @@ function RemoteService.sendEvent(player: Player, kind: string, data: any)
 	end
 end
 
--- Server-owned broadcasts (portal roster/countdown, dungeon boss HUD) that every
--- client in the server should see. The party lives alone in a reserved dungeon
--- server, so a broadcast there only reaches that party.
+-- Server-owned lobby broadcasts such as the public portal roster/countdown.
+-- Dungeon HUD state deliberately uses sendEvent per admitted party member.
 function RemoteService.broadcast(kind: string, data: any)
 	if stateRemote then
 		stateRemote:FireAllClients({ kind = kind, data = data })

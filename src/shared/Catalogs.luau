@@ -10,6 +10,7 @@ export type ItemDefinition = {
 	icon: string,
 	maxStack: number,
 	priceCoins: number?,
+	equipmentSlot: string?,
 	boostMultiplier: number?,
 	boostDurationSeconds: number?,
 }
@@ -45,6 +46,34 @@ local Items: { [string]: ItemDefinition } = {
 		icon = IconCatalog.get("starterTool"),
 		maxStack = 1,
 		priceCoins = 500,
+	},
+	warden_blade = {
+		id = "warden_blade",
+		name = "Warden Blade",
+		description = "A dependable dungeon blade granted free when no weapon is equipped.",
+		category = "Equipment",
+		icon = IconCatalog.get("starterTool"),
+		maxStack = 1,
+		equipmentSlot = "DungeonWeapon",
+	},
+	thorn_spear = {
+		id = "thorn_spear",
+		name = "Thorn Spear",
+		description = "A long-reaching dungeon weapon forged from hardened forest thorns.",
+		category = "Equipment",
+		icon = IconCatalog.get("starterTool"),
+		maxStack = 1,
+		priceCoins = 25_000,
+		equipmentSlot = "DungeonWeapon",
+	},
+	grove_hammer = {
+		id = "grove_hammer",
+		name = "Grove Hammer",
+		description = "A heavy dungeon weapon awarded only for defeating the forest boss.",
+		category = "Equipment",
+		icon = IconCatalog.get("starterTool"),
+		maxStack = 1,
+		equipmentSlot = "DungeonWeapon",
 	},
 }
 

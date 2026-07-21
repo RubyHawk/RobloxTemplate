@@ -161,7 +161,7 @@ local openButton = toolbar:CreateButton(
 )
 openButton.ClickableWhenViewportHidden = true
 local widget = plugin:CreateDockWidgetPluginGuiAsync(
-	"StagewrightPanelV2",
+	"StagewrightPanelV3",
 	DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Float, true, true, 1_600, 920, 880, 560)
 )
 widget.Title = "Stagewright - Tower Defense Stage Editor"

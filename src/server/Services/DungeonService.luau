@@ -13,7 +13,9 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
+local StarterPlayer = game:GetService("StarterPlayer")
 local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
 
@@ -23,38 +25,88 @@ local DungeonConfig = require(Shared.DungeonConfig)
 local DungeonLogic = require(Shared.DungeonLogic)
 
 export type Deps = {
-	-- Broadcasts a dungeon HUD snapshot to the clients in this server.
-	publish: (data: any) -> (),
+	-- Sends a dungeon HUD snapshot only to the authoritative party. This must not
+	-- become a server-wide broadcast because Studio simulation can share a lobby
+	-- with players who never entered the encounter.
+	publish: (players: { Player }, data: any) -> (),
 	-- Server-authoritative currency grant (EconomyService.awardCurrencyRaw).
 	award: (player: Player, currencyId: string, amount: number, source: string) -> (boolean, number),
 	-- Fallback currency id when a boss reward currency is not configured.
 	fallbackCurrencyId: string,
 	-- User-safe toast (NotificationService / RemoteService bridge).
 	notify: (player: Player, message: string) -> (),
+	-- True only after ProfileService owns a writable profile in this server.
+	ready: (player: Player) -> boolean,
+	-- Saved inventory/equipment authority. The client never selects a weapon for
+	-- a hit; the destination server resolves it from the owned profile.
+	equippedItemId: (player: Player, slot: string) -> string?,
+	ensureEquipped: (player: Player, slot: string, fallbackItemId: string) -> string?,
+	grantItem: (player: Player, itemId: string, quantity: number) -> (boolean, number),
 }
 
 local DungeonService = {}
 
 type Run = {
+	token: number,
 	active: boolean,
+	phase: string,
+	phaseIndex: number,
 	boss: DungeonConfig.Boss,
 	core: BasePart?,
+	arenaFloor: BasePart?,
+	partySpawn: BasePart?,
+	spectatorSpawn: BasePart?,
+	slamTelegraph: BasePart?,
 	party: { Player },
+	weapons: { [Player]: DungeonConfig.Weapon },
+	eliminated: { [Player]: boolean },
+	preparedCharacters: { [Player]: Model },
+	connections: { RBXScriptConnection },
+	lastHitAt: { [Player]: number },
+	lastDodgeAt: { [Player]: number },
 	health: number,
 	maxHealth: number,
 	startClock: number,
+	readyUntil: number,
+	nextSlamAt: number,
+	allDeadSince: number?,
+	resultReason: string?,
+	rewardByUserId: { [string]: any },
 	-- Set while a boss slam is telegraphing; nil otherwise.
 	telegraphUntil: number?,
+	telegraphCenter: Vector3?,
+	telegraphPhase: number?,
+}
+
+type PendingTeleport = {
+	kind: string,
+	launchId: string,
+	attempts: number,
+	retryScheduled: boolean,
+	terminalMessage: string,
+}
+
+type StudioReturnState = {
+	pivot: CFrame,
+	walkSpeed: number?,
+	health: number?,
 }
 
 local dungeon = Config.dungeon
 local deps: Deps? = nil
 local runInProgress = false
--- Authoritative state for the active fight, exposed so the DungeonAttack remote
--- handler can apply validated hits between combat ticks. `lastHitAt` enforces a
--- per-player attack cooldown on the server.
+local nextRunToken = 0
+-- Authoritative state for the active fight, exposed so the attack and dodge
+-- handlers can validate requests between combat ticks.
 local run: Run? = nil
-local lastHitAt: { [Player]: number } = {}
+local pendingTeleports: { [Player]: PendingTeleport } = {}
+local returningWhenProfileReady: { [Player]: boolean } = {}
+local teleportFailureConnection: RBXScriptConnection? = nil
+local dungeonArrivalConnection: RBXScriptConnection? = nil
+local lockedManifest: DungeonLogic.PartyManifest? = nil
+-- nil means arrivals are still being collected. Once populated, only these
+-- user ids with the same shape-validated manifest belong in this run.
+local admittedUserIds: { [number]: boolean }? = nil
 
 -- Reserved-server detection. In Studio a reserved server cannot exist, so a
 -- Workspace attribute opts a test session into dungeon mode.
@@ -65,18 +117,25 @@ function DungeonService.isDungeonServer(): boolean
 	return game.PrivateServerId ~= "" and game.PrivateServerOwnerId == 0
 end
 
-local function spawnCFrame(index: number): CFrame
+local function fallbackPartySpawnCFrame(): CFrame
 	local base = dungeon.arenaSpawn
-	-- Fan arrivals around the spawn point so characters never stack.
-	local angle = (index - 1) * (math.pi * 2 / 6)
-	local radius = if index <= 1 then 0 else 6
-	return CFrame.new(base[1] + math.cos(angle) * radius, base[2], base[3] + math.sin(angle) * radius)
+	return CFrame.new(base[1], base[2], base[3])
 end
 
-local function bossPosition(): Vector3
-	local base = dungeon.arenaSpawn
-	local offset = dungeon.bossOffset
-	return Vector3.new(base[1] + offset[1], base[2] + offset[2], base[3] + offset[3])
+local function spawnCFrame(marker: BasePart?, index: number): CFrame
+	local base = if marker ~= nil then marker.CFrame else fallbackPartySpawnCFrame()
+	-- Fan arrivals around the spawn point so characters never stack.
+	local angle = (index - 1) * (math.pi * 2 / math.max(dungeon.partyMax, 1))
+	local radius = if index <= 1 then 0 else 6
+	return base * CFrame.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
+end
+
+local function spectatorCFrame(marker: BasePart?, partyMarker: BasePart?, index: number): CFrame
+	local base = if marker ~= nil then marker.CFrame else spawnCFrame(partyMarker, 1) * CFrame.new(0, 15, -38)
+	local columns = math.max(1, math.ceil(math.sqrt(dungeon.partyMax)))
+	local column = (index - 1) % columns
+	local row = math.floor((index - 1) / columns)
+	return base * CFrame.new((column - (columns - 1) * 0.5) * 4, 3, row * 4)
 end
 
 local function characterRoot(player: Player): (BasePart?, Humanoid?)
@@ -97,32 +156,276 @@ local function isAlive(player: Player): boolean
 	return humanoid ~= nil and humanoid.Health > 0
 end
 
-local function pivotToArena(player: Player, index: number)
+local function isCurrentRun(current: Run): boolean
+	return run == current and current.active and current.token > 0
+end
+
+local function removeDungeonTools(container: Instance?)
+	if container == nil then
+		return
+	end
+	for _, child in container:GetChildren() do
+		if child:IsA("Tool") and child:GetAttribute("DungeonWeapon") == true then
+			child:Destroy()
+		end
+	end
+end
+
+local function matchingDungeonTool(
+	container: Instance?,
+	weapon: DungeonConfig.Weapon,
+	runToken: number
+): Tool?
+	if container == nil then
+		return nil
+	end
+	for _, child in container:GetChildren() do
+		if
+			child:IsA("Tool")
+			and child:GetAttribute("DungeonWeapon") == true
+			and child:GetAttribute("DungeonWeaponId") == weapon.id
+			and child:GetAttribute("DungeonRunToken") == runToken
+		then
+			return child
+		end
+	end
+	return nil
+end
+
+local function equipDungeonWeapon(
+	current: Run,
+	player: Player,
+	humanoid: Humanoid,
+	weapon: DungeonConfig.Weapon
+): boolean
+	if not isCurrentRun(current) or current.eliminated[player] then
+		return false
+	end
+	local character = player.Character
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	removeDungeonTools(character)
+	removeDungeonTools(backpack)
+	local template = ReplicatedStorage:FindFirstChild("Template")
+	local weaponFolder = if template ~= nil then template:FindFirstChild("DungeonWeapons") else nil
+	local source = if weaponFolder ~= nil then weaponFolder:FindFirstChild(weapon.toolName) else nil
+	if
+		not isCurrentRun(current)
+		or source == nil
+		or not source:IsA("Tool")
+		or backpack == nil
+		or character == nil
+		or player.Character ~= character
+	then
+		warn(`Authored dungeon weapon {weapon.toolName} is unavailable for {player.Name}`)
+		return false
+	end
+	local tool = source:Clone()
+	tool.Name = weapon.name
+	tool:SetAttribute("DungeonWeapon", true)
+	tool:SetAttribute("DungeonWeaponId", weapon.id)
+	tool:SetAttribute("DungeonRunToken", current.token)
+	tool.Parent = backpack
+	humanoid:EquipTool(tool)
+	return tool.Parent == character
+end
+
+local function bindCharacterDeath(current: Run, player: Player, character: Model, humanoid: Humanoid)
+	if current.preparedCharacters[player] == character then
+		return
+	end
+	current.preparedCharacters[player] = character
+	table.insert(
+		current.connections,
+		humanoid.Died:Connect(function()
+			if isCurrentRun(current) and current.phase == "fight" then
+				current.eliminated[player] = true
+				removeDungeonTools(character)
+				removeDungeonTools(player:FindFirstChildOfClass("Backpack"))
+			end
+		end)
+	)
+end
+
+local function prepareCharacter(
+	current: Run,
+	player: Player,
+	index: number,
+	weapon: DungeonConfig.Weapon
+): boolean
+	if not isCurrentRun(current) or current.eliminated[player] then
+		return false
+	end
+	local character = player.Character
+	if character == nil then
+		return false
+	end
+	-- Wait briefly for the body to assemble so PivotTo has a root to move.
+	local root = character:FindFirstChild("HumanoidRootPart") or character:WaitForChild("HumanoidRootPart", 5)
+	if not isCurrentRun(current) or current.eliminated[player] or player.Character ~= character then
+		return false
+	end
+	local humanoidInstance = character:FindFirstChildWhichIsA("Humanoid")
+		or character:WaitForChild("Humanoid", 5)
+	if
+		not isCurrentRun(current)
+		or current.eliminated[player]
+		or player.Character ~= character
+		or root == nil
+		or not root:IsA("BasePart")
+		or humanoidInstance == nil
+		or not humanoidInstance:IsA("Humanoid")
+	then
+		return false
+	end
+	local humanoid = humanoidInstance :: Humanoid
+	character:PivotTo(spawnCFrame(current.partySpawn, index))
+	humanoid.WalkSpeed = dungeon.walkSpeed
+	humanoid.AutoRotate = true
+	humanoid.Health = humanoid.MaxHealth
+	if not equipDungeonWeapon(current, player, humanoid, weapon) then
+		return false
+	end
+	bindCharacterDeath(current, player, character, humanoid)
+	return true
+end
+
+local function eliminatePlayer(current: Run, player: Player)
+	if not isCurrentRun(current) or current.eliminated[player] then
+		return
+	end
+	current.eliminated[player] = true
+	removeDungeonTools(player.Character)
+	removeDungeonTools(player:FindFirstChildOfClass("Backpack"))
+end
+
+local function prepareSpectator(current: Run, player: Player, index: number)
+	if not isCurrentRun(current) or not current.eliminated[player] then
+		return
+	end
+	removeDungeonTools(player.Character)
+	removeDungeonTools(player:FindFirstChildOfClass("Backpack"))
 	local character = player.Character
 	if character == nil then
 		return
 	end
-	-- Wait briefly for the body to assemble so PivotTo has a root to move.
 	local root = character:FindFirstChild("HumanoidRootPart") or character:WaitForChild("HumanoidRootPart", 5)
-	if root == nil or character.Parent == nil then
+	if
+		not isCurrentRun(current)
+		or not current.eliminated[player]
+		or player.Character ~= character
+		or root == nil
+		or not root:IsA("BasePart")
+	then
 		return
 	end
-	character:PivotTo(spawnCFrame(index))
+	removeDungeonTools(character)
+	removeDungeonTools(player:FindFirstChildOfClass("Backpack"))
+	character:PivotTo(spectatorCFrame(current.spectatorSpawn, current.partySpawn, index))
+	root.AssemblyLinearVelocity = Vector3.zero
+	local humanoid = character:FindFirstChildWhichIsA("Humanoid")
+	if humanoid ~= nil then
+		humanoid.Health = humanoid.MaxHealth
+		-- Spectators keep their own camera but cannot fall back into the arena or
+		-- body-block living players. Normal cleanup restores movement before the
+		-- Studio body is returned or the live server teleports the player away.
+		humanoid.WalkSpeed = 0
+	end
 end
 
--- Places the party on the arena and keeps every (re)spawn there for the duration
--- of the fight, so dying and respawning drops you back into the arena instead of
--- the lobby spawn far below. Returns connections to disconnect when it ends.
-local function positionParty(party: { Player }): { RBXScriptConnection }
-	local connections: { RBXScriptConnection } = {}
-	for index, player in party do
-		task.spawn(pivotToArena, player, index)
-		local connection = player.CharacterAdded:Connect(function()
-			task.spawn(pivotToArena, player, index)
+local function awaitPreparedCharacter(
+	current: Run,
+	player: Player,
+	index: number,
+	weapon: DungeonConfig.Weapon
+): boolean
+	local deadline = os.clock() + 5
+	repeat
+		if not isCurrentRun(current) then
+			return false
+		end
+		if player.Parent ~= Players then
+			return false
+		end
+		if player.Character ~= nil and prepareCharacter(current, player, index, weapon) then
+			return true
+		end
+		task.wait(0.05)
+	until os.clock() >= deadline
+	return false
+end
+
+-- Connect lifecycle handling before preparing anyone, then await the complete
+-- initial party preparation. No countdown starts while a character is still
+-- assembling or while its authored weapon has not been equipped.
+local function positionParty(current: Run): boolean
+	local completed = 0
+	local prepared: { [Player]: boolean } = {}
+	for index, player in current.party do
+		local weapon = current.weapons[player]
+		if weapon == nil then
+			current.eliminated[player] = true
+			completed += 1
+			continue
+		end
+
+		table.insert(
+			current.connections,
+			player.CharacterRemoving:Connect(function()
+				if isCurrentRun(current) and current.phase == "fight" then
+					eliminatePlayer(current, player)
+				end
+			end)
+		)
+		table.insert(
+			current.connections,
+			player.CharacterAdded:Connect(function()
+				task.spawn(function()
+					if not isCurrentRun(current) or current.phase == "preparing" then
+						return
+					end
+					if current.phase == "fight" then
+						-- Any replacement body after combat begins is a spectator body;
+						-- resetting cannot grant an extra life.
+						eliminatePlayer(current, player)
+					end
+					if current.eliminated[player] then
+						prepareSpectator(current, player, index)
+					else
+						prepareCharacter(current, player, index, weapon)
+					end
+				end)
+			end)
+		)
+
+		task.spawn(function()
+			local ok, didPrepare = pcall(awaitPreparedCharacter, current, player, index, weapon)
+			prepared[player] = ok and didPrepare
+			completed += 1
 		end)
-		table.insert(connections, connection)
 	end
-	return connections
+
+	while completed < #current.party do
+		if not isCurrentRun(current) then
+			return false
+		end
+		task.wait(0.05)
+	end
+	if not isCurrentRun(current) then
+		return false
+	end
+	for _, player in current.party do
+		if prepared[player] ~= true then
+			eliminatePlayer(current, player)
+		end
+	end
+	return true
+end
+
+local function clearPartyTools(party: { Player })
+	for _, player in party do
+		removeDungeonTools(player.Character)
+		removeDungeonTools(player:FindFirstChildOfClass("Backpack"))
+	end
 end
 
 local function findArena(): Model?
@@ -148,9 +451,78 @@ local function findBossCore(arena: Model?): BasePart?
 	return nil
 end
 
-local function attackersInRing(party: { Player }, center: Vector3, radius: number): number
+local function findArenaPart(arena: Model?, name: string): BasePart?
+	if arena == nil then
+		return nil
+	end
+	local part = arena:FindFirstChild(name)
+	if part ~= nil and part:IsA("BasePart") then
+		return part
+	end
+	return nil
+end
+
+local function findSlamTelegraph(arena: Model?): BasePart?
+	if arena == nil then
+		return nil
+	end
+	local telegraph = arena:FindFirstChild("SlamTelegraph")
+	if telegraph ~= nil and telegraph:IsA("BasePart") then
+		return telegraph
+	end
+	return nil
+end
+
+local function setSlamTelegraph(marker: BasePart?, center: Vector3?, phaseIndex: number)
+	if marker == nil then
+		return
+	end
+	if center == nil then
+		marker.Transparency = 1
+		return
+	end
+	local diameter = dungeon.slamRadiusStuds * 2
+	marker.Size = Vector3.new(math.max(marker.Size.X, 0.2), diameter, diameter)
+	marker.CFrame = CFrame.new(center.X, marker.Position.Y, center.Z) * CFrame.Angles(0, 0, math.rad(90))
+	marker.Color = if phaseIndex >= 2 then Color3.fromRGB(255, 64, 48) else Color3.fromRGB(255, 174, 45)
+	marker.Transparency = 0.42
+end
+
+local function alivePartyCount(current: Run): number
 	local count = 0
-	for _, player in party do
+	for _, player in current.party do
+		if player.Parent == Players and not current.eliminated[player] and isAlive(player) then
+			count += 1
+		end
+	end
+	return count
+end
+
+local function nearestLivingRoot(current: Run, center: Vector3): BasePart?
+	local selected: BasePart? = nil
+	local bestDistance = math.huge
+	for _, player in current.party do
+		if current.eliminated[player] then
+			continue
+		end
+		local root, humanoid = characterRoot(player)
+		if root ~= nil and humanoid ~= nil and humanoid.Health > 0 then
+			local distance = (root.Position - center).Magnitude
+			if distance < bestDistance then
+				bestDistance = distance
+				selected = root
+			end
+		end
+	end
+	return selected
+end
+
+local function attackersInRing(current: Run, center: Vector3, radius: number): number
+	local count = 0
+	for _, player in current.party do
+		if current.eliminated[player] then
+			continue
+		end
 		local root = (characterRoot(player))
 		if root ~= nil and isAlive(player) then
 			local offset = root.Position - center
@@ -162,9 +534,8 @@ local function attackersInRing(party: { Player }, center: Vector3, radius: numbe
 	return count
 end
 
--- Players still in the server (whether currently alive or mid-respawn). The
--- fight only ends early when EVERY member has left; a momentary all-dead state is
--- normal because death respawns you back into the arena.
+-- Players still in the server (whether alive or mid-respawn). Presence decides
+-- abandonment; the separate all-dead grace timer decides a real party wipe.
 local function presentParty(party: { Player }): { Player }
 	local present: { Player } = {}
 	for _, player in party do
@@ -179,195 +550,562 @@ end
 -- return to idle (danger=false). Purely visual; damage is resolved separately.
 local function setBossDanger(core: BasePart, danger: boolean)
 	local bossModel = core.Parent
-	local eye = if bossModel ~= nil then bossModel:FindFirstChild("Eye") else nil
+	local eye = if bossModel ~= nil then bossModel:FindFirstChild("Eye", true) else nil
 	if eye ~= nil and eye:IsA("BasePart") then
 		eye.Color = if danger then Color3.fromRGB(255, 60, 60) else Color3.fromRGB(255, 217, 77)
 	end
-	core.Color = if danger then Color3.fromRGB(150, 20, 20) else Color3.fromRGB(107, 13, 20)
 end
 
--- Resolves a telegraphed slam: everyone still inside the (larger) attack ring
--- when the warning ends takes the hit. Players who ran out in time are safe.
-local function resolveSlam(party: { Player }, core: BasePart, boss: DungeonConfig.Boss)
-	for _, player in party do
+-- Resolves a telegraphed, target-locked slam. The marker stays at the position
+-- chosen when the warning began, so moving or dodging out in time is reliable.
+local function resolveSlam(current: Run, center: Vector3, phaseIndex: number)
+	local boss = current.boss
+	local damage = boss.attackDamage * if phaseIndex >= 2 then dungeon.enrageDamageMultiplier else 1
+	for _, player in current.party do
+		if current.eliminated[player] then
+			continue
+		end
 		local root, humanoid = characterRoot(player)
 		if root ~= nil and humanoid ~= nil and humanoid.Health > 0 then
-			local offset = root.Position - core.Position
-			if DungeonLogic.isWithinCylinder(offset.X, offset.Y, offset.Z, dungeon.attackRingRadius, 30) then
-				humanoid:TakeDamage(boss.attackDamage)
+			local offset = root.Position - center
+			if
+				DungeonLogic.isWithinCylinder(
+					offset.X,
+					offset.Y,
+					offset.Z,
+					dungeon.slamRadiusStuds,
+					dungeon.slamHeightToleranceStuds
+				)
+			then
+				humanoid:TakeDamage(damage)
 			end
 		end
 	end
 end
 
--- Broadcasts the current fight's HUD snapshot. Reads the shared `run` state so
--- both the combat loop and the DungeonAttack handler publish the same source.
-local function publishRun(phase: string, result: string?)
+-- Broadcasts one compact, server-authored encounter snapshot. Per-player weapon
+-- presentation is included as a keyed map; damage/cooldown still come only from
+-- the cached server loadout and are never accepted back from a client.
+local function publishRun(result: string?)
 	local current = run
 	local target = deps
 	if current == nil or target == nil then
 		return
 	end
-	target.publish({
+	local now = os.clock()
+	local weaponByUserId: { [string]: any } = {}
+	local eliminatedByUserId: { [string]: boolean } = {}
+	for player, weapon in current.weapons do
+		weaponByUserId[tostring(player.UserId)] = {
+			id = weapon.id,
+			name = weapon.name,
+			cooldownSeconds = weapon.cooldownSeconds,
+			rangeStuds = weapon.rangeStuds,
+		}
+	end
+	for _, player in current.party do
+		eliminatedByUserId[tostring(player.UserId)] = current.eliminated[player] == true
+	end
+	local rewardWeapon = if current.boss.rewardItemId ~= nil
+		then DungeonConfig.weaponById(dungeon, current.boss.rewardItemId)
+		else nil
+	target.publish(current.party, {
 		active = true,
+		combatActive = current.active and current.phase == "fight" and result == nil,
 		bossName = current.boss.name,
 		fraction = DungeonLogic.healthFraction(current.health, current.maxHealth),
-		phase = phase,
+		phase = current.phase,
+		phaseIndex = current.phaseIndex,
 		result = result,
+		resultReason = current.resultReason,
 		danger = current.telegraphUntil ~= nil,
-		timeLeft = DungeonLogic.countdownRemaining(
-			current.startClock + current.boss.timeLimitSeconds,
-			os.clock()
-		),
+		readyTime = DungeonLogic.countdownRemaining(current.readyUntil, now),
+		timeLeft = DungeonLogic.countdownRemaining(current.startClock + current.boss.timeLimitSeconds, now),
+		slamRadiusStuds = dungeon.slamRadiusStuds,
+		weaponByUserId = weaponByUserId,
+		eliminatedByUserId = eliminatedByUserId,
+		rewardByUserId = current.rewardByUserId,
+		rewardCurrencyId = current.boss.rewardCurrencyId,
+		rewardAmount = current.boss.rewardAmount,
+		rewardItemId = current.boss.rewardItemId,
+		rewardItemName = if rewardWeapon ~= nil then rewardWeapon.name else nil,
 	})
 end
 
--- Runs one server-authoritative boss fight against `party`, positioning them on
--- the arena first. Damage comes from validated player hits (DungeonAttack);
--- proximity auto-DPS is an opt-in fallback. Returns the result and survivors.
-local function runFight(party: { Player }, bossId: string): (string, { Player })
-	local boss = DungeonConfig.bossById(dungeon, bossId) or dungeon.bosses[1]
-	local arena = findArena()
-	local core = findBossCore(arena)
-	local center = bossPosition()
-	if core ~= nil then
-		core.CFrame = CFrame.new(center)
+local function resolvePartyWeapons(party: { Player }): { [Player]: DungeonConfig.Weapon }
+	local resolved: { [Player]: DungeonConfig.Weapon } = {}
+	local target = deps
+	local fallback = DungeonConfig.weaponById(dungeon, dungeon.starterWeaponId)
+	if target == nil or fallback == nil then
+		return resolved
 	end
-
-	local maxHealth = DungeonLogic.bossMaxHealth(boss, #party)
-	local current: Run = {
-		active = true,
-		boss = boss,
-		core = core,
-		party = party,
-		health = maxHealth,
-		maxHealth = maxHealth,
-		startClock = os.clock(),
-		telegraphUntil = nil,
-	}
-	run = current
-	table.clear(lastHitAt)
-	local connections = positionParty(party)
-
-	local lastClock = current.startClock
-	local lastAttack = current.startClock
-	local lastSnapshot = 0
-	local result = "defeat"
-
-	publishRun("fight")
-	while true do
-		task.wait(dungeon.tickSeconds)
-		local now = os.clock()
-		local dt = now - lastClock
-		lastClock = now
-
-		-- End early only when the whole party has left the server; respawns
-		-- (a momentary all-dead state) are expected and must not end the run.
-		if #presentParty(party) == 0 then
-			result = "defeat"
-			break
+	for _, player in party do
+		local itemId = target.equippedItemId(player, dungeon.equipmentSlot)
+		if itemId == nil then
+			itemId = target.ensureEquipped(player, dungeon.equipmentSlot, dungeon.starterWeaponId)
 		end
-
-		if core ~= nil and dungeon.proximityAutoDps then
-			local attackers = attackersInRing(party, core.Position, dungeon.damageRingRadius)
-			current.health =
-				DungeonLogic.applyDamage(current.health, DungeonLogic.partyDps(boss, attackers), dt)
-		end
-
-		if DungeonLogic.isDefeated(current.health) then
-			result = "victory"
-			break
-		end
-
-		if now - current.startClock >= boss.timeLimitSeconds then
-			result = "defeat"
-			break
-		end
-
-		-- Telegraphed slam: warn first (danger flash), then after telegraphSeconds
-		-- hit everyone still inside the attack ring. Running out in time avoids it.
-		if core ~= nil then
-			if current.telegraphUntil == nil then
-				if now - lastAttack >= dungeon.attackIntervalSeconds then
-					current.telegraphUntil = now + dungeon.telegraphSeconds
-					setBossDanger(core, true)
-					publishRun("fight")
-				end
-			elseif now >= current.telegraphUntil then
-				resolveSlam(party, core, boss)
-				setBossDanger(core, false)
-				current.telegraphUntil = nil
-				lastAttack = now
-				publishRun("fight")
-			end
-		end
-
-		if now - lastSnapshot >= dungeon.snapshotSeconds then
-			lastSnapshot = now
-			publishRun("fight")
-		end
+		resolved[player] = if itemId ~= nil
+			then DungeonConfig.weaponById(dungeon, itemId) or fallback
+			else fallback
 	end
+	return resolved
+end
 
-	for _, connection in connections do
-		connection:Disconnect()
+local function beginSlam(current: Run, now: number)
+	local core = current.core
+	if core == nil then
+		return
+	end
+	local targetRoot = nearestLivingRoot(current, core.Position)
+	if targetRoot == nil then
+		current.nextSlamAt = now + 0.5
+		return
+	end
+	current.telegraphCenter = targetRoot.Position
+	current.telegraphPhase = current.phaseIndex
+	current.telegraphUntil = now + dungeon.slamTelegraphSeconds
+	setBossDanger(core, true)
+	setSlamTelegraph(current.slamTelegraph, current.telegraphCenter, current.phaseIndex)
+	publishRun(nil)
+end
+
+local function finishSlam(current: Run, now: number)
+	local center = current.telegraphCenter
+	local core = current.core
+	if center ~= nil then
+		resolveSlam(current, center, current.telegraphPhase or current.phaseIndex)
 	end
 	if core ~= nil then
 		setBossDanger(core, false)
 	end
-	current.active = false
-	local survivors = presentParty(party)
-	publishRun(result, result)
+	setSlamTelegraph(current.slamTelegraph, nil, current.phaseIndex)
+	current.telegraphUntil = nil
+	current.telegraphCenter = nil
+	current.telegraphPhase = nil
+	local interval = dungeon.slamIntervalSeconds
+		* (if current.phaseIndex >= 2 then dungeon.enrageAttackIntervalMultiplier else 1)
+	current.nextSlamAt = now + interval
+	publishRun(nil)
+end
 
-	if result == "victory" and deps ~= nil then
+-- Runs one complete server-authoritative encounter. The client supplies only
+-- attack/dodge intent; saved loadout, hit geometry, boss attacks, defeat, and
+-- rewards all resolve here.
+local function runFight(party: { Player }, bossId: string, core: BasePart): (string, { Player })
+	local boss = DungeonConfig.bossById(dungeon, bossId) or dungeon.bosses[1]
+	local arena = findArena()
+	local marker = findSlamTelegraph(arena)
+	setSlamTelegraph(marker, nil, 1)
+	setBossDanger(core, false)
+
+	local weapons = resolvePartyWeapons(party)
+	local originalWalkSpeeds: { [Player]: number } = {}
+	for _, player in party do
+		local _, humanoid = characterRoot(player)
+		if humanoid ~= nil then
+			originalWalkSpeeds[player] = humanoid.WalkSpeed
+		end
+	end
+	local maxHealth = DungeonLogic.bossMaxHealth(boss, #party)
+	local now = os.clock()
+	nextRunToken += 1
+	local current: Run = {
+		token = nextRunToken,
+		active = true,
+		phase = "preparing",
+		phaseIndex = 1,
+		boss = boss,
+		core = core,
+		arenaFloor = findArenaPart(arena, "Floor"),
+		partySpawn = findArenaPart(arena, "PartySpawn"),
+		spectatorSpawn = findArenaPart(arena, "SpectatorSpawn"),
+		slamTelegraph = marker,
+		party = party,
+		weapons = weapons,
+		eliminated = {},
+		preparedCharacters = {},
+		connections = {},
+		lastHitAt = {},
+		lastDodgeAt = {},
+		health = maxHealth,
+		maxHealth = maxHealth,
+		startClock = now,
+		readyUntil = now,
+		nextSlamAt = now + dungeon.slamIntervalSeconds,
+		allDeadSince = nil,
+		resultReason = nil,
+		rewardByUserId = {},
+		telegraphUntil = nil,
+		telegraphCenter = nil,
+		telegraphPhase = nil,
+	}
+	run = current
+	local result: string? = nil
+	local lastSnapshot = 0
+
+	-- Initial preparation is a real encounter phase, not a detached task. The
+	-- ready countdown begins only after each connected character has either been
+	-- placed/equipped or safely marked out of the run.
+	if not positionParty(current) then
+		result = "defeat"
+		current.resultReason = "preparationFailed"
+	else
+		current.phase = "ready"
+		current.readyUntil = os.clock() + dungeon.readySeconds
+		publishRun(nil)
+	end
+
+	while result == nil and os.clock() < current.readyUntil do
+		if #presentParty(party) == 0 then
+			result = "defeat"
+			current.resultReason = "abandoned"
+			break
+		end
+		publishRun(nil)
+		task.wait(math.min(dungeon.snapshotSeconds, 0.25))
+	end
+
+	current.startClock = os.clock()
+	current.nextSlamAt = current.startClock + dungeon.slamIntervalSeconds
+	if result == nil then
+		-- Everyone enters combat at full health. If a body disappeared between
+		-- preparation and this boundary it has spent its one life and is excluded.
+		for _, player in party do
+			if not current.eliminated[player] then
+				local _, humanoid = characterRoot(player)
+				if humanoid == nil or humanoid.Health <= 0 then
+					eliminatePlayer(current, player)
+				else
+					humanoid.Health = humanoid.MaxHealth
+				end
+			end
+		end
+		current.phase = "fight"
+		publishRun(nil)
+	end
+	local lastClock = current.startClock
+
+	while result == nil do
+		task.wait(dungeon.tickSeconds)
+		now = os.clock()
+		local dt = now - lastClock
+		lastClock = now
+
+		if #presentParty(party) == 0 then
+			result = "defeat"
+			current.resultReason = "abandoned"
+			break
+		end
+
+		if dungeon.proximityAutoDps then
+			local attackers = attackersInRing(current, core.Position, dungeon.damageRingRadius)
+			current.health =
+				DungeonLogic.applyDamage(current.health, DungeonLogic.partyDps(boss, attackers), dt)
+		end
+
+		-- Boss defeat wins ties against a simultaneous party wipe.
+		if DungeonLogic.isDefeated(current.health) then
+			result = "victory"
+			current.resultReason = "bossDefeated"
+			break
+		end
+		if now - current.startClock >= boss.timeLimitSeconds then
+			result = "defeat"
+			current.resultReason = "timeout"
+			break
+		end
+
+		current.allDeadSince =
+			DungeonLogic.nextAllDeadSince(current.allDeadSince, alivePartyCount(current), now)
+		if DungeonLogic.isPartyWiped(current.allDeadSince, now, dungeon.wipeGraceSeconds) then
+			result = "defeat"
+			current.resultReason = "partyWipe"
+			break
+		end
+
+		local nextPhase =
+			DungeonLogic.phaseForHealth(current.health, current.maxHealth, dungeon.enrageHealthFraction)
+		if nextPhase ~= current.phaseIndex then
+			current.phaseIndex = nextPhase
+			publishRun(nil)
+		end
+
+		if current.telegraphUntil ~= nil then
+			if now >= current.telegraphUntil then
+				finishSlam(current, now)
+			end
+		elseif now >= current.nextSlamAt then
+			beginSlam(current, now)
+		end
+
+		if now - lastSnapshot >= dungeon.snapshotSeconds then
+			lastSnapshot = now
+			publishRun(nil)
+		end
+	end
+
+	-- Invalidate every pending character-preparation/dodge task before any final
+	-- cleanup. Those tasks all check the run token again after their yields.
+	current.active = false
+	for _, connection in current.connections do
+		connection:Disconnect()
+	end
+	for _, player in party do
+		local _, humanoid = characterRoot(player)
+		if humanoid ~= nil then
+			humanoid.WalkSpeed = originalWalkSpeeds[player] or StarterPlayer.CharacterWalkSpeed
+		end
+	end
+	setBossDanger(core, false)
+	setSlamTelegraph(marker, nil, current.phaseIndex)
+	current.telegraphUntil = nil
+	current.telegraphCenter = nil
+	current.telegraphPhase = nil
+	current.phase = result or "defeat"
+	local survivors = presentParty(party)
+
+	local target = deps
+	if result == "victory" and target ~= nil then
+		local rewardWeapon = if boss.rewardItemId ~= nil
+			then DungeonConfig.weaponById(dungeon, boss.rewardItemId)
+			else nil
 		for _, player in survivors do
-			local granted = deps.award(player, boss.rewardCurrencyId, boss.rewardAmount, `dungeon:{boss.id}`)
-			if not granted then
-				-- Reward currency is not configured in this recipe; fall back to
-				-- the primary currency rather than silently dropping the reward.
-				deps.award(player, deps.fallbackCurrencyId, boss.rewardAmount, `dungeon:{boss.id}`)
+			if target.ready(player) then
+				local actualCurrencyId: string? = nil
+				local actualCurrencyAmount = 0
+				local granted, grantedAmount =
+					target.award(player, boss.rewardCurrencyId, boss.rewardAmount, `dungeon:{boss.id}`)
+				if granted then
+					actualCurrencyId = boss.rewardCurrencyId
+					actualCurrencyAmount = grantedAmount
+				elseif target.fallbackCurrencyId ~= boss.rewardCurrencyId then
+					local fallbackGranted, fallbackAmount = target.award(
+						player,
+						target.fallbackCurrencyId,
+						boss.rewardAmount,
+						`dungeon:{boss.id}`
+					)
+					if fallbackGranted then
+						actualCurrencyId = target.fallbackCurrencyId
+						actualCurrencyAmount = fallbackAmount
+					end
+				end
+
+				local actualItemId: string? = nil
+				local actualItemQuantity = 0
+				if boss.rewardItemId ~= nil and boss.rewardItemQuantity ~= nil then
+					local itemGranted, itemQuantity =
+						target.grantItem(player, boss.rewardItemId, boss.rewardItemQuantity)
+					if itemGranted then
+						actualItemId = boss.rewardItemId
+						actualItemQuantity = itemQuantity
+					end
+				end
+				current.rewardByUserId[tostring(player.UserId)] = {
+					currencyId = actualCurrencyId,
+					currencyAmount = actualCurrencyAmount,
+					itemId = actualItemId,
+					itemName = if actualItemId ~= nil
+						then if rewardWeapon ~= nil then rewardWeapon.name else actualItemId
+						else nil,
+					itemQuantity = actualItemQuantity,
+				}
 			end
 		end
 	end
 
+	-- Final state is emitted only after mutations succeed, so each player sees
+	-- the exact server-granted reward rather than a configured promise.
+	publishRun(result)
 	run = nil
-	return result, survivors
+	return result or "defeat", survivors
 end
 
--- DungeonAttack remote entry: a single validated player hit on the boss. The
--- client only asks; the server verifies an active run, party membership,
--- liveness, range, and a per-player cooldown before subtracting health.
-function DungeonService.registerHit(player: Player): (boolean, string)
+local function strikeHasLineOfSight(current: Run, root: BasePart, core: BasePart): boolean
+	local bossModel = core.Parent
+	if bossModel == nil then
+		return false
+	end
+	local excluded: { Instance } = {}
+	for _, member in current.party do
+		if member.Character ~= nil then
+			table.insert(excluded, member.Character)
+		end
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = excluded
+	params.IgnoreWater = true
+	params.RespectCanCollide = false
+	local origin = root.Position + Vector3.new(0, 1.25, 0)
+	local direction = core.Position - origin
+	if direction.Magnitude <= 1e-5 then
+		return true
+	end
+	direction = direction.Unit * (direction.Magnitude + dungeon.strikeRaycastPaddingStuds)
+	local hit = Workspace:Raycast(origin, direction, params)
+	return hit ~= nil and hit.Instance:IsDescendantOf(bossModel)
+end
+
+local function isInsideAuthoredArena(current: Run, root: BasePart): boolean
+	local floor = current.arenaFloor
+	if floor == nil or floor.Parent == nil then
+		return false
+	end
+	local point = floor.CFrame:PointToObjectSpace(root.Position)
+	local size = floor.Size
+	if floor:IsA("Part") and floor.Shape == Enum.PartType.Cylinder then
+		-- Cylinder parts use local X as their axis. The arena's authored rotation
+		-- therefore defines both its vertical band and horizontal playable radius.
+		local radialLimit = math.min(size.Y, size.Z) * 0.5 + 2
+		local radialDistance = math.sqrt(point.Y * point.Y + point.Z * point.Z)
+		return math.abs(point.X) <= size.X * 0.5 + dungeon.slamHeightToleranceStuds
+			and radialDistance <= radialLimit
+	end
+	return math.abs(point.X) <= size.X * 0.5 + 2
+		and math.abs(point.Z) <= size.Z * 0.5 + 2
+		and math.abs(point.Y) <= size.Y * 0.5 + dungeon.slamHeightToleranceStuds
+end
+
+local function ensureMatchingDungeonWeapon(
+	current: Run,
+	player: Player,
+	humanoid: Humanoid,
+	weapon: DungeonConfig.Weapon
+): boolean
+	local character = player.Character
+	if character == nil then
+		return false
+	end
+	if matchingDungeonTool(character, weapon, current.token) ~= nil then
+		return true
+	end
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	local stored = matchingDungeonTool(backpack, weapon, current.token)
+	if stored ~= nil then
+		humanoid:EquipTool(stored)
+		return stored.Parent == character
+	end
+	return equipDungeonWeapon(current, player, humanoid, weapon)
+end
+
+-- Payload-free basic strike. The server resolves the saved weapon and validates
+-- liveness, cooldown, facing, distance, height, and obstruction before damage.
+function DungeonService.registerHit(player: Player): (boolean, string, number?)
 	local current = run
-	if current == nil or not current.active then
-		return false, "No active dungeon"
+	if current == nil or not current.active or current.phase ~= "fight" then
+		return false, "inactive", nil
 	end
 	if table.find(current.party, player) == nil then
-		return false, "You are not in this dungeon"
+		return false, "notParty", nil
+	end
+	if current.eliminated[player] then
+		return false, "eliminated", nil
 	end
 	local root, humanoid = characterRoot(player)
 	if root == nil or humanoid == nil or humanoid.Health <= 0 then
-		return false, "You are down"
+		return false, "down", nil
 	end
 	local core = current.core
-	if core == nil then
-		return false, "The boss is not present"
+	local weapon = current.weapons[player]
+	if core == nil or weapon == nil then
+		return false, "unavailable", nil
+	end
+	if not isInsideAuthoredArena(current, root) then
+		return false, "outOfArena", nil
 	end
 	local now = os.clock()
-	if now - (lastHitAt[player] or 0) < dungeon.attackCooldownSeconds then
-		return false, "Too fast"
+	if now - (current.lastHitAt[player] or 0) < weapon.cooldownSeconds then
+		return false, "cooldown", nil
 	end
-	local offset = root.Position - core.Position
-	if not DungeonLogic.isWithinCylinder(offset.X, offset.Y, offset.Z, dungeon.damageRingRadius, 30) then
-		return false, "Move closer to the boss"
+	local offset = core.Position - root.Position
+	local look = root.CFrame.LookVector
+	if
+		not DungeonLogic.canStrike(
+			offset.X,
+			offset.Y,
+			offset.Z,
+			look.X,
+			look.Z,
+			weapon.rangeStuds,
+			weapon.verticalToleranceStuds,
+			weapon.facingDot
+		)
+	then
+		return false, "outOfRange", nil
 	end
-	lastHitAt[player] = now
-	current.health = DungeonLogic.applyHit(current.health, current.boss.attackDamagePerHit)
-	publishRun("fight")
-	return true, "Hit"
+	if not strikeHasLineOfSight(current, root, core) then
+		return false, "blocked", nil
+	end
+	if not ensureMatchingDungeonWeapon(current, player, humanoid, weapon) then
+		return false, "weaponUnavailable", nil
+	end
+	current.lastHitAt[player] = now
+	current.health = DungeonLogic.applyHit(current.health, weapon.damage)
+	return true, "hit", weapon.damage
+end
+
+-- Server-owned dodge impulse. Direction comes from the replicated Humanoid,
+-- never from the request payload, and is rate/cooldown bounded independently.
+function DungeonService.registerDodge(player: Player): (boolean, string)
+	local current = run
+	if current == nil or not current.active or current.phase ~= "fight" then
+		return false, "inactive"
+	end
+	if table.find(current.party, player) == nil then
+		return false, "notParty"
+	end
+	if current.eliminated[player] then
+		return false, "eliminated"
+	end
+	local root, humanoid = characterRoot(player)
+	if root == nil or humanoid == nil or humanoid.Health <= 0 then
+		return false, "down"
+	end
+	local now = os.clock()
+	if now - (current.lastDodgeAt[player] or 0) < dungeon.dodgeCooldownSeconds then
+		return false, "cooldown"
+	end
+	local direction = humanoid.MoveDirection
+	direction = Vector3.new(direction.X, 0, direction.Z)
+	if direction.Magnitude < 0.05 then
+		local look = root.CFrame.LookVector
+		direction = Vector3.new(look.X, 0, look.Z)
+	end
+	if direction.Magnitude < 0.05 then
+		return false, "noDirection"
+	end
+	direction = direction.Unit
+	current.lastDodgeAt[player] = now
+	local vertical = math.max(root.AssemblyLinearVelocity.Y, 2)
+	root.AssemblyLinearVelocity =
+		Vector3.new(direction.X * dungeon.dodgeSpeed, vertical, direction.Z * dungeon.dodgeSpeed)
+	task.delay(dungeon.dodgeDurationSeconds, function()
+		if
+			not isCurrentRun(current)
+			or current.lastDodgeAt[player] ~= now
+			or root.Parent == nil
+			or current.eliminated[player]
+		then
+			return
+		end
+		local velocity = root.AssemblyLinearVelocity
+		local horizontal = Vector3.new(velocity.X, 0, velocity.Z)
+		if horizontal.Magnitude > dungeon.walkSpeed then
+			horizontal = horizontal.Unit * dungeon.walkSpeed
+			root.AssemblyLinearVelocity = Vector3.new(horizontal.X, velocity.Y, horizontal.Z)
+		end
+	end)
+	return true, "dodged"
 end
 
 function DungeonService.forget(player: Player)
-	lastHitAt[player] = nil
+	local current = run
+	if current ~= nil and current.phase == "fight" and table.find(current.party, player) ~= nil then
+		eliminatePlayer(current, player)
+	end
+	pendingTeleports[player] = nil
+	returningWhenProfileReady[player] = nil
 end
 
 local function userIds(players: { Player }): { number }
@@ -378,152 +1116,727 @@ local function userIds(players: { Player }): { number }
 	return ids
 end
 
-local function teleportToLobby(players: { Player })
-	if #players == 0 then
+local function notifyPlayers(players: { Player }, message: string)
+	local target = deps
+	if target == nil then
 		return
 	end
-	if RunService:IsStudio() then
-		return
-	end
-	for attempt = 0, dungeon.teleportRetries do
-		local ok = pcall(function()
-			TeleportService:TeleportAsync(game.PlaceId, players)
-		end)
-		if ok then
-			return
+	for _, player in players do
+		if player.Parent == Players then
+			target.notify(player, message)
 		end
-		task.wait(2 ^ attempt)
 	end
 end
 
--- Reserved dungeon server: gather the arrivals, run the fight, return everyone
--- to a fresh public lobby server.
+local function publishInactive(players: { Player })
+	local target = deps
+	if target ~= nil then
+		target.publish(players, { active = false })
+	end
+end
+
+local function attemptEncounterCleanup(label: string, callback: () -> ())
+	local ok, problem = pcall(callback)
+	if not ok then
+		warn(`Dungeon {label} cleanup failed: {problem}`)
+	end
+end
+
+-- `runFight` contains the yielding encounter loop. Keep one narrow finalizer at
+-- its boundary so an unexpected authored-instance, publish, or reward failure
+-- cannot strand a party in combat or leave stale callbacks mutating a later run.
+local function runFightSafely(party: { Player }, bossId: string, core: BasePart): (string, { Player })
+	local outcome: string? = nil
+	local survivors: { Player } = {}
+	local ok, failure = xpcall(function()
+		outcome, survivors = runFight(party, bossId, core)
+	end, function(problem)
+		return tostring(problem)
+	end)
+	if ok then
+		return outcome or "defeat", survivors
+	end
+
+	warn(`Dungeon encounter failed safely:\n{failure}`)
+	local current = run
+	if current ~= nil then
+		current.active = false
+		current.telegraphUntil = nil
+		current.telegraphCenter = nil
+		current.telegraphPhase = nil
+		run = nil
+		attemptEncounterCleanup("connection", function()
+			for _, connection in current.connections do
+				connection:Disconnect()
+			end
+		end)
+		attemptEncounterCleanup("presentation", function()
+			setBossDanger(current.core, false)
+			setSlamTelegraph(current.slamTelegraph, nil, current.phaseIndex)
+		end)
+	end
+	attemptEncounterCleanup("movement", function()
+		for _, player in party do
+			local _, humanoid = characterRoot(player)
+			if humanoid ~= nil then
+				humanoid.WalkSpeed = StarterPlayer.CharacterWalkSpeed
+			end
+		end
+	end)
+	attemptEncounterCleanup("tool", function()
+		clearPartyTools(party)
+	end)
+	attemptEncounterCleanup("notice", function()
+		notifyPlayers(party, "The dungeon encounter stopped safely. Returning to the lobby.")
+	end)
+	attemptEncounterCleanup("state", function()
+		publishInactive(party)
+	end)
+	return "defeat", presentParty(party)
+end
+
+local function terminalTeleportFailure(player: Player, pending: PendingTeleport)
+	if pendingTeleports[player] ~= pending then
+		return
+	end
+	pendingTeleports[player] = nil
+	notifyPlayers({ player }, pending.terminalMessage)
+end
+
+local function retryDelay(attempts: number): number
+	return math.min(2 ^ math.max(0, attempts - 1), 8)
+end
+
+local function pendingPlayers(players: { Player }, kind: string, launchId: string): { Player }
+	local result: { Player } = {}
+	local seen: { [Player]: boolean } = {}
+	for _, player in players do
+		local pending = pendingTeleports[player]
+		if
+			player.Parent == Players
+			and not seen[player]
+			and pending ~= nil
+			and pending.kind == kind
+			and pending.launchId == launchId
+		then
+			seen[player] = true
+			table.insert(result, player)
+		end
+	end
+	return result
+end
+
+local function attemptTeleport(
+	players: { Player },
+	placeId: number,
+	options: TeleportOptions,
+	kind: string,
+	launchId: string
+)
+	local active = pendingPlayers(players, kind, launchId)
+	if #active == 0 then
+		return
+	end
+	local maxAttempts = dungeon.teleportRetries + 1
+	local attempted: { Player } = {}
+	for _, player in active do
+		local pending = pendingTeleports[player]
+		if pending ~= nil then
+			if pending.attempts >= maxAttempts then
+				terminalTeleportFailure(player, pending)
+			else
+				pending.retryScheduled = false
+				pending.attempts += 1
+				table.insert(attempted, player)
+			end
+		end
+	end
+	if #attempted == 0 then
+		return
+	end
+
+	local ok, issue = pcall(function()
+		return TeleportService:TeleportAsync(placeId, attempted, options)
+	end)
+	if ok then
+		-- The pending entries remain until PlayerRemoving confirms departure or
+		-- TeleportInitFailed supplies destination-preserving retry options.
+		return
+	end
+	warn(`Dungeon teleport could not start: {tostring(issue)}`)
+
+	local retry: { Player } = {}
+	local delaySeconds = 1
+	for _, player in attempted do
+		local pending = pendingTeleports[player]
+		if pending ~= nil then
+			if pending.attempts >= maxAttempts then
+				terminalTeleportFailure(player, pending)
+			else
+				pending.retryScheduled = true
+				delaySeconds = math.max(delaySeconds, retryDelay(pending.attempts))
+				table.insert(retry, player)
+			end
+		end
+	end
+	if #retry > 0 then
+		task.delay(delaySeconds, function()
+			local stillPending = pendingPlayers(retry, kind, launchId)
+			for _, player in stillPending do
+				local pending = pendingTeleports[player]
+				if pending ~= nil then
+					pending.retryScheduled = false
+				end
+			end
+			attemptTeleport(stillPending, placeId, options, kind, launchId)
+		end)
+	end
+end
+
+local function beginTeleport(
+	players: { Player },
+	options: TeleportOptions,
+	kind: string,
+	launchId: string,
+	terminalMessage: string
+): boolean
+	if RunService:IsStudio() then
+		return false
+	end
+	local accepted: { Player } = {}
+	local seen: { [Player]: boolean } = {}
+	for _, player in players do
+		if player.Parent == Players and not seen[player] and pendingTeleports[player] == nil then
+			seen[player] = true
+			pendingTeleports[player] = {
+				kind = kind,
+				launchId = launchId,
+				attempts = 0,
+				retryScheduled = false,
+				terminalMessage = terminalMessage,
+			}
+			table.insert(accepted, player)
+		end
+	end
+	if #accepted == 0 then
+		return false
+	end
+	task.spawn(attemptTeleport, accepted, game.PlaceId, options, kind, launchId)
+	return true
+end
+
+local function teleportDataIdentity(options: TeleportOptions): (string?, string?)
+	local ok, data = pcall(function()
+		return options:GetTeleportData()
+	end)
+	if
+		ok
+		and type(data) == "table"
+		and data.v == 1
+		and type(data.kind) == "string"
+		and type(data.launchId) == "string"
+	then
+		return data.kind, data.launchId
+	end
+	return nil, nil
+end
+
+local function installTeleportFailureHandler()
+	if teleportFailureConnection ~= nil or RunService:IsStudio() then
+		return
+	end
+	teleportFailureConnection = TeleportService.TeleportInitFailed:Connect(
+		function(
+			player: Player,
+			_result: Enum.TeleportResult,
+			message: string,
+			placeId: number,
+			options: TeleportOptions
+		)
+			local pending = pendingTeleports[player]
+			if pending == nil then
+				return
+			end
+			local kind, launchId = teleportDataIdentity(options)
+			if placeId ~= game.PlaceId or kind ~= pending.kind or launchId ~= pending.launchId then
+				warn(`Ignoring unrelated teleport failure for {player.Name}: {message}`)
+				return
+			end
+			if player.Parent ~= Players or pending.attempts >= dungeon.teleportRetries + 1 then
+				terminalTeleportFailure(player, pending)
+				return
+			end
+			if pending.retryScheduled then
+				return
+			end
+			pending.retryScheduled = true
+			local expected = pending
+			task.delay(retryDelay(pending.attempts), function()
+				if pendingTeleports[player] ~= expected or player.Parent ~= Players then
+					return
+				end
+				expected.retryScheduled = false
+				attemptTeleport({ player }, placeId, options, expected.kind, expected.launchId)
+			end)
+		end
+	)
+end
+
+local function teleportToLobby(players: { Player }): boolean
+	local options = Instance.new("TeleportOptions")
+	local launchId = HttpService:GenerateGUID(false)
+	options:SetTeleportData({
+		kind = "DungeonReturn",
+		v = 1,
+		launchId = launchId,
+	})
+	return beginTeleport(
+		players,
+		options,
+		"DungeonReturn",
+		launchId,
+		"The return portal could not open. Please rejoin the game."
+	)
+end
+
+local function queueReturnWhenProfileReady(player: Player)
+	if player.Parent ~= Players or pendingTeleports[player] ~= nil or returningWhenProfileReady[player] then
+		return
+	end
+	returningWhenProfileReady[player] = true
+	task.spawn(function()
+		-- ProfileService may already be inside UpdateAsync and acquiring the
+		-- session lock. Teleporting before it publishes the loaded profile can
+		-- orphan that lock, so remain here until loading succeeds or init removes
+		-- the player after a terminal load failure.
+		while returningWhenProfileReady[player] and player.Parent == Players do
+			local target = deps
+			if target ~= nil and target.ready(player) then
+				break
+			end
+			task.wait(0.2)
+		end
+		if not returningWhenProfileReady[player] then
+			return
+		end
+		returningWhenProfileReady[player] = nil
+		local target = deps
+		if player.Parent == Players and target ~= nil and target.ready(player) then
+			teleportToLobby({ player })
+		end
+	end)
+end
+
+local function returnPlayersWhenProfileReady(players: { Player })
+	local target = deps
+	if target == nil then
+		return
+	end
+	local ready: { Player } = {}
+	local seen: { [Player]: boolean } = {}
+	for _, player in players do
+		if
+			player.Parent == Players
+			and not seen[player]
+			and pendingTeleports[player] == nil
+			and not returningWhenProfileReady[player]
+		then
+			seen[player] = true
+			if target.ready(player) then
+				table.insert(ready, player)
+			else
+				queueReturnWhenProfileReady(player)
+			end
+		end
+	end
+	if #ready > 0 then
+		teleportToLobby(ready)
+	end
+end
+
+local function readManifest(player: Player): DungeonLogic.PartyManifest?
+	local ok, joinData = pcall(function()
+		return player:GetJoinData()
+	end)
+	if not ok or type(joinData) ~= "table" then
+		return nil
+	end
+	return DungeonLogic.normalizePartyManifest(joinData.TeleportData, dungeon.partyMax)
+end
+
+local function sameManifest(left: DungeonLogic.PartyManifest, right: DungeonLogic.PartyManifest): boolean
+	if left.launchId ~= right.launchId or #left.party ~= #right.party then
+		return false
+	end
+	for index, userId in left.party do
+		if right.party[index] ~= userId then
+			return false
+		end
+	end
+	return true
+end
+
+local function manifestFromAnyArrival(): DungeonLogic.PartyManifest?
+	for _, player in Players:GetPlayers() do
+		local manifest = readManifest(player)
+		if manifest ~= nil and table.find(manifest.party, player.UserId) ~= nil then
+			return manifest
+		end
+	end
+	return nil
+end
+
+local function matchingParty(manifest: DungeonLogic.PartyManifest): { Player }
+	local party: { Player } = {}
+	for _, userId in manifest.party do
+		local player = Players:GetPlayerByUserId(userId)
+		if player ~= nil and player.Parent == Players then
+			local arrivalManifest = readManifest(player)
+			if arrivalManifest ~= nil and sameManifest(manifest, arrivalManifest) then
+				table.insert(party, player)
+			end
+		end
+	end
+	return party
+end
+
+local function waitForManifest(): DungeonLogic.PartyManifest?
+	local deadline = os.clock() + dungeon.arrivalTimeoutSeconds
+	repeat
+		local manifest = manifestFromAnyArrival()
+		if manifest ~= nil then
+			return manifest
+		end
+		task.wait(0.2)
+	until os.clock() >= deadline
+	return nil
+end
+
+local function waitForParty(manifest: DungeonLogic.PartyManifest): { Player }
+	local deadline = os.clock() + dungeon.arrivalTimeoutSeconds
+	local party = matchingParty(manifest)
+	while #party < #manifest.party and os.clock() < deadline do
+		task.wait(0.2)
+		party = matchingParty(manifest)
+	end
+	return party
+end
+
+local function waitForReadyParty(party: { Player }): { Player }
+	local target = deps
+	if target == nil then
+		return {}
+	end
+	local deadline = os.clock() + dungeon.profileReadyTimeoutSeconds
+	while os.clock() < deadline do
+		local present: { Player } = {}
+		local allReady = true
+		for _, player in party do
+			if player.Parent == Players then
+				table.insert(present, player)
+				if not target.ready(player) then
+					allReady = false
+				end
+			end
+		end
+		if allReady then
+			return present
+		end
+		task.wait(0.2)
+	end
+
+	-- One slow or departing member must not strand everyone else. The run can
+	-- safely continue with only the connected members whose profiles are owned.
+	local ready: { Player } = {}
+	for _, player in party do
+		if player.Parent == Players and target.ready(player) then
+			table.insert(ready, player)
+		end
+	end
+	return ready
+end
+
+local function isAdmittedArrival(player: Player): boolean
+	local admitted = admittedUserIds
+	if admitted == nil or admitted[player.UserId] ~= true then
+		return false
+	end
+	local manifest = lockedManifest
+	if manifest == nil then
+		return false
+	end
+	local arrivalManifest = readManifest(player)
+	return arrivalManifest ~= nil and sameManifest(manifest, arrivalManifest)
+end
+
+local function returnUnadmittedPlayer(player: Player)
+	if player.Parent ~= Players or pendingTeleports[player] ~= nil or returningWhenProfileReady[player] then
+		return
+	end
+	notifyPlayers({ player }, "This dungeon party has already departed. Returning to the lobby.")
+	returnPlayersWhenProfileReady({ player })
+end
+
+local function returnUnadmittedPlayers()
+	for _, player in Players:GetPlayers() do
+		if not isAdmittedArrival(player) then
+			returnUnadmittedPlayer(player)
+		end
+	end
+end
+
+local function lockDungeonRoster(manifest: DungeonLogic.PartyManifest?, party: { Player })
+	lockedManifest = manifest
+	local admitted: { [number]: boolean } = {}
+	for _, player in party do
+		if player.Parent == Players then
+			admitted[player.UserId] = true
+		end
+	end
+	admittedUserIds = admitted
+	returnUnadmittedPlayers()
+end
+
+local function closeDungeonAdmission()
+	lockedManifest = nil
+	admittedUserIds = {}
+end
+
+local function installDungeonArrivalHandler()
+	if dungeonArrivalConnection ~= nil or RunService:IsStudio() then
+		return
+	end
+	dungeonArrivalConnection = Players.PlayerAdded:Connect(function(player)
+		-- Deferring closes the tiny boundary where PlayerAdded fires after the
+		-- final collection scan but immediately before the roster is locked.
+		task.defer(function()
+			if admittedUserIds ~= nil and not isAdmittedArrival(player) then
+				returnUnadmittedPlayer(player)
+			end
+		end)
+	end)
+end
+
+local function abortDungeon(message: string)
+	-- An aborted reserved server admits nobody. This also ensures arrivals that
+	-- complete after the abort are immediately sent back instead of being stuck.
+	closeDungeonAdmission()
+	local players = Players:GetPlayers()
+	notifyPlayers(players, message)
+	publishInactive(players)
+	returnPlayersWhenProfileReady(players)
+	runInProgress = false
+end
+
+local function studioDungeonParty(): { Player }
+	local deadline = os.clock() + dungeon.arrivalTimeoutSeconds
+	while #Players:GetPlayers() == 0 and os.clock() < deadline do
+		task.wait(0.2)
+	end
+	local party: { Player } = {}
+	for _, player in Players:GetPlayers() do
+		if #party >= dungeon.partyMax then
+			break
+		end
+		table.insert(party, player)
+	end
+	return party
+end
+
+-- Reserved dungeon server: validate the server-created manifest, wait for the
+-- expected users and their profiles, run the fight, then return to public lobby.
 local function runDungeonServer()
 	if runInProgress then
 		return
 	end
 	runInProgress = true
-	Workspace:WaitForChild("DungeonArena", 30)
-
-	local bossId = dungeon.defaultBossId
-	local deadline = os.clock() + 10
-	-- Wait for at least one character, then a short grace for the rest of the
-	-- party to stream in before locking the roster.
-	while #Players:GetPlayers() == 0 and os.clock() < deadline do
-		task.wait(0.2)
-	end
-	local firstPlayer = Players:GetPlayers()[1]
-	if firstPlayer ~= nil then
-		local ok, data = pcall(function()
-			return firstPlayer:GetJoinData()
-		end)
-		if ok and type(data) == "table" and type(data.TeleportData) == "table" then
-			local requested = data.TeleportData.bossId
-			if type(requested) == "string" and DungeonConfig.bossById(dungeon, requested) ~= nil then
-				bossId = requested
-			end
+	if RunService:IsStudio() then
+		local party = studioDungeonParty()
+		local core = findBossCore(findArena())
+		party = waitForReadyParty(party)
+		if #party == 0 or core == nil then
+			abortDungeon("The simulated dungeon could not start safely.")
+			return
 		end
-	end
-	task.wait(2)
-
-	local party: { Player } = {}
-	for index, player in Players:GetPlayers() do
-		if index <= dungeon.partyMax then
-			table.insert(party, player)
-		end
-	end
-
-	if #party == 0 then
+		runFightSafely(party, dungeon.defaultBossId, core)
+		task.wait(4)
+		publishInactive(party)
+		clearPartyTools(party)
 		runInProgress = false
 		return
 	end
 
-	runFight(party, bossId)
+	local manifest = waitForManifest()
+	if manifest == nil then
+		abortDungeon("This reserved server is not a valid dungeon session.")
+		return
+	end
+	local party = waitForParty(manifest)
+	if #party == 0 then
+		abortDungeon("No valid dungeon party arrived. Returning to the lobby.")
+		return
+	end
+	-- Freeze the arrival roster before any further waits. Matching players whose
+	-- teleport completes later are returned by the arrival handler.
+	lockDungeonRoster(manifest, party)
+	local core = findBossCore(findArena())
+	if core == nil then
+		abortDungeon("The dungeon arena is unavailable. Returning to the lobby.")
+		return
+	end
+	party = waitForReadyParty(party)
+	if #party == 0 then
+		abortDungeon("Party data was not ready safely. Returning to the lobby.")
+		return
+	end
+	-- Profile loading can outlive a departing party member. Narrow admission to
+	-- the ready, connected subset and return anyone who could not safely join.
+	lockDungeonRoster(manifest, party)
+
+	-- Boss and reward selection are always destination configuration. TeleportData
+	-- is visible to clients and is never trusted for either value.
+	runFightSafely(party, dungeon.defaultBossId, core)
 	task.wait(4)
-	teleportToLobby(Players:GetPlayers())
+	publishInactive(party)
+	clearPartyTools(party)
+	closeDungeonAdmission()
+	returnPlayersWhenProfileReady(Players:GetPlayers())
+	runInProgress = false
 end
 
 -- Studio-only: run the same fight in-place (no teleport), then set characters
 -- back where they were so the loop is testable without a published place.
-local function simulateInPlace(players: { Player }, bossId: string)
-	if runInProgress then
-		return
-	end
-	runInProgress = true
-	local returnPivots: { [Player]: CFrame } = {}
+local function simulateInPlace(players: { Player })
+	local requestedPlayers = players
+	local returnStates: { [Player]: StudioReturnState } = {}
 	for _, player in players do
 		local character = player.Character
 		if character ~= nil then
-			returnPivots[player] = character:GetPivot()
+			local humanoid = character:FindFirstChildWhichIsA("Humanoid")
+			returnStates[player] = {
+				pivot = character:GetPivot(),
+				walkSpeed = if humanoid ~= nil then humanoid.WalkSpeed else nil,
+				health = if humanoid ~= nil then humanoid.Health else nil,
+			}
 		end
 	end
+	local core = findBossCore(findArena())
+	if core == nil then
+		notifyPlayers(players, "The dungeon arena is unavailable.")
+		publishInactive(players)
+		runInProgress = false
+		return
+	end
+	players = waitForReadyParty(players)
+	if #players == 0 then
+		notifyPlayers(requestedPlayers, "Party data was not ready safely.")
+		publishInactive(requestedPlayers)
+		runInProgress = false
+		return
+	end
 
-	runFight(players, bossId)
+	runFightSafely(players, dungeon.defaultBossId, core)
 	task.wait(4)
+	publishInactive(players)
+	clearPartyTools(players)
 
 	for _, player in players do
 		local character = player.Character
-		local pivot = returnPivots[player]
-		if character ~= nil and pivot ~= nil then
-			character:PivotTo(pivot)
+		local returnState = returnStates[player]
+		if character ~= nil and returnState ~= nil then
+			character:PivotTo(returnState.pivot)
+			local humanoid = character:FindFirstChildWhichIsA("Humanoid")
+			if humanoid ~= nil then
+				if returnState.walkSpeed ~= nil then
+					humanoid.WalkSpeed = returnState.walkSpeed
+				end
+				if returnState.health ~= nil then
+					humanoid.Health = math.clamp(returnState.health, 0, humanoid.MaxHealth)
+				end
+			end
 		end
-	end
-	if deps ~= nil then
-		deps.publish({ active = false })
 	end
 	runInProgress = false
 end
 
-local function teleportPartyToReservedServer(players: { Player }, bossId: string): boolean
+local function teleportPartyToReservedServer(players: { Player }): boolean
+	local ids = DungeonLogic.normalizePartyIds(userIds(players), dungeon.partyMax)
+	if ids == nil then
+		return false
+	end
 	local options = Instance.new("TeleportOptions")
+	local launchId = HttpService:GenerateGUID(false)
 	options.ShouldReserveServer = true
-	options:SetTeleportData({ v = 1, bossId = bossId, party = userIds(players) })
-	for attempt = 0, dungeon.teleportRetries do
-		local ok = pcall(function()
-			TeleportService:TeleportAsync(game.PlaceId, players, options)
-		end)
-		if ok then
-			return true
-		end
-		task.wait(2 ^ attempt)
-	end
+	options:SetTeleportData({
+		kind = "DungeonParty",
+		v = 1,
+		launchId = launchId,
+		party = ids,
+	})
+	return beginTeleport(
+		players,
+		options,
+		"DungeonParty",
+		launchId,
+		"The dungeon portal is busy. Please try again."
+	)
+end
+
+local function launchablePlayers(players: { Player }): { Player }?
+	local result: { Player } = {}
+	local seen: { [Player]: boolean } = {}
 	local target = deps
-	if target ~= nil then
-		for _, player in players do
-			target.notify(player, "The dungeon portal is busy. Please try again.")
-		end
+	if target == nil then
+		return nil
 	end
-	return false
+	local selectedCount = math.min(#players, dungeon.partyMax)
+	if selectedCount == 0 then
+		return nil
+	end
+	for index = 1, selectedCount do
+		local player = players[index]
+		-- The roster shown on the portal is atomic: if any selected member is
+		-- disconnected, duplicated, already teleporting, or not profile-ready,
+		-- keep the whole roster on the pad and retry after the short backoff.
+		if
+			player == nil
+			or player.Parent ~= Players
+			or seen[player]
+			or pendingTeleports[player] ~= nil
+			or not target.ready(player)
+		then
+			return nil
+		end
+		seen[player] = true
+		table.insert(result, player)
+	end
+	return result
 end
 
 -- Lobby-server entry point used by PortalService when the pad countdown ends.
 function DungeonService.launchParty(players: { Player }): boolean
-	if #players == 0 then
+	local accepted = launchablePlayers(players)
+	if accepted == nil then
 		return false
 	end
-	local bossId = dungeon.defaultBossId
-	-- Run off the caller's thread so the portal tick loop never blocks on the
-	-- teleport (and its retry backoff) or the Studio simulation.
-	task.spawn(function()
-		if RunService:IsStudio() then
-			simulateInPlace(players, bossId)
-		else
-			teleportPartyToReservedServer(players, bossId)
+	if RunService:IsStudio() then
+		if runInProgress then
+			return false
 		end
-	end)
-	return true
+		runInProgress = true
+		task.spawn(simulateInPlace, accepted)
+		return true
+	end
+	return teleportPartyToReservedServer(accepted)
 end
 
 function DungeonService.start(dependencies: Deps)
 	deps = dependencies
+	installTeleportFailureHandler()
 	if not DungeonService.isDungeonServer() then
 		return
 	end
-	if not RunService:IsStudio() then
-		TeleportService.TeleportInitFailed:Connect(function(player, _result, message)
-			warn(`Dungeon return teleport failed for {player.Name}: {message}`)
-		end)
-	end
+	installDungeonArrivalHandler()
 	task.spawn(runDungeonServer)
 end
 

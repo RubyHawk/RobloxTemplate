@@ -7,6 +7,9 @@
       "$ignoreUnknownInstances": true,
       "Template": {
         "$className": "Folder",
+        "DungeonWeapons": {
+          "$path": "../src/assets/DungeonWeapons.model.json"
+        },
         "Shared": {
           "$className": "Folder",
           "Calculations": {
@@ -170,6 +173,9 @@
         },
         "PortalClient": {
           "$path": "../src/starter-client/Portal.client.luau"
+        },
+        "DungeonClient": {
+          "$path": "../src/starter-client/Dungeon.client.luau"
         }
       }
     },

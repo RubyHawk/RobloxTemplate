@@ -146,14 +146,19 @@ local function launchParty(): boolean
 		end
 		table.insert(players, player)
 	end
-	deadline = nil
-	table.clear(order)
-	cooldownUntil = os.clock() + 3
 	local target = deps
 	if target == nil then
 		return false
 	end
-	return target.launch(players)
+	if not target.launch(players) then
+		return false
+	end
+	-- Only consume the roster after DungeonService has synchronously reserved
+	-- pending state for at least one connected, profile-ready player.
+	deadline = nil
+	table.clear(order)
+	cooldownUntil = os.clock() + 3
+	return true
 end
 
 local function tick(platform: BasePart)
@@ -175,8 +180,13 @@ local function tick(platform: BasePart)
 	end
 
 	if os.clock() >= deadline then
-		publishState(true)
-		launchParty()
+		local accepted = launchParty()
+		if not accepted then
+			-- Keep the roster intact, but avoid hammering the launcher every tick
+			-- while an earlier teleport is still pending or profiles are loading.
+			deadline = os.clock() + 1
+		end
+		publishState(accepted)
 		return
 	end
 
