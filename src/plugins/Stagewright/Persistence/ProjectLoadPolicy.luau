@@ -269,6 +269,94 @@ local function projectShapeError(project: any): string?
 	if not hasMap then
 		return "project must contain at least one Map"
 	end
+	if type(project.enemyTypes) ~= "table" then
+		return "enemyTypes must be a table"
+	end
+	local hasEnemyType = false
+	local enemyTypeIds: { [string]: boolean } = {}
+	for enemyTypeId, enemyType in project.enemyTypes do
+		hasEnemyType = true
+		if type(enemyTypeId) ~= "string" or type(enemyType) ~= "table" then
+			return "every enemy type entry must use a string ID and table value"
+		end
+		if
+			type(enemyType.id) ~= "string"
+			or enemyType.id ~= enemyTypeId
+			or type(enemyType.name) ~= "string"
+			or type(enemyType.modelId) ~= "string"
+			or denseArrayLength(enemyType.tags) == nil
+			or not boundedNumber(enemyType.health, MAX_PREDICATE_MAGNITUDE)
+			or not boundedNumber(enemyType.speed, MAX_PREDICATE_MAGNITUDE)
+			or not boundedNumber(enemyType.reward, MAX_PREDICATE_MAGNITUDE)
+			or not boundedNumber(enemyType.baseDamage, MAX_PREDICATE_MAGNITUDE)
+			or not boundedNumber(enemyType.renderScale, MAX_PREDICATE_MAGNITUDE)
+		then
+			return `enemy type {enemyTypeId} is malformed`
+		end
+		for _, tag in enemyType.tags do
+			if type(tag) ~= "string" then
+				return `enemy type {enemyTypeId} has a non-string tag`
+			end
+		end
+		local tint = enemyType.tint
+		if tint ~= nil then
+			if
+				type(tint) ~= "table"
+				or not boundedNumber(tint.r, 1)
+				or not boundedNumber(tint.g, 1)
+				or not boundedNumber(tint.b, 1)
+			then
+				return `enemy type {enemyTypeId} has a malformed tint`
+			end
+		end
+		enemyTypeIds[enemyTypeId] = true
+	end
+	if not hasEnemyType then
+		return "project must contain at least one enemy type"
+	end
+	if type(project.waveSets) ~= "table" then
+		return "waveSets must be a table"
+	end
+	if type(project.waveSets.default) ~= "table" then
+		return "waveSets must contain the default wave set"
+	end
+	for waveSetId, waveSet in project.waveSets do
+		if type(waveSetId) ~= "string" or type(waveSet) ~= "table" then
+			return "every wave set entry must use a string ID and table value"
+		end
+		if
+			type(waveSet.id) ~= "string"
+			or waveSet.id ~= waveSetId
+			or type(waveSet.name) ~= "string"
+			or denseArrayLength(waveSet.waves) == nil
+		then
+			return `wave set {waveSetId} is malformed`
+		end
+		for waveIndex, wave in waveSet.waves do
+			if
+				type(wave) ~= "table"
+				or (wave.isBoss ~= nil and type(wave.isBoss) ~= "boolean")
+				or denseArrayLength(wave.entries) == nil
+			then
+				return `wave set {waveSetId} wave {waveIndex} is malformed`
+			end
+			for entryIndex, waveEntry in wave.entries do
+				if
+					type(waveEntry) ~= "table"
+					or type(waveEntry.enemyTypeId) ~= "string"
+					or enemyTypeIds[waveEntry.enemyTypeId] ~= true
+					or not boundedNumber(waveEntry.count, MAX_PREDICATE_MAGNITUDE)
+					or not boundedNumber(waveEntry.spacingSeconds, MAX_PREDICATE_MAGNITUDE)
+					or not boundedNumber(waveEntry.startDelaySeconds, MAX_PREDICATE_MAGNITUDE)
+					or not optionalBoundedNumber(waveEntry.healthScale, MAX_PREDICATE_MAGNITUDE)
+					or not optionalBoundedNumber(waveEntry.rewardScale, MAX_PREDICATE_MAGNITUDE)
+					or not optionalBoundedNumber(waveEntry.speedScale, MAX_PREDICATE_MAGNITUDE)
+				then
+					return `wave set {waveSetId} wave {waveIndex} entry {entryIndex} is malformed`
+				end
+			end
+		end
+	end
 	local hasStage = false
 	local mapByStageGroup: { [string]: string } = {}
 	for stageId, stage in project.stages do
@@ -288,6 +376,9 @@ local function projectShapeError(project: any): string?
 		end
 		if project.maps[stage.mapId] == nil then
 			return `stage {stageId} references missing Map {stage.mapId}`
+		end
+		if project.waveSets[stage.waveSetId] == nil then
+			return `stage {stageId} references missing wave set {stage.waveSetId}`
 		end
 		mapHasLevel[stage.mapId] = true
 		if

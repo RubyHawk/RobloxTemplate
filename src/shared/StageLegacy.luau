@@ -1,6 +1,9 @@
 --!strict
 
 local StageSchema = if script ~= nil then require(script.Parent.StageSchema) else require("./StageSchema")
+local StageWaveDefaults = if script ~= nil
+	then require(script.Parent.StageWaveDefaults)
+	else require("./StageWaveDefaults")
 
 local StageLegacy = {}
 
@@ -240,7 +243,7 @@ function StageLegacy.project(input: LegacyInput): (any, { string })
 		unlockRequirements = {},
 		metadata = metadata,
 	}
-	return {
+	local project = {
 		schemaVersion = StageSchema.AUTHORING_VERSION,
 		startingStageId = stageId,
 		maps = {
@@ -253,8 +256,9 @@ function StageLegacy.project(input: LegacyInput): (any, { string })
 			},
 		},
 		stages = { [stageId] = stage },
-	},
-		notices
+	}
+	StageWaveDefaults.seed(project)
+	return project, notices
 end
 
 return table.freeze(StageLegacy)

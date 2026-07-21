@@ -74,6 +74,12 @@
     "RouteOverview": {
       "$path": "../src/plugins/Stagewright/RouteOverview.luau"
     },
+    "Waves": {
+      "$className": "Folder",
+      "Model": {
+        "$path": "../src/plugins/Stagewright/Waves/Model.luau"
+      }
+    },
     "Stage": {
       "$className": "Folder",
       "Settings": {
@@ -117,6 +123,9 @@
       },
       "Toolbar": {
         "$path": "../src/plugins/Stagewright/UI/Toolbar.luau"
+      },
+      "WaveDesignerView": {
+        "$path": "../src/plugins/Stagewright/UI/WaveDesignerView.luau"
       }
     },
     "Validation": {
@@ -168,6 +177,9 @@
       },
       "StageExport": {
         "$path": "../src/shared/StageExport.luau"
+      },
+      "StageWaveDefaults": {
+        "$path": "../src/shared/StageWaveDefaults.luau"
       }
     }
   }

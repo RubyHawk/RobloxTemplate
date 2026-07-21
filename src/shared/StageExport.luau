@@ -169,6 +169,55 @@ local function projectMap(map: any): StageTypes.RuntimeMapDefinition
 	}
 end
 
+local ENEMY_TYPE_FIELDS =
+	{ "id", "name", "tags", "health", "speed", "reward", "baseDamage", "modelId", "renderScale", "tint" }
+local WAVE_ENTRY_FIELDS = {
+	"enemyTypeId",
+	"count",
+	"spacingSeconds",
+	"startDelaySeconds",
+	"healthScale",
+	"rewardScale",
+	"speedScale",
+}
+
+local function projectEnemyType(enemyType: any): StageTypes.EnemyTypeDefinition
+	return copyFields(enemyType, ENEMY_TYPE_FIELDS) :: StageTypes.EnemyTypeDefinition
+end
+
+local function projectWaveSet(waveSet: any): StageTypes.WaveSetDefinition
+	local waves: { StageTypes.WaveDefinition } = {}
+	for index = 1, #waveSet.waves do
+		local wave = waveSet.waves[index]
+		local entries: { StageTypes.WaveEntryDefinition } = {}
+		for entryIndex = 1, #wave.entries do
+			entries[entryIndex] =
+				copyFields(wave.entries[entryIndex], WAVE_ENTRY_FIELDS) :: StageTypes.WaveEntryDefinition
+		end
+		local projected: StageTypes.WaveDefinition = { entries = entries }
+		if wave.isBoss ~= nil then
+			projected.isBoss = wave.isBoss
+		end
+		waves[index] = projected
+	end
+	return {
+		id = waveSet.id,
+		name = waveSet.name,
+		waves = waves,
+	}
+end
+
+local function sortedIds(registry: { [string]: any }): { string }
+	local ids: { string } = {}
+	for id in registry do
+		if type(id) == "string" then
+			table.insert(ids, id)
+		end
+	end
+	table.sort(ids)
+	return ids
+end
+
 local function projectStage(stage: any): StageTypes.StageDefinition
 	local pathGraphs: { [string]: StageTypes.PathGraphDefinition } = {}
 	for graphId, graph in stage.pathGraphs do
@@ -281,6 +330,24 @@ local function validateStageReferences(
 	stage: any,
 	issues: { StageSchema.Issue }
 )
+	if type(stage.waveSetId) ~= "string" or stage.waveSetId == "" then
+		table.insert(issues, {
+			severity = "Error",
+			code = "InvalidWaveSetId",
+			message = "Level wave set ID must be a non-empty string",
+			mapId = if type(stage.mapId) == "string" then stage.mapId else nil,
+			stageId = stageId,
+		})
+	elseif type(project.waveSets) ~= "table" or project.waveSets[stage.waveSetId] == nil then
+		table.insert(issues, {
+			severity = "Error",
+			code = "MissingWaveSet",
+			message = `Level references missing wave set {stage.waveSetId}`,
+			mapId = if type(stage.mapId) == "string" then stage.mapId else nil,
+			stageId = stageId,
+			objectId = stage.waveSetId,
+		})
+	end
 	if type(stage.unlockRequirements) == "table" then
 		for index = 1, #stage.unlockRequirements do
 			local requirement = stage.unlockRequirements[index]
@@ -431,6 +498,76 @@ function StageExport.bake(project: any): ExportResult
 			code = "MissingMap",
 			message = "Project must contain at least one Map",
 		})
+	end
+
+	local enemyTypeIds: { [string]: boolean } = {}
+	if type(project.enemyTypes) ~= "table" or next(project.enemyTypes) == nil then
+		table.insert(issues, {
+			severity = "Error",
+			code = "MissingEnemyTypes",
+			message = "Project must define at least one enemy type",
+		})
+	else
+		for enemyTypeId, enemyType in project.enemyTypes do
+			if type(enemyTypeId) ~= "string" then
+				table.insert(issues, {
+					severity = "Error",
+					code = "InvalidEnemyTypeKey",
+					message = "Every enemy type registry key must be a string",
+				})
+			elseif type(enemyType) ~= "table" or enemyType.id ~= enemyTypeId then
+				table.insert(issues, {
+					severity = "Error",
+					code = "EnemyTypeIdMismatch",
+					message = `Enemy type registry key {enemyTypeId} does not match enemy type ID {tostring(
+						if type(enemyType) == "table" then enemyType.id else nil
+					)}`,
+					objectId = enemyTypeId,
+				})
+			else
+				enemyTypeIds[enemyTypeId] = true
+				for _, issue in StageSchema.validateEnemyType(enemyType) do
+					table.insert(issues, issue)
+				end
+			end
+		end
+	end
+	if type(project.waveSets) ~= "table" or next(project.waveSets) == nil then
+		table.insert(issues, {
+			severity = "Error",
+			code = "MissingWaveSets",
+			message = "Project must define at least one wave set",
+		})
+	else
+		if type(project.waveSets.default) ~= "table" then
+			table.insert(issues, {
+				severity = "Error",
+				code = "MissingDefaultWaveSet",
+				message = "Project must define the default wave set",
+			})
+		end
+		for waveSetId, waveSet in project.waveSets do
+			if type(waveSetId) ~= "string" then
+				table.insert(issues, {
+					severity = "Error",
+					code = "InvalidWaveSetKey",
+					message = "Every wave set registry key must be a string",
+				})
+			elseif type(waveSet) ~= "table" or waveSet.id ~= waveSetId then
+				table.insert(issues, {
+					severity = "Error",
+					code = "WaveSetIdMismatch",
+					message = `Wave set registry key {waveSetId} does not match wave set ID {tostring(
+						if type(waveSet) == "table" then waveSet.id else nil
+					)}`,
+					objectId = waveSetId,
+				})
+			else
+				for _, issue in StageSchema.validateWaveSet(waveSet, enemyTypeIds) do
+					table.insert(issues, issue)
+				end
+			end
+		end
 	end
 
 	local stageIds: { string } = {}
@@ -610,6 +747,16 @@ function StageExport.bake(project: any): ExportResult
 		stage.checksum = StageSchema.checksum(stage)
 		stages[stageId] = stage
 	end
+	local enemyTypeOrder = sortedIds(project.enemyTypes)
+	local enemyTypes: { [string]: StageTypes.EnemyTypeDefinition } = {}
+	for _, enemyTypeId in enemyTypeOrder do
+		enemyTypes[enemyTypeId] = projectEnemyType(project.enemyTypes[enemyTypeId])
+	end
+	local waveSetOrder = sortedIds(project.waveSets)
+	local waveSets: { [string]: StageTypes.WaveSetDefinition } = {}
+	for _, waveSetId in waveSetOrder do
+		waveSets[waveSetId] = projectWaveSet(project.waveSets[waveSetId])
+	end
 	local bundle = {
 		schemaVersion = StageSchema.RUNTIME_VERSION,
 		sourceSchemaVersion = project.schemaVersion,
@@ -618,6 +765,10 @@ function StageExport.bake(project: any): ExportResult
 		maps = maps,
 		stageOrder = stageIds,
 		stages = stages,
+		enemyTypeOrder = enemyTypeOrder,
+		enemyTypes = enemyTypes,
+		waveSetOrder = waveSetOrder,
+		waveSets = waveSets,
 	}
 	bundle.checksum = StageSchema.checksum(bundle)
 	return {

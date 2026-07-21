@@ -43,7 +43,7 @@ local function cellIsOutside(key: string, columns: number, rows: number): boolea
 	return column == nil or row == nil or column > columns or row > rows
 end
 
-function Settings.parse(input: Input): (Update?, string?)
+function Settings.parse(input: Input, validWaveSetIds: { [string]: boolean }?): (Update?, string?)
 	local columns = tonumber(input.columns)
 	local rows = tonumber(input.rows)
 	local cellSize = tonumber(input.cellSize)
@@ -59,6 +59,9 @@ function Settings.parse(input: Input): (Update?, string?)
 		or cellSize > 128
 	then
 		return nil, Settings.INVALID_GRID_MESSAGE
+	end
+	if validWaveSetIds ~= nil and validWaveSetIds[input.waveSetId] ~= true then
+		return nil, `Unknown wave set {input.waveSetId}. Author wave sets in the Waves mode.`
 	end
 	return {
 		name = if input.name ~= "" then input.name else nil,

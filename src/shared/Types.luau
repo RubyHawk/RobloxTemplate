@@ -187,6 +187,8 @@ export type TowerDefensePresentationPlacement = {
 
 export type TowerDefenseEnemyState = {
 	id: string,
+	enemyTypeId: string?,
+	isBoss: boolean?,
 	health: number,
 	maxHealth: number,
 	progress: number,
@@ -212,6 +214,8 @@ export type TowerDefenseClientState = {
 	stageOrigin: CFrame,
 	wave: number,
 	waveRunning: boolean,
+	waveIsBoss: boolean?,
+	waveCount: number?,
 	placements: { TowerDefensePlacementState },
 	enemies: { TowerDefenseEnemyState },
 	autoPlaceCells: { { column: number, row: number } },

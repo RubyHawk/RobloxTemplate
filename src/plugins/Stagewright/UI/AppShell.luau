@@ -6,7 +6,7 @@ local Theme = require(script.Parent.Theme)
 local COLORS = Theme.colors
 local create = Factory.create
 
-export type Mode = "Paint" | "Graph" | "Stage" | "Validate"
+export type Mode = "Paint" | "Graph" | "Stage" | "Waves" | "Validate"
 
 export type Controller = {
 	root: Frame,
@@ -91,7 +91,9 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 	}, modes)
 	create("UIGridLayout", {
 		CellPadding = UDim2.fromOffset(2, 0),
-		CellSize = UDim2.new(0.25, -1.5, 1, 0),
+		-- Five workspace modes share one row. The offset accounts for the four
+		-- two-pixel gaps so the final button cannot wrap below the clipped frame.
+		CellSize = UDim2.new(0.2, -1.6, 1, 0),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 	}, modes)
 	local body = create("Frame", {
@@ -348,6 +350,7 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 		local width = self.root.AbsoluteSize.X
 		local headerLayout = Theme.resolveHeaderLayout(width)
 		local wantsInspector = mode ~= "Validate"
+		local usesFullWorkspace = mode == "Graph" or mode == "Waves"
 		local isCompact = headerLayout.density == "compact"
 		local usesPaintMediumLayout = mode == "Paint"
 			and width >= 1_050
@@ -390,7 +393,7 @@ function AppShell.new(widget: DockWidgetPluginGui): Controller
 			controlY
 		)
 
-		if mode == "Graph" then
+		if usesFullWorkspace then
 			compactPanel = nil
 			compactToolsButton.Visible = false
 			compactInspectorButton.Visible = false
