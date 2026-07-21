@@ -194,6 +194,7 @@ function StageLegacy.project(input: LegacyInput): (any, { string })
 
 	local stageId = input.stageId or "stage_default"
 	local graphId = input.graphId or "graph_main"
+	local mapId = "map_legacy_1"
 	local metadata: any = {
 		legacyImport = {
 			sourceKind = "CellMap/PathPoints",
@@ -203,6 +204,7 @@ function StageLegacy.project(input: LegacyInput): (any, { string })
 	local stage = {
 		schemaVersion = StageSchema.AUTHORING_VERSION,
 		id = stageId,
+		mapId = mapId,
 		stageGroupId = "stage_group_legacy_1",
 		stageNumber = 1,
 		levelNumber = 1,
@@ -241,6 +243,15 @@ function StageLegacy.project(input: LegacyInput): (any, { string })
 	return {
 		schemaVersion = StageSchema.AUTHORING_VERSION,
 		startingStageId = stageId,
+		maps = {
+			[mapId] = {
+				id = mapId,
+				name = "Map 1",
+				displayOrder = 1,
+				backdropImageId = "",
+				metadata = {},
+			},
+		},
 		stages = { [stageId] = stage },
 	},
 		notices

@@ -25,6 +25,7 @@ for row = 1, 256 do
 end
 local denseStage = {
 	id = "benchmark_dense",
+	mapId = "benchmark_map",
 	stageGroupId = "benchmark_group",
 	stageNumber = 1,
 	levelNumber = 1,

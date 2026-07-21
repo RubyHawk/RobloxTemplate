@@ -160,6 +160,15 @@ local function projectGraph(graph: any): StageTypes.PathGraphDefinition
 	}
 end
 
+local function projectMap(map: any): StageTypes.RuntimeMapDefinition
+	return {
+		id = map.id,
+		name = map.name,
+		displayOrder = map.displayOrder,
+		metadata = clone(map.metadata),
+	}
+end
+
 local function projectStage(stage: any): StageTypes.StageDefinition
 	local pathGraphs: { [string]: StageTypes.PathGraphDefinition } = {}
 	for graphId, graph in stage.pathGraphs do
@@ -172,6 +181,7 @@ local function projectStage(stage: any): StageTypes.StageDefinition
 	return {
 		schemaVersion = StageSchema.RUNTIME_VERSION,
 		id = stage.id,
+		mapId = stage.mapId,
 		stageGroupId = stage.stageGroupId,
 		stageNumber = stage.stageNumber,
 		levelNumber = stage.levelNumber,
@@ -265,6 +275,64 @@ local function routeMask(stage: any): { [string]: boolean }
 	return mask
 end
 
+local function validateStageReferences(
+	project: any,
+	stageId: string,
+	stage: any,
+	issues: { StageSchema.Issue }
+)
+	if type(stage.unlockRequirements) == "table" then
+		for index = 1, #stage.unlockRequirements do
+			local requirement = stage.unlockRequirements[index]
+			if
+				type(requirement) == "table"
+				and requirement.kind == "StageUnlocked"
+				and type(requirement.stageId) == "string"
+				and project.stages[requirement.stageId] == nil
+			then
+				table.insert(issues, {
+					severity = "Error",
+					code = "DanglingStageReference",
+					message = `Level unlock requirement {index} references missing Level {requirement.stageId}`,
+					mapId = if type(stage.mapId) == "string" then stage.mapId else nil,
+					stageId = stageId,
+					objectId = requirement.stageId,
+				})
+			end
+		end
+	end
+	if type(stage.pathGraphs) ~= "table" then
+		return
+	end
+	for graphId, graph in stage.pathGraphs do
+		if type(graph) == "table" and type(graph.edges) == "table" then
+			for edgeId, edge in graph.edges do
+				if type(edge) == "table" and type(edge.predicates) == "table" then
+					for index = 1, #edge.predicates do
+						local predicate = edge.predicates[index]
+						if
+							type(predicate) == "table"
+							and predicate.kind == "StageUnlocked"
+							and type(predicate.stageId) == "string"
+							and project.stages[predicate.stageId] == nil
+						then
+							table.insert(issues, {
+								severity = "Error",
+								code = "DanglingStageReference",
+								message = `Edge {tostring(edgeId)} StageUnlocked predicate {index} references missing Level {predicate.stageId}`,
+								mapId = if type(stage.mapId) == "string" then stage.mapId else nil,
+								stageId = stageId,
+								graphId = if type(graphId) == "string" then graphId else nil,
+								objectId = if type(edgeId) == "string" then edgeId else nil,
+							})
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
 -- Builds the exact route data used by runtime export without requiring the
 -- entire project to validate. Editor previews must stay available while a
 -- designer is fixing invalid cells, predicates, or catalog references.
@@ -284,10 +352,16 @@ end
 
 function StageExport.bake(project: any): ExportResult
 	local issues: { StageSchema.Issue } = {}
-	if type(project) ~= "table" or type(project.stages) ~= "table" then
+	if type(project) ~= "table" or type(project.maps) ~= "table" or type(project.stages) ~= "table" then
 		return {
 			bundle = nil,
-			issues = { { severity = "Error", code = "InvalidProject", message = "Project has no stages" } },
+			issues = {
+				{
+					severity = "Error",
+					code = "InvalidProject",
+					message = "Project has no valid Map or Level registry",
+				},
+			},
 		}
 	end
 	if type(project.startingStageId) ~= "string" or project.stages[project.startingStageId] == nil then
@@ -297,9 +371,72 @@ function StageExport.bake(project: any): ExportResult
 			message = `Starting stage {tostring(project.startingStageId)} does not reference an exported stage`,
 		})
 	end
+	local mapIds = StageHierarchy.mapIds(project.maps)
+	local mapOrderKeys: { [number]: string } = {}
+	local levelCountByMap: { [string]: number } = {}
+	for mapId, map in project.maps do
+		if type(mapId) ~= "string" then
+			table.insert(issues, {
+				severity = "Error",
+				code = "InvalidMapKey",
+				message = "Every Map registry key must be a string",
+			})
+		elseif type(map) ~= "table" or map.id ~= mapId then
+			table.insert(issues, {
+				severity = "Error",
+				code = "MapIdMismatch",
+				message = `Map registry key {mapId} does not match Map ID {tostring(
+					if type(map) == "table" then map.id else nil
+				)}`,
+				mapId = mapId,
+			})
+		else
+			levelCountByMap[mapId] = 0
+			for _, issue in StageSchema.validateMap(map) do
+				table.insert(issues, issue)
+			end
+			if
+				type(map.displayOrder) == "number"
+				and map.displayOrder == map.displayOrder
+				and math.abs(map.displayOrder) < math.huge
+				and map.displayOrder % 1 == 0
+			then
+				local existingMapId = mapOrderKeys[map.displayOrder]
+				if existingMapId ~= nil and existingMapId ~= mapId then
+					table.insert(issues, {
+						severity = "Error",
+						code = "DuplicateMapOrder",
+						message = `Map order {map.displayOrder} is used by more than one Map`,
+						mapId = mapId,
+					})
+				end
+				mapOrderKeys[map.displayOrder] = mapId
+			end
+			if
+				type(map.metadata) == "table"
+				and map.metadata["stagewright.legacyBackdropConflict"] == true
+			then
+				table.insert(issues, {
+					severity = "Warning",
+					code = "LegacyBackdropConflict",
+					message = "Legacy Stages used different backdrop images; choose one backdrop in Map Properties",
+					mapId = mapId,
+				})
+			end
+		end
+	end
+	if #mapIds == 0 then
+		table.insert(issues, {
+			severity = "Error",
+			code = "MissingMap",
+			message = "Project must contain at least one Map",
+		})
+	end
+
 	local stageIds: { string } = {}
-	local groupByNumber: { [number]: string } = {}
-	local numberByGroup: { [string]: number } = {}
+	local groupByNumber: { [string]: string } = {}
+	local numberByGroup: { [string]: string } = {}
+	local mapByGroup: { [string]: string } = {}
 	local levelKeys: { [string]: string } = {}
 	for stageId, stage in project.stages do
 		if stage.id ~= stageId then
@@ -329,6 +466,7 @@ function StageExport.bake(project: any): ExportResult
 		for _, issue in StageSchema.validateStage(validationStage) do
 			table.insert(issues, issue)
 		end
+		validateStageReferences(project, stageId, stage, issues)
 		if type(stage.unlockRequirements) ~= "table" then
 			table.insert(issues, {
 				severity = "Error",
@@ -350,21 +488,44 @@ function StageExport.bake(project: any): ExportResult
 			end
 		end
 		local address = StageHierarchy.address(stage)
-		local existingGroup = groupByNumber[address.stageNumber]
+		if project.maps[address.mapId] == nil then
+			table.insert(issues, {
+				severity = "Error",
+				code = "MissingMap",
+				message = `Level references missing Map {address.mapId}`,
+				mapId = address.mapId,
+				stageId = stageId,
+			})
+		else
+			levelCountByMap[address.mapId] = (levelCountByMap[address.mapId] or 0) + 1
+		end
+		local stageNumberKey = `{address.mapId}:{address.stageNumber}`
+		local existingGroup = groupByNumber[stageNumberKey]
 		local existingNumber = numberByGroup[address.groupId]
+		local existingMap = mapByGroup[address.groupId]
 		local levelKey = `{address.groupId}:{address.levelNumber}`
 		if existingGroup ~= nil and existingGroup ~= address.groupId then
 			table.insert(issues, {
 				severity = "Error",
 				code = "DuplicateStageNumber",
-				message = `Stage number {address.stageNumber} belongs to more than one stable group`,
+				message = `Map {address.mapId} Stage number {address.stageNumber} belongs to more than one stable group`,
+				mapId = address.mapId,
 				stageId = stageId,
 			})
-		elseif existingNumber ~= nil and existingNumber ~= address.stageNumber then
+		elseif existingMap ~= nil and existingMap ~= address.mapId then
+			table.insert(issues, {
+				severity = "Error",
+				code = "StageSharedAcrossMaps",
+				message = `Stage group {address.groupId} belongs to more than one Map`,
+				mapId = address.mapId,
+				stageId = stageId,
+			})
+		elseif existingNumber ~= nil and existingNumber ~= stageNumberKey then
 			table.insert(issues, {
 				severity = "Error",
 				code = "StageGroupNumberMismatch",
-				message = `Stage group {address.groupId} uses more than one display number`,
+				message = `Stage group {address.groupId} uses more than one Map or display number`,
+				mapId = address.mapId,
 				stageId = stageId,
 			})
 		elseif levelKeys[levelKey] ~= nil then
@@ -375,17 +536,32 @@ function StageExport.bake(project: any): ExportResult
 				stageId = stageId,
 			})
 		end
-		groupByNumber[address.stageNumber] = address.groupId
-		numberByGroup[address.groupId] = address.stageNumber
+		groupByNumber[stageNumberKey] = address.groupId
+		numberByGroup[address.groupId] = stageNumberKey
+		mapByGroup[address.groupId] = address.mapId
 		levelKeys[levelKey] = stageId
 		table.insert(stageIds, stageId)
+	end
+	for mapId, levelCount in levelCountByMap do
+		if levelCount == 0 then
+			table.insert(issues, {
+				severity = "Error",
+				code = "OrphanMap",
+				message = `Map {mapId} must contain at least one Level`,
+				mapId = mapId,
+			})
+		end
 	end
 	if StageSchema.hasErrors(issues) then
 		return { bundle = nil, issues = issues }
 	end
 	table.sort(stageIds, function(left, right)
-		return StageHierarchy.less(project.stages[left], project.stages[right])
+		return StageHierarchy.less(project.stages[left], project.stages[right], project.maps)
 	end)
+	local maps: { [string]: StageTypes.RuntimeMapDefinition } = {}
+	for _, mapId in mapIds do
+		maps[mapId] = projectMap(project.maps[mapId])
+	end
 	local stages: { [string]: any } = {}
 	for _, stageId in stageIds do
 		local stage: any = projectStage(project.stages[stageId])
@@ -438,6 +614,8 @@ function StageExport.bake(project: any): ExportResult
 		schemaVersion = StageSchema.RUNTIME_VERSION,
 		sourceSchemaVersion = project.schemaVersion,
 		startingStageId = project.startingStageId,
+		mapOrder = mapIds,
+		maps = maps,
 		stageOrder = stageIds,
 		stages = stages,
 	}

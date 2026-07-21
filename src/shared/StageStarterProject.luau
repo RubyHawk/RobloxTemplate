@@ -175,10 +175,12 @@ function StageStarterProject.build(
 	levelCount: number,
 	idFactory: IdFactory,
 	firstStageId: string?,
-	stageGroupId: string?
+	stageGroupId: string?,
+	mapIdValue: string?
 ): any
 	local count = math.clamp(math.floor(levelCount), 1, 100)
 	local groupId = stageGroupId or idFactory("stage_group")
+	local mapId = mapIdValue or idFactory("map")
 	local stages: { [string]: any } = {}
 	local previousId: string? = nil
 	local startingStageId = firstStageId or idFactory("stage")
@@ -186,8 +188,9 @@ function StageStarterProject.build(
 		local stageId = if levelNumber == 1 then startingStageId else idFactory("stage")
 		local graphId, graph = makeGraph(idFactory)
 		stages[stageId] = {
-			schemaVersion = 3,
+			schemaVersion = 4,
 			id = stageId,
+			mapId = mapId,
 			name = `Level {levelNumber}`,
 			displayOrder = levelNumber,
 			stageGroupId = groupId,
@@ -209,12 +212,22 @@ function StageStarterProject.build(
 		previousId = stageId
 	end
 	return {
-		schemaVersion = 3,
+		schemaVersion = 4,
 		startingStageId = startingStageId,
 		selectedStageId = startingStageId,
+		maps = {
+			[mapId] = {
+				id = mapId,
+				name = "Map 1",
+				displayOrder = 1,
+				backdropImageId = "",
+				metadata = {},
+			},
+		},
 		stages = stages,
 		metadata = {
 			["stagewright.starterLevelCount"] = count,
+			["stagewright.starterMapId"] = mapId,
 			["stagewright.starterStageGroupId"] = groupId,
 			["stagewright.approvedStarterRevision"] = StageStarterProject.REVISION,
 		},

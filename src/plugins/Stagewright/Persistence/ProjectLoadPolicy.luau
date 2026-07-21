@@ -235,10 +235,42 @@ local function projectShapeError(project: any): string?
 	if type(project.startingStageId) ~= "string" then
 		return "startingStageId must be a string"
 	end
+	if project.selectedStageId ~= nil and type(project.selectedStageId) ~= "string" then
+		return "selectedStageId must be a string when present"
+	end
 	if project.metadata ~= nil and type(project.metadata) ~= "table" then
 		return "project metadata must be a table when present"
 	end
+	if type(project.maps) ~= "table" then
+		return "maps must be a table"
+	end
+	local hasMap = false
+	local mapHasLevel: { [string]: boolean } = {}
+	for mapId, map in project.maps do
+		hasMap = true
+		if type(mapId) ~= "string" or type(map) ~= "table" then
+			return "every Map entry must use a string ID and table value"
+		end
+		if
+			type(map.id) ~= "string"
+			or map.id ~= mapId
+			or type(map.name) ~= "string"
+			or type(map.backdropImageId) ~= "string"
+			or type(map.metadata) ~= "table"
+			or not finiteNumber(map.displayOrder)
+			or map.displayOrder % 1 ~= 0
+			or map.displayOrder < 1
+			or map.displayOrder > 999
+		then
+			return `Map {mapId} is malformed`
+		end
+		mapHasLevel[mapId] = false
+	end
+	if not hasMap then
+		return "project must contain at least one Map"
+	end
 	local hasStage = false
+	local mapByStageGroup: { [string]: string } = {}
 	for stageId, stage in project.stages do
 		hasStage = true
 		if type(stageId) ~= "string" or type(stage) ~= "table" then
@@ -246,12 +278,35 @@ local function projectShapeError(project: any): string?
 		end
 		if
 			type(stage.id) ~= "string"
+			or type(stage.mapId) ~= "string"
+			or type(stage.stageGroupId) ~= "string"
 			or type(stage.name) ~= "string"
 			or type(stage.waveSetId) ~= "string"
 			or type(stage.themeId) ~= "string"
 		then
 			return `stage {stageId} is missing required string fields`
 		end
+		if project.maps[stage.mapId] == nil then
+			return `stage {stageId} references missing Map {stage.mapId}`
+		end
+		mapHasLevel[stage.mapId] = true
+		if
+			not finiteNumber(stage.stageNumber)
+			or stage.stageNumber % 1 ~= 0
+			or stage.stageNumber < 1
+			or stage.stageNumber > 999
+			or not finiteNumber(stage.levelNumber)
+			or stage.levelNumber % 1 ~= 0
+			or stage.levelNumber < 1
+			or stage.levelNumber > 999
+		then
+			return `stage {stageId} has an unsafe hierarchy address`
+		end
+		local existingMapId = mapByStageGroup[stage.stageGroupId]
+		if existingMapId ~= nil and existingMapId ~= stage.mapId then
+			return `stage group {stage.stageGroupId} belongs to more than one Map`
+		end
+		mapByStageGroup[stage.stageGroupId] = stage.mapId
 		if
 			type(stage.metadata) ~= "table"
 			or denseArrayLength(stage.modifierIds) == nil
@@ -382,6 +437,11 @@ local function projectShapeError(project: any): string?
 					end
 				end
 			end
+		end
+	end
+	for mapId, ownsLevel in mapHasLevel do
+		if not ownsLevel then
+			return `Map {mapId} must contain at least one Level`
 		end
 	end
 	if not hasStage then

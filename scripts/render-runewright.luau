@@ -451,20 +451,6 @@ local function child(parent: AnyTable, name: string): AnyTable
 	return found
 end
 
-local function descendantsNamed(rootInstance: AnyTable, name: string): { AnyTable }
-	local found: { AnyTable } = {}
-	local function walk(node: AnyTable)
-		for _, nodeChild in node._children do
-			if nodeChild._props.Name == name then
-				table.insert(found, nodeChild)
-			end
-			walk(nodeChild)
-		end
-	end
-	walk(rootInstance)
-	return found
-end
-
 local function typeInto(box: AnyTable, text: string)
 	box.Text = text
 	box.FocusLost:Fire()
@@ -713,6 +699,15 @@ end
 
 local arrange: (AnyTable, number, number, number, number?) -> number
 
+local function resolvedHeightRaw(node: AnyTable, parentInnerH: number?): number
+	local rect = node._rect
+	if rect ~= nil then
+		return rect.h
+	end
+	local size = node.Size
+	return size.Y.Scale * (parentInnerH or 0) + size.Y.Offset
+end
+
 local function resolvedHeight(node: AnyTable, parentInnerH: number?, ownWidth: number): number
 	if node.AutomaticSize ~= nil and node.AutomaticSize.Name == "Y" then
 		if TEXT_CLASSES[node._props.ClassName] then
@@ -825,16 +820,6 @@ arrange = function(node: AnyTable, x: number, y: number, w: number, parentInnerH
 		end
 	end
 	return contentH + padBottom
-end
-
--- Small forward-declared helper: a node's declared (non-auto) height.
-function resolvedHeightRaw(node: AnyTable, parentInnerH: number?): number
-	local rect = node._rect
-	if rect ~= nil then
-		return rect.h
-	end
-	local size = node.Size
-	return size.Y.Scale * (parentInnerH or 0) + size.Y.Offset
 end
 
 -- ---------------------------------------------------------------------------

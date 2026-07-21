@@ -61,9 +61,9 @@ export type HeaderLayout = {
 local COMPACT_HEADER: HeaderLayout = table.freeze({
 	density = "compact",
 	modeTextSize = 12,
-	navWidth = 340,
+	navWidth = 300,
 	stageX = 42,
-	stageWidth = 150,
+	stageWidth = 174,
 	historyWidth = 30,
 	menuWidth = 32,
 	validationWidth = 34,
@@ -76,10 +76,10 @@ local COMPACT_HEADER: HeaderLayout = table.freeze({
 local MEDIUM_HEADER: HeaderLayout = table.freeze({
 	density = "medium",
 	modeTextSize = 13,
-	navWidth = 400,
+	navWidth = 340,
 	stageX = 44,
-	stageWidth = 180,
-	historyWidth = 36,
+	stageWidth = 234,
+	historyWidth = 30,
 	menuWidth = 76,
 	validationWidth = 188,
 	showTitle = false,
@@ -93,7 +93,7 @@ local WIDE_HEADER: HeaderLayout = table.freeze({
 	modeTextSize = 14,
 	navWidth = 436,
 	stageX = 158,
-	stageWidth = 208,
+	stageWidth = 300,
 	historyWidth = 74,
 	menuWidth = 76,
 	validationWidth = 188,
@@ -104,7 +104,7 @@ local WIDE_HEADER: HeaderLayout = table.freeze({
 })
 
 local function resolveHeaderLayout(width: number): HeaderLayout
-	if width >= 1_500 then
+	if width >= 1_700 then
 		return WIDE_HEADER
 	elseif width >= 1_050 then
 		return MEDIUM_HEADER

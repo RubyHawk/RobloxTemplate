@@ -16,15 +16,18 @@ export type SelectorOption = {
 	selected: boolean,
 }
 
+export type SelectorKind = "Map" | "Stage" | "Level"
+
 export type Config = {
 	header: Frame,
 	popupLayer: Frame,
 	headerValidation: TextButton,
 	status: TextLabel,
 	widget: DockWidgetPluginGui,
+	mapOptions: () -> { SelectorOption },
 	stageOptions: () -> { SelectorOption },
 	levelOptions: () -> { SelectorOption },
-	onSelectStage: (stageId: string) -> (),
+	onSelectLevel: (levelId: string, selector: SelectorKind) -> (),
 	onRender: () -> (),
 	onSave: () -> string,
 	onOpenValidation: () -> (),
@@ -170,6 +173,14 @@ local function dropdownHeight(selector: SelectorUi): number
 	return math.min(294, 14 + visibleRows * 34 + math.max(visibleRows - 1, 0) * 5)
 end
 
+local function selectorLabel(selector: SelectorUi, fullLabel: string, compact: boolean): string
+	if not compact then
+		return fullLabel
+	end
+	local number = string.match(fullLabel, "%d+")
+	return `{string.sub(selector.button.Name, 1, 1)}{number or "--"}`
+end
+
 function HeaderController.new(config: Config): Controller
 	local header = config.header
 	config.headerValidation.TextXAlignment = Enum.TextXAlignment.Left
@@ -182,8 +193,10 @@ function HeaderController.new(config: Config): Controller
 	Toolbar.addVectorIcon(config.headerValidation, "warning", COLORS.warning, 12)
 	local logo = addLogo(header)
 
+	local mapSelector = createSelector(header, config.popupLayer, "Map", "Map --")
 	local stageSelector = createSelector(header, config.popupLayer, "Stage", "Stage --")
 	local levelSelector = createSelector(header, config.popupLayer, "Level", "Level --")
+	local selectors = { mapSelector, stageSelector, levelSelector }
 
 	local controller: Controller = {} :: any
 	local function canRunMutation(action: string): boolean
@@ -194,17 +207,34 @@ function HeaderController.new(config: Config): Controller
 		return false
 	end
 
-	local function refreshSelector(selector: SelectorUi, placeholder: string, options: { SelectorOption })
-		selector.label.Text = placeholder
+	local function closeSelectorDropdowns()
+		for _, selector in selectors do
+			selector.dropdown.Visible = false
+		end
+	end
+
+	local function refreshSelector(
+		selector: SelectorUi,
+		kind: SelectorKind,
+		placeholder: string,
+		options: { SelectorOption }
+	)
+		local fullLabel = placeholder
 		selector.dropdown:SetAttribute("StagewrightOptionCount", #options)
 		selector.dropdown.Size = UDim2.fromOffset(selector.dropdown.Size.X.Offset, dropdownHeight(selector))
 		selector.list.CanvasPosition = Vector2.zero
 		for _, option in options do
 			if option.selected then
-				selector.label.Text = option.label
+				fullLabel = option.label
 				break
 			end
 		end
+		selector.label:SetAttribute("StagewrightFullLabel", fullLabel)
+		selector.label.Text = selectorLabel(
+			selector,
+			fullLabel,
+			Theme.resolveHeaderLayout(header.AbsoluteSize.X).density == "compact"
+		)
 		for _, child in selector.list:GetChildren() do
 			if child:IsA("GuiObject") then
 				child:Destroy()
@@ -212,9 +242,8 @@ function HeaderController.new(config: Config): Controller
 		end
 		for order, option in options do
 			local item = button(selector.list, option.label, 198, function()
-				stageSelector.dropdown.Visible = false
-				levelSelector.dropdown.Visible = false
-				config.onSelectStage(option.value)
+				closeSelectorDropdowns()
+				config.onSelectLevel(option.value, kind)
 			end)
 			item.LayoutOrder = order
 			item.Size = UDim2.new(1, -2, 0, 34)
@@ -236,26 +265,23 @@ function HeaderController.new(config: Config): Controller
 		end
 	end
 	controller.refreshStageSelector = function(_self: Controller)
-		refreshSelector(stageSelector, "Stage --", config.stageOptions())
-		refreshSelector(levelSelector, "Level --", config.levelOptions())
+		refreshSelector(mapSelector, "Map", "Map --", config.mapOptions())
+		refreshSelector(stageSelector, "Stage", "Stage --", config.stageOptions())
+		refreshSelector(levelSelector, "Level", "Level --", config.levelOptions())
 	end
 	local menuPopup: Frame
-	stageSelector.button.Activated:Connect(function()
-		local open = not stageSelector.dropdown.Visible
-		stageSelector.dropdown.Visible = false
-		levelSelector.dropdown.Visible = false
-		menuPopup.Visible = false
-		controller:refreshStageSelector()
-		stageSelector.dropdown.Visible = open
-	end)
-	levelSelector.button.Activated:Connect(function()
-		local open = not levelSelector.dropdown.Visible
-		stageSelector.dropdown.Visible = false
-		levelSelector.dropdown.Visible = false
-		menuPopup.Visible = false
-		controller:refreshStageSelector()
-		levelSelector.dropdown.Visible = open
-	end)
+	local function connectSelector(selector: SelectorUi)
+		selector.button.Activated:Connect(function()
+			local open = not selector.dropdown.Visible
+			closeSelectorDropdowns()
+			menuPopup.Visible = false
+			controller:refreshStageSelector()
+			selector.dropdown.Visible = open
+		end)
+	end
+	for _, selector in selectors do
+		connectSelector(selector)
+	end
 
 	menuPopup = create("Frame", {
 		Active = true,
@@ -341,8 +367,7 @@ function HeaderController.new(config: Config): Controller
 	redo.ZIndex = 102
 	Toolbar.styleIconButton(redo, "Redo", "redo", COLORS.muted)
 	local menu = button(header, "Menu", 76, function()
-		stageSelector.dropdown.Visible = false
-		levelSelector.dropdown.Visible = false
+		closeSelectorDropdowns()
 		menuPopup.Visible = not menuPopup.Visible
 	end)
 	menu.Name = "MenuButton"
@@ -357,9 +382,9 @@ function HeaderController.new(config: Config): Controller
 		local layout = Theme.resolveHeaderLayout(header.AbsoluteSize.X)
 		local controlY = math.floor((Theme.metrics.headerHeight - Theme.metrics.headerControlHeight) * 0.5)
 		local selectorGap = Theme.metrics.headerControlGap
-		local stageSelectorWidth = math.floor((layout.stageWidth - selectorGap) * 0.5)
-		local levelSelectorWidth = layout.stageWidth - selectorGap - stageSelectorWidth
-		local levelSelectorX = layout.stageX + stageSelectorWidth + selectorGap
+		local selectorWidth = math.floor((layout.stageWidth - selectorGap * 2) / 3)
+		local selectorRemainder = layout.stageWidth - selectorGap * 2 - selectorWidth * 3
+		local selectorWidths = { selectorWidth, selectorWidth, selectorWidth + selectorRemainder }
 		local undoX = layout.stageX + layout.stageWidth + Theme.metrics.headerOuterPadding
 		local redoX = undoX + layout.historyWidth + Theme.metrics.headerControlGap
 		local validationRight = Theme.metrics.headerOuterPadding
@@ -367,19 +392,20 @@ function HeaderController.new(config: Config): Controller
 			+ Theme.metrics.headerControlGap
 
 		logo.Position = UDim2.fromOffset(10, 8)
-		stageSelector.button.Position = UDim2.fromOffset(layout.stageX, controlY)
-		stageSelector.button.Size = UDim2.fromOffset(stageSelectorWidth, Theme.metrics.headerControlHeight)
-		stageSelector.label.TextSize = if layout.density == "compact" then 11 else 12
-		stageSelector.dropdown.Position = UDim2.fromOffset(layout.stageX, Theme.metrics.headerHeight + 4)
-		stageSelector.dropdown.Size =
-			UDim2.fromOffset(math.max(stageSelectorWidth, 126), dropdownHeight(stageSelector))
-
-		levelSelector.button.Position = UDim2.fromOffset(levelSelectorX, controlY)
-		levelSelector.button.Size = UDim2.fromOffset(levelSelectorWidth, Theme.metrics.headerControlHeight)
-		levelSelector.label.TextSize = if layout.density == "compact" then 11 else 12
-		levelSelector.dropdown.Position = UDim2.fromOffset(levelSelectorX, Theme.metrics.headerHeight + 4)
-		levelSelector.dropdown.Size =
-			UDim2.fromOffset(math.max(levelSelectorWidth, 126), dropdownHeight(levelSelector))
+		local selectorX = layout.stageX
+		for index, selector in selectors do
+			local width = selectorWidths[index]
+			selector.button.Position = UDim2.fromOffset(selectorX, controlY)
+			selector.button.Size = UDim2.fromOffset(width, Theme.metrics.headerControlHeight)
+			selector.label.TextSize = if layout.density == "compact" then 10 else 12
+			local fullLabel = selector.label:GetAttribute("StagewrightFullLabel")
+			if type(fullLabel) == "string" then
+				selector.label.Text = selectorLabel(selector, fullLabel, layout.density == "compact")
+			end
+			selector.dropdown.Position = UDim2.fromOffset(selectorX, Theme.metrics.headerHeight + 4)
+			selector.dropdown.Size = UDim2.fromOffset(math.max(width, 126), dropdownHeight(selector))
+			selectorX += width + selectorGap
+		end
 
 		undo.Position = UDim2.fromOffset(undoX, controlY)
 		undo.Size = UDim2.fromOffset(layout.historyWidth, Theme.metrics.headerControlHeight)

@@ -465,21 +465,39 @@ function ProjectStore.finish(transaction: Transaction, commit: boolean): boolean
 	return finishActiveTransaction(commit)
 end
 
-function ProjectStore.mutate(name: string, callback: () -> ()): boolean
+function ProjectStore.mutate(name: string, callback: () -> ()): (boolean, string?)
 	local transaction = ProjectStore.begin(name)
 	if transaction == nil then
-		return false
+		return false, nil
 	end
-	local success, message = pcall(callback)
-	local committed = ProjectStore.finish(transaction, success)
+	local success, accepted, message = pcall(callback)
+	local committed = ProjectStore.finish(transaction, success and accepted ~= false)
 	if not success then
-		error(message)
+		error(accepted)
 	end
-	return committed
+	if accepted == false then
+		return false, if type(message) == "string" then message else nil
+	end
+	return committed, if committed and type(message) == "string" then message else nil
 end
 
 function ProjectStore.stageIds(): { string }
-	return StageHierarchy.sortedIds(ProjectStore.get().stages)
+	local current = ProjectStore.get()
+	return StageHierarchy.sortedIds(current.stages, current.maps)
+end
+
+function ProjectStore.mapIds(): { string }
+	return StageHierarchy.mapIds(ProjectStore.get().maps)
+end
+
+function ProjectStore.stageGroupIds(mapId: string): { string }
+	local current = ProjectStore.get()
+	return StageHierarchy.stageGroupIds(current.stages, mapId, current.maps)
+end
+
+function ProjectStore.firstLevelId(mapId: string?, groupId: string?): string?
+	local current = ProjectStore.get()
+	return StageHierarchy.firstLevelId(current.stages, mapId, groupId, current.maps)
 end
 
 local function refreshDisplayOrder()
@@ -488,12 +506,19 @@ local function refreshDisplayOrder()
 	end
 end
 
+local function refreshMapDisplayOrder()
+	for order, mapId in ProjectStore.mapIds() do
+		project.maps[mapId].displayOrder = order
+	end
+end
+
 local function copiedDefinition(
 	source: StageDefinition,
 	blank: boolean,
 	groupId: string,
 	stageNumber: number,
-	levelNumber: number
+	levelNumber: number,
+	mapId: string
 ): StageDefinition
 	local stage = clone(source) :: StageDefinition
 	if blank then
@@ -521,7 +546,7 @@ local function copiedDefinition(
 	local stageId = guid("stage")
 	stage.id = stageId
 	stage.schemaVersion = StageSchema.AUTHORING_VERSION
-	StageHierarchy.assign(stage, groupId, stageNumber, levelNumber)
+	StageHierarchy.assign(stage, groupId, stageNumber, levelNumber, mapId)
 	stage.name = `Level {levelNumber}`
 	stage.displayOrder = #ProjectStore.stageIds() + 1
 	local rewrittenGraphs: { [string]: any } = {}
@@ -561,22 +586,53 @@ local function copiedDefinition(
 	return stage
 end
 
-function ProjectStore.createStage(copyFromId: string?): string
+function ProjectStore.createMap(copyFromId: string?): string
 	local source = if copyFromId ~= nil then project.stages[copyFromId] else nil
+	source = source or project.stages[ProjectStore.stageIds()[1]]
+	assert(source ~= nil, "A Stagewright project needs a source definition")
+	local sourceMap = project.maps[StageHierarchy.address(source).mapId]
+	local mapId = guid("map")
+	local mapOrder = StageHierarchy.nextMapDisplayOrder(project.maps)
+	project.maps[mapId] = {
+		id = mapId,
+		name = `Map {mapOrder}`,
+		displayOrder = mapOrder,
+		backdropImageId = if copyFromId ~= nil and sourceMap ~= nil then sourceMap.backdropImageId else "",
+		metadata = if copyFromId ~= nil and sourceMap ~= nil then clone(sourceMap.metadata) else {},
+	}
+	local stage = copiedDefinition(source, copyFromId == nil, guid("stage_group"), 1, 1, mapId)
+	stage.unlockRequirements = {}
+	project.stages[stage.id] = stage
+	refreshMapDisplayOrder()
+	refreshDisplayOrder()
+	return stage.id
+end
+
+function ProjectStore.createStageInMap(mapId: string, copyFromId: string?): string
+	assert(project.maps[mapId] ~= nil, "Select a valid Map first")
+	local source = if copyFromId ~= nil then project.stages[copyFromId] else nil
+	source = source or project.stages[ProjectStore.firstLevelId(mapId)]
 	source = source or project.stages[ProjectStore.stageIds()[1]]
 	assert(source ~= nil, "A Stagewright project needs a source definition")
 	local stage = copiedDefinition(
 		source,
 		copyFromId == nil,
 		guid("stage_group"),
-		StageHierarchy.nextStageNumber(project.stages),
-		1
+		StageHierarchy.nextStageNumber(project.stages, mapId),
+		1,
+		mapId
 	)
 	stage.unlockRequirements = {}
-	local stageId = stage.id
-	project.stages[stageId] = stage
+	project.stages[stage.id] = stage
 	refreshDisplayOrder()
-	return stageId
+	return stage.id
+end
+
+function ProjectStore.createStage(copyFromId: string?): string
+	local source = if copyFromId ~= nil then project.stages[copyFromId] else nil
+	source = source or project.stages[ProjectStore.stageIds()[1]]
+	assert(source ~= nil, "A Stagewright project needs a source definition")
+	return ProjectStore.createStageInMap(StageHierarchy.address(source).mapId, copyFromId)
 end
 
 function ProjectStore.createLevel(copyFromId: string): string
@@ -592,8 +648,14 @@ function ProjectStore.createLevel(copyFromId: string): string
 			break
 		end
 	end
-	local stage =
-		copiedDefinition(source, false, sourceAddress.groupId, sourceAddress.stageNumber, levelNumber)
+	local stage = copiedDefinition(
+		source,
+		false,
+		sourceAddress.groupId,
+		sourceAddress.stageNumber,
+		levelNumber,
+		sourceAddress.mapId
+	)
 	stage.unlockRequirements = { { kind = "StageUnlocked", stageId = previousId } }
 	project.stages[stage.id] = stage
 	refreshDisplayOrder()
@@ -624,44 +686,162 @@ ensureStarterLevels = function(levelCount: any): boolean
 	return true
 end
 
-local function inboundReferences(stageId: string): { string }
+local function inboundReferences(deleting: { [string]: boolean }): { string }
 	local references: { string } = {}
 	for ownerId, stage in project.stages do
+		if deleting[ownerId] then
+			continue
+		end
 		for _, requirement in stage.unlockRequirements do
-			if requirement.kind == "StageUnlocked" and requirement.stageId == stageId then
+			if requirement.kind == "StageUnlocked" and deleting[requirement.stageId] then
 				table.insert(references, `{ownerId}: unlock requirement`)
 			end
 		end
 		for key, cell in stage.grid.cells do
-			if cell.metadata ~= nil and cell.metadata.transitionStageId == stageId then
+			if cell.metadata ~= nil and deleting[cell.metadata.transitionStageId] then
 				table.insert(references, `{ownerId}: cell {key}`)
+			end
+		end
+		for graphId, graph in stage.pathGraphs do
+			for edgeId, edge in graph.edges do
+				for _, predicate in edge.predicates do
+					if predicate.kind == "StageUnlocked" and deleting[predicate.stageId] then
+						table.insert(references, `{ownerId}: graph {graphId} edge {edgeId}`)
+					end
+				end
 			end
 		end
 	end
 	return references
 end
 
-function ProjectStore.deleteStage(stageId: string): (boolean, string)
-	if #ProjectStore.stageIds() <= 1 then
+local function deleteLevels(deleting: { [string]: boolean }): (boolean, string)
+	local deleteCount = 0
+	for stageId in deleting do
+		if project.stages[stageId] ~= nil then
+			deleteCount += 1
+		end
+	end
+	if deleteCount == 0 then
+		return false, "No matching Level exists"
+	end
+	if #ProjectStore.stageIds() - deleteCount < 1 then
 		return false, "A project must contain at least one stage"
 	end
-	local inbound = inboundReferences(stageId)
+	local inbound = inboundReferences(deleting)
 	if #inbound > 0 then
 		return false, `Stage has inbound references: {table.concat(inbound, ", ")}`
 	end
-	project.stages[stageId] = nil
-	if project.startingStageId == stageId then
-		project.startingStageId = ProjectStore.stageIds()[1]
+	local removedStartingStage = deleting[project.startingStageId] == true
+	for stageId in deleting do
+		project.stages[stageId] = nil
 	end
 	refreshDisplayOrder()
-	return true, "Stage deleted"
+	if removedStartingStage then
+		project.startingStageId = ProjectStore.stageIds()[1]
+	end
+	if project.selectedStageId ~= nil and deleting[project.selectedStageId] then
+		project.selectedStageId = project.startingStageId
+	end
+	return true, if deleteCount == 1 then "Level deleted" else `{deleteCount} Levels deleted`
 end
 
-function ProjectStore.moveStage(stageId: string, offset: number)
+local function emptiedMapId(deleting: { [string]: boolean }): string?
+	local affectedMaps: { [string]: boolean } = {}
+	for stageId in deleting do
+		local definition = project.stages[stageId]
+		if definition ~= nil then
+			affectedMaps[StageHierarchy.address(definition).mapId] = true
+		end
+	end
+	for stageId, definition in project.stages do
+		if not deleting[stageId] then
+			affectedMaps[StageHierarchy.address(definition).mapId] = nil
+		end
+	end
+	local mapId = next(affectedMaps)
+	return mapId
+end
+
+function ProjectStore.deleteLevel(stageId: string): (boolean, string)
+	local deleting = { [stageId] = true }
+	if emptiedMapId(deleting) ~= nil then
+		return false, "A Map must keep a Level; select the Map to delete it"
+	end
+	return deleteLevels(deleting)
+end
+
+function ProjectStore.deleteStage(stageId: string): (boolean, string)
+	return ProjectStore.deleteLevel(stageId)
+end
+
+function ProjectStore.deleteStageGroup(groupId: string): (boolean, string)
+	local deleting: { [string]: boolean } = {}
+	for stageId, stage in project.stages do
+		if StageHierarchy.address(stage).groupId == groupId then
+			deleting[stageId] = true
+		end
+	end
+	if emptiedMapId(deleting) ~= nil then
+		return false, "A Map must keep a Stage; select the Map to delete it"
+	end
+	return deleteLevels(deleting)
+end
+
+function ProjectStore.deleteMap(mapId: string): (boolean, string)
+	local deleting: { [string]: boolean } = {}
+	for stageId, stage in project.stages do
+		if StageHierarchy.address(stage).mapId == mapId then
+			deleting[stageId] = true
+		end
+	end
+	if next(deleting) == nil then
+		if project.maps[mapId] == nil then
+			return false, "Map does not exist"
+		end
+		if #ProjectStore.mapIds() <= 1 then
+			return false, "A project must contain at least one Map"
+		end
+		project.maps[mapId] = nil
+		refreshMapDisplayOrder()
+		return true, "Map deleted"
+	end
+	local deleted, message = deleteLevels(deleting)
+	if not deleted then
+		return false, message
+	end
+	project.maps[mapId] = nil
+	refreshMapDisplayOrder()
+	return true, "Map deleted"
+end
+
+local function hasSequentialUnlocks(ids: { string }): boolean
+	for index, id in ids do
+		local requirements = project.stages[id].unlockRequirements
+		if index == 1 then
+			if #requirements ~= 0 then
+				return false
+			end
+		else
+			local requirement = requirements[1]
+			if
+				#requirements ~= 1
+				or requirement.kind ~= "StageUnlocked"
+				or requirement.stageId ~= ids[index - 1]
+			then
+				return false
+			end
+		end
+	end
+	return true
+end
+
+function ProjectStore.moveLevel(stageId: string, offset: number): (boolean, string)
 	local selected = project.stages[stageId]
 	if selected == nil then
-		return
+		return false, "Level does not exist"
 	end
+	local startingFollowedOrder = project.startingStageId == ProjectStore.stageIds()[1]
 	local selectedAddress = StageHierarchy.address(selected)
 	local ids: { string } = {}
 	for _, id in ProjectStore.stageIds() do
@@ -671,13 +851,100 @@ function ProjectStore.moveStage(stageId: string, offset: number)
 	end
 	local current = table.find(ids, stageId)
 	if current == nil then
-		return
+		return false, "Level does not belong to an editable Stage"
 	end
 	local destination = math.clamp(current + offset, 1, #ids)
+	if destination == current then
+		return false, "Level order unchanged"
+	end
+	if not hasSequentialUnlocks(ids) then
+		return false, "Level order is locked because this Stage uses custom unlock requirements"
+	end
 	local destinationAddress = StageHierarchy.address(project.stages[ids[destination]])
 	selected.levelNumber = destinationAddress.levelNumber
 	project.stages[ids[destination]].levelNumber = selectedAddress.levelNumber
 	refreshDisplayOrder()
+	local reorderedIds: { string } = {}
+	for _, id in ProjectStore.stageIds() do
+		if StageHierarchy.address(project.stages[id]).groupId == selectedAddress.groupId then
+			table.insert(reorderedIds, id)
+		end
+	end
+	for index, id in reorderedIds do
+		project.stages[id].unlockRequirements = if index == 1
+			then {}
+			else { { kind = "StageUnlocked", stageId = reorderedIds[index - 1] } }
+	end
+	if startingFollowedOrder then
+		project.startingStageId = ProjectStore.stageIds()[1]
+	end
+	return true, "Level reordered"
+end
+
+function ProjectStore.moveStage(stageId: string, offset: number): (boolean, string)
+	return ProjectStore.moveLevel(stageId, offset)
+end
+
+function ProjectStore.moveStageGroup(groupId: string, offset: number): (boolean, string)
+	local startingFollowedOrder = project.startingStageId == ProjectStore.stageIds()[1]
+	local selectedId = ProjectStore.firstLevelId(nil, groupId)
+	local selected = if selectedId ~= nil then project.stages[selectedId] else nil
+	if selected == nil then
+		return false, "Stage does not exist"
+	end
+	local selectedAddress = StageHierarchy.address(selected)
+	local groupIds = ProjectStore.stageGroupIds(selectedAddress.mapId)
+	local current = table.find(groupIds, groupId)
+	if current == nil then
+		return false, "Stage does not belong to an editable Map"
+	end
+	local destination = math.clamp(current + offset, 1, #groupIds)
+	local destinationId = groupIds[destination]
+	if destinationId == groupId then
+		return false, "Stage order unchanged"
+	end
+	local destinationLevelId = ProjectStore.firstLevelId(selectedAddress.mapId, destinationId)
+	local destinationStage = if destinationLevelId ~= nil then project.stages[destinationLevelId] else nil
+	if destinationStage == nil then
+		return false, "Destination Stage does not exist"
+	end
+	local destinationNumber = StageHierarchy.address(destinationStage).stageNumber
+	for _, stage in project.stages do
+		local address = StageHierarchy.address(stage)
+		if address.groupId == groupId then
+			stage.stageNumber = destinationNumber
+		elseif address.groupId == destinationId then
+			stage.stageNumber = selectedAddress.stageNumber
+		end
+	end
+	refreshDisplayOrder()
+	if startingFollowedOrder then
+		project.startingStageId = ProjectStore.stageIds()[1]
+	end
+	return true, "Stage reordered"
+end
+
+function ProjectStore.moveMap(mapId: string, offset: number): (boolean, string)
+	local startingFollowedOrder = project.startingStageId == ProjectStore.stageIds()[1]
+	local ids = ProjectStore.mapIds()
+	local current = table.find(ids, mapId)
+	if current == nil then
+		return false, "Map does not exist"
+	end
+	local destination = math.clamp(current + offset, 1, #ids)
+	local destinationId = ids[destination]
+	if destinationId == mapId then
+		return false, "Map order unchanged"
+	end
+	local selectedOrder = project.maps[mapId].displayOrder
+	project.maps[mapId].displayOrder = project.maps[destinationId].displayOrder
+	project.maps[destinationId].displayOrder = selectedOrder
+	refreshMapDisplayOrder()
+	refreshDisplayOrder()
+	if startingFollowedOrder then
+		project.startingStageId = ProjectStore.stageIds()[1]
+	end
+	return true, "Map reordered"
 end
 
 function ProjectStore.validate(): { StageSchema.Issue }

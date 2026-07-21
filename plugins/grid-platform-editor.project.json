@@ -5,6 +5,12 @@
     "AuthoringArea": {
       "$path": "../src/plugins/Stagewright/AuthoringArea.luau"
     },
+    "MapBackdrop": {
+      "$path": "../src/plugins/Stagewright/MapBackdrop.luau"
+    },
+    "HierarchyOptions": {
+      "$path": "../src/plugins/Stagewright/HierarchyOptions.luau"
+    },
     "Controllers": {
       "$className": "Folder",
       "GraphToolController": {
@@ -90,6 +96,12 @@
       },
       "HeaderController": {
         "$path": "../src/plugins/Stagewright/UI/HeaderController.luau"
+      },
+      "HierarchyBrowserView": {
+        "$path": "../src/plugins/Stagewright/UI/HierarchyBrowserView.luau"
+      },
+      "MapPropertiesView": {
+        "$path": "../src/plugins/Stagewright/UI/MapPropertiesView.luau"
       },
       "PaintAppearance": {
         "$path": "../src/plugins/Stagewright/UI/PaintAppearance.luau"

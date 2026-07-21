@@ -12,6 +12,7 @@ end
 local AuthoringArea = require(script.AuthoringArea)
 local GraphToolController = require(script.Controllers.GraphToolController)
 local MapNavigationController = require(script.Controllers.MapNavigationController)
+local MapBackdrop = require(script.MapBackdrop)
 local PaintRouteDragSession = require(script.Controllers.PaintRouteDragSession)
 local PaintStrokeSession = require(script.Controllers.PaintStrokeSession)
 local WorldPathController = require(script.Controllers.WorldPathController)
@@ -31,6 +32,9 @@ local StageTrace = require(script.Shared.StageTrace)
 local AppShell = require(script.UI.AppShell)
 local Factory = require(script.UI.Factory)
 local HeaderController = require(script.UI.HeaderController)
+local HierarchyBrowserView = require(script.UI.HierarchyBrowserView)
+local HierarchyOptions = require(script.HierarchyOptions)
+local MapPropertiesView = require(script.UI.MapPropertiesView)
 local PaintAppearance = require(script.UI.PaintAppearance)
 local PaintCellOverlay = require(script.UI.PaintCellOverlay)
 local PaintInspector = require(script.UI.PaintInspector)
@@ -52,6 +56,7 @@ local setButtonSelected = Factory.setSelected
 
 type Mode = "Paint" | "Graph" | "Stage" | "Validate"
 type GraphViewMode = "World" | "Logic"
+type StagePropertiesScope = "Map" | "Stage" | "Level"
 type PaintPanPointerId = "Primary" | "Middle"
 type PaintPanState = {
 	pointerId: PaintPanPointerId,
@@ -110,6 +115,7 @@ local connectFromNodeId: string? = nil
 local finishGraphTool: () -> () = function() end
 local graphTools: GraphToolController.Controller
 local activeMode: Mode = "Graph"
+local stagePropertiesScope: StagePropertiesScope = "Map"
 local activeBrushId = "terrain_ground"
 local activePaintTool = "Pencil"
 local paintBrushSize = 1
@@ -242,8 +248,8 @@ local cancelActiveEditorInteraction: (boolean?) -> boolean = function(): boolean
 	return false
 end
 
-local function selectStage(stageId: string)
-	selectedStageId = stageId
+local function selectLevel(levelId: string)
+	selectedStageId = levelId
 	selectedCellKey = nil
 	selectedGraphId = nil
 	selectedNodeId = nil
@@ -259,53 +265,19 @@ do
 		headerValidation = headerValidation,
 		status = status,
 		widget = widget,
+		mapOptions = function()
+			return HierarchyOptions.build(project, selectedStageId).mapOptions
+		end,
 		stageOptions = function()
-			local options: { any } = {}
-			local selectedDefinition = project.stages[selectedStageId]
-			local selectedAddress = if selectedDefinition ~= nil
-				then StageHierarchy.address(selectedDefinition)
-				else nil
-			local seenGroups: { [string]: boolean } = {}
-			for _, stageId in ProjectStore.stageIds() do
-				local definition = project.stages[stageId]
-				if definition ~= nil then
-					local address = StageHierarchy.address(definition)
-					if not seenGroups[address.groupId] then
-						seenGroups[address.groupId] = true
-						local selected = selectedAddress ~= nil and address.groupId == selectedAddress.groupId
-						table.insert(options, {
-							value = if selected then selectedStageId else stageId,
-							label = `Stage {address.stageNumber}`,
-							selected = selected,
-						})
-					end
-				end
-			end
-			return options
+			return HierarchyOptions.build(project, selectedStageId).stageOptions
 		end,
 		levelOptions = function()
-			local options: { any } = {}
-			local selectedDefinition = project.stages[selectedStageId]
-			if selectedDefinition == nil then
-				return options
-			end
-			local selectedAddress = StageHierarchy.address(selectedDefinition)
-			for _, stageId in ProjectStore.stageIds() do
-				local definition = project.stages[stageId]
-				if definition ~= nil then
-					local address = StageHierarchy.address(definition)
-					if address.groupId == selectedAddress.groupId then
-						table.insert(options, {
-							value = stageId,
-							label = `Level {address.levelNumber}`,
-							selected = stageId == selectedStageId,
-						})
-					end
-				end
-			end
-			return options
+			return HierarchyOptions.build(project, selectedStageId).levelOptions
 		end,
-		onSelectStage = selectStage,
+		onSelectLevel = function(levelId, selector)
+			stagePropertiesScope = selector
+			selectLevel(levelId)
+		end,
 		onRender = function()
 			renderAll()
 		end,
@@ -487,6 +459,9 @@ for order, modeName in { "Graph", "Paint", "Stage", "Validate" } :: { Mode } do
 	local mode = modeName :: Mode
 	local label = if mode == "Graph" then "Flow + Graph" elseif mode == "Stage" then "Stages" else mode
 	modeButtons[mode] = button(modes, label, 88, function()
+		if mode == "Stage" and activeMode ~= "Stage" then
+			stagePropertiesScope = "Map"
+		end
 		activeMode = mode
 		renderAll()
 	end)
@@ -1908,17 +1883,17 @@ local stageLevelLabel = create("TextLabel", {
 	BorderSizePixel = 0,
 	Font = Enum.Font.BuilderSansBold,
 	Position = UDim2.fromScale(1, 0),
-	Size = UDim2.fromOffset(122, 26),
+	Size = UDim2.fromOffset(112, 26),
 	Text = "STAGE 1 / LEVEL 1",
 	TextColor3 = Color3.fromRGB(151, 194, 255),
-	TextSize = 10,
+	TextSize = 9,
 	Visible = true,
 }, stageInspector) :: TextLabel
 create("UICorner", { CornerRadius = UDim.new(0, 6) }, stageLevelLabel)
 local stageForm = create("Frame", {
 	BackgroundTransparency = 1,
 	Position = UDim2.fromOffset(0, 34),
-	Size = UDim2.new(1, 0, 0, 280),
+	Size = UDim2.new(1, 0, 0, 276),
 	ZIndex = 4,
 }, stageInspector) :: Frame
 create("UIGridLayout", {
@@ -1995,14 +1970,14 @@ local applyStageButton = button(stageInspector, "Apply changes", 124, function()
 	renderAll()
 end)
 applyStageButton.AnchorPoint = Vector2.new(1, 0)
-applyStageButton.Position = UDim2.new(1, 0, 0, 330)
+applyStageButton.Position = UDim2.new(1, 0, 0, 292)
 applyStageButton.ZIndex = 4
 create("TextLabel", {
 	BackgroundTransparency = 1,
 	Font = Enum.Font.BuilderSans,
-	Position = UDim2.fromOffset(0, 326),
+	Position = UDim2.fromOffset(0, 288),
 	Size = UDim2.new(1, -138, 0, 36),
-	Text = "Width x height defines the grid. Shrinking asks before trimming painted cells.",
+	Text = "Level settings affect this Level only.",
 	TextColor3 = COLORS.muted,
 	TextSize = 10,
 	TextTruncate = Enum.TextTruncate.AtEnd,
@@ -2014,6 +1989,37 @@ for _, descendant in stageInspector:GetDescendants() do
 		descendant.ZIndex = 4
 	end
 end
+local mapProperties = MapPropertiesView.new({
+	parent = rightSidebar,
+	onApply = function(name, imageIdValue)
+		local current = stage()
+		if current == nil then
+			return
+		end
+		local address = StageHierarchy.address(current)
+		local map = project.maps[address.mapId]
+		if map == nil then
+			setStatus("The selected Level does not belong to an editable Map.", true)
+			return
+		end
+		local nameValue = string.match(name, "^%s*(.-)%s*$") or ""
+		if nameValue == "" or #nameValue > 120 then
+			setStatus("Map name must contain 1 to 120 characters.", true)
+			return
+		end
+		local imageId = MapBackdrop.normalizeImageId(imageIdValue)
+		if imageId == nil then
+			setStatus("Map backdrop image ID must be blank, digits, or rbxassetid://digits.", true)
+			return
+		end
+		mutate("Update Stagewright map settings", function()
+			map.name = nameValue
+			local _, backdropError = MapBackdrop.apply(project, current, imageId)
+			assert(backdropError == nil, backdropError)
+		end)
+		renderAll()
+	end,
+})
 local stageList = create("ScrollingFrame", {
 	BackgroundColor3 = COLORS.background,
 	BorderSizePixel = 0,
@@ -2028,7 +2034,7 @@ local stageSearchField = create("TextBox", {
 	ClearTextOnFocus = false,
 	Font = Enum.Font.BuilderSans,
 	PlaceholderColor3 = COLORS.muted,
-	PlaceholderText = "Search levels...",
+	PlaceholderText = "Search maps, stages, levels...",
 	Position = UDim2.fromOffset(8, 40),
 	Size = UDim2.new(1, -16, 0, 32),
 	Text = "",
@@ -2048,12 +2054,27 @@ create("UIPadding", {
 	PaddingRight = UDim.new(0, 8),
 	PaddingTop = UDim.new(0, 8),
 }, stageList)
+local hierarchyBrowser = HierarchyBrowserView.new({
+	list = stageList,
+	onSelectMap = function(levelId)
+		stagePropertiesScope = "Map"
+		selectLevel(levelId)
+	end,
+	onSelectStage = function(levelId)
+		stagePropertiesScope = "Stage"
+		selectLevel(levelId)
+	end,
+	onSelectLevel = function(levelId)
+		stagePropertiesScope = "Level"
+		selectLevel(levelId)
+	end,
+})
 local stageActions = create("Frame", {
 	BackgroundColor3 = COLORS.panel,
 	BorderSizePixel = 0,
 	ClipsDescendants = true,
-	Position = UDim2.new(0, 0, 1, -52),
-	Size = UDim2.new(1, 0, 0, 52),
+	Position = UDim2.new(0, 0, 1, -86),
+	Size = UDim2.new(1, 0, 0, 86),
 }, leftSidebar) :: Frame
 create("UIGridLayout", {
 	CellPadding = UDim2.fromOffset(6, 6),
@@ -2297,15 +2318,20 @@ function mutate(name: string, callback: () -> ()): boolean
 		flowRuntime.reportBlocked(name)
 		return false
 	end
-	if not ProjectStore.mutate(name, callback) then
-		flowRuntime.reportBlocked(name)
+	local committed, message = ProjectStore.mutate(name, callback)
+	if not committed then
+		if message ~= nil then
+			setStatus(message, true)
+		else
+			flowRuntime.reportBlocked(name)
+		end
 		return false
 	end
 	project = ProjectStore.get()
 	stageIds = ProjectStore.stageIds()
 	renderCanvas()
 	renderWorkspacePreview()
-	setStatus(`Working changes - {ProjectStore.workingChecksum()}`)
+	setStatus(message or `Working changes - {ProjectStore.workingChecksum()}`)
 	return true
 end
 
@@ -2317,10 +2343,24 @@ local function stageAction(text: string, callback: () -> ()): TextButton
 	return result
 end
 
-stageAction("+ Stage", function()
-	mutate("Create Stagewright stage group", function()
-		selectedStageId = ProjectStore.createStage(nil)
+stageAction("+ Map", function()
+	mutate("Create Stagewright map", function()
+		selectedStageId = ProjectStore.createMap(nil)
 		selectedCellKey = nil
+		stagePropertiesScope = "Map"
+	end)
+	renderAll()
+end)
+stageAction("+ Stage", function()
+	local current = stage()
+	if current == nil then
+		return
+	end
+	local address = StageHierarchy.address(current)
+	mutate("Create Stagewright stage group", function()
+		selectedStageId = ProjectStore.createStageInMap(address.mapId, nil)
+		selectedCellKey = nil
+		stagePropertiesScope = "Stage"
 	end)
 	renderAll()
 end)
@@ -2328,31 +2368,58 @@ stageAction("+ Level", function()
 	mutate("Create Stagewright level", function()
 		selectedStageId = ProjectStore.createLevel(selectedStageId)
 		selectedCellKey = nil
+		stagePropertiesScope = "Level"
 	end)
 	renderAll()
 end)
 stageAction("Delete", function()
-	if not confirm(`delete_{selectedStageId}`, "Delete this level and its graph data?") then
+	local current = stage()
+	if current == nil then
+		return
+	end
+	local address = StageHierarchy.address(current)
+	local scope = stagePropertiesScope
+	if not confirm(`delete_{scope}_{selectedStageId}`, `Delete this {scope} and all of its nested data?`) then
 		return
 	end
 	local ok, message = false, ""
-	local committed = mutate("Delete Stagewright stage", function()
-		ok, message = ProjectStore.deleteStage(selectedStageId)
+	local committed = mutate(`Delete Stagewright {scope}`, function()
+		if scope == "Map" then
+			ok, message = ProjectStore.deleteMap(address.mapId)
+		elseif scope == "Stage" then
+			ok, message = ProjectStore.deleteStageGroup(address.groupId)
+		else
+			ok, message = ProjectStore.deleteLevel(selectedStageId)
+		end
 		if ok then
-			selectedStageId = ProjectStore.stageIds()[1]
+			selectedStageId = ProjectStore.firstLevelId(
+				address.mapId,
+				if scope == "Level" then address.groupId else nil
+			) or ProjectStore.stageIds()[1]
 			selectedCellKey = nil
 		end
+		return ok, message
 	end)
 	if not committed then
 		return
 	end
-	setStatus(message, not ok)
 	renderAll()
 end)
 for _, move in { { "Up", -1 }, { "Down", 1 } } do
 	stageAction(move[1] :: string, function()
-		mutate("Reorder Stagewright stages", function()
-			ProjectStore.moveStage(selectedStageId, move[2] :: number)
+		local current = stage()
+		if current == nil then
+			return
+		end
+		local address = StageHierarchy.address(current)
+		mutate(`Reorder Stagewright {stagePropertiesScope}`, function()
+			if stagePropertiesScope == "Map" then
+				return ProjectStore.moveMap(address.mapId, move[2] :: number)
+			elseif stagePropertiesScope == "Stage" then
+				return ProjectStore.moveStageGroup(address.groupId, move[2] :: number)
+			else
+				return ProjectStore.moveLevel(selectedStageId, move[2] :: number)
+			end
 		end)
 		renderAll()
 	end)
@@ -2383,7 +2450,7 @@ do
 		AnchorPoint = Vector2.new(0, 1),
 		BackgroundColor3 = COLORS.surface,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0, 8, 1, -58),
+		Position = UDim2.new(0, 8, 1, -92),
 		Size = UDim2.new(1, -16, 0, 148),
 		Visible = false,
 		ZIndex = 40,
@@ -2402,118 +2469,30 @@ do
 		PaddingTop = UDim.new(0, 7),
 	}, moreMenu)
 	for _, child in stageActions:GetChildren() do
-		if child:IsA("TextButton") and child.LayoutOrder >= 3 then
+		if child:IsA("TextButton") and child.LayoutOrder >= 4 then
 			child.Parent = moreMenu
 			child.ZIndex = 41
 		end
 	end
 	local layout = stageActions:FindFirstChildOfClass("UIGridLayout")
 	if layout ~= nil then
-		layout.CellSize = UDim2.new(1 / 3, -6, 0, 30)
+		layout.CellSize = UDim2.new(0.5, -7, 0, 30)
 	end
 	local more = button(stageActions, "...", 44, function()
 		moreMenu.Visible = not moreMenu.Visible
 	end)
-	more.LayoutOrder = 3
+	more.LayoutOrder = 4
 end
 
 function renderStageList()
-	for _, child in stageList:GetChildren() do
-		if child:IsA("GuiObject") then
-			child:Destroy()
-		end
-	end
 	stageIds = ProjectStore.stageIds()
-	local groups: { any } = {}
-	local groupById: { [string]: any } = {}
-	local query = string.lower(stageSearchField.Text)
-	for _, stageId in stageIds do
-		local definition = project.stages[stageId]
-		local address = StageHierarchy.address(definition)
-		local searchText = string.lower(
-			`stage {address.stageNumber} level {address.levelNumber} {definition.name} {stageId}`
-		)
-		if query ~= "" and string.find(searchText, query, 1, true) == nil then
-			continue
-		end
-		local group = groupById[address.groupId]
-		if group == nil then
-			group = {
-				id = address.groupId,
-				number = address.stageNumber,
-				levels = {},
-			}
-			groupById[address.groupId] = group
-			table.insert(groups, group)
-		end
-		table.insert(group.levels, {
-			id = stageId,
-			name = definition.name,
-			number = address.levelNumber,
-		})
-	end
-	local layoutOrder = 0
-	for _, group in groups do
-		layoutOrder += 1
-		local groupHeader = create("TextLabel", {
-			BackgroundTransparency = 1,
-			BorderSizePixel = 0,
-			Font = Enum.Font.BuilderSansBold,
-			LayoutOrder = layoutOrder,
-			Size = UDim2.new(1, -8, 0, 26),
-			Text = `v  Stage {group.number}`,
-			TextColor3 = COLORS.text,
-			TextSize = 11,
-			TextXAlignment = Enum.TextXAlignment.Left,
-		}, stageList) :: TextLabel
-		create("UIPadding", { PaddingLeft = UDim.new(0, 5) }, groupHeader)
-		for _, level in group.levels do
-			layoutOrder += 1
-			local stageId = level.id
-			local stageButton = button(
-				stageList,
-				`Level {level.number}  {string.sub(stageId, -8)}`,
-				200,
-				function()
-					selectStage(stageId)
-				end
-			)
-			stageButton.LayoutOrder = layoutOrder
-			stageButton.Size = UDim2.new(1, -12, 0, 28)
-			stageButton.TextXAlignment = Enum.TextXAlignment.Left
-			create(
-				"UIPadding",
-				{ PaddingLeft = UDim.new(0, 20), PaddingRight = UDim.new(0, 18) },
-				stageButton
-			)
-			setButtonSelected(stageButton, stageId == selectedStageId)
-			local hasError = false
-			local hasWarning = false
-			local issueCount = 0
-			for _, issue in validationIssues do
-				if issue.stageId == stageId then
-					issueCount += 1
-					hasError = hasError or issue.severity == "Error"
-					hasWarning = hasWarning or issue.severity ~= "Error"
-				end
-			end
-			stageButton.Text = `Level {level.number}  {string.sub(stageId, -8)}{if issueCount > 0
-				then `  ({issueCount})`
-				else ""}`
-			local statusDot = create("Frame", {
-				AnchorPoint = Vector2.new(1, 0.5),
-				BackgroundColor3 = if hasError
-					then COLORS.danger
-					elseif hasWarning then COLORS.warning
-					else COLORS.success,
-				BorderSizePixel = 0,
-				Position = UDim2.new(1, -8, 0.5, 0),
-				Size = UDim2.fromOffset(7, 7),
-			}, stageButton) :: Frame
-			create("UICorner", { CornerRadius = UDim.new(1, 0) }, statusDot)
-		end
-	end
-	stageList.CanvasSize = UDim2.fromOffset(0, layoutOrder * 33 + 14)
+	hierarchyBrowser:render({
+		hierarchy = HierarchyOptions.build(project, selectedStageId),
+		query = stageSearchField.Text,
+		selectedLevelId = selectedStageId,
+		mapPropertiesVisible = stagePropertiesScope == "Map",
+		issues = validationIssues,
+	})
 end
 
 local graphPage = contentByMode.Graph
@@ -3361,8 +3340,18 @@ do
 	worldPathController = WorldPathController.new({
 		parent = flowUi.worldHost,
 		theme = COLORS,
-		worldSource = AuthoringArea.findPlatform,
-		worldOrigin = AuthoringArea.platformOriginFrame,
+		backdropImage = function()
+			return MapBackdrop.contentId(project, stage())
+		end,
+		mapWorldSize = function()
+			return HierarchyOptions.mapWorldSize(project, stage())
+		end,
+		worldSource = function()
+			return AuthoringArea.findPlatform()
+		end,
+		worldOrigin = function()
+			return AuthoringArea.platformOriginFrame()
+		end,
 		currentPreview = function()
 			return ProjectStore.preview(selectedStageId)
 		end,
@@ -4239,8 +4228,15 @@ local function renderIssues()
 	for order, issueGroup in groupedIssues do
 		local issue = issueGroup.first
 		local issueButton = button(issueList, "", 300, function()
-			if issue.stageId ~= nil and project.stages[issue.stageId] ~= nil then
+			if issue.mapId ~= nil then
+				local mapLevelId = ProjectStore.firstLevelId(issue.mapId)
+				if mapLevelId ~= nil then
+					selectedStageId = mapLevelId
+					stagePropertiesScope = "Map"
+				end
+			elseif issue.stageId ~= nil and project.stages[issue.stageId] ~= nil then
 				selectedStageId = issue.stageId
+				stagePropertiesScope = "Level"
 			end
 			selectedCellKey = nil
 			local cellColumnText, cellRowText =
@@ -4276,6 +4272,7 @@ local function renderIssues()
 		end)
 		issueButton.LayoutOrder = order
 		local issueStage = if issue.stageId ~= nil then project.stages[issue.stageId] else nil
+		local issueMap = if issue.mapId ~= nil then project.maps[issue.mapId] else nil
 		local address = if issueStage ~= nil then StageHierarchy.address(issueStage) else nil
 		local location = if issueGroup.count > 1
 			then `{issueGroup.count} items`
@@ -4286,7 +4283,10 @@ local function renderIssues()
 		for _, column in
 			{
 				{
-					if address ~= nil then `Level {address.levelNumber}` else "Project",
+					if address ~= nil
+						then `Level {address.levelNumber}`
+						elseif issueMap ~= nil then issueMap.name
+						else "Project",
 					0,
 					0.1,
 					rowColor,
@@ -4551,11 +4551,11 @@ renderAll = function()
 	sidebarTitle.Text = if activeMode == "Paint"
 		then if paintRuntime.mode == "Route" then "ROUTE TOOLS" else "CELL PROPERTIES"
 		elseif activeMode == "Validate" then "VALIDATION"
-		else "STAGES & LEVELS"
+		else "MAPS / STAGES / LEVELS"
 	stageSearchField.Visible = browsingLevels
 	stageList.Visible = browsingLevels
 	stageList.Position = UDim2.fromOffset(0, 78)
-	stageList.Size = UDim2.new(1, 0, 1, -130)
+	stageList.Size = UDim2.new(1, 0, 1, -164)
 	stageActions.Visible = browsingLevels
 	brushRail.Visible = activeMode == "Paint" and paintRuntime.mode == "Cells"
 	paintRuntime.routeRail.Visible = activeMode == "Paint" and paintRuntime.mode == "Route"
@@ -4567,7 +4567,8 @@ renderAll = function()
 	if activeMode ~= "Stage" and stageMoreMenu ~= nil and stageMoreMenu:IsA("GuiObject") then
 		stageMoreMenu.Visible = false
 	end
-	stageInspector.Visible = activeMode == "Stage"
+	stageInspector.Visible = activeMode == "Stage" and stagePropertiesScope ~= "Map"
+	mapProperties.root.Visible = activeMode == "Stage" and stagePropertiesScope == "Map"
 	paintInspector.root.Visible = activeMode == "Paint" and paintRuntime.mode == "Cells"
 	paintRuntime.routeInspector.Visible = activeMode == "Paint" and paintRuntime.mode == "Route"
 	shell.inspectorTitle.Text = if activeMode == "Graph"
@@ -4575,19 +4576,30 @@ renderAll = function()
 		elseif activeMode == "Paint" then if paintRuntime.mode == "Route"
 			then "ROUTE INSPECTOR"
 			else "CELL INSPECTOR"
-		elseif activeMode == "Stage" then "LEVEL PROPERTIES"
+		elseif activeMode == "Stage" then if stagePropertiesScope == "Map"
+			then "MAP PROPERTIES"
+			else "LEVEL PROPERTIES"
 		else ""
 	renderPaintChrome()
 	renderIssues()
 	local current = stage()
 	if current ~= nil then
 		local address = StageHierarchy.address(current)
+		local hierarchy = HierarchyOptions.build(project, selectedStageId)
+		local selectedMapNumber = 1
+		for _, mapItem in hierarchy.maps do
+			if mapItem.id == address.mapId then
+				selectedMapNumber = mapItem.number
+				break
+			end
+		end
+		mapProperties:setMap(project.maps[address.mapId], selectedMapNumber)
 		shell.title.Text = "Stagewright"
 		shell.footerStage.Text =
-			`Stage {address.stageNumber} / Level {address.levelNumber}    Theme: {current.themeId}    Wave set: {current.waveSetId}`
+			`Map {selectedMapNumber} / Stage {address.stageNumber} / Level {address.levelNumber}    Theme: {current.themeId}    Wave set: {current.waveSetId}`
 		levelOverviewName.Text = "Level overview"
 		stageInspectorTitle.Text = "LEVEL SETTINGS"
-		stageLevelLabel.Text = `STAGE {address.stageNumber} / LEVEL {address.levelNumber}`
+		stageLevelLabel.Text = `M{selectedMapNumber}  /  S{address.stageNumber}  /  L{address.levelNumber}`
 		local currentGraph = graph()
 		local nodeCount = 0
 		local edgeCount = 0
@@ -4987,9 +4999,15 @@ do
 		true
 	)
 	action.Triggered:Connect(function()
+		local current = stage()
+		if current == nil then
+			return
+		end
+		local address = StageHierarchy.address(current)
 		mutate("Create Stagewright stage group", function()
-			selectedStageId = ProjectStore.createStage(nil)
+			selectedStageId = ProjectStore.createStageInMap(address.mapId, nil)
 			selectedCellKey = nil
+			stagePropertiesScope = "Stage"
 		end)
 		renderAll()
 	end)

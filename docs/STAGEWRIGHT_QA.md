@@ -33,9 +33,15 @@ Do not connect the legacy `rng-defender-grid-demo` Rojo patch during this import
 
 ## 2. Studio interaction checklist
 
-- Confirm the browser starts with **Stage 1** containing **Level 1** through **Level 10**. All ten begin as independent copies of the same playable grid and graph.
+- Confirm the browser starts with **Map 1 → Stage 1 → Level 1** through **Level 10**. All ten begin as independent copies of the same playable grid and graph.
+- Select **+ Map**; verify a new Map appears with its own Stage 1 / Level 1 and independent Map Properties.
 - Select **+ Stage**; verify a new stage group appears with its own Level 1 and stable group ID.
 - Select **+ Level**; verify the selected level is copied into the next number inside the same stage group.
+- Import a pathless 16:9 map PNG through Asset Manager, copy its image ID, paste it into **Map Properties → Backdrop image asset ID**, and apply. Confirm the image fills the World Path background while every road still comes from the live spline renderer.
+- Switch among Levels and Stages in the same Map and confirm they share that backdrop but retain independent nodes and splines. Switch Maps and confirm each Map has its own backdrop.
+- Confirm a Stage appears under exactly one Map and that a Map can contain at least 15 Stages without selector or browser clipping.
+- Collapse the World Path inspector and confirm the map reclaims the freed height without changing pointer alignment; expand it and exercise every existing spline and node control.
+- Clear the backdrop ID and undo/redo the edit. Confirm the direct UI image disappears while hand-authored Workspace scenery remains untouched.
 - Use **Focus Admin** and verify all 3D graph handles appear inside `Workspace.StagewrightAdminArea`, not on a player island.
 - Copy a level; verify level, graph, node, and edge IDs change while copied references still work.
 - Reorder levels; verify IDs do not change.

@@ -5,8 +5,6 @@ local CurrencyConfig = require("../src/shared/CurrencyConfig")
 local RuneCatalog = require("../src/shared/RuneCatalog")
 local RuneLogic = require("../src/shared/RuneLogic")
 local RuneModeConfig = require("../src/shared/RuneModeConfig")
-local DungeonConfig = require("../src/shared/DungeonConfig")
-local DungeonLogic = require("../src/shared/DungeonLogic")
 local TowerDefenseCatalog = require("../src/shared/TowerDefenseCatalog")
 local TowerDefenseLogic = require("../src/shared/TowerDefenseLogic")
 local TowerDefenseRequest = require("../src/shared/TowerDefenseRequest")
@@ -2076,6 +2074,9 @@ do
 	expectEqual(definition.grid.cells.malformed, nil, "grid shrink removes malformed cell keys")
 end
 
+expectEqual(StageSchema.AUTHORING_VERSION, 4, "Stagewright Map-first authoring schema is version 4")
+expectEqual(StageSchema.RUNTIME_VERSION, 2, "Stagewright runtime exports include the Map registry")
+
 do
 	local StagePayload = require("../src/shared/StagePayload")
 	expectEqual(
@@ -2220,6 +2221,73 @@ do
 		repositoryProjectReady.kind,
 		"Ready",
 		"repository Stagewright authoring data satisfies the safe editor shape"
+	)
+	local missingMapRegistry = cloneJson(renderableProject)
+	missingMapRegistry.maps = nil
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(missingMapRegistry)),
+		"InvalidProjectShape",
+		"current Map-first project without a Map registry"
+	)
+	local danglingMapReference = cloneJson(renderableProject)
+	danglingMapReference.stages[danglingMapReference.startingStageId].mapId = "map_missing"
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(danglingMapReference)),
+		"InvalidProjectShape",
+		"current Level that references a missing Map"
+	)
+	local malformedMapArtwork = cloneJson(renderableProject)
+	local malformedMapId = malformedMapArtwork.stages[malformedMapArtwork.startingStageId].mapId
+	malformedMapArtwork.maps[malformedMapId].backdropImageId = 110986082479051
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(malformedMapArtwork)),
+		"InvalidProjectShape",
+		"current Map with a numeric backdrop ID instead of the persisted string contract"
+	)
+	local sharedStageAcrossMaps = cloneJson(renderableProject)
+	sharedStageAcrossMaps.maps.map_second = {
+		id = "map_second",
+		name = "Map 2",
+		displayOrder = 2,
+		backdropImageId = "",
+		metadata = {},
+	}
+	local originalLevel = sharedStageAcrossMaps.stages[sharedStageAcrossMaps.startingStageId]
+	local secondLevel = cloneJson(originalLevel)
+	secondLevel.id = "level_second_map"
+	secondLevel.mapId = "map_second"
+	secondLevel.levelNumber = 2
+	secondLevel.displayOrder = 2
+	sharedStageAcrossMaps.stages[secondLevel.id] = secondLevel
+	expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(sharedStageAcrossMaps)),
+		"InvalidProjectShape",
+		"one Stage group split across two Maps"
+	)
+	local orphanMapProject = cloneJson(renderableProject)
+	orphanMapProject.maps.map_orphan = {
+		id = "map_orphan",
+		name = "Orphan Map",
+		displayOrder = 2,
+		backdropImageId = "",
+		metadata = { preservedUnknown = true },
+	}
+	local orphanMapResult = expectCorrupt(
+		directSnapshot(StageSchema.encodeCanonical(orphanMapProject)),
+		"InvalidProjectShape",
+		"current Map without a Stage or Level"
+	)
+	expectEqual(
+		type(orphanMapResult.message) == "string"
+			and string.find(
+					orphanMapResult.message,
+					"Map map_orphan must contain at least one Level",
+					1,
+					true
+				)
+				~= nil,
+		true,
+		"orphan Map load rejection identifies the unsafe Map clearly"
 	)
 
 	local malformedStageMap = {
@@ -2513,7 +2581,7 @@ do
 	expectEqual(unversioned.sourceVersion, 0, "unversioned project reports schema zero")
 	expectEqual(unversioned.project.unknownRoot, "keep", "unversioned migration preserves unknown fields")
 
-	for _, version in { 0, 2 } do
+	for _, version in { 0, 2, 3 } do
 		local legacyProjectForVersion = cloneJson(renderableProject)
 		legacyProjectForVersion.schemaVersion = version
 		local legacy = planWithoutMutation(
@@ -3499,6 +3567,8 @@ do
 	local gridPluginSource = fs.readFile("src/plugins/GridPlatformEditPlugin.server.luau")
 	local stagewrightProjectStoreSource = fs.readFile("src/plugins/Stagewright/ProjectStore.luau")
 	local stagewrightAuthoringAreaSource = fs.readFile("src/plugins/Stagewright/AuthoringArea.luau")
+	local stagewrightHierarchyOptionsSource = fs.readFile("src/plugins/Stagewright/HierarchyOptions.luau")
+	local stagewrightMapBackdropSource = fs.readFile("src/plugins/Stagewright/MapBackdrop.luau")
 	local stagewrightStorageSource = fs.readFile("src/plugins/Stagewright/Persistence/ProjectStorage.luau")
 	local stagewrightLoadPolicySource =
 		fs.readFile("src/plugins/Stagewright/Persistence/ProjectLoadPolicy.luau")
@@ -3521,12 +3591,16 @@ do
 	local stagewrightThemeSource = fs.readFile("src/plugins/Stagewright/UI/Theme.luau")
 	local stagewrightFactorySource = fs.readFile("src/plugins/Stagewright/UI/Factory.luau")
 	local stagewrightHeaderControllerSource = fs.readFile("src/plugins/Stagewright/UI/HeaderController.luau")
+	local stagewrightHierarchyBrowserSource =
+		fs.readFile("src/plugins/Stagewright/UI/HierarchyBrowserView.luau")
+	local stagewrightMapPropertiesSource = fs.readFile("src/plugins/Stagewright/UI/MapPropertiesView.luau")
 	local stagewrightPaintAppearanceSource = fs.readFile("src/plugins/Stagewright/UI/PaintAppearance.luau")
 	local stagewrightPaintCellOverlaySource = fs.readFile("src/plugins/Stagewright/UI/PaintCellOverlay.luau")
 	local stagewrightPaintInspectorSource = fs.readFile("src/plugins/Stagewright/UI/PaintInspector.luau")
 	local stagewrightToolbarSource = fs.readFile("src/plugins/Stagewright/UI/Toolbar.luau")
 	local stagewrightGraphOperationsSource = fs.readFile("src/plugins/Stagewright/Graph/Operations.luau")
 	local stagePathAssetsSource = fs.readFile("src/shared/StagePathAssets.luau")
+	local stageTypesSource = fs.readFile("src/shared/StageTypes.luau")
 	local stagewrightPredicateFieldsSource = fs.readFile("src/plugins/Stagewright/Graph/PredicateFields.luau")
 	local stagewrightPaintBrushesSource = fs.readFile("src/plugins/Stagewright/Paint/Brushes.luau")
 	local stagewrightStageSettingsSource = fs.readFile("src/plugins/Stagewright/Stage/Settings.luau")
@@ -3545,6 +3619,8 @@ do
 	local stagewrightStageSource = stagewrightStageSettingsSource
 	expectCompiles(gridPluginSource, "modern Stagewright plugin shell compiles as Luau")
 	expectCompiles(stagewrightProjectStoreSource, "Stagewright project store compiles as Luau")
+	expectCompiles(stagewrightHierarchyOptionsSource, "Stagewright hierarchy options compile as Luau")
+	expectCompiles(stagewrightMapBackdropSource, "Stagewright map backdrop manager compiles as Luau")
 	expectCompiles(stagewrightStorageSource, "Stagewright storage adapter compiles as Luau")
 	expectCompiles(stagewrightLoadPolicySource, "Stagewright load policy compiles as Luau")
 	expectCompiles(stagewrightWorkspacePreviewSource, "Stagewright Workspace preview compiles as Luau")
@@ -3569,23 +3645,255 @@ do
 	expectCompiles(stagewrightThemeSource, "Stagewright UI theme compiles as Luau")
 	expectCompiles(stagewrightFactorySource, "Stagewright UI factory compiles as Luau")
 	expectCompiles(stagewrightHeaderControllerSource, "Stagewright header controller compiles as Luau")
+	expectCompiles(stagewrightHierarchyBrowserSource, "Stagewright hierarchy browser compiles as Luau")
+	expectCompiles(stagewrightMapPropertiesSource, "Stagewright Map Properties view compiles as Luau")
 	expectCompiles(stagewrightPaintAppearanceSource, "Stagewright paint appearance compiles as Luau")
 	expectCompiles(stagewrightPaintCellOverlaySource, "Stagewright paint cell overlay compiles as Luau")
 	expectCompiles(stagewrightPaintInspectorSource, "Stagewright paint inspector compiles as Luau")
 	expectCompiles(stagewrightToolbarSource, "Stagewright toolbar compiles as Luau")
 	expectCompiles(stagewrightGraphOperationsSource, "Stagewright graph operations compile as Luau")
 	expectCompiles(stagePathAssetsSource, "shared Stagewright path asset catalog compiles as Luau")
+	expectCompiles(stageTypesSource, "shared Stagewright Map-first types compile as Luau")
 	expectCompiles(stagewrightPredicateFieldsSource, "Stagewright predicate fields compile as Luau")
 	expectCompiles(stagewrightPaintBrushesSource, "Stagewright paint brushes compile as Luau")
 	expectCompiles(stagewrightStageSettingsSource, "Stagewright stage settings compile as Luau")
 	expectCompiles(stagewrightIssueModelSource, "Stagewright validation issue model compiles as Luau")
 	expectCompiles(stagewrightImportSource, "Stagewright repository importer compiles as Luau")
+	for _, mapTypeContract in
+		{
+			"export type MapDefinition = {",
+			"backdropImageId: string",
+			"mapId: string",
+			"maps: { [string]: MapDefinition }",
+			"export type RuntimeMapDefinition = {",
+			"mapOrder: { string }",
+			"maps: { [string]: RuntimeMapDefinition }",
+		}
+	do
+		expectEqual(
+			string.find(stageTypesSource, mapTypeContract, 1, true) ~= nil,
+			true,
+			`Stagewright serializable types preserve the Map registry contract: {mapTypeContract}`
+		)
+	end
+	for _, backdropContract in
+		{
+			'local MAP_IMAGE_FIELD = "backdropImageId"',
+			'local LEGACY_METADATA_KEY = "stagewright.mapBackdrops"',
+			'local LEGACY_CONFLICT_KEY = "stagewright.legacyBackdropConflict"',
+			"local function stageMapId(stage: any): string?",
+			"local function mapRecord(project: any, stage: any): any?",
+			"local direct = maps[mapId]",
+			"function MapBackdrop.normalizeImageId",
+			'return string.match(trimmed, "^rbxassetid://(%d+)$")',
+			"function MapBackdrop.readImageId",
+			"local map = mapRecord(project, stage)",
+			"local configured = MapBackdrop.normalizeImageId(map[MAP_IMAGE_FIELD])",
+			"function MapBackdrop.contentId",
+			"function MapBackdrop.apply",
+			"map[MAP_IMAGE_FIELD] = imageId",
+			'if type(project.maps) == "table" then',
+			'return false, "The selected Level does not reference an existing Map"',
+			"map.metadata[LEGACY_CONFLICT_KEY] = nil",
+			"function MapBackdrop.clear",
+		}
+	do
+		expectEqual(
+			string.find(stagewrightMapBackdropSource, backdropContract, 1, true) ~= nil,
+			true,
+			`Stagewright map backdrop preserves contract: {backdropContract}`
+		)
+	end
+	for _, removedBackdropCache in
+		{
+			"ServerStorage",
+			"StagewrightMapBackdrops",
+			"ImagePlane",
+			"BackdropImage",
+			"Instance.new",
+			"GetAttribute",
+			"SetAttribute",
+			"Decal",
+			"BasePart",
+			"function MapBackdrop.reconcile",
+			"function MapBackdrop.reconciled",
+		}
+	do
+		expectEqual(
+			string.find(stagewrightMapBackdropSource, removedBackdropCache, 1, true),
+			nil,
+			`Stagewright map metadata helper does not recreate legacy 3D cache: {removedBackdropCache}`
+		)
+	end
+	for _, forbiddenBackdropCoupling in { "StagePath", "PathTiles", "pathGraphs", "edges" } do
+		expectEqual(
+			string.find(stagewrightMapBackdropSource, forbiddenBackdropCoupling, 1, true),
+			nil,
+			`Stagewright map artwork does not encode route data: {forbiddenBackdropCoupling}`
+		)
+	end
+	do
+		local executableBackdropSource = string.gsub(
+			stagewrightMapBackdropSource,
+			"local StageHierarchy = require%(script%.Parent%.Shared%.StageHierarchy%)",
+			"local StageHierarchy = ...",
+			1
+		)
+		local backdropChunk, backdropCompileError = luau.load(executableBackdropSource)
+		expectEqual(
+			backdropChunk ~= nil,
+			true,
+			`Stagewright map metadata helper loads for behavior tests: {tostring(backdropCompileError)}`
+		)
+		local MapBackdrop =
+			assert(backdropChunk, "MapBackdrop behavior chunk did not compile")(StageHierarchy)
+		expectEqual(
+			MapBackdrop.normalizeImageId("  rbxassetid://110986082479051  "),
+			"110986082479051",
+			"Map backdrop normalizes a Roblox content ID without numeric precision loss"
+		)
+		expectEqual(
+			MapBackdrop.normalizeImageId(110986082479051),
+			nil,
+			"Map backdrop rejects numeric IDs that could lose precision"
+		)
+		local mapProject = {
+			maps = {
+				map_main = {
+					id = "map_main",
+					backdropImageId = "111",
+					metadata = { ["stagewright.legacyBackdropConflict"] = true },
+				},
+				map_bonus = {
+					id = "map_bonus",
+					backdropImageId = "222",
+					metadata = {},
+				},
+			},
+			metadata = {
+				["stagewright.mapBackdrops"] = { shared_stage = "999" },
+			},
+		}
+		local mainLevelOne = { mapId = "map_main", stageGroupId = "shared_stage", stageNumber = 1 }
+		local mainLevelTwo = { mapId = "map_main", stageGroupId = "shared_stage", stageNumber = 1 }
+		local bonusLevel = { mapId = "map_bonus", stageGroupId = "bonus_stage", stageNumber = 1 }
+		expectEqual(
+			MapBackdrop.readImageId(mapProject, mainLevelOne),
+			"111",
+			"first-class Map artwork overrides legacy Stage-group metadata"
+		)
+		local changed, applyError = MapBackdrop.apply(mapProject, mainLevelOne, "110986082479051")
+		expectEqual(changed and applyError == nil, true, "valid Map artwork applies successfully")
+		expectEqual(
+			MapBackdrop.readImageId(mapProject, mainLevelTwo),
+			"110986082479051",
+			"every Stage and Level in one Map shares the applied artwork"
+		)
+		expectEqual(
+			MapBackdrop.readImageId(mapProject, bonusLevel),
+			"222",
+			"changing one Map never changes another Map's artwork"
+		)
+		expectEqual(
+			mapProject.maps.map_main.metadata["stagewright.legacyBackdropConflict"],
+			nil,
+			"choosing Map artwork resolves the legacy backdrop conflict marker"
+		)
+		local missingChanged, missingError =
+			MapBackdrop.apply(mapProject, { mapId = "map_missing", stageGroupId = "missing" }, "333")
+		expectEqual(
+			missingChanged == false and type(missingError) == "string",
+			true,
+			"current Map-first projects never fall back to writing artwork for a missing Map"
+		)
+		local legacyOnlyProject = {
+			metadata = { ["stagewright.mapBackdrops"] = { legacy_group = "444" } },
+		}
+		expectEqual(
+			MapBackdrop.readImageId(legacyOnlyProject, { stageGroupId = "legacy_group", stageNumber = 1 }),
+			"444",
+			"pre-migration projects retain read-only legacy backdrop compatibility"
+		)
+	end
+	for _, directImageContract in
+		{
+			"backdropImage: () -> string?",
+			"mapWorldSize: () -> WorldSize?",
+			"transformMapId: string?",
+			"if self.transformMapId ~= nextMapId then",
+			"local function configuredBackdropImage(self: Controller): string?",
+			"local function imageCoverRect(",
+			"CanvasTransform.worldToCanvas(transform",
+			"local function createImageBackdrop(",
+			'Instance.new("ImageLabel")',
+			'image.Name = "MapBackdropImage"',
+			"image.Image = contentId",
+			"image.ScaleType = Enum.ScaleType.Stretch",
+			'GetPropertyChangedSignal("IsLoaded")',
+			"if observedImage.IsLoaded then",
+			"task.delay(BACKDROP_LOAD_TIMEOUT",
+			"Loading map artwork...",
+			"Map image unavailable - check asset ownership or moderation",
+			"mapWorldWidth",
+			"mapWorldHeight",
+		}
+	do
+		expectEqual(
+			string.find(stagewrightWorldPathSource, directImageContract, 1, true) ~= nil,
+			true,
+			`Stagewright World Path directly renders Map artwork: {directImageContract}`
+		)
+	end
+	expectEqual(
+		string.find(stagewrightWorldPathControllerSource, "backdropImage = config.backdropImage", 1, true)
+				~= nil
+			and string.find(
+				stagewrightWorldPathControllerSource,
+				"mapWorldSize = config.mapWorldSize",
+				1,
+				true
+			) ~= nil
+			and string.find(gridPluginSource, "MapBackdrop.contentId(project, stage())", 1, true) ~= nil
+			and string.find(gridPluginSource, "HierarchyOptions.mapWorldSize(project, stage())", 1, true)
+				~= nil,
+		true,
+		"Stagewright passes the selected Map image into World Path without a generated 3D cache"
+	)
+	expectEqual(
+		string.find(gridPluginSource, "ProjectStore.mutate(name, callback)", 1, true) ~= nil
+			and string.find(gridPluginSource, "MapBackdrop.reconciled", 1, true) == nil,
+		true,
+		"Stagewright map metadata changes use the normal project transaction without cache reconciliation"
+	)
+	expectEqual(
+		string.find(stagewrightWorldPathSource, "local function createWorldBackdrop", 1, true) ~= nil
+			and string.find(stagewrightWorldPathSource, "if configuredImage ~= nil then", 1, true) ~= nil
+			and string.find(stagewrightWorldPathSource, "hasWorldBackdrop = createWorldBackdrop", 1, true)
+				~= nil,
+		true,
+		"Stagewright uses real Studio scenery only as the no-image fallback"
+	)
 	expectEqual(
 		string.find(gridPluginProject, '"StagePathAssets"', 1, true) ~= nil
 			and string.find(gridPluginProject, '"../src/shared/StagePathAssets.luau"', 1, true) ~= nil,
 		true,
 		"Stagewright plugin maps the shared path asset catalog"
 	)
+	for moduleName, modulePath in
+		{
+			HierarchyOptions = "../src/plugins/Stagewright/HierarchyOptions.luau",
+			HierarchyBrowserView = "../src/plugins/Stagewright/UI/HierarchyBrowserView.luau",
+			MapBackdrop = "../src/plugins/Stagewright/MapBackdrop.luau",
+			MapPropertiesView = "../src/plugins/Stagewright/UI/MapPropertiesView.luau",
+		}
+	do
+		expectEqual(
+			string.find(gridPluginProject, `"{moduleName}"`, 1, true) ~= nil
+				and string.find(gridPluginProject, `"{modulePath}"`, 1, true) ~= nil,
+			true,
+			`Stagewright plugin maps the Map hierarchy module {moduleName}`
+		)
+	end
 	expectEqual(
 		string.find(gridPluginProject, '"GraphToolController"', 1, true) ~= nil
 			and string.find(
@@ -3748,6 +4056,12 @@ do
 			and string.find(stagewrightHeaderControllerSource, "config.popupLayer", 1, true) ~= nil
 			and string.find(
 				stagewrightHeaderControllerSource,
+				'createSelector(header, config.popupLayer, "Map", "Map --")',
+				1,
+				true
+			) ~= nil
+			and string.find(
+				stagewrightHeaderControllerSource,
 				'createSelector(header, config.popupLayer, "Stage", "Stage --")',
 				1,
 				true
@@ -3760,36 +4074,206 @@ do
 			) ~= nil
 			and string.find(
 				stagewrightHeaderControllerSource,
-				"stageSelector.dropdown.Visible = false",
+				"local selectors = { mapSelector, stageSelector, levelSelector }",
+				1,
+				true
+			) ~= nil
+			and string.find(stagewrightHeaderControllerSource, "for _, selector in selectors do", 1, true) ~= nil
+			and string.find(stagewrightHeaderControllerSource, "config.mapOptions()", 1, true) ~= nil
+			and string.find(stagewrightHeaderControllerSource, "config.stageOptions()", 1, true) ~= nil
+			and string.find(stagewrightHeaderControllerSource, "config.levelOptions()", 1, true) ~= nil,
+		true,
+		"Stagewright header makes Map the first selector and cascades Map, Stage, then Level"
+	)
+	expectEqual(
+		string.find(gridPluginSource, "require(script.HierarchyOptions)", 1, true) ~= nil
+			and string.find(gridPluginSource, "mapOptions = function()", 1, true) ~= nil
+			and string.find(gridPluginSource, "stageOptions = function()", 1, true) ~= nil
+			and string.find(gridPluginSource, "levelOptions = function()", 1, true) ~= nil
+			and string.find(gridPluginSource, "HierarchyOptions.build(project, selectedStageId)", 1, true)
+				~= nil,
+		true,
+		"Stagewright bootstrap delegates Map-first selector scoping to one hierarchy model"
+	)
+	for _, hierarchyContract in
+		{
+			"mapOptions: { SelectorOption }",
+			"stageOptions: { SelectorOption }",
+			"levelOptions: { SelectorOption }",
+			"maps: { MapItem }",
+			"selectedMapId: string?",
+			"selectedStageGroupId: string?",
+			"for mapNumber, mapId in StageHierarchy.mapIds(maps) do",
+			"local stageKey = `{address.mapId}\\0{address.groupId}`",
+			"selectedAddress.mapId == mapItem.id",
+			"selectedAddress.groupId == stageItem.id",
+		}
+	do
+		expectEqual(
+			string.find(stagewrightHierarchyOptionsSource, hierarchyContract, 1, true) ~= nil,
+			true,
+			`Stagewright hierarchy options preserve Map -> Stage -> Level scoping: {hierarchyContract}`
+		)
+	end
+	do
+		local executableHierarchySource = string.gsub(
+			stagewrightHierarchyOptionsSource,
+			"local StageHierarchy = require%(script%.Parent%.Shared%.StageHierarchy%)",
+			"local StageHierarchy = ...",
+			1
+		)
+		local hierarchyChunk, hierarchyCompileError = luau.load(executableHierarchySource)
+		expectEqual(
+			hierarchyChunk ~= nil,
+			true,
+			`Stagewright hierarchy options load for behavior tests: {tostring(hierarchyCompileError)}`
+		)
+		local HierarchyOptions =
+			assert(hierarchyChunk, "HierarchyOptions behavior chunk did not compile")(StageHierarchy)
+		local optionsProject = {
+			maps = {
+				map_main = { id = "map_main", name = "Grasslands", displayOrder = 1 },
+				map_bonus = { id = "map_bonus", name = "Caverns", displayOrder = 2 },
+			},
+			stages = {
+				main_stage_1_level_1 = {
+					id = "main_stage_1_level_1",
+					name = "Level 1",
+					mapId = "map_main",
+					stageGroupId = "main_stage_1",
+					stageNumber = 1,
+					levelNumber = 1,
+					grid = { columns = 10, rows = 8, cellSize = 4 },
+				},
+				main_stage_1_level_2 = {
+					id = "main_stage_1_level_2",
+					name = "Level 2",
+					mapId = "map_main",
+					stageGroupId = "main_stage_1",
+					stageNumber = 1,
+					levelNumber = 2,
+					grid = { columns = 20, rows = 6, cellSize = 4 },
+				},
+				main_stage_2_level_1 = {
+					id = "main_stage_2_level_1",
+					name = "Level 1",
+					mapId = "map_main",
+					stageGroupId = "main_stage_2",
+					stageNumber = 2,
+					levelNumber = 1,
+					grid = { columns = 12, rows = 15, cellSize = 4 },
+				},
+				bonus_stage_1_level_1 = {
+					id = "bonus_stage_1_level_1",
+					name = "Level 1",
+					mapId = "map_bonus",
+					stageGroupId = "bonus_stage_1",
+					stageNumber = 1,
+					levelNumber = 1,
+					grid = { columns = 100, rows = 100, cellSize = 1 },
+				},
+			},
+		}
+		local hierarchy = HierarchyOptions.build(optionsProject, "main_stage_1_level_2")
+		expectEqual(
+			#hierarchy.mapOptions == 2
+				and hierarchy.mapOptions[1].selected
+				and hierarchy.mapOptions[1].value == "main_stage_1_level_2",
+			true,
+			"Map selector is primary and preserves the current Level when its Map is selected"
+		)
+		expectEqual(
+			#hierarchy.stageOptions == 2
+				and hierarchy.stageOptions[1].selected
+				and hierarchy.stageOptions[1].value == "main_stage_1_level_2",
+			true,
+			"Stage selector lists only Stages owned by the selected Map"
+		)
+		expectEqual(
+			#hierarchy.levelOptions == 2
+				and hierarchy.levelOptions[2].selected
+				and hierarchy.levelOptions[2].value == "main_stage_1_level_2",
+			true,
+			"Level selector lists only Levels owned by the selected Stage"
+		)
+		expectEqual(
+			hierarchy.maps[1].id == "map_main"
+				and #hierarchy.maps[1].stages == 2
+				and hierarchy.maps[2].id == "map_bonus"
+				and #hierarchy.maps[2].stages == 1,
+			true,
+			"hierarchy browser data nests every Stage under exactly one Map"
+		)
+		local mapWorldSize =
+			HierarchyOptions.mapWorldSize(optionsProject, optionsProject.stages.main_stage_1_level_2)
+		expectEqual(
+			mapWorldSize ~= nil and mapWorldSize.x == 80 and mapWorldSize.y == 60,
+			true,
+			"one Map backdrop uses stable maximum bounds across its Stages without including another Map"
+		)
+	end
+	for _, browserContract in
+		{
+			"for _, mapItem in state.hierarchy.maps do",
+			"for _, stageItem in mapItem.stages do",
+			"for _, levelItem in stageItem.levels do",
+			"config.onSelectMap(mapItem.representativeLevelId)",
+			"config.onSelectStage(stageItem.representativeLevelId)",
+			"config.onSelectLevel(levelId)",
+		}
+	do
+		expectEqual(
+			string.find(stagewrightHierarchyBrowserSource, browserContract, 1, true) ~= nil,
+			true,
+			`Stagewright hierarchy browser nests Map, Stage, and Level: {browserContract}`
+		)
+	end
+	expectEqual(
+		string.find(stagewrightMapPropertiesSource, 'textField(form, "MAP NAME", 1)', 1, true) ~= nil
+			and string.find(
+				stagewrightMapPropertiesSource,
+				'textField(form, "BACKDROP IMAGE ASSET ID", 2)',
 				1,
 				true
 			) ~= nil
 			and string.find(
-				stagewrightHeaderControllerSource,
-				"levelSelector.dropdown.Visible = false",
+				stagewrightMapPropertiesSource,
+				"Shared by every Stage and Level on this Map.",
 				1,
 				true
 			) ~= nil
-			and string.find(stagewrightHeaderControllerSource, "config.levelOptions()", 1, true) ~= nil,
+			and string.find(stagewrightMapPropertiesSource, "map.backdropImageId", 1, true) ~= nil,
 		true,
-		"Stagewright header separates Stage and Level selectors and closes competing popovers"
+		"Stagewright Map Properties owns one shared backdrop for all Stages and Levels on the Map"
 	)
+	local levelInspectorStart = string.find(gridPluginSource, "local stageInspector =", 1, true)
+	local mapPropertiesStart = string.find(
+		gridPluginSource,
+		"local mapProperties = MapPropertiesView.new",
+		levelInspectorStart or 1,
+		true
+	)
+	local levelInspectorSource = if levelInspectorStart ~= nil and mapPropertiesStart ~= nil
+		then string.sub(gridPluginSource, levelInspectorStart, mapPropertiesStart - 1)
+		else ""
 	expectEqual(
-		string.find(gridPluginSource, "seenGroups[address.groupId]", 1, true) ~= nil
-			and string.find(gridPluginSource, "levelOptions = function()", 1, true) ~= nil
-			and string.find(gridPluginSource, "address.groupId == selectedAddress.groupId", 1, true)
-				~= nil,
+		string.find(levelInspectorSource, 'textField(stageForm, "LEVEL NAME", 1)', 1, true) ~= nil
+			and string.find(levelInspectorSource, "BACKDROP", 1, true) == nil,
 		true,
-		"Stagewright header groups Stages by stable hierarchy ID and scopes Levels to the selection"
+		"Stagewright Level Properties keeps per-Level settings but no longer owns Map artwork"
 	)
 	expectEqual(
 		string.find(gridPluginSource, "require(script.UI.AppShell)", 1, true) ~= nil
+			and string.find(gridPluginSource, "require(script.HierarchyOptions)", 1, true) ~= nil
+			and string.find(gridPluginSource, "require(script.MapBackdrop)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.Controllers.GraphToolController)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.Controllers.PaintRouteDragSession)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.Controllers.PaintStrokeSession)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.Controllers.WorldPathController)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.UI.PaintCellOverlay)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.UI.PaintInspector)", 1, true) ~= nil
+			and string.find(gridPluginSource, "require(script.UI.HierarchyBrowserView)", 1, true) ~= nil
+			and string.find(gridPluginSource, "require(script.UI.MapPropertiesView)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.UI.Theme)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.Graph.Operations)", 1, true) ~= nil
 			and string.find(gridPluginSource, "require(script.WorkspacePreview)", 1, true) ~= nil,
@@ -3997,9 +4481,12 @@ do
 			"WorkspacePreview.new(",
 			"ProjectStore.export(",
 			"ProjectStore.preview(",
-			"ProjectStore.createStage(",
+			"ProjectStore.createMap(",
+			"ProjectStore.createStageInMap(",
 			"ProjectStore.createLevel(",
-			"ProjectStore.deleteStage(",
+			"ProjectStore.deleteMap(",
+			"ProjectStore.deleteStageGroup(",
+			"ProjectStore.deleteLevel(",
 			"AuthoringArea.showIslandOutlines(",
 		}
 	do
@@ -4009,6 +4496,166 @@ do
 			`Stagewright bootstrap wires {bootstrapCall}`
 		)
 	end
+	for _, projectStoreHierarchyContract in
+		{
+			"function ProjectStore.mapIds(): { string }",
+			"function ProjectStore.stageGroupIds(mapId: string): { string }",
+			"function ProjectStore.firstLevelId(mapId: string?, groupId: string?): string?",
+			"function ProjectStore.createMap(copyFromId: string?): string",
+			"function ProjectStore.createStageInMap(mapId: string, copyFromId: string?): string",
+			'assert(project.maps[mapId] ~= nil, "Select a valid Map first")',
+			"StageHierarchy.nextStageNumber(project.stages, mapId)",
+			"function ProjectStore.createLevel(copyFromId: string): string",
+			"sourceAddress.mapId",
+			"function ProjectStore.deleteMap(mapId: string): (boolean, string)",
+			"function ProjectStore.moveMap(mapId: string, offset: number): (boolean, string)",
+		}
+	do
+		expectEqual(
+			string.find(stagewrightProjectStoreSource, projectStoreHierarchyContract, 1, true) ~= nil,
+			true,
+			`Stagewright ProjectStore preserves Map-first ownership: {projectStoreHierarchyContract}`
+		)
+	end
+	for _, hierarchySafetyContract in
+		{
+			"local function emptiedMapId(deleting: { [string]: boolean }): string?",
+			"A Map must keep a Level; select the Map to delete it",
+			"A Map must keep a Stage; select the Map to delete it",
+			"local function hasSequentialUnlocks(ids: { string }): boolean",
+			"Level order is locked because this Stage uses custom unlock requirements",
+			"project.stages[id].unlockRequirements = if index == 1",
+			'else { { kind = "StageUnlocked", stageId = reorderedIds[index - 1] } }',
+			"local startingFollowedOrder = project.startingStageId == ProjectStore.stageIds()[1]",
+			"project.startingStageId = ProjectStore.stageIds()[1]",
+			'return false, "Level order unchanged"',
+			'return false, "Stage order unchanged"',
+			'return false, "Map order unchanged"',
+		}
+	do
+		expectEqual(
+			string.find(stagewrightProjectStoreSource, hierarchySafetyContract, 1, true) ~= nil,
+			true,
+			`Stagewright hierarchy mutations preserve progression and Map ownership: {hierarchySafetyContract}`
+		)
+	end
+	do
+		local mutateStart = assert(
+			string.find(stagewrightProjectStoreSource, "function ProjectStore.mutate", 1, true),
+			"ProjectStore mutation helper exists"
+		)
+		local mutateEnd = assert(
+			string.find(stagewrightProjectStoreSource, "function ProjectStore.stageIds", mutateStart, true),
+			"ProjectStore stage ordering follows its mutation helper"
+		)
+		local mutateSource = string.sub(stagewrightProjectStoreSource, mutateStart, mutateEnd - 1)
+		local mutationChunk, mutationCompileError = luau.load(
+			"return function(ProjectStore, callback)\n"
+				.. mutateSource
+				.. "\nreturn ProjectStore.mutate('Hierarchy action', callback)\nend"
+		)
+		expectEqual(
+			mutationChunk ~= nil,
+			true,
+			`ProjectStore mutation behavior compiles independently: {tostring(mutationCompileError)}`
+		)
+		local runMutation = assert(mutationChunk, "ProjectStore mutation behavior chunk compiles")()
+		local requestedCommit = nil
+		local fakeStore = {
+			begin = function(_name: string): number
+				return 7
+			end,
+			finish = function(_transaction: number, commit: boolean): boolean
+				requestedCommit = commit
+				return commit
+			end,
+		}
+		local rejected, rejectionMessage = runMutation(fakeStore, function()
+			return false, "Custom unlock order cannot be changed"
+		end)
+		expectEqual(rejected, false, "a rejected hierarchy action does not commit")
+		expectEqual(requestedCommit, false, "a rejected hierarchy action explicitly rolls back")
+		expectEqual(
+			rejectionMessage,
+			"Custom unlock order cannot be changed",
+			"a rejected hierarchy action preserves its user-facing reason"
+		)
+		local accepted, acceptedMessage = runMutation(fakeStore, function()
+			return true, "Map reordered"
+		end)
+		expectEqual(accepted, true, "a successful hierarchy action commits")
+		expectEqual(requestedCommit, true, "a successful hierarchy action requests commit")
+		expectEqual(acceptedMessage, "Map reordered", "a successful hierarchy action preserves feedback")
+	end
+	do
+		local deleteLevelsStart = assert(
+			string.find(stagewrightProjectStoreSource, "local function deleteLevels", 1, true),
+			"ProjectStore deletion helper exists"
+		)
+		local emptiedMapStart = assert(
+			string.find(stagewrightProjectStoreSource, "local function emptiedMapId", deleteLevelsStart, true),
+			"ProjectStore empty-Map guard exists"
+		)
+		local deleteLevelsSource =
+			string.sub(stagewrightProjectStoreSource, deleteLevelsStart, emptiedMapStart - 1)
+		expectEqual(
+			string.find(deleteLevelsSource, "project.maps", 1, true),
+			nil,
+			"deleting Levels never sweeps unrelated inactive or orphan Maps"
+		)
+		expectEqual(
+			string.find(stagewrightProjectStoreSource, "activeMapIds", 1, true),
+			nil,
+			"ProjectStore has no broad inactive-Map cleanup path"
+		)
+	end
+	expectEqual(
+		string.find(gridPluginSource, 'stageAction("+ Map"', 1, true) ~= nil
+			and string.find(gridPluginSource, 'stageAction("+ Stage"', 1, true) ~= nil
+			and string.find(gridPluginSource, 'stageAction("+ Level"', 1, true) ~= nil
+			and string.find(
+					gridPluginSource,
+					"ProjectStore.createStageInMap(address.mapId, nil)",
+					1,
+					true
+				)
+				~= nil,
+		true,
+		"Stagewright hierarchy actions create a Map, a Stage inside the selected Map, or a Level inside the selected Stage"
+	)
+	expectEqual(
+		string.find(gridPluginSource, 'if scope == "Map" then', 1, true) ~= nil
+			and string.find(gridPluginSource, "ok, message = ProjectStore.deleteMap(address.mapId)", 1, true) ~= nil
+			and string.find(gridPluginSource, 'elseif scope == "Stage" then', 1, true) ~= nil
+			and string.find(
+				gridPluginSource,
+				"ok, message = ProjectStore.deleteStageGroup(address.groupId)",
+				1,
+				true
+			) ~= nil
+			and string.find(
+				gridPluginSource,
+				"ok, message = ProjectStore.deleteLevel(selectedStageId)",
+				1,
+				true
+			) ~= nil
+			and string.find(gridPluginSource, "return ok, message", 1, true) ~= nil
+			and string.find(gridPluginSource, 'if stagePropertiesScope == "Map" then', 1, true) ~= nil
+			and string.find(gridPluginSource, "return ProjectStore.moveMap(address.mapId", 1, true) ~= nil
+			and string.find(gridPluginSource, "return ProjectStore.moveStageGroup(address.groupId", 1, true) ~= nil
+			and string.find(gridPluginSource, "return ProjectStore.moveLevel(selectedStageId", 1, true) ~= nil
+			and string.find(gridPluginSource, "local committed, message = ProjectStore.mutate", 1, true) ~= nil
+			and string.find(gridPluginSource, "setStatus(message, true)", 1, true) ~= nil,
+		true,
+		"Stagewright hierarchy actions roll back rejected no-ops and surface their reason"
+	)
+	expectEqual(
+		string.find(gridPluginSource, "if issue.mapId ~= nil then", 1, true) ~= nil
+			and string.find(gridPluginSource, "ProjectStore.firstLevelId(issue.mapId)", 1, true) ~= nil
+			and string.find(gridPluginSource, 'stagePropertiesScope = "Map"', 1, true) ~= nil,
+		true,
+		"Stagewright Map validation issues navigate to Map Properties"
+	)
 	expectEqual(
 		string.find(stagewrightProjectStoreSource, "StageExport.bake(", 1, true) ~= nil,
 		true,
@@ -4149,6 +4796,8 @@ do
 			"setTool",
 			"AddSpawn",
 			"SHORT_INSPECTOR_HEIGHT",
+			"COLLAPSED_INSPECTOR_HEIGHT",
+			"inspectorExpanded",
 			"backdropCamera.Parent",
 			'area = "Marker"',
 			'area = "Label"',
@@ -5113,6 +5762,7 @@ expectEqual(finiteJsonOk, false, "Stagewright serialization rejects NaN payloads
 do
 	local invalidCellIssues = StageSchema.validateStage({
 		id = "invalid_cell_stage",
+		mapId = "map_test",
 		stageGroupId = "invalid_cell_group",
 		stageNumber = 1,
 		levelNumber = 1,
@@ -5128,6 +5778,7 @@ do
 	expectEqual(invalidCellIssues[1].code, "CellOutOfBounds", "out-of-range stage cells fail validation")
 	local inheritedEndpointIssues = StageSchema.validateStage({
 		id = "inherited_endpoint_stage",
+		mapId = "map_test",
 		stageGroupId = "inherited_endpoint_group",
 		stageNumber = 1,
 		levelNumber = 1,
@@ -5154,6 +5805,7 @@ do
 	)
 	local conflictingRoleIssues = StageSchema.validateStage({
 		id = "conflicting_role_stage",
+		mapId = "map_test",
 		stageGroupId = "conflicting_role_group",
 		stageNumber = 1,
 		levelNumber = 1,
@@ -5179,6 +5831,7 @@ do
 	local malformedDefaultCellAccepted, malformedDefaultCellIssues = pcall(function()
 		return StageSchema.validateStage({
 			id = "malformed_default_cell_stage",
+			mapId = "map_test",
 			stageGroupId = "malformed_default_cell_group",
 			stageNumber = 1,
 			levelNumber = 1,
@@ -5200,6 +5853,7 @@ do
 	local malformedRolesAccepted, malformedRolesIssues = pcall(function()
 		return StageSchema.validateStage({
 			id = "malformed_roles_stage",
+			mapId = "map_test",
 			stageGroupId = "malformed_roles_group",
 			stageNumber = 1,
 			levelNumber = 1,
@@ -5322,12 +5976,13 @@ local schemaOneProject = {
 	},
 }
 local migratedStageProject = StageSchema.migrateProject(schemaOneProject)
-expectEqual(migratedStageProject.schemaVersion, 3, "Stagewright authoring schemas migrate sequentially")
+expectEqual(migratedStageProject.schemaVersion, 4, "Stagewright authoring schemas migrate sequentially")
 expectEqual(
 	migratedStageProject.stages.legacy.stageNumber == 1
-		and migratedStageProject.stages.legacy.levelNumber == 1,
+		and migratedStageProject.stages.legacy.levelNumber == 1
+		and migratedStageProject.stages.legacy.mapId == StageHierarchy.LEGACY_MAP_ID,
 	true,
-	"legacy flat stages migrate into stable Stage 1 / Level 1 hierarchy fields"
+	"legacy flat stages migrate into stable Map 1 / Stage 1 / Level 1 hierarchy fields"
 )
 expectEqual(
 	migratedStageProject.stages.legacy.unknownFutureField.preserved,
@@ -5336,13 +5991,199 @@ expectEqual(
 )
 expectEqual(
 	StageSchema.migrateProject(migratedStageProject).schemaVersion,
-	3,
+	4,
 	"Stagewright migration is idempotent"
 )
 do
+	local schemaThreeProject = {
+		schemaVersion = 3,
+		startingStageId = "level_alpha_1",
+		selectedStageId = "level_beta_1",
+		unknownRoot = { future = "preserved" },
+		metadata = {
+			["stagewright.mapBackdrops"] = {
+				stage_alpha = "110986082479051",
+				stage_beta = "110986082479051",
+			},
+			unknownMetadata = { future = true },
+		},
+		stages = {
+			level_alpha_1 = {
+				schemaVersion = 3,
+				id = "level_alpha_1",
+				stageGroupId = "stage_alpha",
+				stageNumber = 1,
+				levelNumber = 1,
+				displayOrder = 1,
+				unknownLevel = { future = "alpha" },
+			},
+			level_alpha_2 = {
+				schemaVersion = 3,
+				id = "level_alpha_2",
+				stageGroupId = "stage_alpha",
+				stageNumber = 1,
+				levelNumber = 2,
+				displayOrder = 2,
+				unknownLevel = { future = "alpha-two" },
+			},
+			level_beta_1 = {
+				schemaVersion = 3,
+				id = "level_beta_1",
+				stageGroupId = "stage_beta",
+				stageNumber = 2,
+				levelNumber = 1,
+				displayOrder = 3,
+				unknownLevel = { future = "beta" },
+			},
+		},
+	}
+	local migratedMapProject = StageSchema.migrateProject(schemaThreeProject)
+	local migratedMap = migratedMapProject.maps[StageHierarchy.LEGACY_MAP_ID]
+	expectEqual(migratedMapProject.schemaVersion, 4, "schema 3 migrates to the Map-first schema")
+	expectEqual(
+		migratedMap ~= nil and migratedMap.backdropImageId,
+		"110986082479051",
+		"matching legacy Stage backdrops promote to one Map backdrop without changing the asset ID"
+	)
+	expectEqual(
+		migratedMapProject.startingStageId == "level_alpha_1"
+			and migratedMapProject.selectedStageId == "level_beta_1"
+			and migratedMapProject.stages.level_alpha_1.id == "level_alpha_1"
+			and migratedMapProject.stages.level_alpha_2.id == "level_alpha_2"
+			and migratedMapProject.stages.level_beta_1.id == "level_beta_1",
+		true,
+		"Map migration preserves every playable Level ID and current selection reference"
+	)
+	expectEqual(
+		migratedMapProject.stages.level_alpha_1.mapId == StageHierarchy.LEGACY_MAP_ID
+			and migratedMapProject.stages.level_alpha_2.mapId == StageHierarchy.LEGACY_MAP_ID
+			and migratedMapProject.stages.level_beta_1.mapId == StageHierarchy.LEGACY_MAP_ID,
+		true,
+		"all legacy Stages migrate into exactly one initial Map"
+	)
+	expectEqual(
+		migratedMapProject.unknownRoot.future == "preserved"
+			and migratedMapProject.metadata.unknownMetadata.future == true
+			and migratedMapProject.stages.level_alpha_2.unknownLevel.future == "alpha-two",
+		true,
+		"Map migration preserves unknown root, metadata, and Level fields"
+	)
+	expectEqual(
+		migratedMapProject.metadata["stagewright.mapBackdrops"].stage_alpha,
+		"110986082479051",
+		"Map migration keeps legacy backdrop metadata for lossless compatibility"
+	)
+
+	local conflictingLegacy = serde.decode(
+		"json",
+		StageSchema.encodeCanonical({
+			schemaVersion = 3,
+			startingStageId = "level_alpha_1",
+			metadata = {
+				["stagewright.mapBackdrops"] = {
+					stage_alpha = "111",
+					stage_beta = "222",
+				},
+			},
+			stages = {
+				level_alpha_1 = {
+					schemaVersion = 3,
+					id = "level_alpha_1",
+					stageGroupId = "stage_alpha",
+					stageNumber = 1,
+					levelNumber = 1,
+					displayOrder = 1,
+				},
+				level_beta_1 = {
+					schemaVersion = 3,
+					id = "level_beta_1",
+					stageGroupId = "stage_beta",
+					stageNumber = 2,
+					levelNumber = 1,
+					displayOrder = 2,
+				},
+			},
+		})
+	)
+	StageSchema.migrateProject(conflictingLegacy)
+	local conflictMap = conflictingLegacy.maps[StageHierarchy.LEGACY_MAP_ID]
+	expectEqual(
+		conflictMap.backdropImageId == ""
+			and conflictMap.metadata["stagewright.legacyBackdropConflict"] == true,
+		true,
+		"conflicting legacy Stage backdrops remain unresolved instead of silently choosing one"
+	)
+	expectEqual(
+		conflictingLegacy.metadata["stagewright.mapBackdrops"].stage_alpha == "111"
+			and conflictingLegacy.metadata["stagewright.mapBackdrops"].stage_beta == "222",
+		true,
+		"conflicting legacy backdrop values remain recoverable"
+	)
+end
+do
+	local hierarchyMaps = {
+		map_main = { id = "map_main", name = "Map 1", displayOrder = 1 },
+		map_bonus = { id = "map_bonus", name = "Map 2", displayOrder = 2 },
+	}
+	local hierarchyLevels: { [string]: any } = {}
+	for stageNumber = 1, 15 do
+		local levelId = `main_stage_{stageNumber}_level_1`
+		hierarchyLevels[levelId] = {
+			id = levelId,
+			mapId = "map_main",
+			stageGroupId = `main_stage_{stageNumber}`,
+			stageNumber = stageNumber,
+			levelNumber = 1,
+			displayOrder = stageNumber,
+		}
+	end
+	hierarchyLevels.bonus_level = {
+		id = "bonus_level",
+		mapId = "map_bonus",
+		stageGroupId = "bonus_stage",
+		stageNumber = 1,
+		levelNumber = 1,
+		displayOrder = 16,
+	}
+	expectEqual(
+		#StageHierarchy.stageGroupIds(hierarchyLevels, "map_main", hierarchyMaps),
+		15,
+		"one Map supports at least fifteen independently selectable Stages"
+	)
+	expectEqual(
+		StageHierarchy.nextStageNumber(hierarchyLevels, "map_main"),
+		16,
+		"new Stage numbering is scoped to its owning Map"
+	)
+	expectEqual(
+		StageHierarchy.nextStageNumber(hierarchyLevels, "map_bonus"),
+		2,
+		"a second Map keeps an independent Stage sequence"
+	)
+	expectEqual(
+		StageHierarchy.firstLevelId(hierarchyLevels, "map_bonus", nil, hierarchyMaps),
+		"bonus_level",
+		"Map selection resolves to a representative playable Level"
+	)
+	local sortedHierarchy = StageHierarchy.sortedIds(hierarchyLevels, hierarchyMaps)
+	expectEqual(
+		sortedHierarchy[1] == "main_stage_1_level_1" and sortedHierarchy[#sortedHierarchy] == "bonus_level",
+		true,
+		"hierarchy sorting keeps Maps primary before their Stages and Levels"
+	)
+end
+do
 	local authoringProject = serde.decode("json", fs.readFile("stage-data/stagewright-project.json"))
 	local authoredProductionStage = authoringProject.stages.stage_default
+	local authoredMapId = authoredProductionStage.mapId
 	expectEqual(authoredProductionStage.name, "Level 1", "repository names the starting definition Level 1")
+	expectEqual(
+		type(authoringProject.maps) == "table"
+			and authoringProject.maps[authoredMapId] ~= nil
+			and authoringProject.maps[authoredMapId].backdropImageId ~= nil,
+		true,
+		"repository authoring data has a first-class Map registry and Map-owned backdrop field"
+	)
 	expectEqual(
 		authoringProject.metadata["stagewright.approvedStarterRevision"],
 		StageStarterProject.REVISION,
@@ -5381,9 +6222,9 @@ do
 			copiedStarterLayoutsMatch = false
 		end
 		expectEqual(
-			address.stageNumber == 1 and address.levelNumber == levelNumber,
+			address.mapId == authoredMapId and address.stageNumber == 1 and address.levelNumber == levelNumber,
 			true,
-			`authored Stage 1 level order includes Level {levelNumber}`
+			`authored Map 1 / Stage 1 level order includes Level {levelNumber}`
 		)
 		if levelNumber > 1 then
 			expectEqual(
@@ -5451,6 +6292,56 @@ do
 			"duplicate level numbers block deterministic export"
 		)
 	end
+	do
+		local crossMapStage = serde.decode("json", serde.encode("json", authoringProject))
+		crossMapStage.maps.map_second = {
+			id = "map_second",
+			name = "Map 2",
+			displayOrder = 2,
+			backdropImageId = "",
+			metadata = {},
+		}
+		crossMapStage.stages[authoredLevelIds[2]].mapId = "map_second"
+		local crossMapResult = StageExport.bake(crossMapStage)
+		local foundSharedStage = false
+		for _, issue in crossMapResult.issues do
+			if issue.code == "StageSharedAcrossMaps" then
+				foundSharedStage = true
+				break
+			end
+		end
+		expectEqual(
+			crossMapResult.bundle == nil and foundSharedStage,
+			true,
+			"one stable Stage group cannot belong to multiple Maps"
+		)
+	end
+	do
+		local orphanMapProject = serde.decode("json", serde.encode("json", authoringProject))
+		orphanMapProject.maps.map_orphan = {
+			id = "map_orphan",
+			name = "Orphan Map",
+			displayOrder = 2,
+			backdropImageId = "",
+			metadata = { preservedUnknown = true },
+		}
+		local orphanMapExport = StageExport.bake(orphanMapProject)
+		local orphanIssue: any = nil
+		for _, issue in orphanMapExport.issues do
+			if issue.code == "OrphanMap" then
+				orphanIssue = issue
+				break
+			end
+		end
+		expectEqual(
+			orphanMapExport.bundle == nil
+				and orphanIssue ~= nil
+				and orphanIssue.mapId == "map_orphan"
+				and string.find(orphanIssue.message, "at least one Level", 1, true) ~= nil,
+			true,
+			"runtime export rejects an orphan Map with a clear Map-scoped error"
+		)
+	end
 	expectEqual(
 		authoredProductionStage.metadata["stagewright.layoutVersion"],
 		3,
@@ -5515,6 +6406,19 @@ do
 	local secondExport = StageExport.bake(authoringProject)
 	expectEqual(firstExport.bundle ~= nil, true, "valid Stagewright project bakes a runtime bundle")
 	expectEqual(
+		firstExport.bundle ~= nil and firstExport.bundle.schemaVersion,
+		StageSchema.RUNTIME_VERSION,
+		"runtime Map hierarchy exports with the current runtime schema"
+	)
+	expectEqual(
+		firstExport.bundle ~= nil
+			and firstExport.bundle.mapOrder[1] == authoredMapId
+			and firstExport.bundle.maps[authoredMapId] ~= nil
+			and firstExport.bundle.stages[authoringProject.startingStageId].mapId == authoredMapId,
+		true,
+		"runtime bundle keeps Map order, Map data, and every Level's owning Map ID"
+	)
+	expectEqual(
 		firstExport.bundle ~= nil and #firstExport.bundle.stageOrder,
 		10,
 		"runtime bundle exports all ten Stage 1 levels"
@@ -5573,6 +6477,56 @@ do
 		true,
 		"runtime export identifies the dangling starting-stage contract"
 	)
+	do
+		local danglingUnlockProject = serde.decode("json", serde.encode("json", authoringProject))
+		local ownerStageId = authoredLevelIds[2]
+		danglingUnlockProject.stages[ownerStageId].unlockRequirements = {
+			{ kind = "StageUnlocked", stageId = "stage_missing_unlock_target" },
+		}
+		local danglingUnlockExport = StageExport.bake(danglingUnlockProject)
+		local danglingUnlockIssue: any = nil
+		for _, issue in danglingUnlockExport.issues do
+			if issue.code == "DanglingStageReference" then
+				danglingUnlockIssue = issue
+				break
+			end
+		end
+		expectEqual(
+			danglingUnlockExport.bundle == nil
+				and danglingUnlockIssue ~= nil
+				and danglingUnlockIssue.mapId == authoredMapId
+				and danglingUnlockIssue.stageId == ownerStageId
+				and danglingUnlockIssue.objectId == "stage_missing_unlock_target",
+			true,
+			"runtime export rejects a Level unlock requirement that references a missing Level"
+		)
+	end
+	do
+		local danglingRouteProject = serde.decode("json", serde.encode("json", authoringProject))
+		local routeEdgeId = edgeByRoute["North Spawn->Merge"].id
+		danglingRouteProject.stages.stage_default.pathGraphs[authoredGraphId].edges[routeEdgeId].predicates =
+			{
+				{ kind = "StageUnlocked", stageId = "stage_missing_route_target" },
+			}
+		local danglingRouteExport = StageExport.bake(danglingRouteProject)
+		local danglingRouteIssue: any = nil
+		for _, issue in danglingRouteExport.issues do
+			if issue.code == "DanglingStageReference" and issue.graphId == authoredGraphId then
+				danglingRouteIssue = issue
+				break
+			end
+		end
+		expectEqual(
+			danglingRouteExport.bundle == nil
+				and danglingRouteIssue ~= nil
+				and danglingRouteIssue.mapId == authoredMapId
+				and danglingRouteIssue.stageId == "stage_default"
+				and danglingRouteIssue.objectId == routeEdgeId
+				and string.find(danglingRouteIssue.message, "stage_missing_route_target", 1, true) ~= nil,
+			true,
+			"runtime export rejects a route predicate that references a missing Level"
+		)
+	end
 	local runtimeStage = firstExport.bundle ~= nil and firstExport.bundle.stages.stage_default or nil
 	local runtimeGraph = runtimeStage ~= nil and runtimeStage.pathGraphs[authoredGraphId] or nil
 	local autoPlaceCount = 0
@@ -5630,170 +6584,184 @@ do
 		nil,
 		"runtime baking does not mutate the authoring working copy"
 	)
-	local projectionProject = serde.decode("json", serde.encode("json", authoringProject))
-	local projectionStage = projectionProject.stages.stage_default
-	local projectionGraph = projectionStage.pathGraphs[authoredGraphId]
-	local projectionEdgeId = assert(firstRuntimeEdgeId, "production runtime graph has no edge")
-	local projectionEdge = projectionGraph.edges[projectionEdgeId]
-	local projectionNode = projectionGraph.nodes[projectionEdge.fromNodeId]
-	local projectionLaneProfile = projectionGraph.laneProfiles[projectionEdge.laneProfileId]
-	local projectionCellKey =
-		assert(next(projectionStage.grid.cells), "production stage has no cell override")
-	local projectionCell = projectionStage.grid.cells[projectionCellKey]
-	local projectionRole = assert(next(projectionCell.roles), "production cell override has no role")
-	projectionStage.editorOnlyField = true
-	projectionStage.grid.editorOnlyField = true
-	projectionStage.grid.defaultCell.editorOnlyField = true
-	projectionCell.editorOnlyField = true
-	projectionGraph.editorOnlyField = true
-	projectionEdge.editorOnlyField = true
-	projectionEdge.outHandleOffset.editorOnlyField = true
-	projectionNode.editorOnlyField = true
-	projectionNode.tags.editorOnlyField = "editor-only-tag"
-	projectionLaneProfile.editorOnlyField = true
-	projectionLaneProfile.offsets.editorOnlyField = math.huge
-	projectionEdge.predicates.editorOnlyField = { kind = "EditorOnlyPredicate" }
-	projectionStage.modifierIds.editorOnlyField = "editor-only-modifier"
-	projectionStage.unlockRequirements.editorOnlyField = {
-		kind = "StageUnlocked",
-		stageId = "stage_default",
-	}
-	local projectionExport = StageExport.bake(projectionProject)
-	local projectedStage = projectionExport.bundle and projectionExport.bundle.stages.stage_default
-	local projectedGraph = projectedStage and projectedStage.pathGraphs[authoredGraphId]
-	local projectedEdge = projectedGraph and projectedGraph.edges[projectionEdgeId]
-	local projectedNode = projectedGraph and projectedGraph.nodes[projectionEdge.fromNodeId]
-	local projectedLaneProfile = projectedGraph and projectedGraph.laneProfiles[projectionEdge.laneProfileId]
-	local projectedCell = projectedStage and projectedStage.grid.cells[projectionCellKey]
-	expectEqual(
-		projectedStage ~= nil
-			and projectedStage.editorOnlyField == nil
-			and projectedStage.grid.editorOnlyField == nil
-			and projectedStage.grid.defaultCell.editorOnlyField == nil
-			and projectedCell ~= nil
-			and projectedCell.editorOnlyField == nil
-			and projectedGraph.editorOnlyField == nil
-			and projectedEdge.editorOnlyField == nil
-			and projectedEdge.outHandleOffset.editorOnlyField == nil
-			and projectedNode.editorOnlyField == nil
-			and projectedNode.tags.editorOnlyField == nil
-			and projectedLaneProfile.editorOnlyField == nil
-			and projectedLaneProfile.offsets.editorOnlyField == nil
-			and projectedEdge.predicates.editorOnlyField == nil
-			and projectedStage.modifierIds.editorOnlyField == nil
-			and projectedStage.unlockRequirements.editorOnlyField == nil,
-		true,
-		"runtime projection strips undeclared authoring fields at every DTO boundary"
-	)
-	expectEqual(
-		projectionExport.bundle ~= nil
-			and firstExport.bundle ~= nil
-			and projectionExport.bundle.checksum == firstExport.bundle.checksum,
-		true,
-		"unknown authoring fields do not change the runtime bundle checksum"
-	)
-	expectEqual(
-		projectedCell ~= nil
-			and projectedCell.roles[projectionRole] == projectionCell.roles[projectionRole]
-			and projectedEdge.metadata.pathAssetId == projectionEdge.metadata.pathAssetId,
-		true,
-		"runtime projection preserves declared role and edge metadata dictionaries"
-	)
-	expectEqual(
-		projectionStage.editorOnlyField
-			and projectionEdge.outHandleOffset.editorOnlyField
-			and projectionLaneProfile.editorOnlyField
-			and projectionNode.tags.editorOnlyField == "editor-only-tag"
-			and projectionStage.modifierIds.editorOnlyField == "editor-only-modifier",
-		true,
-		"runtime projection does not strip unknown fields from the authoring working copy"
-	)
-	projectionStage.metadata.runtimeMetadataMarker = true
-	local metadataProjectionExport = StageExport.bake(projectionProject)
-	local metadataProjectedStage = metadataProjectionExport.bundle
-		and metadataProjectionExport.bundle.stages.stage_default
-	expectEqual(
-		metadataProjectedStage ~= nil
-			and metadataProjectedStage.metadata.runtimeMetadataMarker
-			and projectionExport.bundle ~= nil
-			and metadataProjectionExport.bundle.checksum ~= projectionExport.bundle.checksum,
-		true,
-		"declared runtime metadata survives projection and changes the bundle checksum"
-	)
-	local invalidUnlockProject = serde.decode("json", serde.encode("json", authoringProject))
-	invalidUnlockProject.stages.stage_default.unlockRequirements = {
-		{ kind = "WaveRange", minimum = 1 },
-	}
-	local invalidUnlockExport = StageExport.bake(invalidUnlockProject)
-	local foundInvalidUnlockRequirement = false
-	for _, issue in invalidUnlockExport.issues do
-		if issue.code == "InvalidUnlockRequirement" then
-			foundInvalidUnlockRequirement = true
-			break
-		end
-	end
-	expectEqual(
-		invalidUnlockExport.bundle == nil and foundInvalidUnlockRequirement,
-		true,
-		"runtime export rejects route-only predicates in stage unlock requirements"
-	)
-	local staleOutgoingProject = serde.decode("json", serde.encode("json", authoringProject))
-	staleOutgoingProject.stages.stage_default.pathGraphs[authoredGraphId].outgoingEdgeIds = {}
-	local staleOutgoingExport = StageExport.bake(staleOutgoingProject)
-	local rebuiltGraph = staleOutgoingExport.bundle
-		and staleOutgoingExport.bundle.stages.stage_default.pathGraphs[authoredGraphId]
-	local rebuiltOutgoing = rebuiltGraph and rebuiltGraph.outgoingEdgeIds[projectionEdge.fromNodeId]
-	expectEqual(
-		rebuiltOutgoing ~= nil and table.find(rebuiltOutgoing, projectionEdgeId) ~= nil,
-		true,
-		"runtime export validates edge maps and rebuilds stale authoring outgoing caches"
-	)
-	local traversalConflict = serde.decode("json", serde.encode("json", authoringProject))
-	local conflictingCell = traversalConflict.stages.stage_default.grid.cells[routeMaskKey] or {}
-	conflictingCell.enemyTraversalPolicy = "Blocked"
-	traversalConflict.stages.stage_default.grid.cells[routeMaskKey] = conflictingCell
-	local conflictExport = StageExport.bake(traversalConflict)
-	expectEqual(conflictExport.bundle, nil, "enemy-blocked route corridors prevent export")
-	local foundTraversalConflict = false
-	for _, issue in conflictExport.issues do
-		if issue.code == "RouteTraversalConflict" and issue.objectId == routeMaskKey then
-			foundTraversalConflict = true
-			break
-		end
-	end
-	expectEqual(foundTraversalConflict, true, "route conflict validation identifies the authored cell")
 	do
-		local preview = StageExport.preview(traversalConflict.stages.stage_default)
-		local previewGraph = if preview ~= nil then preview.pathGraphs[authoredGraphId] else nil
-		local previewEdge = if previewGraph ~= nil then previewGraph.edges[firstRuntimeEdgeId] else nil
+		local projectionProject = serde.decode("json", serde.encode("json", authoringProject))
+		local projectionStage = projectionProject.stages.stage_default
+		local projectionGraph = projectionStage.pathGraphs[authoredGraphId]
+		local projectionEdgeId = assert(firstRuntimeEdgeId, "production runtime graph has no edge")
+		local projectionEdge = projectionGraph.edges[projectionEdgeId]
+		local projectionNode = projectionGraph.nodes[projectionEdge.fromNodeId]
+		local projectionLaneProfile = projectionGraph.laneProfiles[projectionEdge.laneProfileId]
+		local projectionCellKey =
+			assert(next(projectionStage.grid.cells), "production stage has no cell override")
+		local projectionCell = projectionStage.grid.cells[projectionCellKey]
+		local projectionRole = assert(next(projectionCell.roles), "production cell override has no role")
+		projectionStage.editorOnlyField = true
+		projectionStage.grid.editorOnlyField = true
+		projectionStage.grid.defaultCell.editorOnlyField = true
+		projectionCell.editorOnlyField = true
+		projectionGraph.editorOnlyField = true
+		projectionEdge.editorOnlyField = true
+		projectionEdge.outHandleOffset.editorOnlyField = true
+		projectionNode.editorOnlyField = true
+		projectionNode.tags.editorOnlyField = "editor-only-tag"
+		projectionLaneProfile.editorOnlyField = true
+		projectionLaneProfile.offsets.editorOnlyField = math.huge
+		projectionEdge.predicates.editorOnlyField = { kind = "EditorOnlyPredicate" }
+		projectionStage.modifierIds.editorOnlyField = "editor-only-modifier"
+		projectionStage.unlockRequirements.editorOnlyField = {
+			kind = "StageUnlocked",
+			stageId = "stage_default",
+		}
+		local projectionExport = StageExport.bake(projectionProject)
+		local projectedStage = projectionExport.bundle and projectionExport.bundle.stages.stage_default
+		local projectedGraph = projectedStage and projectedStage.pathGraphs[authoredGraphId]
+		local projectedEdge = projectedGraph and projectedGraph.edges[projectionEdgeId]
+		local projectedNode = projectedGraph and projectedGraph.nodes[projectionEdge.fromNodeId]
+		local projectedLaneProfile = projectedGraph
+			and projectedGraph.laneProfiles[projectionEdge.laneProfileId]
+		local projectedCell = projectedStage and projectedStage.grid.cells[projectionCellKey]
 		expectEqual(
-			preview ~= nil and preview.routeNoBuildMask[routeMaskKey] == true,
+			projectedStage ~= nil
+				and projectedStage.editorOnlyField == nil
+				and projectedStage.grid.editorOnlyField == nil
+				and projectedStage.grid.defaultCell.editorOnlyField == nil
+				and projectedCell ~= nil
+				and projectedCell.editorOnlyField == nil
+				and projectedGraph.editorOnlyField == nil
+				and projectedEdge.editorOnlyField == nil
+				and projectedEdge.outHandleOffset.editorOnlyField == nil
+				and projectedNode.editorOnlyField == nil
+				and projectedNode.tags.editorOnlyField == nil
+				and projectedLaneProfile.editorOnlyField == nil
+				and projectedLaneProfile.offsets.editorOnlyField == nil
+				and projectedEdge.predicates.editorOnlyField == nil
+				and projectedStage.modifierIds.editorOnlyField == nil
+				and projectedStage.unlockRequirements.editorOnlyField == nil,
 			true,
-			"invalid working stages still expose the derived route footprint to the editor"
+			"runtime projection strips undeclared authoring fields at every DTO boundary"
 		)
 		expectEqual(
-			previewEdge ~= nil and #previewEdge.samples > 1,
+			projectionExport.bundle ~= nil
+				and firstExport.bundle ~= nil
+				and projectionExport.bundle.checksum == firstExport.bundle.checksum,
 			true,
-			"invalid working stages still bake their visible spline preview"
+			"unknown authoring fields do not change the runtime bundle checksum"
 		)
 		expectEqual(
-			traversalConflict.stages.stage_default.pathGraphs[authoredGraphId].edges[firstRuntimeEdgeId].samples,
-			nil,
-			"editor route preview does not mutate authored graph data"
+			projectedCell ~= nil
+				and projectedCell.roles[projectionRole] == projectionCell.roles[projectionRole]
+				and projectedEdge.metadata.pathAssetId == projectionEdge.metadata.pathAssetId,
+			true,
+			"runtime projection preserves declared role and edge metadata dictionaries"
+		)
+		expectEqual(
+			projectionStage.editorOnlyField
+				and projectionEdge.outHandleOffset.editorOnlyField
+				and projectionLaneProfile.editorOnlyField
+				and projectionNode.tags.editorOnlyField == "editor-only-tag"
+				and projectionStage.modifierIds.editorOnlyField == "editor-only-modifier",
+			true,
+			"runtime projection does not strip unknown fields from the authoring working copy"
+		)
+		projectionStage.metadata.runtimeMetadataMarker = true
+		local metadataProjectionExport = StageExport.bake(projectionProject)
+		local metadataProjectedStage = metadataProjectionExport.bundle
+			and metadataProjectionExport.bundle.stages.stage_default
+		expectEqual(
+			metadataProjectedStage ~= nil
+				and metadataProjectedStage.metadata.runtimeMetadataMarker
+				and projectionExport.bundle ~= nil
+				and metadataProjectionExport.bundle.checksum ~= projectionExport.bundle.checksum,
+			true,
+			"declared runtime metadata survives projection and changes the bundle checksum"
 		)
 	end
-	local coincidentEdge = serde.decode("json", serde.encode("json", authoringProject))
-	local coincidentGraph = coincidentEdge.stages.stage_default.pathGraphs[authoredGraphId]
-	local zeroEdge = coincidentGraph.edges[firstRuntimeEdgeId]
-	local zeroFromPosition = coincidentGraph.nodes[zeroEdge.fromNodeId].position
-	coincidentGraph.nodes[zeroEdge.toNodeId].position = {
-		x = zeroFromPosition.x,
-		y = zeroFromPosition.y,
-		z = zeroFromPosition.z,
-	}
-	zeroEdge.outHandleOffset = { x = 0, y = 0, z = 0 }
-	zeroEdge.inHandleOffset = { x = 0, y = 0, z = 0 }
-	expectEqual(StageExport.bake(coincidentEdge).bundle, nil, "zero-length Bezier edges prevent export")
+	do
+		local invalidUnlockProject = serde.decode("json", serde.encode("json", authoringProject))
+		invalidUnlockProject.stages.stage_default.unlockRequirements = {
+			{ kind = "WaveRange", minimum = 1 },
+		}
+		local invalidUnlockExport = StageExport.bake(invalidUnlockProject)
+		local foundInvalidUnlockRequirement = false
+		for _, issue in invalidUnlockExport.issues do
+			if issue.code == "InvalidUnlockRequirement" then
+				foundInvalidUnlockRequirement = true
+				break
+			end
+		end
+		expectEqual(
+			invalidUnlockExport.bundle == nil and foundInvalidUnlockRequirement,
+			true,
+			"runtime export rejects route-only predicates in stage unlock requirements"
+		)
+	end
+	do
+		local staleOutgoingProject = serde.decode("json", serde.encode("json", authoringProject))
+		local staleGraph = staleOutgoingProject.stages.stage_default.pathGraphs[authoredGraphId]
+		local projectionEdgeId = assert(firstRuntimeEdgeId, "production runtime graph has no edge")
+		local sourceNodeId = staleGraph.edges[projectionEdgeId].fromNodeId
+		staleGraph.outgoingEdgeIds = {}
+		local staleOutgoingExport = StageExport.bake(staleOutgoingProject)
+		local rebuiltGraph = staleOutgoingExport.bundle
+			and staleOutgoingExport.bundle.stages.stage_default.pathGraphs[authoredGraphId]
+		local rebuiltOutgoing = rebuiltGraph and rebuiltGraph.outgoingEdgeIds[sourceNodeId]
+		expectEqual(
+			rebuiltOutgoing ~= nil and table.find(rebuiltOutgoing, projectionEdgeId) ~= nil,
+			true,
+			"runtime export validates edge maps and rebuilds stale authoring outgoing caches"
+		)
+	end
+	do
+		local traversalConflict = serde.decode("json", serde.encode("json", authoringProject))
+		local conflictingCell = traversalConflict.stages.stage_default.grid.cells[routeMaskKey] or {}
+		conflictingCell.enemyTraversalPolicy = "Blocked"
+		traversalConflict.stages.stage_default.grid.cells[routeMaskKey] = conflictingCell
+		local conflictExport = StageExport.bake(traversalConflict)
+		expectEqual(conflictExport.bundle, nil, "enemy-blocked route corridors prevent export")
+		local foundTraversalConflict = false
+		for _, issue in conflictExport.issues do
+			if issue.code == "RouteTraversalConflict" and issue.objectId == routeMaskKey then
+				foundTraversalConflict = true
+				break
+			end
+		end
+		expectEqual(foundTraversalConflict, true, "route conflict validation identifies the authored cell")
+		do
+			local preview = StageExport.preview(traversalConflict.stages.stage_default)
+			local previewGraph = if preview ~= nil then preview.pathGraphs[authoredGraphId] else nil
+			local previewEdge = if previewGraph ~= nil then previewGraph.edges[firstRuntimeEdgeId] else nil
+			expectEqual(
+				preview ~= nil and preview.routeNoBuildMask[routeMaskKey] == true,
+				true,
+				"invalid working stages still expose the derived route footprint to the editor"
+			)
+			expectEqual(
+				previewEdge ~= nil and #previewEdge.samples > 1,
+				true,
+				"invalid working stages still bake their visible spline preview"
+			)
+			expectEqual(
+				traversalConflict.stages.stage_default.pathGraphs[authoredGraphId].edges[firstRuntimeEdgeId].samples,
+				nil,
+				"editor route preview does not mutate authored graph data"
+			)
+		end
+	end
+	do
+		local coincidentEdge = serde.decode("json", serde.encode("json", authoringProject))
+		local coincidentGraph = coincidentEdge.stages.stage_default.pathGraphs[authoredGraphId]
+		local zeroEdge = coincidentGraph.edges[firstRuntimeEdgeId]
+		local zeroFromPosition = coincidentGraph.nodes[zeroEdge.fromNodeId].position
+		coincidentGraph.nodes[zeroEdge.toNodeId].position = {
+			x = zeroFromPosition.x,
+			y = zeroFromPosition.y,
+			z = zeroFromPosition.z,
+		}
+		zeroEdge.outHandleOffset = { x = 0, y = 0, z = 0 }
+		zeroEdge.inHandleOffset = { x = 0, y = 0, z = 0 }
+		expectEqual(StageExport.bake(coincidentEdge).bundle, nil, "zero-length Bezier edges prevent export")
+	end
 end
 
 -- Rune altar: weighted rolls, pity, flat configured cost, and permanent multiplier.
@@ -6946,6 +7914,8 @@ expectEqual(
 )
 
 do
+	local DungeonConfig = require("../src/shared/DungeonConfig")
+
 	-- DungeonConfig normalization: defaults, numeric clamps, vector validation,
 	-- and the all-or-nothing boss list fallback.
 	local defaults = DungeonConfig.normalize(nil)
@@ -7086,6 +8056,8 @@ do
 end
 
 do
+	local DungeonLogic = require("../src/shared/DungeonLogic")
+
 	-- DungeonLogic combat + occupancy math is pure and server-authoritative.
 	expectEqual(DungeonLogic.isWithinCylinder(0, 0, 0, 10, 5), true, "the center of a cylinder is inside it")
 	expectEqual(DungeonLogic.isWithinCylinder(8, 0, 6, 10, 5), true, "a point on the radius counts as inside")

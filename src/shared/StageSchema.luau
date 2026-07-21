@@ -12,14 +12,15 @@ local StagePathAssets = if script ~= nil
 
 local StageSchema = {}
 
-StageSchema.AUTHORING_VERSION = 3
-StageSchema.RUNTIME_VERSION = 1
+StageSchema.AUTHORING_VERSION = 4
+StageSchema.RUNTIME_VERSION = 2
 
 export type JsonValue = string | number | boolean | { JsonValue } | { [string]: JsonValue }
 export type Issue = {
 	severity: "Error" | "Warning",
 	code: string,
 	message: string,
+	mapId: string?,
 	stageId: string?,
 	graphId: string?,
 	objectId: string?,
@@ -186,7 +187,80 @@ function StageSchema.migrateProject(project: any): any
 		for stageNumber, id in legacyIds do
 			local stage = project.stages[id]
 			StageHierarchy.assign(stage, `stage_group_legacy_{stageNumber}`, stageNumber, 1)
-			stage.schemaVersion = StageSchema.AUTHORING_VERSION
+			stage.schemaVersion = 3
+		end
+		project.schemaVersion = 3
+		version = 3
+	end
+	if version == 3 then
+		if project.maps ~= nil and type(project.maps) ~= "table" then
+			error("Stagewright project maps must be a table")
+		end
+		local maps = project.maps or {}
+		project.maps = maps
+		local existingMapIds = StageHierarchy.mapIds(maps)
+		if #existingMapIds > 0 then
+			local onlyMapId = if #existingMapIds == 1 then existingMapIds[1] else nil
+			local mapHasLevel: { [string]: boolean } = {}
+			for order, existingMapId in existingMapIds do
+				local map = maps[existingMapId]
+				if type(map) ~= "table" then
+					error(`Stagewright legacy Map {existingMapId} must be a table`)
+				end
+				map.id = map.id or existingMapId
+				map.name = map.name or `Map {order}`
+				map.displayOrder = map.displayOrder or order
+				map.backdropImageId = map.backdropImageId or ""
+				map.metadata = map.metadata or {}
+				mapHasLevel[existingMapId] = false
+			end
+			for _, stage in project.stages do
+				local assignedMapId = if type(stage.mapId) == "string" and stage.mapId ~= ""
+					then stage.mapId
+					else onlyMapId
+				if assignedMapId == nil or maps[assignedMapId] == nil then
+					error("Stagewright legacy Map ownership is incomplete")
+				end
+				stage.mapId = assignedMapId
+				stage.schemaVersion = StageSchema.AUTHORING_VERSION
+				mapHasLevel[assignedMapId] = true
+			end
+			for existingMapId, ownsLevel in mapHasLevel do
+				if not ownsLevel then
+					error(`Stagewright legacy Map {existingMapId} has no Levels`)
+				end
+			end
+		else
+			local mapId = StageHierarchy.LEGACY_MAP_ID
+			local agreedBackdrop: string? = nil
+			local backdropConflict = false
+			local metadata = if type(project.metadata) == "table" then project.metadata else nil
+			local legacyBackdrops = if metadata ~= nil
+					and type(metadata["stagewright.mapBackdrops"]) == "table"
+				then metadata["stagewright.mapBackdrops"]
+				else nil
+			for _, stage in project.stages do
+				local address = StageHierarchy.address(stage)
+				local value = if legacyBackdrops ~= nil then legacyBackdrops[address.groupId] else nil
+				if type(value) == "string" and value ~= "" then
+					if agreedBackdrop == nil then
+						agreedBackdrop = value
+					elseif agreedBackdrop ~= value then
+						backdropConflict = true
+					end
+				end
+			end
+			maps[mapId] = {
+				id = mapId,
+				name = "Map 1",
+				displayOrder = 1,
+				backdropImageId = if backdropConflict then "" else agreedBackdrop or "",
+				metadata = if backdropConflict then { ["stagewright.legacyBackdropConflict"] = true } else {},
+			}
+			for _, stage in project.stages do
+				stage.mapId = mapId
+				stage.schemaVersion = StageSchema.AUTHORING_VERSION
+			end
 		end
 		project.schemaVersion = StageSchema.AUTHORING_VERSION
 	end
@@ -218,6 +292,70 @@ function StageSchema.legacyCells(rows: { string }, columns: number): { [string]:
 	return cells
 end
 
+function StageSchema.validateMap(map: any): { Issue }
+	local issues: { Issue } = {}
+	if type(map) ~= "table" or type(map.id) ~= "string" or map.id == "" or #map.id > 80 then
+		return { { severity = "Error", code = "InvalidMap", message = "Map has no valid stable ID" } }
+	end
+	local mapId = map.id
+	if type(map.name) ~= "string" or map.name == "" or #map.name > 120 then
+		table.insert(issues, {
+			severity = "Error",
+			code = "InvalidMapName",
+			message = "Map name must contain between 1 and 120 characters",
+			mapId = mapId,
+		})
+	end
+	if
+		type(map.displayOrder) ~= "number"
+		or map.displayOrder % 1 ~= 0
+		or map.displayOrder < 1
+		or map.displayOrder > 999
+	then
+		table.insert(issues, {
+			severity = "Error",
+			code = "InvalidMapOrder",
+			message = "Map order must be an integer between 1 and 999",
+			mapId = mapId,
+		})
+	end
+	local backdropImageId = map.backdropImageId
+	if
+		type(backdropImageId) ~= "string"
+		or (
+			backdropImageId ~= ""
+			and string.match(backdropImageId, "^%d+$") == nil
+			and string.match(backdropImageId, "^rbxassetid://%d+$") == nil
+		)
+	then
+		table.insert(issues, {
+			severity = "Error",
+			code = "InvalidMapBackdrop",
+			message = "Map backdrop must be blank, digits, or rbxassetid://digits",
+			mapId = mapId,
+		})
+	end
+	if type(map.metadata) ~= "table" then
+		table.insert(issues, {
+			severity = "Error",
+			code = "InvalidMapMetadata",
+			message = "Map metadata must be a table",
+			mapId = mapId,
+		})
+	else
+		local success, encoded = pcall(StageSchema.encodeCanonical, map.metadata)
+		if not success or #encoded > 16_384 then
+			table.insert(issues, {
+				severity = "Error",
+				code = "InvalidMapMetadata",
+				message = "Map metadata is invalid or exceeds 16384 bytes",
+				mapId = mapId,
+			})
+		end
+	end
+	return issues
+end
+
 function StageSchema.validateStage(stage: any): { Issue }
 	local issues: { Issue } = {}
 	if type(stage) ~= "table" or type(stage.id) ~= "string" or stage.id == "" then
@@ -225,6 +363,14 @@ function StageSchema.validateStage(stage: any): { Issue }
 	end
 	local stageId = stage.id
 	local address = StageHierarchy.address(stage)
+	if type(stage.mapId) ~= "string" or stage.mapId == "" or #stage.mapId > 80 then
+		table.insert(issues, {
+			severity = "Error",
+			code = "InvalidMapId",
+			message = "Level has no valid stable Map ID",
+			stageId = stageId,
+		})
+	end
 	if type(stage.stageGroupId) ~= "string" or stage.stageGroupId == "" or #stage.stageGroupId > 80 then
 		table.insert(issues, {
 			severity = "Error",

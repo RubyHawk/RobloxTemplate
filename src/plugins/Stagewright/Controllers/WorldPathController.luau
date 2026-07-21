@@ -24,6 +24,8 @@ export type RenderState = {
 export type Config = {
 	parent: Instance,
 	theme: WorldPathView.Theme,
+	backdropImage: () -> string?,
+	mapWorldSize: () -> WorldPathView.WorldSize?,
 	worldSource: () -> Instance?,
 	worldOrigin: () -> CFrame?,
 	currentPreview: () -> StagePreviewDefinition?,
@@ -79,6 +81,8 @@ function WorldPathController.new(config: Config): Controller
 
 	view = WorldPathView.new(config.parent, config.theme, {
 		cancelInteraction = config.cancelActiveInteraction,
+		backdropImage = config.backdropImage,
+		mapWorldSize = config.mapWorldSize,
 		worldSource = config.worldSource,
 		worldOrigin = config.worldOrigin,
 		addNode = function(kind: "Spawn" | "Junction" | "Goal", position: any)

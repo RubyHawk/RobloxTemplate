@@ -119,9 +119,18 @@ export type PathGraphDefinition = {
 
 export type StageUnlockPredicate = StageUnlockedPredicate | UpgradeLevelPredicate | CurrencyPredicate
 
+export type MapDefinition = {
+	id: string,
+	name: string,
+	displayOrder: number,
+	backdropImageId: string,
+	metadata: { [string]: JsonValue },
+}
+
 export type StageDefinition = {
 	schemaVersion: number,
 	id: string,
+	mapId: string,
 	stageGroupId: string,
 	stageNumber: number,
 	levelNumber: number,
@@ -140,6 +149,7 @@ export type StageProject = {
 	schemaVersion: number,
 	startingStageId: string,
 	selectedStageId: string?,
+	maps: { [string]: MapDefinition },
 	stages: { [string]: StageDefinition },
 	metadata: { [string]: JsonValue }?,
 }
@@ -178,6 +188,7 @@ export type StagePreviewDefinition = StageDefinition & {
 export type RuntimeStageDefinition = {
 	schemaVersion: number,
 	id: string,
+	mapId: string,
 	stageGroupId: string,
 	stageNumber: number,
 	levelNumber: number,
@@ -194,10 +205,19 @@ export type RuntimeStageDefinition = {
 	checksum: string,
 }
 
+export type RuntimeMapDefinition = {
+	id: string,
+	name: string,
+	displayOrder: number,
+	metadata: { [string]: JsonValue },
+}
+
 export type RuntimeStageBundle = {
 	schemaVersion: number,
 	sourceSchemaVersion: number,
 	startingStageId: string,
+	mapOrder: { string },
+	maps: { [string]: RuntimeMapDefinition },
 	stageOrder: { string },
 	stages: { [string]: RuntimeStageDefinition },
 	checksum: string,
@@ -208,6 +228,7 @@ export type ValidationIssue = {
 	severity: ValidationSeverity,
 	code: string,
 	message: string,
+	mapId: string?,
 	stageId: string?,
 	graphId: string?,
 	objectId: string?,

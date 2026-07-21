@@ -62,7 +62,7 @@ function IssueModel.group(issues: { any }, filter: string, stageOrderById: { [st
 		if (filter == "Error" or filter == "Warning") and issue.severity ~= filter then
 			continue
 		end
-		local key = `{issue.stageId or "project"}|{issue.severity}|{issue.code}`
+		local key = `{issue.mapId or "project"}|{issue.stageId or "project"}|{issue.severity}|{issue.code}`
 		local group = groupedByKey[key]
 		if group == nil then
 			group = { first = issue, count = 0 }

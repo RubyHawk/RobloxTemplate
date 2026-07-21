@@ -26,8 +26,12 @@ export type Theme = {
 	void: Color3,
 }
 
+export type WorldSize = CanvasTransform.Point2
+
 export type Callbacks = {
 	cancelInteraction: () -> (),
+	backdropImage: () -> string?,
+	mapWorldSize: () -> WorldSize?,
 	worldSource: () -> Instance?,
 	worldOrigin: () -> CFrame?,
 	addNode: ("Spawn" | "Junction" | "Goal", any) -> (),
@@ -59,11 +63,15 @@ export type Controller = {
 	selectedEdgeId: string?,
 	tracedEdgeIds: { [string]: boolean },
 	transform: CanvasTransform.Transform?,
-	transformStageId: string?,
-	transformGraphId: string?,
+	transformMapId: string?,
 	canvas: Frame?,
 	interactionSurface: TextButton,
 	backdropHost: Frame?,
+	backdropImageLabel: ImageLabel?,
+	backdropLoadStatus: TextLabel?,
+	backdropImageContent: string?,
+	backdropImageToken: number,
+	backdropImageLoadConnection: RBXScriptConnection?,
 	backdropCamera: Camera?,
 	backdropSource: Instance?,
 	backdropOrigin: CFrame?,
@@ -76,6 +84,7 @@ export type Controller = {
 	showLanes: boolean,
 	showBuildMask: boolean,
 	showConflicts: boolean,
+	inspectorExpanded: boolean,
 	tool: Tool,
 	pointerState: PointerDrag.State,
 	hitPrimitives: { HitTest.Primitive },
@@ -117,6 +126,7 @@ local MIN_WORLD_ZOOM = 1
 local INSPECTOR_HEIGHT = 196
 local COMPACT_INSPECTOR_HEIGHT = 210
 local SHORT_INSPECTOR_HEIGHT = 104
+local COLLAPSED_INSPECTOR_HEIGHT = 44
 local NODE_HIT_RADIUS = 24
 local HANDLE_HIT_RADIUS = 20
 local CLICK_DRAG_THRESHOLD = 8
@@ -124,6 +134,8 @@ local NODE_CYCLE_SECONDS = 0.75
 local NODE_CYCLE_RADIUS = 7
 local DRAG_RENDER_INTERVAL = 0.04
 local BACKDROP_REFRESH_DELAY = 0.18
+local BACKDROP_LOAD_TIMEOUT = 8
+local BACKDROP_ASPECT_RATIO = 16 / 9
 local LEGACY_PATH_FOLDERS = {
 	PathPoints = true,
 	PathTiles = true,
@@ -153,12 +165,21 @@ local function ensureBackdropHost(self: Controller, inspectorHeight: number): Fr
 end
 
 local function clearWorldBackdrop(self: Controller)
+	self.backdropImageToken += 1
+	local imageLoadConnection = self.backdropImageLoadConnection
+	self.backdropImageLoadConnection = nil
+	if imageLoadConnection ~= nil then
+		imageLoadConnection:Disconnect()
+	end
 	local host = self.backdropHost
 	if host ~= nil then
 		for _, child in host:GetChildren() do
 			child:Destroy()
 		end
 	end
+	self.backdropImageLabel = nil
+	self.backdropLoadStatus = nil
+	self.backdropImageContent = nil
 	self.backdropCamera = nil
 end
 
@@ -293,6 +314,147 @@ local function updateBackdropCamera(self: Controller)
 	local cameraHeight = visibleDepth * 0.5 / math.tan(math.rad(camera.FieldOfView * 0.5))
 	local center = Vector3.new(transform.center.x, 0, transform.center.y)
 	camera.CFrame = CFrame.lookAt(center + Vector3.new(0, cameraHeight, 0), center, Vector3.new(0, 0, -1))
+end
+
+local function configuredBackdropImage(self: Controller): string?
+	local configured = self.callbacks.backdropImage()
+	if type(configured) ~= "string" then
+		return nil
+	end
+	local trimmed = string.match(configured, "^%s*(.-)%s*$") or ""
+	if string.match(trimmed, "^%d+$") ~= nil then
+		return `rbxassetid://{trimmed}`
+	end
+	return if string.match(trimmed, "^rbxassetid://%d+$") ~= nil then trimmed else nil
+end
+
+local function imageCoverRect(
+	transform: CanvasTransform.Transform,
+	worldWidth: number,
+	worldHeight: number
+): (Vector2, Vector2)
+	local coverWidth = worldWidth
+	local coverHeight = worldHeight
+	if coverWidth / coverHeight < BACKDROP_ASPECT_RATIO then
+		coverWidth = coverHeight * BACKDROP_ASPECT_RATIO
+	else
+		coverHeight = coverWidth / BACKDROP_ASPECT_RATIO
+	end
+	local topLeftPoint = CanvasTransform.worldToCanvas(transform, {
+		x = -coverWidth * 0.5,
+		y = -coverHeight * 0.5,
+	})
+	local bottomRightPoint = CanvasTransform.worldToCanvas(transform, {
+		x = coverWidth * 0.5,
+		y = coverHeight * 0.5,
+	})
+	local topLeft = Vector2.new(topLeftPoint.x, topLeftPoint.y)
+	return topLeft, Vector2.new(bottomRightPoint.x - topLeft.X, bottomRightPoint.y - topLeft.Y)
+end
+
+local function createImageBackdrop(
+	self: Controller,
+	host: Frame,
+	transform: CanvasTransform.Transform,
+	worldWidth: number,
+	worldHeight: number,
+	contentId: string
+)
+	disconnectBackdropSource(self)
+	self.backdropDirty = false
+	self.backdropSource = nil
+	self.backdropOrigin = nil
+	local image = self.backdropImageLabel
+	local status = self.backdropLoadStatus
+	if
+		image == nil
+		or image.Parent ~= host
+		or status == nil
+		or status.Parent ~= host
+		or self.backdropImageContent ~= contentId
+	then
+		clearWorldBackdrop(self)
+		image = Instance.new("ImageLabel")
+		image.Name = "MapBackdropImage"
+		image.BackgroundColor3 = Color3.fromRGB(13, 29, 36)
+		image.BackgroundTransparency = 0
+		image.BorderSizePixel = 0
+		image.Image = contentId
+		image.ImageColor3 = Color3.new(1, 1, 1)
+		image.ImageTransparency = 0
+		image.ResampleMode = Enum.ResamplerMode.Default
+		image.ScaleType = Enum.ScaleType.Stretch
+		image.ZIndex = 0
+		image.Parent = host
+
+		status = Instance.new("TextLabel")
+		status.Name = "MapBackdropLoadStatus"
+		status.AnchorPoint = Vector2.new(0.5, 0.5)
+		status.BackgroundColor3 = Color3.fromRGB(10, 20, 26)
+		status.BackgroundTransparency = 0.12
+		status.BorderSizePixel = 0
+		status.Font = Enum.Font.BuilderSansMedium
+		status.Text = "Loading map artwork..."
+		status.TextColor3 = Color3.fromRGB(221, 229, 235)
+		status.TextSize = 12
+		status.ZIndex = 2
+		status.Parent = host
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 6)
+		corner.Parent = status
+
+		self.backdropImageLabel = image
+		self.backdropLoadStatus = status
+		self.backdropImageContent = contentId
+		self.backdropImageToken += 1
+		local loadToken = self.backdropImageToken
+		local observedImage = image :: ImageLabel
+		local observedStatus = status :: TextLabel
+		local function settleLoaded()
+			if
+				loadToken ~= self.backdropImageToken
+				or observedImage.Parent == nil
+				or observedStatus.Parent == nil
+				or not observedImage.IsLoaded
+			then
+				return
+			end
+			observedStatus.Visible = false
+			local connection = self.backdropImageLoadConnection
+			if connection ~= nil then
+				connection:Disconnect()
+				self.backdropImageLoadConnection = nil
+			end
+		end
+		self.backdropImageLoadConnection =
+			observedImage:GetPropertyChangedSignal("IsLoaded"):Connect(settleLoaded)
+		settleLoaded()
+		task.delay(BACKDROP_LOAD_TIMEOUT, function()
+			if
+				loadToken ~= self.backdropImageToken
+				or observedImage.Parent == nil
+				or observedStatus.Parent == nil
+			then
+				return
+			end
+			if observedImage.IsLoaded then
+				settleLoaded()
+				return
+			end
+			observedStatus.Text = "Map image unavailable - check asset ownership or moderation"
+			observedStatus.TextColor3 = Color3.fromRGB(255, 180, 105)
+			observedStatus.Visible = true
+		end)
+	end
+
+	local topLeft, imageSize = imageCoverRect(transform, worldWidth, worldHeight)
+	image.Position = UDim2.fromOffset(topLeft.X, topLeft.Y)
+	image.Size = UDim2.fromOffset(imageSize.X, imageSize.Y)
+	status.Position = UDim2.fromOffset(topLeft.X + imageSize.X * 0.5, topLeft.Y + imageSize.Y * 0.5)
+	status.Size = UDim2.fromOffset(math.clamp(imageSize.X - 32, 180, 420), 36)
+	if image.IsLoaded then
+		status.Visible = false
+	end
 end
 
 local function createWorldBackdrop(self: Controller, host: Frame): boolean
@@ -534,48 +696,6 @@ local function liveEdgeSamples(graph: any, edge: any, segmentCount: number): { a
 	return samples
 end
 
-local function graphFocusBounds(graph: any, grid: any): (CanvasTransform.Point2, CanvasTransform.Point2)
-	local gridWidth = math.max(grid.columns * grid.cellSize, 1)
-	local gridHeight = math.max(grid.rows * grid.cellSize, 1)
-	local minimumX, maximumX = math.huge, -math.huge
-	local minimumZ, maximumZ = math.huge, -math.huge
-	local function include(position: any)
-		minimumX = math.min(minimumX, position.x)
-		maximumX = math.max(maximumX, position.x)
-		minimumZ = math.min(minimumZ, position.z)
-		maximumZ = math.max(maximumZ, position.z)
-	end
-	for _, node in graph.nodes do
-		include(node.position)
-	end
-	for _, edge in graph.edges do
-		local from = graph.nodes[edge.fromNodeId]
-		local to = graph.nodes[edge.toNodeId]
-		if from ~= nil then
-			include({
-				x = from.position.x + edge.outHandleOffset.x,
-				z = from.position.z + edge.outHandleOffset.z,
-			})
-		end
-		if to ~= nil then
-			include({ x = to.position.x + edge.inHandleOffset.x, z = to.position.z + edge.inHandleOffset.z })
-		end
-	end
-	if minimumX == math.huge then
-		return { x = gridWidth, y = gridHeight }, { x = 0, y = 0 }
-	end
-	local margin = grid.cellSize * 2
-	local focusWidth = math.clamp(maximumX - minimumX + margin * 2, gridWidth * 0.45, gridWidth)
-	local focusHeight = math.clamp(maximumZ - minimumZ + margin * 2, gridHeight * 0.45, gridHeight)
-	return {
-		x = focusWidth,
-		y = focusHeight,
-	}, {
-		x = math.clamp((minimumX + maximumX) * 0.5, -gridWidth * 0.5, gridWidth * 0.5),
-		y = math.clamp((minimumZ + maximumZ) * 0.5, -gridHeight * 0.5, gridHeight * 0.5),
-	}
-end
-
 function WorldPathView.cancelInteraction(self: Controller): boolean
 	local pointerResult = PointerDrag.cancel(self.pointerState, "Editor interaction cancelled")
 	local canceled = #pointerResult.actions > 0
@@ -651,11 +771,15 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		selectedEdgeId = nil,
 		tracedEdgeIds = {},
 		transform = nil,
-		transformStageId = nil,
-		transformGraphId = nil,
+		transformMapId = nil,
 		canvas = nil,
 		interactionSurface = interactionSurface,
 		backdropHost = nil,
+		backdropImageLabel = nil,
+		backdropLoadStatus = nil,
+		backdropImageContent = nil,
+		backdropImageToken = 0,
+		backdropImageLoadConnection = nil,
 		backdropCamera = nil,
 		backdropSource = nil,
 		backdropOrigin = nil,
@@ -668,6 +792,7 @@ function WorldPathView.new(parent: Instance, theme: Theme, callbacks: Callbacks)
 		showLanes = true,
 		showBuildMask = false,
 		showConflicts = true,
+		inspectorExpanded = false,
 		tool = "Select",
 		pointerState = PointerDrag.idle(),
 		hitPrimitives = {},
@@ -1443,13 +1568,16 @@ function WorldPathView.render(
 	selectedEdgeId: string?,
 	tracedEdgeIds: { [string]: boolean }
 )
-	local nextStageId = if stage ~= nil and type(stage.id) == "string" then stage.id else nil
-	local nextGraphId = if graph ~= nil and type(graph.id) == "string" then graph.id else nil
-	if self.transformStageId ~= nextStageId or self.transformGraphId ~= nextGraphId then
+	local nextMapId = if stage ~= nil
+			and type(stage.mapId) == "string"
+			and stage.mapId ~= ""
+		then stage.mapId
+		elseif stage ~= nil and type(stage.id) == "string" then stage.id
+		else nil
+	if self.transformMapId ~= nextMapId then
 		self.transform = nil
 	end
-	self.transformStageId = nextStageId
-	self.transformGraphId = nextGraphId
+	self.transformMapId = nextMapId
 	self.stage = stage
 	self.graph = graph
 	self.preview = preview
@@ -1493,10 +1621,13 @@ function WorldPathView.rerender(self: Controller)
 	end
 
 	local shortViewport = self.root.AbsoluteSize.Y < 460
-	local inspectorHeight = if shortViewport then SHORT_INSPECTOR_HEIGHT else INSPECTOR_HEIGHT
+	local expandedInspectorHeight = if shortViewport then SHORT_INSPECTOR_HEIGHT else INSPECTOR_HEIGHT
 	if not shortViewport and self.root.AbsoluteSize.X < 1_560 then
-		inspectorHeight = COMPACT_INSPECTOR_HEIGHT
+		expandedInspectorHeight = COMPACT_INSPECTOR_HEIGHT
 	end
+	local inspectorHeight = if self.inspectorExpanded
+		then expandedInspectorHeight
+		else COLLAPSED_INSPECTOR_HEIGHT
 	local backdropHost = ensureBackdropHost(self, inspectorHeight)
 	local mapHost = create("Frame", {
 		-- A neutral full-bleed ground fallback keeps wide widgets useful even
@@ -1515,30 +1646,68 @@ function WorldPathView.rerender(self: Controller)
 	if available.X <= CANVAS_PADDING * 2 or available.Y <= CANVAS_PADDING * 2 then
 		return
 	end
-	local worldWidth = math.max(grid.columns * grid.cellSize, 1)
-	local worldHeight = math.max(grid.rows * grid.cellSize, 1)
+	local liveWorldWidth = math.max(grid.columns * grid.cellSize, 1)
+	local liveWorldHeight = math.max(grid.rows * grid.cellSize, 1)
+	local mapWorldWidth = liveWorldWidth
+	local mapWorldHeight = liveWorldHeight
+	local configuredMapWorldSize = self.callbacks.mapWorldSize()
+	if
+		configuredMapWorldSize ~= nil
+		and configuredMapWorldSize.x == configuredMapWorldSize.x
+		and configuredMapWorldSize.y == configuredMapWorldSize.y
+		and configuredMapWorldSize.x > 0
+		and configuredMapWorldSize.y > 0
+		and configuredMapWorldSize.x < math.huge
+		and configuredMapWorldSize.y < math.huge
+	then
+		mapWorldWidth = math.max(mapWorldWidth, configuredMapWorldSize.x)
+		mapWorldHeight = math.max(mapWorldHeight, configuredMapWorldSize.y)
+	end
 	local viewportSize = { x = available.X, y = available.Y }
 	local transform = self.transform
-	if transform == nil then
-		local focusSize, focusCenter = graphFocusBounds(graph, grid)
-		transform = CanvasTransform.fit(viewportSize, focusSize, CANVAS_PADDING, focusCenter)
+	if
+		transform == nil
+		or transform.worldSize.x ~= mapWorldWidth
+		or transform.worldSize.y ~= mapWorldHeight
+	then
+		transform = CanvasTransform.fit(
+			viewportSize,
+			{ x = mapWorldWidth, y = mapWorldHeight },
+			CANVAS_PADDING,
+			{ x = 0, y = 0 }
+		)
 	elseif transform.viewportSize.x ~= available.X or transform.viewportSize.y ~= available.Y then
 		transform = CanvasTransform.resize(transform, viewportSize)
 	end
 	local resolvedTransform = assert(transform, "World Path canvas transform was not initialized")
 	self.transform = resolvedTransform
 	local scale = CanvasTransform.scale(resolvedTransform)
-	local hasWorldBackdrop = createWorldBackdrop(self, backdropHost)
-	backdropHost.Visible = hasWorldBackdrop
-	mapHost.BackgroundTransparency = if hasWorldBackdrop then 1 else 0
-	updateBackdropCamera(self)
+	local configuredImage = configuredBackdropImage(self)
+	local hasImageBackdrop = configuredImage ~= nil
+	local hasWorldBackdrop = false
+	if configuredImage ~= nil then
+		createImageBackdrop(
+			self,
+			backdropHost,
+			resolvedTransform,
+			mapWorldWidth,
+			mapWorldHeight,
+			configuredImage
+		)
+	else
+		hasWorldBackdrop = createWorldBackdrop(self, backdropHost)
+		updateBackdropCamera(self)
+	end
+	local hasBackdrop = hasImageBackdrop or hasWorldBackdrop
+	backdropHost.Visible = hasBackdrop
+	mapHost.BackgroundTransparency = if hasBackdrop then 1 else 0
 	local topLeftPoint = CanvasTransform.worldToCanvas(resolvedTransform, {
-		x = -worldWidth * 0.5,
-		y = -worldHeight * 0.5,
+		x = -liveWorldWidth * 0.5,
+		y = -liveWorldHeight * 0.5,
 	})
 	local bottomRightPoint = CanvasTransform.worldToCanvas(resolvedTransform, {
-		x = worldWidth * 0.5,
-		y = worldHeight * 0.5,
+		x = liveWorldWidth * 0.5,
+		y = liveWorldHeight * 0.5,
 	})
 	local topLeft = Vector2.new(topLeftPoint.x, topLeftPoint.y)
 	local mapSize = Vector2.new(bottomRightPoint.x - topLeftPoint.x, bottomRightPoint.y - topLeftPoint.y)
@@ -1549,7 +1718,7 @@ function WorldPathView.rerender(self: Controller)
 		else Color3.fromRGB(50, 79, 54)
 	local canvas = create("Frame", {
 		BackgroundColor3 = defaultTerrainColor,
-		BackgroundTransparency = if hasWorldBackdrop then 0.82 else 0,
+		BackgroundTransparency = if hasImageBackdrop then 1 elseif hasWorldBackdrop then 0.82 else 0,
 		BorderSizePixel = 0,
 		ClipsDescendants = true,
 		Position = UDim2.fromOffset(topLeft.X, topLeft.Y),
@@ -1559,7 +1728,7 @@ function WorldPathView.rerender(self: Controller)
 	self.canvas = canvas
 	local tint = create("Frame", {
 		BackgroundColor3 = Color3.fromRGB(23, 42, 32),
-		BackgroundTransparency = if hasWorldBackdrop then 0.88 else 1,
+		BackgroundTransparency = if hasImageBackdrop then 1 elseif hasWorldBackdrop then 0.88 else 1,
 		BorderSizePixel = 0,
 		Size = UDim2.fromScale(1, 1),
 		ZIndex = 1,
@@ -1594,7 +1763,7 @@ function WorldPathView.rerender(self: Controller)
 						BackgroundColor3 = if cell.terrainId == "void"
 							then self.theme.void
 							else Color3.fromRGB(60, 91, 64),
-						BackgroundTransparency = if hasWorldBackdrop then 0.56 else 0,
+						BackgroundTransparency = if hasBackdrop then 0.56 else 0,
 						BorderSizePixel = 0,
 						Position = UDim2.fromOffset((column - 1) * cellPixel.X, (row - 1) * cellPixel.Y),
 						Size = UDim2.fromOffset(math.ceil(cellPixel.X), math.ceil(cellPixel.Y)),
@@ -1603,7 +1772,7 @@ function WorldPathView.rerender(self: Controller)
 				end
 			end
 		end
-		local gridTransparency = if hasWorldBackdrop then 0.72 else 0.42
+		local gridTransparency = if hasBackdrop then 0.72 else 0.42
 		for column = 0, grid.columns do
 			create("Frame", {
 				BackgroundColor3 = Color3.fromRGB(40, 68, 45),
@@ -2138,23 +2307,37 @@ function WorldPathView.rerender(self: Controller)
 	local fromNode = if selectedEdge ~= nil then graph.nodes[selectedEdge.fromNodeId] else nil
 	local toNode = if selectedEdge ~= nil then graph.nodes[selectedEdge.toNodeId] else nil
 	local compactInspector = shortViewport or self.root.AbsoluteSize.X < 1_560
-	local headerDividerY = if compactInspector then 42 else 44
-	create("TextLabel", {
+	local headerDividerY = if not self.inspectorExpanded
+		then COLLAPSED_INSPECTOR_HEIGHT - 1
+		elseif compactInspector then 42
+		else 44
+	local selectedSummary = if selectedEdge ~= nil
+		then `Selected spline  |  {displayName(fromNode)} -> {displayName(toNode)}`
+		elseif self.selectedNodeId ~= nil then `Selected node  |  {displayName(
+			graph.nodes[self.selectedNodeId]
+		)}`
+		else "Select a path spline or route marker to edit it"
+	local inspectorToggle = create("TextButton", {
+		AutoButtonColor = false,
 		BackgroundTransparency = 1,
 		Font = Enum.Font.BuilderSansBold,
-		Position = UDim2.fromOffset(20, 4),
-		Size = UDim2.new(1, -40, 0, 36),
-		Text = if selectedEdge ~= nil
-			then `Selected spline  |  {displayName(fromNode)} -> {displayName(toNode)}`
-			elseif self.selectedNodeId ~= nil then `Selected node  |  {displayName(
-				graph.nodes[self.selectedNodeId]
-			)}`
-			else "Select a path spline or route marker to edit it",
+		Position = UDim2.fromOffset(8, 4),
+		Size = UDim2.new(1, -16, 0, 36),
+		Text = `{if self.inspectorExpanded then "v" else "^"}   {selectedSummary}`,
 		TextColor3 = self.theme.text,
 		TextSize = 14,
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 30,
-	}, inspector)
+	}, inspector) :: TextButton
+	create("UIPadding", {
+		PaddingLeft = UDim.new(0, 10),
+		PaddingRight = UDim.new(0, 10),
+	}, inspectorToggle)
+	inspectorToggle.Activated:Connect(function()
+		self.inspectorExpanded = not self.inspectorExpanded
+		self:rerender()
+	end)
 	create("Frame", {
 		BackgroundColor3 = self.theme.border,
 		BorderSizePixel = 0,
@@ -2162,6 +2345,9 @@ function WorldPathView.rerender(self: Controller)
 		Size = UDim2.new(1, 0, 0, 1),
 		ZIndex = 30,
 	}, inspector)
+	if not self.inspectorExpanded then
+		return
+	end
 	if selectedEdge ~= nil and self.selectedEdgeId ~= nil then
 		local edgeId = self.selectedEdgeId
 		local profile = graph.laneProfiles[selectedEdge.laneProfileId]
@@ -2585,6 +2771,7 @@ function WorldPathView.destroy(self: Controller)
 	self:cancelInteraction()
 	self.backdropRefreshToken += 1
 	disconnectBackdropSource(self)
+	clearWorldBackdrop(self)
 	for _, connection in self.connections do
 		connection:Disconnect()
 	end
