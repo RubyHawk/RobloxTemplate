@@ -5858,6 +5858,95 @@ expectEqual(bestTowerLoadout[1], "ancient_treant", "equip best favors the strong
 expectEqual(#bestTowerLoadout, 2, "equip best respects loadout slot cap")
 expectEqual(TowerDefenseLogic.waveScale(1), 1, "first tower defense wave uses base scale")
 expectEqual(TowerDefenseLogic.waveScale(5) > 1, true, "later tower defense waves scale up")
+expectEqual(
+	TowerDefenseLogic.waveScale(5),
+	TowerDefenseLogic.waveScale(5, 4),
+	"wave scaling defaults to the legacy four-wave loop"
+)
+expectEqual(TowerDefenseLogic.waveScale(6, 6), 1, "wave scaling adapts to the authored wave-set length")
+expectEqual(TowerDefenseLogic.waveScale(7, 6) > 1, true, "authored wave sets scale after a full loop")
+
+-- Wave scheduling: authored waves expand into per-entry spawn streams.
+do
+	local TowerDefenseWaves = require("../src/shared/TowerDefenseWaves")
+	local defaultSet = StageWaveDefaults.defaultWaveSet()
+	local firstWave, waveCount = TowerDefenseWaves.waveForIndex(defaultSet, 1)
+	expectEqual(waveCount, #defaultSet.waves, "wave lookup reports the authored set length")
+	expectEqual(firstWave.entries[1].enemyTypeId, "forest_grunt", "wave one sends the starter grunt")
+	local loopedWave = TowerDefenseWaves.waveForIndex(defaultSet, #defaultSet.waves + 1)
+	expectEqual(
+		StageSchema.encodeCanonical(loopedWave :: any),
+		StageSchema.encodeCanonical(firstWave :: any),
+		"wave numbers past the set length loop back to wave one"
+	)
+	local legacyAdapter = TowerDefenseWaves.fromCatalogWave(TowerDefenseCatalog.waves[1])
+	expectEqual(
+		#legacyAdapter.entries == 1
+			and legacyAdapter.entries[1].enemyTypeId == TowerDefenseCatalog.waves[1].enemyId
+			and legacyAdapter.entries[1].count == TowerDefenseCatalog.waves[1].count
+			and legacyAdapter.entries[1].startDelaySeconds == 0,
+		true,
+		"legacy catalog waves adapt into single-entry authored waves"
+	)
+	local mixedWave: any = {
+		entries = {
+			{ enemyTypeId = "forest_grunt", count = 2, spacingSeconds = 0.5, startDelaySeconds = 0 },
+			{
+				enemyTypeId = "bark_bruiser",
+				count = 1,
+				spacingSeconds = 0.01,
+				startDelaySeconds = 4,
+				healthScale = 2,
+				rewardScale = 3,
+				speedScale = 0.5,
+			},
+		},
+	}
+	local streams = TowerDefenseWaves.buildStreams(mixedWave, 100, 1.35)
+	expectEqual(#streams, 2, "each wave entry becomes one spawn stream")
+	expectEqual(TowerDefenseWaves.remainingSpawns(streams), 3, "stream bookkeeping counts pending spawns")
+	expectEqual(streams[1].nextSpawnAt, 100, "immediate entries are due at wave start")
+	expectEqual(streams[2].nextSpawnAt, 104, "delayed entries wait out their start delay")
+	expectEqual(
+		streams[2].spacingSeconds,
+		TowerDefenseWaves.MINIMUM_SPACING_SECONDS,
+		"spawn spacing clamps to the simulation minimum"
+	)
+	expectEqual(
+		streams[2].healthScale == 2 * 1.35
+			and streams[2].rewardScale == 3 * 1.35
+			and streams[2].speedScale == 0.5
+			and streams[1].healthScale == 1.35,
+		true,
+		"entry scales multiply with the loop difficulty scale"
+	)
+	expectEqual(TowerDefenseWaves.dueStreamIndex(streams, 100), 1, "only elapsed streams are due")
+	expectEqual(TowerDefenseWaves.dueStreamIndex(streams, 104.5), 1, "earlier streams win due-stream ties")
+	streams[1].remaining = 0
+	expectEqual(TowerDefenseWaves.dueStreamIndex(streams, 104.5), 2, "exhausted streams are skipped")
+	expectEqual(TowerDefenseWaves.dueStreamIndex(streams, 103), nil, "no stream is due before its delay")
+	expectEqual(
+		TowerDefenseWaves.armorMultiplier({ "Ground", "Armored" }, 0.6),
+		0.6,
+		"armored enemies reduce incoming tower damage"
+	)
+	expectEqual(
+		TowerDefenseWaves.armorMultiplier({ "Ground" }, 0.6),
+		1,
+		"unarmored enemies take full tower damage"
+	)
+	expectEqual(
+		TowerDefenseWaves.isBossWave(defaultSet.waves[#defaultSet.waves]),
+		true,
+		"the seeded default set ends with a boss wave"
+	)
+	expectEqual(TowerDefenseWaves.isBossWave(firstWave), false, "regular waves are not boss waves")
+	expectEqual(
+		TowerDefenseWaves.hasTag(StageWaveDefaults.enemyTypes().grove_titan.tags, "Boss"),
+		true,
+		"the seeded titan carries the Boss tag"
+	)
+end
 
 -- Stagewright: shared Bezier geometry and deterministic conditional graph traversal.
 local straightSamples, straightLength = StagePath.bake(
@@ -7717,6 +7806,10 @@ for _, towerDefenseMarker in
 		"buildEnemySpatialIndex",
 		"simulationAccumulator",
 		"StageCatalog.nextLevelId",
+		"StageCatalog.waveSetForStage",
+		"TowerDefenseWaves.buildStreams",
+		"TowerDefenseWaves.dueStreamIndex",
+		"target.armorMultiplier",
 		"publishEnemies",
 		"publishPlacements",
 		"placementRevision",

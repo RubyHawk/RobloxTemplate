@@ -119,8 +119,9 @@ function TowerDefenseLogic.pickWeightedUnitIndex(units: { UnitLike }, roll01: nu
 	return #units
 end
 
-function TowerDefenseLogic.waveScale(waveNumber: number): number
-	local extraLoops = math.max(math.floor((math.max(waveNumber, 1) - 1) / 4), 0)
+function TowerDefenseLogic.waveScale(waveNumber: number, wavesPerLoop: number?): number
+	local loopLength = math.max(math.floor(wavesPerLoop or 4), 1)
+	local extraLoops = math.max(math.floor((math.max(waveNumber, 1) - 1) / loopLength), 0)
 	return 1 + extraLoops * 0.35
 end
 

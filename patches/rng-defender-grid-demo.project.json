@@ -126,6 +126,9 @@
           "TowerDefenseRequest": {
             "$path": "../src/shared/TowerDefenseRequest.luau"
           },
+          "TowerDefenseWaves": {
+            "$path": "../src/shared/TowerDefenseWaves.luau"
+          },
           "Types": {
             "$path": "../src/shared/Types.luau"
           }
