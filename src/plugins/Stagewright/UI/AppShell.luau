@@ -6,7 +6,7 @@ local Theme = require(script.Parent.Theme)
 local COLORS = Theme.colors
 local create = Factory.create
 
-export type Mode = "Paint" | "Graph" | "Stage" | "Validate"
+export type Mode = "Paint" | "Graph" | "Stage" | "Waves" | "Validate"
 
 export type Controller = {
 	root: Frame,

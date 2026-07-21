@@ -76,6 +76,8 @@ for _, requiredName in
 		"StageTrace",
 		"StageTypes",
 		"StageWaveDefaults",
+		"Waves",
+		"WaveDesignerView",
 		"WorldPathController",
 		"WorldPathEditSession",
 		"WorkspacePreview",
@@ -141,6 +143,10 @@ for _, marker in
 		"HeaderSignature",
 		"Export bundle",
 		"Apply changes",
+		"WaveDesigner",
+		"Boss wave:",
+		"+ Wave Set",
+		"WAVE SET (CLICK TO CYCLE)",
 	}
 do
 	assert(

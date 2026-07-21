@@ -2073,6 +2073,234 @@ do
 	expectEqual(definition.grid.cells["1:1"].metadata.keep, true, "grid shrink preserves in-bounds data")
 	expectEqual(definition.grid.cells["4:3"], nil, "grid shrink removes out-of-bounds data")
 	expectEqual(definition.grid.cells.malformed, nil, "grid shrink removes malformed cell keys")
+	local pickerRejected, pickerMessage = StageSettings.parse({
+		name = "Level",
+		waveSetId = "missing_set",
+		themeId = "default",
+		columns = "4",
+		rows = "4",
+		cellSize = "4",
+	}, { default = true })
+	expectEqual(pickerRejected, nil, "stage settings reject a wave set the project does not define")
+	expectEqual(
+		type(pickerMessage) == "string" and string.find(pickerMessage, "missing_set", 1, true) ~= nil,
+		true,
+		"unknown wave set rejection names the missing set"
+	)
+	local pickerAccepted = StageSettings.parse({
+		name = "Level",
+		waveSetId = "default",
+		themeId = "default",
+		columns = "4",
+		rows = "4",
+		cellSize = "4",
+	}, { default = true })
+	expectEqual(pickerAccepted ~= nil, true, "stage settings accept an authored wave set")
+end
+
+-- Wave Designer model: pure enemy-type and wave-set mutations with guards.
+do
+	local WavesModel = require("../src/plugins/Stagewright/Waves/Model")
+	local designerGuid = 0
+	local designerProject = StageStarterProject.build(1, function(prefix: string): string
+		designerGuid += 1
+		return `{prefix}_wave_designer_{designerGuid}`
+	end, "stage_wave_designer", "stage_group_wave_designer")
+
+	expectEqual(
+		WavesModel.sortedWaveSetIds(designerProject)[1],
+		"default",
+		"wave designer lists the seeded default set"
+	)
+	expectEqual(
+		table.find(WavesModel.sortedEnemyTypeIds(designerProject), "forest_grunt") ~= nil,
+		true,
+		"wave designer lists the seeded roster"
+	)
+
+	local parsedEnemy, enemyParseError = WavesModel.parseEnemyType({
+		name = "Ember Imp",
+		tags = "Ground, Fast",
+		health = "60",
+		speed = "9",
+		reward = "14",
+		baseDamage = "1",
+		modelId = "forest_runner",
+		renderScale = "1.1",
+	})
+	expectEqual(enemyParseError, nil, "valid enemy type input parses")
+	expectEqual(
+		parsedEnemy ~= nil and parsedEnemy.tags[2] == "Fast" and parsedEnemy.health == 60,
+		true,
+		"enemy type parsing splits tags and converts stats"
+	)
+	local invalidEnemy, invalidEnemyError = WavesModel.parseEnemyType({
+		name = "Broken",
+		tags = "Ground",
+		health = "0",
+		speed = "7",
+		reward = "10",
+		baseDamage = "1",
+		modelId = "",
+		renderScale = "1",
+	})
+	expectEqual(
+		invalidEnemy == nil and type(invalidEnemyError) == "string",
+		true,
+		"out-of-range enemy stats are rejected with the schema message"
+	)
+
+	local createdEnemyId = WavesModel.createEnemyType(designerProject, "ember_imp")
+	expectEqual(createdEnemyId, "ember_imp", "new enemy types are created with a sanitized ID")
+	local duplicateEnemyId, duplicateEnemyError = WavesModel.createEnemyType(designerProject, "ember_imp")
+	expectEqual(
+		duplicateEnemyId == nil and type(duplicateEnemyError) == "string",
+		true,
+		"duplicate enemy type IDs are rejected"
+	)
+	local badEnemyId = WavesModel.createEnemyType(designerProject, "Bad Name!")
+	expectEqual(badEnemyId, nil, "enemy type IDs must be lowercase identifiers")
+	expectEqual(
+		parsedEnemy ~= nil and (WavesModel.applyEnemyType(designerProject, "ember_imp", parsedEnemy)),
+		true,
+		"parsed enemy updates apply to the roster"
+	)
+	expectEqual(
+		designerProject.enemyTypes.ember_imp.name == "Ember Imp"
+			and designerProject.enemyTypes.ember_imp.modelId == "forest_runner",
+		true,
+		"applied enemy updates persist stats and model binding"
+	)
+
+	local referencedDelete, referencedDeleteError =
+		WavesModel.deleteEnemyType(designerProject, "forest_grunt")
+	expectEqual(
+		referencedDelete == false and type(referencedDeleteError) == "string",
+		true,
+		"enemy types referenced by wave entries cannot be deleted"
+	)
+	expectEqual(
+		(WavesModel.deleteEnemyType(designerProject, "ember_imp")),
+		true,
+		"unreferenced enemy types delete cleanly"
+	)
+
+	local copiedSetId = WavesModel.createWaveSet(designerProject, "hard_mode", "default")
+	expectEqual(copiedSetId, "hard_mode", "wave sets can be created as copies of an existing set")
+	expectEqual(
+		#designerProject.waveSets.hard_mode.waves,
+		#designerProject.waveSets.default.waves,
+		"copied wave sets duplicate every wave"
+	)
+	designerProject.waveSets.hard_mode.waves[1].entries[1].count = 999
+	expectEqual(
+		designerProject.waveSets.default.waves[1].entries[1].count ~= 999,
+		true,
+		"copied wave sets are deep copies, not aliases"
+	)
+	designerProject.waveSets.hard_mode.waves[1].entries[1].count = 8
+	local defaultDelete, defaultDeleteError = WavesModel.deleteWaveSet(designerProject, "default")
+	expectEqual(
+		defaultDelete == false and type(defaultDeleteError) == "string",
+		true,
+		"the default wave set cannot be deleted"
+	)
+	designerProject.stages.stage_wave_designer.waveSetId = "hard_mode"
+	local referencedSetDelete = WavesModel.deleteWaveSet(designerProject, "hard_mode")
+	expectEqual(referencedSetDelete, false, "wave sets referenced by a level cannot be deleted")
+	designerProject.stages.stage_wave_designer.waveSetId = "default"
+	expectEqual(
+		(WavesModel.deleteWaveSet(designerProject, "hard_mode")),
+		true,
+		"unreferenced wave sets delete cleanly"
+	)
+
+	local editSetId = WavesModel.createWaveSet(designerProject, "edit_lab", nil)
+	expectEqual(editSetId, "edit_lab", "wave sets can start from the starter wave template")
+	expectEqual((WavesModel.addWave(designerProject, "edit_lab")), true, "waves append to a set")
+	expectEqual(
+		(WavesModel.setBossFlag(designerProject, "edit_lab", 2, true)),
+		true,
+		"waves can be flagged as boss waves"
+	)
+	expectEqual(designerProject.waveSets.edit_lab.waves[2].isBoss, true, "boss flags persist on the wave")
+	expectEqual(
+		(WavesModel.moveWave(designerProject, "edit_lab", 2, -1)),
+		true,
+		"waves reorder within their set"
+	)
+	expectEqual(
+		designerProject.waveSets.edit_lab.waves[1].isBoss,
+		true,
+		"reordering carries the wave payload"
+	)
+	expectEqual(
+		WavesModel.moveWave(designerProject, "edit_lab", 1, -1),
+		false,
+		"waves cannot move past the start of the set"
+	)
+
+	local enemyTypeIds = WavesModel.enemyTypeIdSet(designerProject)
+	local parsedEntry, entryParseError = WavesModel.parseEntry({
+		enemyTypeId = "forest_runner",
+		count = "6",
+		spacingSeconds = "0.4",
+		startDelaySeconds = "2",
+		healthScale = "1.5",
+		rewardScale = "",
+		speedScale = "",
+	}, enemyTypeIds)
+	expectEqual(entryParseError, nil, "valid wave entry input parses")
+	expectEqual(
+		parsedEntry ~= nil and parsedEntry.healthScale == 1.5 and parsedEntry.rewardScale == nil,
+		true,
+		"blank entry scales stay unset instead of defaulting to text"
+	)
+	local danglingEntry = WavesModel.parseEntry({
+		enemyTypeId = "missing_enemy",
+		count = "6",
+		spacingSeconds = "0.4",
+		startDelaySeconds = "0",
+		healthScale = "",
+		rewardScale = "",
+		speedScale = "",
+	}, enemyTypeIds)
+	expectEqual(danglingEntry, nil, "wave entries must reference an authored enemy type")
+	expectEqual(
+		(WavesModel.addEntry(designerProject, "edit_lab", 1, parsedEntry)),
+		true,
+		"entries append to a wave"
+	)
+	expectEqual(
+		(WavesModel.updateEntry(designerProject, "edit_lab", 1, 2, parsedEntry)),
+		true,
+		"entries update in place"
+	)
+	local overCapEntry =
+		{ enemyTypeId = "forest_grunt", count = 200, spacingSeconds = 0.5, startDelaySeconds = 0 }
+	expectEqual(
+		(WavesModel.addEntry(designerProject, "edit_lab", 1, overCapEntry))
+			and (WavesModel.addEntry(designerProject, "edit_lab", 1, overCapEntry)),
+		true,
+		"waves accept entries up to the spawn cap"
+	)
+	local cappedAdd = WavesModel.addEntry(designerProject, "edit_lab", 1, overCapEntry)
+	expectEqual(cappedAdd, false, "waves reject entries beyond the runtime spawn cap")
+	expectEqual(
+		(WavesModel.deleteEntry(designerProject, "edit_lab", 1, 4)),
+		true,
+		"entries delete from a wave"
+	)
+	local soloWaveIndex = #designerProject.waveSets.edit_lab.waves
+	local soloEntryDelete = WavesModel.deleteEntry(designerProject, "edit_lab", soloWaveIndex, 1)
+	expectEqual(soloEntryDelete, false, "the final entry of a wave cannot be deleted")
+	expectEqual(
+		(WavesModel.deleteWave(designerProject, "edit_lab", 1)),
+		true,
+		"waves delete while at least one remains"
+	)
+	local soloWaveDelete = WavesModel.deleteWave(designerProject, "edit_lab", 1)
+	expectEqual(soloWaveDelete, false, "the final wave of a set cannot be deleted")
 end
 
 expectEqual(StageSchema.AUTHORING_VERSION, 5, "Stagewright wave-authoring schema is version 5")
@@ -3891,6 +4119,8 @@ do
 	local stagewrightPaintBrushesSource = fs.readFile("src/plugins/Stagewright/Paint/Brushes.luau")
 	local stagewrightStageSettingsSource = fs.readFile("src/plugins/Stagewright/Stage/Settings.luau")
 	local stagewrightIssueModelSource = fs.readFile("src/plugins/Stagewright/Validation/IssueModel.luau")
+	local stagewrightWaveModelSource = fs.readFile("src/plugins/Stagewright/Waves/Model.luau")
+	local stagewrightWaveDesignerSource = fs.readFile("src/plugins/Stagewright/UI/WaveDesignerView.luau")
 	local stagewrightImportSource = fs.readFile("scripts/stagewright-import.luau")
 	local stagewrightUiSource = stagewrightAppShellSource
 		.. stagewrightThemeSource
@@ -3944,7 +4174,31 @@ do
 	expectCompiles(stagewrightPaintBrushesSource, "Stagewright paint brushes compile as Luau")
 	expectCompiles(stagewrightStageSettingsSource, "Stagewright stage settings compile as Luau")
 	expectCompiles(stagewrightIssueModelSource, "Stagewright validation issue model compiles as Luau")
+	expectCompiles(stagewrightWaveModelSource, "Stagewright wave designer model compiles as Luau")
+	expectCompiles(stagewrightWaveDesignerSource, "Stagewright wave designer view compiles as Luau")
 	expectCompiles(stagewrightImportSource, "Stagewright repository importer compiles as Luau")
+	for _, waveDesignerMarker in
+		{
+			'"Waves"',
+			"WaveDesignerView.new",
+			"WaveDesignerView.newWaveSetPicker",
+			"waveSetPicker:validIds()",
+			"StageSettings.parse",
+		}
+	do
+		expectEqual(
+			string.find(gridPluginSource, waveDesignerMarker, 1, true) ~= nil,
+			true,
+			`plugin bootstrap wires the wave designer: {waveDesignerMarker}`
+		)
+	end
+	expectEqual(
+		string.find(gridPluginProject, '"WaveDesignerView"', 1, true) ~= nil
+			and string.find(gridPluginProject, "Waves/Model.luau", 1, true) ~= nil
+			and string.find(gridPluginProject, "StageWaveDefaults.luau", 1, true) ~= nil,
+		true,
+		"plugin project maps the wave designer modules"
+	)
 	for _, mapTypeContract in
 		{
 			"export type MapDefinition = {",

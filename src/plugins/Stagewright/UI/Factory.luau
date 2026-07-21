@@ -76,6 +76,39 @@ function Factory.sectionLabel(parent: Instance, text: string, order: number?): T
 	}, parent) :: TextLabel
 end
 
+function Factory.labeledTextField(parent: Instance, label: string, order: number): TextBox
+	local group = Factory.create("Frame", {
+		BackgroundTransparency = 1,
+		LayoutOrder = order,
+	}, parent) :: Frame
+	Factory.create("TextLabel", {
+		BackgroundTransparency = 1,
+		Font = Enum.Font.BuilderSansBold,
+		Size = UDim2.new(1, 0, 0, 13),
+		Text = label,
+		TextColor3 = COLORS.muted,
+		TextSize = 9,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, group)
+	local field = Factory.create("TextBox", {
+		BackgroundColor3 = COLORS.field,
+		BorderSizePixel = 0,
+		ClearTextOnFocus = false,
+		Font = Enum.Font.BuilderSans,
+		Position = UDim2.fromOffset(0, 14),
+		Size = UDim2.new(1, 0, 0, 24),
+		Text = "",
+		TextColor3 = COLORS.text,
+		TextSize = 11,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, group) :: TextBox
+	Factory.create("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) }, field)
+	Factory.create("UICorner", { CornerRadius = UDim.new(0, 5) }, field)
+	Factory.create("UIStroke", { Color = COLORS.border, Thickness = 1 }, field)
+	return field
+end
+
 function Factory.setSelected(result: TextButton, selected: boolean)
 	result.BackgroundColor3 = if selected then COLORS.accent else COLORS.field
 	local stroke = result:FindFirstChild("Outline")
