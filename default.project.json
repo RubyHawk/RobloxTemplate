@@ -36,6 +36,12 @@
       },
       "StagePlatformOwners": {
         "$path": "src/ui/StagePlatformOwners.model.json"
+      },
+      "PortalSign": {
+        "$path": "src/ui/PortalSign.model.json"
+      },
+      "DungeonHUD": {
+        "$path": "src/ui/DungeonHUD.model.json"
       }
     },
     "StarterPlayer": {
@@ -222,6 +228,12 @@
       },
       "FirstPrivateIsland": {
         "$path": "src/world/FirstPrivateIslandGridDemo.model.json"
+      },
+      "PortalPad": {
+        "$path": "src/world/PortalPad.model.json"
+      },
+      "DungeonArena": {
+        "$path": "src/world/DungeonArena.model.json"
       }
     },
     "TextChatService": {
