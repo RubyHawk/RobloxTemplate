@@ -48,6 +48,7 @@ jobs:
         run: |
           pwsh -NoProfile -File scripts/sandbox.ps1 -RecipePath config-presets/incremental.json -SmokeTest
           pwsh -NoProfile -File scripts/start.ps1 -SmokeTest
+          pwsh -NoProfile -File scripts/rng-defender.ps1 -SmokeTest
       - run: pwsh -NoProfile -File scripts/sync-icon-manifest.ps1 -Check
       - run: lune run tests/run
       - run: lune run scripts/benchmark-stagewright.luau

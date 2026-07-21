@@ -9,6 +9,9 @@
     "ReplicatedStorage": {
       "Template": {
         "$className": "Folder",
+        "DungeonWeapons": {
+          "$path": "src/assets/DungeonWeapons.model.json"
+        },
         "Shared": {
           "$path": "src/shared"
         }

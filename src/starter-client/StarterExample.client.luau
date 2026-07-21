@@ -4,9 +4,26 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
-local Config = require(ReplicatedStorage:WaitForChild("Template"):WaitForChild("Shared").TemplateConfig)
+local Template = ReplicatedStorage:WaitForChild("Template")
+local Config = require(Template:WaitForChild("Shared").TemplateConfig)
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+
+-- The earning trainer is lobby-only. Stop before its unbounded world wait so a
+-- streamed reserved dungeon never carries an unrelated sign/controller.
+if Template:GetAttribute("RuntimeMode") == "dungeon" then
+	local function disableStarterSign(instance: Instance)
+		if instance.Name == "StarterSignUI" and instance:IsA("BillboardGui") then
+			instance.Enabled = false
+		end
+	end
+	for _, instance in playerGui:GetChildren() do
+		disableStarterSign(instance)
+	end
+	playerGui.ChildAdded:Connect(disableStarterSign)
+	return
+end
+
 local sign = playerGui:WaitForChild("StarterSignUI", 10)
 if sign == nil or not sign:IsA("BillboardGui") then
 	warn(

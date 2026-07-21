@@ -3,11 +3,13 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Config = require(ReplicatedStorage:WaitForChild("Template"):WaitForChild("Shared").TemplateConfig)
+local Template = ReplicatedStorage:WaitForChild("Template")
+local Config = require(Template:WaitForChild("Shared").TemplateConfig)
 
 local Services = script.Services
 local AnnouncementService = require(Services.AnnouncementService)
 local FeedbackService = require(Services.FeedbackService)
+local InventoryService = require(Services.InventoryService)
 local LeaderboardService = require(Services.LeaderboardService)
 local NotificationService = require(Services.NotificationService)
 local ProfileService = require(Services.ProfileService)
@@ -26,7 +28,13 @@ local DungeonService = require(Services.DungeonService)
 local EconomyRateProvider = require(script.Providers.DefaultEconomyRateProvider)
 local DataStoreRuntime = require(script.Util.DataStoreRuntime)
 
-DataStoreRuntime.announce(ReplicatedStorage:WaitForChild("Template"))
+-- Publish one explicit, immutable runtime mode before any client-facing service
+-- starts. Lobby clients use it to return before waiting on lobby-only world/UI,
+-- while the dedicated dungeon controller remains active in both modes.
+local dungeonMode = Config.features.dungeon and DungeonService.isDungeonServer()
+Template:SetAttribute("RuntimeMode", if dungeonMode then "dungeon" else "lobby")
+
+DataStoreRuntime.announce(Template)
 RemoteService.initialize()
 -- Receipt processing must remain installed even when the store UI is disabled;
 -- pending developer-product receipts must never be silently acknowledged.
@@ -38,7 +46,7 @@ end
 if Config.features.crossServerChat then
 	AnnouncementService.start(RemoteService.broadcastAnnouncement)
 end
-if Config.features.runes then
+if Config.features.runes and not dungeonMode then
 	-- Surge channeling competes in the strongest-temporary-boost bucket; the
 	-- provider keeps EconomyService unaware of the rune altar.
 	EconomyService.setChannelBoostProvider(RuneService.channelEarningsMultiplier)
@@ -51,11 +59,7 @@ if Config.features.runes then
 		end,
 	})
 end
--- Detect a reserved dungeon server up front so lobby-only rules (the portal pad
--- loop and the tower-defense "no platform" kick) can be skipped there. A public
--- lobby server and every non-dungeon game evaluate this to false.
-local dungeonMode = Config.features.dungeon and DungeonService.isDungeonServer()
-if Config.features.towerDefense then
+if Config.features.towerDefense and not dungeonMode then
 	StagePlatformService.start()
 	StageRuntimeService.start({
 		origin = StagePlatformService.originFor,
@@ -74,14 +78,24 @@ if Config.features.dungeon then
 	-- server); the portal pad loop must run in the lobby only, or a dungeon
 	-- server would try to launch a nested dungeon from its own pad.
 	DungeonService.start({
-		publish = function(data)
-			RemoteService.broadcast("DungeonState", data)
+		publish = function(players, data)
+			for _, player in players do
+				if player.Parent == Players then
+					RemoteService.sendEvent(player, "DungeonState", data)
+				end
+			end
 		end,
 		award = EconomyService.awardCurrencyRaw,
 		fallbackCurrencyId = Config.economy.primaryCurrencyId,
 		notify = function(player, message)
 			RemoteService.sendEvent(player, "PortalNotice", { message = message })
 		end,
+		ready = function(player)
+			return ProfileService.get(player) ~= nil
+		end,
+		equippedItemId = InventoryService.equippedItemId,
+		ensureEquipped = InventoryService.ensureEquipped,
+		grantItem = InventoryService.grant,
 	})
 	if not dungeonMode then
 		PortalService.start({
@@ -115,6 +129,16 @@ local function playerAdded(player: Player)
 				player:Kick("Your data could not be loaded safely. Please rejoin.")
 			end
 			return
+		end
+		if Config.features.dungeon then
+			-- Every dungeon-enabled profile owns one usable saved weapon. Existing
+			-- profiles are upgraded through the inventory map without a schema reset,
+			-- and a player-selected weapon is never overwritten.
+			InventoryService.ensureEquipped(
+				player,
+				Config.dungeon.equipmentSlot,
+				Config.dungeon.starterWeaponId
+			)
 		end
 		NotificationService.cancel(player)
 		StoreService.refreshEntitlements(player)

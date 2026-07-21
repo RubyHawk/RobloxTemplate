@@ -12,9 +12,11 @@ You do not need to understand Git, Rojo, Wally, or the notification worker to op
 
 For the existing shared tower-defense place, use **`7_STAGEWRIGHT_SHARED.cmd`** and follow [`docs/STAGEWRIGHT_QA.md`](docs/STAGEWRIGHT_QA.md). That launcher intentionally avoids Rojo so Team Create-only legacy map data can be exported before repository sync.
 
+To deliver tested gameplay code and authored portal assets into that same permanent RNG Defender place, use **`8_RNG_DEFENDER.cmd`**. It validates the exact configured universe/place, updates the private Stagewright and official Rojo Studio plugins, serves only the safe `$ignoreUnknownInstances` patch, and refuses to connect to another place. The legacy **`SERVE_TOWER_DEFENSE.cmd`** shortcut delegates to this same guarded launcher. Connect Rojo in Studio, verify in Play, then use **File > Publish to Roblox** on that same experience. Never publish the standalone `build/RNGDefenderSafePatch.rbxlx`, because it intentionally excludes Team Create world data.
+
 You should see a Coins HUD and buttons for the inventory, store, rewards, profile, codes, leaderboards, feedback, community, and settings.
 
-The launcher installs anything missing and replaces any old Rojo session. Two permanent Roblox experiences are reused, both configured in `experiences.config.json`: the shared test option rebuilds your selected preset and opens the same player-test experience every time, and the template option opens the permanent template workbench experience (or a local file until you link its IDs). Nothing ever creates another Roblox experience. The **Repair setup** and **Run project checks** buttons explain problems in plain language.
+The general template launcher installs anything missing and replaces any old Rojo session. Its two reusable test experiences are configured in `experiences.config.json`: the shared test option rebuilds your selected preset and opens the same player-test experience every time, and the template option opens the permanent template workbench experience (or a local file until you link its IDs). RNG Defender remains the separately guarded existing game described above. Nothing ever creates another Roblox experience. The **Repair setup** and **Run project checks** buttons explain problems in plain language.
 
 The numbered CMD files remain available as manual shortcuts. `SANDBOX.cmd` opens the permanent test experience directly, but your non-programmer coworker normally only needs `START_HERE.cmd`.
 

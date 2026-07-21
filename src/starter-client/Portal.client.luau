@@ -1,18 +1,16 @@
 --!strict
 
--- Client binder for the dungeon portal. Everything visual is already authored:
--- the BillboardGui above the pad (PortalSign) and the boss HUD (DungeonHUD). This
--- script only adorns, animates authored parts, and writes text/images/visibility
--- from the server's PortalState / DungeonState broadcasts. It never creates,
--- clones, or destroys GuiObjects, so the server stays the only authority.
+-- Lobby portal binder. Dungeon combat/HUD behavior lives in
+-- Dungeon.client.luau; this script only owns the authored pad, roster sign, and
+-- portal notices. All gameplay decisions remain server-authoritative.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
-local Shared = ReplicatedStorage:WaitForChild("Template"):WaitForChild("Shared")
+local Template = ReplicatedStorage:WaitForChild("Template")
+local Shared = Template:WaitForChild("Shared")
 local Config = require(Shared.TemplateConfig)
 local RemoteNames = require(Shared.RemoteNames)
 
@@ -20,67 +18,45 @@ if Config.features.dungeon ~= true then
 	return
 end
 
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 
-local sign = playerGui:WaitForChild("PortalSign", 15)
-local hud = playerGui:WaitForChild("DungeonHUD", 15)
-if sign == nil or not sign:IsA("BillboardGui") or hud == nil or not hud:IsA("ScreenGui") then
-	warn("PortalSign/DungeonHUD are missing; rebuild the place to restore the dungeon portal UI")
-	return
-end
-
-local padModel = Workspace:WaitForChild("PortalPad", 20)
-if padModel == nil then
-	warn("Workspace.PortalPad is missing; rebuild the playable place to restore the dungeon portal")
-	return
-end
-local platform = padModel:WaitForChild("Platform") :: BasePart
-local glowRing = padModel:FindFirstChild("GlowRing")
-local vortex = padModel:FindFirstChild("Vortex")
-
-sign.Adornee = platform
-sign.Enabled = true
-
-local function child(parent: Instance, name: string): Instance?
-	return parent:FindFirstChild(name)
-end
-
-local card = sign:WaitForChild("Card") :: Frame
-local titleCountdown = child(card, "Countdown")
-local statusLine = child(card, "StatusLine")
-local roster = child(card, "Roster")
-
-local slots: { Frame } = {}
-if roster ~= nil then
-	for index = 1, 4 do
-		local slot = roster:FindFirstChild(`Slot{index}`)
-		if slot ~= nil and slot:IsA("Frame") then
-			slots[index] = slot
+-- Reserved dungeon servers never need lobby portal remotes or world visuals.
+-- Disable the authored sign whether it has replicated yet or arrives later,
+-- then stop before waiting for any portal-specific instances.
+if Template:GetAttribute("RuntimeMode") == "dungeon" then
+	local function disablePortalSign(instance: Instance)
+		if instance.Name == "PortalSign" and instance:IsA("BillboardGui") then
+			instance.Enabled = false
 		end
 	end
-end
-
-local bossBar = child(hud, "BossBar")
-local resultBanner = child(hud, "ResultBanner")
-local attackHint = child(hud, "AttackHint")
-
--- True while a boss fight is live, so the input handler only fires attacks then.
-local dungeonActive = false
-
-local function setText(instance: Instance?, text: string)
-	if instance ~= nil and instance:IsA("TextLabel") then
-		instance.Text = text
+	for _, instance in playerGui:GetChildren() do
+		disablePortalSign(instance)
 	end
+	playerGui.ChildAdded:Connect(disablePortalSign)
+	return
 end
 
-local function setVisible(instance: Instance?, visible: boolean)
-	if instance ~= nil and instance:IsA("GuiObject") then
-		instance.Visible = visible
+local sign: BillboardGui? = nil
+local padModel: Model? = nil
+local platform: BasePart? = nil
+local glowRing: BasePart? = nil
+local vortex: BasePart? = nil
+local titleCountdown: TextLabel? = nil
+local statusLine: TextLabel? = nil
+local slots: { Frame } = {}
+local latestPortalState: any = nil
+local latestPortalNotice: string? = nil
+local portalNoticeRevision = 0
+local padChildAddedConnection: RBXScriptConnection? = nil
+local padChildRemovedConnection: RBXScriptConnection? = nil
+
+local function textChild(parent: Instance?, name: string): TextLabel?
+	if parent == nil then
+		return nil
 	end
+	local child = parent:FindFirstChild(name)
+	return if child ~= nil and child:IsA("TextLabel") then child else nil
 end
-
--- ---- Portal roster + countdown -------------------------------------------------
 
 local function applyPortalState(data: any)
 	if type(data) ~= "table" then
@@ -94,10 +70,10 @@ local function applyPortalState(data: any)
 			if portrait ~= nil and portrait:IsA("ImageLabel") then
 				portrait.Image = `rbxthumb://type=AvatarHeadShot&id={occupant.userId}&w=150&h=150`
 			end
-			setText(
-				slot:FindFirstChild("NameLabel"),
-				if type(occupant.name) == "string" then occupant.name else ""
-			)
+			local nameLabel = textChild(slot, "NameLabel")
+			if nameLabel ~= nil then
+				nameLabel.Text = if type(occupant.name) == "string" then occupant.name else ""
+			end
 			slot.Visible = true
 		else
 			slot.Visible = false
@@ -108,150 +84,232 @@ local function applyPortalState(data: any)
 	local partyMax = if type(data.partyMax) == "number" then data.partyMax else count
 	local countdown = data.countdown
 	local launching = data.launching == true
-
-	if titleCountdown ~= nil and titleCountdown:IsA("TextLabel") then
+	local countdownLabel = titleCountdown
+	if countdownLabel ~= nil then
 		if launching then
-			titleCountdown.Text = "GO"
-			titleCountdown.Visible = true
+			countdownLabel.Text = "GO"
+			countdownLabel.Visible = true
 		elseif type(countdown) == "number" and countdown > 0 then
-			titleCountdown.Text = tostring(countdown)
-			titleCountdown.Visible = true
+			countdownLabel.Text = tostring(countdown)
+			countdownLabel.Visible = true
 		else
-			titleCountdown.Visible = false
+			countdownLabel.Visible = false
 		end
 	end
 
-	if launching then
-		setText(statusLine, "ENTERING THE DUNGEON…")
-	elseif count > 0 then
-		local seconds = if type(countdown) == "number" then countdown else 0
-		setText(statusLine, `PARTY {math.min(count, partyMax)}/{partyMax} • ENTERING IN {seconds}s`)
-	else
-		setText(statusLine, "STAND ON THE PORTAL TO ENTER THE DUNGEON")
+	local status = statusLine
+	if status ~= nil then
+		if launching then
+			status.Text = "ENTERING THE DUNGEON..."
+		elseif count > 0 then
+			local seconds = if type(countdown) == "number" then countdown else 0
+			status.Text = `PARTY {math.min(count, partyMax)}/{partyMax} - ENTERING IN {seconds}s`
+		else
+			status.Text = "STAND ON THE PORTAL TO ENTER THE DUNGEON"
+		end
 	end
 end
 
--- ---- Dungeon boss HUD ----------------------------------------------------------
+local function applyPortalNotice(message: string)
+	local status = statusLine
+	if status ~= nil then
+		status.Text = string.upper(message)
+	end
+end
 
-local function applyDungeonState(data: any)
-	if type(data) ~= "table" then
+local function restoreAfterPortalNotice()
+	if latestPortalState ~= nil then
+		applyPortalState(latestPortalState)
+	end
+end
+
+local function refreshPortalAdornee()
+	local currentSign = sign
+	local currentPlatform = platform
+	if
+		currentSign ~= nil
+		and currentSign.Parent ~= nil
+		and currentPlatform ~= nil
+		and currentPlatform.Parent ~= nil
+	then
+		currentSign.Adornee = currentPlatform
+		currentSign.Enabled = true
+	elseif currentSign ~= nil and currentSign.Parent ~= nil then
+		currentSign.Adornee = nil
+		currentSign.Enabled = false
+	end
+end
+
+local function bindPortalSign(instance: Instance)
+	if not instance:IsA("BillboardGui") then
+		warn("PlayerGui.PortalSign must be an authored BillboardGui; lobby portal status is hidden")
 		return
 	end
-	local active = data.active == true
-	dungeonActive = active
-	hud.Enabled = active
-	setVisible(bossBar, active)
-	if not active then
-		setVisible(resultBanner, false)
-		setVisible(attackHint, false)
-		return
-	end
-	-- Show the attack prompt only while the fight is live (hidden once a
-	-- victory/defeat result arrives), and switch it to a dodge warning while the
-	-- boss telegraphs a slam.
-	setVisible(attackHint, data.result == nil)
-	if attackHint ~= nil and attackHint:IsA("TextLabel") and data.result == nil then
-		if data.danger == true then
-			attackHint.Text = "⚠ SLAM INCOMING — RUN OUT!"
-			attackHint.TextColor3 = Color3.fromRGB(255, 120, 120)
-		else
-			attackHint.Text = "CLICK / TAP TO ATTACK"
-			attackHint.TextColor3 = Color3.fromRGB(245, 235, 255)
-		end
-	end
-
-	if bossBar ~= nil then
-		setText(
-			bossBar:FindFirstChild("BossName"),
-			if type(data.bossName) == "string" then data.bossName else "BOSS"
-		)
-		local track = bossBar:FindFirstChild("HealthTrack")
-		local fraction = if type(data.fraction) == "number" then math.clamp(data.fraction, 0, 1) else 0
-		if track ~= nil then
-			local fill = track:FindFirstChild("Fill")
-			if fill ~= nil and fill:IsA("GuiObject") then
-				fill.Size = UDim2.fromScale(fraction, 1)
+	sign = instance
+	table.clear(slots)
+	local card = instance:FindFirstChild("Card")
+	if card ~= nil and card:IsA("Frame") then
+		titleCountdown = textChild(card, "Countdown")
+		statusLine = textChild(card, "StatusLine")
+		local roster = card:FindFirstChild("Roster")
+		if roster ~= nil then
+			for index = 1, 4 do
+				local slot = roster:FindFirstChild(`Slot{index}`)
+				if slot ~= nil and slot:IsA("Frame") then
+					slots[index] = slot
+				end
 			end
-			setText(track:FindFirstChild("HealthText"), `{math.floor(fraction * 100 + 0.5)}%`)
 		end
-		local timeLeft = if type(data.timeLeft) == "number" then data.timeLeft else 0
-		setText(
-			bossBar:FindFirstChild("StatusLine"),
-			if data.phase == "fight" then `{timeLeft}s LEFT` else ""
-		)
+	else
+		titleCountdown = nil
+		statusLine = nil
+		warn("PlayerGui.PortalSign.Card is unavailable; lobby portal status is hidden")
 	end
-
-	if resultBanner ~= nil and resultBanner:IsA("TextLabel") then
-		if data.result == "victory" then
-			resultBanner.Text = "VICTORY!"
-			resultBanner.TextColor3 = Color3.fromRGB(255, 235, 153)
-			resultBanner.Visible = true
-		elseif data.result == "defeat" then
-			resultBanner.Text = "DEFEATED"
-			resultBanner.TextColor3 = Color3.fromRGB(255, 130, 130)
-			resultBanner.Visible = true
-		else
-			resultBanner.Visible = false
-		end
+	refreshPortalAdornee()
+	if latestPortalState ~= nil then
+		applyPortalState(latestPortalState)
+	end
+	if latestPortalNotice ~= nil then
+		applyPortalNotice(latestPortalNotice)
 	end
 end
 
--- ---- State channel -------------------------------------------------------------
+local function disconnectPadConnections()
+	if padChildAddedConnection ~= nil then
+		padChildAddedConnection:Disconnect()
+		padChildAddedConnection = nil
+	end
+	if padChildRemovedConnection ~= nil then
+		padChildRemovedConnection:Disconnect()
+		padChildRemovedConnection = nil
+	end
+end
+
+local function refreshPortalPadParts()
+	local currentPad = padModel
+	if currentPad == nil or currentPad.Parent == nil then
+		platform = nil
+		glowRing = nil
+		vortex = nil
+		refreshPortalAdornee()
+		return
+	end
+	local candidatePlatform = currentPad:FindFirstChild("Platform")
+	platform = if candidatePlatform ~= nil and candidatePlatform:IsA("BasePart")
+		then candidatePlatform
+		else nil
+	local candidateGlow = currentPad:FindFirstChild("GlowRing")
+	glowRing = if candidateGlow ~= nil and candidateGlow:IsA("BasePart") then candidateGlow else nil
+	local candidateVortex = currentPad:FindFirstChild("Vortex")
+	vortex = if candidateVortex ~= nil and candidateVortex:IsA("BasePart") then candidateVortex else nil
+	refreshPortalAdornee()
+end
+
+local function bindPortalPad(instance: Instance)
+	if not instance:IsA("Model") then
+		warn("Workspace.PortalPad must be an authored Model; lobby portal visuals are disabled")
+		return
+	end
+	disconnectPadConnections()
+	padModel = instance
+	padChildAddedConnection = instance.ChildAdded:Connect(refreshPortalPadParts)
+	padChildRemovedConnection = instance.ChildRemoved:Connect(refreshPortalPadParts)
+	refreshPortalPadParts()
+end
 
 local remotes = ReplicatedStorage:WaitForChild(RemoteNames.folder)
 local stateRemote = remotes:WaitForChild(RemoteNames.state) :: RemoteEvent
-local requestRemote = remotes:WaitForChild(RemoteNames.request) :: RemoteEvent
 
 stateRemote.OnClientEvent:Connect(function(packet: any)
 	if type(packet) ~= "table" then
 		return
 	end
 	if packet.kind == "PortalState" then
+		latestPortalState = packet.data
 		applyPortalState(packet.data)
-	elseif packet.kind == "DungeonState" then
-		applyDungeonState(packet.data)
+		if latestPortalNotice ~= nil then
+			applyPortalNotice(latestPortalNotice)
+		end
 	elseif packet.kind == "PortalNotice" then
 		local message = if type(packet.data) == "table" and type(packet.data.message) == "string"
 			then packet.data.message
 			else "The dungeon portal is unavailable right now."
-		setText(statusLine, string.upper(message))
+		portalNoticeRevision += 1
+		local revision = portalNoticeRevision
+		latestPortalNotice = message
+		applyPortalNotice(message)
+		task.delay(6, function()
+			if portalNoticeRevision ~= revision then
+				return
+			end
+			latestPortalNotice = nil
+			restoreAfterPortalNotice()
+		end)
 	end
 end)
 
--- ---- Attack input --------------------------------------------------------------
-
--- Click/tap while a fight is live asks the server to hit the boss. The server
--- re-checks range, liveness, and cooldown; this local throttle only avoids
--- flooding it beyond the accepted cadence.
-local lastAttackFire = 0
-UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
-	if gameProcessed or not dungeonActive then
-		return
+playerGui.ChildAdded:Connect(function(instance: Instance)
+	if instance.Name == "PortalSign" then
+		bindPortalSign(instance)
 	end
-	if
-		input.UserInputType ~= Enum.UserInputType.MouseButton1
-		and input.UserInputType ~= Enum.UserInputType.Touch
-	then
-		return
-	end
-	local now = os.clock()
-	if now - lastAttackFire < Config.dungeon.attackCooldownSeconds then
-		return
-	end
-	lastAttackFire = now
-	requestRemote:FireServer({ action = "DungeonAttack" })
 end)
 
--- ---- Ambient pad animation -----------------------------------------------------
+playerGui.ChildRemoved:Connect(function(instance: Instance)
+	if instance == sign then
+		sign = nil
+		titleCountdown = nil
+		statusLine = nil
+		table.clear(slots)
+	end
+end)
+
+Workspace.ChildAdded:Connect(function(instance: Instance)
+	if instance.Name == "PortalPad" then
+		bindPortalPad(instance)
+	end
+end)
+
+Workspace.ChildRemoved:Connect(function(instance: Instance)
+	if instance == padModel then
+		disconnectPadConnections()
+		padModel = nil
+		platform = nil
+		glowRing = nil
+		vortex = nil
+		refreshPortalAdornee()
+	end
+end)
+
+local existingSign = playerGui:FindFirstChild("PortalSign")
+if existingSign ~= nil then
+	bindPortalSign(existingSign)
+end
+local existingPad = Workspace:FindFirstChild("PortalPad")
+if existingPad ~= nil then
+	bindPortalPad(existingPad)
+end
+
+task.delay(15, function()
+	if sign == nil and Template:GetAttribute("RuntimeMode") ~= "dungeon" then
+		warn("PlayerGui.PortalSign is unavailable; lobby portal status is hidden")
+	end
+end)
+task.delay(20, function()
+	if platform == nil and Template:GetAttribute("RuntimeMode") ~= "dungeon" then
+		warn("Workspace.PortalPad is unavailable; lobby portal visuals are disabled")
+	end
+end)
 
 local clock = 0
 RunService.Heartbeat:Connect(function(deltaTime: number)
 	clock += deltaTime
 	local pulse = 0.5 + 0.5 * math.sin(clock * 2.2)
-	if glowRing ~= nil and glowRing:IsA("BasePart") then
-		glowRing.Transparency = 0.3 + 0.25 * (1 - pulse)
+	local currentGlow = glowRing
+	if currentGlow ~= nil and currentGlow.Parent ~= nil then
+		currentGlow.Transparency = 0.3 + 0.25 * (1 - pulse)
 	end
-	if vortex ~= nil and vortex:IsA("BasePart") then
-		vortex.CFrame = vortex.CFrame * CFrame.Angles(math.rad(60 * deltaTime), 0, 0)
+	local currentVortex = vortex
+	if currentVortex ~= nil and currentVortex.Parent ~= nil then
+		currentVortex.CFrame = currentVortex.CFrame * CFrame.Angles(math.rad(60 * deltaTime), 0, 0)
 	end
 end)

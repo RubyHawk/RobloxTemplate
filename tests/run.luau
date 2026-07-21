@@ -7914,6 +7914,417 @@ expectEqual(
 )
 
 do
+	local portalClientSource = fs.readFile("src/starter-client/Portal.client.luau")
+	local dungeonClientSource = fs.readFile("src/starter-client/Dungeon.client.luau")
+	local dungeonHudSource = fs.readFile("src/ui/DungeonHUD.model.json")
+	local dungeonWeaponsSource = fs.readFile("src/assets/DungeonWeapons.model.json")
+	local dungeonArenaSource = fs.readFile("src/world/DungeonArena.model.json")
+	local defaultProjectSource = fs.readFile("default.project.json")
+	local rngDefenderProjectSource = fs.readFile("patches/rng-defender-grid-demo.project.json")
+
+	local function authoredDescendant(root: any, name: string): any
+		if type(root) ~= "table" then
+			return nil
+		end
+		if root.Name == name then
+			return root
+		end
+		if type(root.Children) == "table" then
+			for _, child in root.Children do
+				local found = authoredDescendant(child, name)
+				if found ~= nil then
+					return found
+				end
+			end
+		end
+		return nil
+	end
+
+	local stateBinding = string.find(dungeonClientSource, "stateRemote.OnClientEvent:Connect", 1, true)
+	local attackBinding = string.find(dungeonClientSource, "UserInputService.InputBegan:Connect", 1, true)
+	local optionalVisualLookup = string.find(
+		dungeonClientSource,
+		'local existingHud = playerGui:FindFirstChild("DungeonHUD")',
+		1,
+		true
+	)
+	expectEqual(
+		stateBinding ~= nil
+			and attackBinding ~= nil
+			and optionalVisualLookup ~= nil
+			and stateBinding < optionalVisualLookup
+			and attackBinding < optionalVisualLookup,
+		true,
+		"dedicated dungeon state and controls bind before its optional authored HUD"
+	)
+	expectEqual(
+		string.find(dungeonClientSource, 'WaitForChild("DungeonHUD"', 1, true) == nil
+			and string.find(dungeonClientSource, 'WaitForChild("DungeonArena"', 1, true) == nil
+			and string.find(portalClientSource, 'WaitForChild("PortalPad"', 1, true) == nil
+			and string.find(portalClientSource, 'WaitForChild("PortalSign"', 1, true) == nil
+			and string.find(portalClientSource, 'WaitForChild("Platform"', 1, true) == nil
+			and string.find(portalClientSource, 'WaitForChild("Card"', 1, true) == nil,
+		true,
+		"missing or streamed authored visuals cannot block dungeon controls or portal state"
+	)
+	expectEqual(
+		string.find(portalClientSource, "Workspace.ChildAdded:Connect", 1, true) ~= nil
+			and string.find(portalClientSource, "Workspace.ChildRemoved:Connect", 1, true) ~= nil
+			and string.find(portalClientSource, "latestPortalState", 1, true) ~= nil
+			and string.find(portalClientSource, "latestDungeonState", 1, true) == nil
+			and string.find(portalClientSource, "DungeonAttack", 1, true) == nil
+			and string.find(portalClientSource, "UserInputService", 1, true) == nil,
+		true,
+		"portal client recovers streamed lobby visuals without owning dungeon gameplay"
+	)
+	expectEqual(
+		string.find(portalClientSource, "Instance.new", 1, true) == nil
+			and string.find(portalClientSource, ":Clone()", 1, true) == nil
+			and string.find(portalClientSource, ":Destroy()", 1, true) == nil
+			and string.find(dungeonClientSource, "Instance.new", 1, true) == nil
+			and string.find(dungeonClientSource, ":Clone()", 1, true) == nil
+			and string.find(dungeonClientSource, ":Destroy()", 1, true) == nil,
+		true,
+		"portal and dungeon clients bind authored visuals without constructing or destroying UI"
+	)
+	expectEqual(
+		string.find(dungeonClientSource, 'packet.kind == "DungeonAttackResult"', 1, true) ~= nil
+			and string.find(dungeonClientSource, "weaponByUserId", 1, true) ~= nil
+			and string.find(dungeonClientSource, "data.combatActive", 1, true) ~= nil
+			and string.find(dungeonClientSource, 'action = "DungeonAttack"', 1, true) ~= nil
+			and string.find(dungeonClientSource, 'action = "DungeonDodge"', 1, true) ~= nil,
+		true,
+		"dedicated dungeon client consumes server state and sends payload-free attack and dodge intent"
+	)
+	expectEqual(
+		string.find(dungeonClientSource, "Enum.KeyCode.ButtonR2", 1, true) ~= nil
+			and string.find(dungeonClientSource, "Enum.KeyCode.ButtonB", 1, true) ~= nil
+			and string.find(
+				dungeonClientSource,
+				'childOfClass(controls, "AttackButton", "TextButton")',
+				1,
+				true
+			) ~= nil
+			and string.find(
+					dungeonClientSource,
+					'childOfClass(controls, "DodgeButton", "TextButton")',
+					1,
+					true
+				)
+				~= nil,
+		true,
+		"dungeon combat exposes authored touch controls plus keyboard and gamepad attack/dodge inputs"
+	)
+	expectEqual(
+		string.find(dungeonClientSource, 'FindFirstChildWhichIsA("Tool")', 1, true) ~= nil
+			and string.find(dungeonClientSource, "Grip = baseGrip * CFrame.Angles", 1, true) ~= nil
+			and string.find(dungeonClientSource, "GuiService.ReducedMotionEnabled", 1, true) ~= nil
+			and string.find(dungeonClientSource, "CameraMinZoomDistance", 1, true) ~= nil
+			and string.find(dungeonClientSource, "endCameraPresentation", 1, true) ~= nil,
+		true,
+		"dungeon presentation animates the equipped tool and camera with reduced-motion and restoration paths"
+	)
+	expectEqual(
+		string.find(dungeonClientSource, "LOBBY_GUI_ROOTS", 1, true) ~= nil
+			and string.find(dungeonClientSource, "suppressLobbyGuis", 1, true) ~= nil
+			and string.find(
+					dungeonClientSource,
+					'Template:GetAttribute("RuntimeMode") == "dungeon"',
+					1,
+					true
+				)
+				~= nil,
+		true,
+		"dungeon controller suppresses unrelated lobby UI in reserved and Studio-simulated runs"
+	)
+	local coreGuiRestoreDefinition =
+		string.find(dungeonClientSource, "local function restoreCoreGuiIfApplicable()", 1, true)
+	local coreGuiRestoreCall = if coreGuiRestoreDefinition ~= nil
+		then string.find(
+			dungeonClientSource,
+			"restoreCoreGuiIfApplicable()",
+			coreGuiRestoreDefinition + 1,
+			true
+		)
+		else nil
+	expectEqual(
+		string.find(dungeonClientSource, "Enum.CoreGuiType.Backpack", 1, true) ~= nil
+			and string.find(dungeonClientSource, "Enum.CoreGuiType.Health", 1, true) ~= nil
+			and string.find(dungeonClientSource, "StarterGui:GetCoreGuiEnabled(coreGuiType)", 1, true) ~= nil
+			and string.find(dungeonClientSource, "rememberedCoreGuiStates[coreGuiType]", 1, true) ~= nil
+			and string.find(
+				dungeonClientSource,
+				"setCoreGuiEnabledWithRetry(coreGuiType, wasEnabled, revision)",
+				1,
+				true
+			) ~= nil
+			and string.find(dungeonClientSource, 'Template:GetAttribute("RuntimeMode") ~= "lobby"', 1, true) ~= nil
+			and coreGuiRestoreDefinition ~= nil
+			and coreGuiRestoreCall ~= nil,
+		true,
+		"dungeon mode remembers, suppresses, and lobby-restores Backpack and Health CoreGui"
+	)
+	expectEqual(
+		string.find(dungeonClientSource, "localUserRecord(data.eliminatedByUserId)", 1, true) ~= nil
+			and string.find(
+				dungeonClientSource,
+				"combatActive = nextFightActive and not nextLocalEliminated",
+				1,
+				true
+			) ~= nil
+			and string.find(dungeonClientSource, 'setText(controlHint, "SPECTATING - YOU ARE DOWN")', 1, true) ~= nil
+			and string.find(dungeonClientSource, "setVisible(controls, false)", 1, true) ~= nil,
+		true,
+		"an eliminated local player becomes a control-locked spectator instead of rejoining combat"
+	)
+	expectEqual(
+		string.find(dungeonClientSource, "localUserRecord(data.rewardByUserId)", 1, true) ~= nil
+			and string.find(dungeonClientSource, "reward.currencyAmount", 1, true) ~= nil
+			and string.find(dungeonClientSource, "reward.itemName", 1, true) ~= nil
+			and string.find(dungeonClientSource, 'if result == "victory" then', 1, true) ~= nil
+			and string.find(dungeonClientSource, "actualRewardText = resultRewardLine(data)", 1, true) ~= nil
+			and string.find(dungeonClientSource, 'setText(rewardText, "")', 1, true) ~= nil
+			and string.find(dungeonClientSource, "setVisible(rewardText, false)", 1, true) ~= nil,
+		true,
+		"result UI reads only the local granted reward record and hides rewards on defeat"
+	)
+	expectEqual(
+		string.find(dungeonClientSource, "faceBoss", 1, true) == nil
+			and string.find(dungeonClientSource, "character:PivotTo", 1, true) == nil
+			and string.find(dungeonClientSource, "CFrame.lookAt", 1, true) == nil
+			and string.find(dungeonClientSource, "rootPart.CFrame =", 1, true) == nil
+			and string.find(dungeonClientSource, "root.CFrame =", 1, true) == nil,
+		true,
+		"client presentation never snaps the player's root toward the boss"
+	)
+
+	local dungeonHud = serde.decode("json", dungeonHudSource)
+	local attackButton = authoredDescendant(dungeonHud, "AttackButton")
+	local dodgeButton = authoredDescendant(dungeonHud, "DodgeButton")
+	expectEqual(
+		dungeonHud.ClassName == "ScreenGui"
+			and dungeonHud.Properties.Enabled == false
+			and dungeonHud.Properties.ResetOnSpawn == false
+			and dungeonHud.Properties.ClipToDeviceSafeArea == true
+			and dungeonHud.Properties.ScreenInsets == "CoreUISafeInsets",
+		true,
+		"dungeon HUD is a disabled-by-default safe-area-aware authored ScreenGui"
+	)
+	expectEqual(
+		attackButton ~= nil
+			and attackButton.ClassName == "TextButton"
+			and attackButton.Properties.Selectable == true
+			and dodgeButton ~= nil
+			and dodgeButton.ClassName == "TextButton"
+			and dodgeButton.Properties.Selectable == true
+			and authoredDescendant(dungeonHud, "BossBar") ~= nil
+			and authoredDescendant(dungeonHud, "PlayerPanel") ~= nil
+			and authoredDescendant(dungeonHud, "ResultPanel") ~= nil
+			and authoredDescendant(dungeonHud, "DangerVignette") ~= nil,
+		true,
+		"dungeon HUD pre-authors touch combat, boss/player status, danger, and result surfaces"
+	)
+	local playerPanel = authoredDescendant(dungeonHud, "PlayerPanel")
+	local controlsPanel = authoredDescendant(dungeonHud, "Controls")
+	local playerPanelBottomInset = -playerPanel.Properties.Position.UDim2[2][2]
+	local controlsBottomInset = -controlsPanel.Properties.Position.UDim2[2][2]
+	local controlsHeight = controlsPanel.Properties.Size.UDim2[2][2]
+	local mobilePanelGap = playerPanelBottomInset - (controlsBottomInset + controlsHeight)
+	expectEqual(
+		playerPanel.Properties.AnchorPoint[2] == 1
+			and controlsPanel.Properties.AnchorPoint[2] == 1
+			and playerPanel.Properties.Size.UDim2[2][2] == 110
+			and controlsHeight == 92
+			and mobilePanelGap >= 18,
+		true,
+		"bottom-anchored mobile player status clears the authored touch controls by at least 18 pixels"
+	)
+
+	local dungeonWeapons = serde.decode("json", dungeonWeaponsSource)
+	local DungeonConfig = require("../src/shared/DungeonConfig")
+	local normalizedDungeon = DungeonConfig.normalize(nil)
+	local allConfiguredToolsAuthored = dungeonWeapons.ClassName == "Folder"
+	for _, weapon in normalizedDungeon.weapons do
+		local tool = authoredDescendant(dungeonWeapons, weapon.toolName)
+		if
+			tool == nil
+			or tool.ClassName ~= "Tool"
+			or tool.Properties.RequiresHandle ~= true
+			or tool.Properties.CanBeDropped ~= false
+			or authoredDescendant(tool, "Handle") == nil
+		then
+			allConfiguredToolsAuthored = false
+		end
+	end
+	expectEqual(
+		allConfiguredToolsAuthored,
+		true,
+		"every server-configured dungeon weapon resolves to an authored non-droppable Tool with a Handle"
+	)
+	expectEqual(
+		string.find(defaultProjectSource, "src/assets/DungeonWeapons.model.json", 1, true) ~= nil
+			and string.find(defaultProjectSource, "src/ui/DungeonHUD.model.json", 1, true) ~= nil
+			and string.find(defaultProjectSource, '"$path": "src/starter-client"', 1, true) ~= nil
+			and string.find(rngDefenderProjectSource, "../src/assets/DungeonWeapons.model.json", 1, true) ~= nil
+			and string.find(rngDefenderProjectSource, "../src/ui/DungeonHUD.model.json", 1, true) ~= nil
+			and string.find(
+					rngDefenderProjectSource,
+					"../src/starter-client/Dungeon.client.luau",
+					1,
+					true
+				)
+				~= nil,
+		true,
+		"default and RNG Defender Rojo projects deliver authored dungeon weapons, HUD, and client"
+	)
+	local dungeonArena = serde.decode("json", dungeonArenaSource)
+	local bossCore = authoredDescendant(dungeonArena, "Core")
+	local bossVisual = authoredDescendant(dungeonArena, "Visual")
+	expectEqual(
+		authoredDescendant(dungeonArena, "Boss") ~= nil
+			and bossCore ~= nil
+			and bossVisual ~= nil
+			and authoredDescendant(dungeonArena, "HitHighlight") ~= nil
+			and authoredDescendant(dungeonArena, "SlamTelegraph") ~= nil,
+		true,
+		"dungeon arena pre-authors boss collision, presentation, hit feedback, and slam telegraph parts"
+	)
+	local visualPartCount = 0
+	local visualPartsArePresentationOnly = true
+	local function inspectVisualParts(root: any)
+		if type(root) ~= "table" then
+			return
+		end
+		if root.ClassName == "Part" or root.ClassName == "MeshPart" then
+			visualPartCount += 1
+			local properties = root.Properties
+			if
+				type(properties) ~= "table"
+				or properties.CanCollide ~= false
+				or properties.CanQuery ~= false
+				or properties.CanTouch ~= false
+			then
+				visualPartsArePresentationOnly = false
+			end
+		end
+		if type(root.Children) == "table" then
+			for _, child in root.Children do
+				inspectVisualParts(child)
+			end
+		end
+	end
+	inspectVisualParts(bossVisual)
+	expectEqual(
+		bossCore.ClassName == "Part"
+			and bossCore.Properties.Anchored == true
+			and bossCore.Properties.CanCollide == true
+			and bossCore.Properties.CanQuery == true
+			and bossCore.Properties.CanTouch == false
+			and bossVisual.ClassName == "Model"
+			and visualPartCount > 0
+			and visualPartsArePresentationOnly,
+		true,
+		"boss Core owns stable collision and hit queries while every Visual part stays presentation-only"
+	)
+	do
+		local spectatorSpawn = authoredDescendant(dungeonArena, "SpectatorSpawn")
+		local spectatorPlatform = authoredDescendant(dungeonArena, "SpectatorPlatform")
+		expectEqual(
+			spectatorSpawn ~= nil
+				and spectatorSpawn.ClassName == "Part"
+				and spectatorPlatform ~= nil
+				and spectatorPlatform.ClassName == "Part"
+				and spectatorPlatform.Properties.Anchored == true
+				and spectatorPlatform.Properties.CanCollide == true
+				and spectatorPlatform.Properties.CanQuery == true
+				and spectatorPlatform.Properties.CanTouch == false
+				and spectatorPlatform.Properties.Position[2] < spectatorSpawn.Properties.Position[2],
+			true,
+			"the authored spectator spawn stands above its stable collidable platform"
+		)
+	end
+
+	local rateDenied = string.find(
+		remoteServiceSource,
+		"if not limiter:allow(player, action, rateCapacity, rateRefill) then",
+		1,
+		true
+	)
+	local attackRateDrop = if rateDenied ~= nil
+		then string.find(
+			remoteServiceSource,
+			'if action == "DungeonAttack" or action == "DungeonDodge" then',
+			rateDenied,
+			true
+		)
+		else nil
+	local fullSnapshotRejection = if rateDenied ~= nil
+		then string.find(remoteServiceSource, 'result(player, false, "Please slow down")', rateDenied, true)
+		else nil
+	expectEqual(
+		rateDenied ~= nil
+			and attackRateDrop ~= nil
+			and fullSnapshotRejection ~= nil
+			and attackRateDrop < fullSnapshotRejection,
+		true,
+		"rate-limited dungeon combat intent drops before the full snapshot result path"
+	)
+	expectEqual(
+		string.find(remoteServiceSource, "local noPayloadActions", 1, true) ~= nil
+			and string.find(remoteServiceSource, "DungeonAttack = true", 1, true) ~= nil
+			and string.find(remoteServiceSource, "DungeonDodge = true", 1, true) ~= nil
+			and string.find(
+					remoteServiceSource,
+					"if noPayloadActions[action] and not TowerDefenseRequest.acceptsNoPayload(payload) then",
+					1,
+					true
+				)
+				~= nil,
+		true,
+		"dungeon attack and dodge reuse the strict no-payload request contract"
+	)
+	expectEqual(
+		string.find(remoteServiceSource, "local runtimeFeatures", 1, true) ~= nil
+			and string.find(remoteServiceSource, 'then "dungeon"', 1, true) ~= nil
+			and string.find(remoteServiceSource, "runtimeFeatures.towerDefense = false", 1, true) ~= nil
+			and string.find(remoteServiceSource, "runtimeFeatures.runes = false", 1, true) ~= nil
+			and string.find(remoteServiceSource, "features = runtimeFeatures", 1, true) ~= nil
+			and string.find(remoteServiceSource, "runtimeMode = runtimeMode", 1, true) ~= nil
+			and string.find(remoteServiceSource, "not featureEnabled(requiredFeature)", 1, true) ~= nil,
+		true,
+		"reserved dungeon servers identify their mode and hide/reject unstarted lobby runtimes"
+	)
+	expectEqual(
+		string.find(remoteServiceSource, "DungeonService.registerHit(player)", 1, true) ~= nil
+			and string.find(
+				remoteServiceSource,
+				'RemoteService.sendEvent(player, "DungeonAttackResult"',
+				1,
+				true
+			) ~= nil
+			and string.find(remoteServiceSource, "DungeonService.registerDodge(player)", 1, true) ~= nil,
+		true,
+		"combat remotes delegate intent to dungeon authority and return a lightweight attack result"
+	)
+	expectEqual(
+		string.find(portalClientSource, "padChildAddedConnection", 1, true) ~= nil
+			and string.find(portalClientSource, "padChildRemovedConnection", 1, true) ~= nil
+			and string.find(portalClientSource, "refreshPortalPadParts", 1, true) ~= nil,
+		true,
+		"streamed portal descendants can bind after the portal model arrives"
+	)
+	expectEqual(
+		string.find(portalClientSource, "portalNoticeRevision", 1, true) ~= nil
+			and string.find(portalClientSource, "task.delay(6", 1, true) ~= nil
+			and string.find(portalClientSource, "latestPortalNotice", 1, true) ~= nil
+			and string.find(portalClientSource, "restoreAfterPortalNotice", 1, true) ~= nil
+			and string.find(portalClientSource, "applyPortalNotice", 1, true) ~= nil,
+		true,
+		"portal failure notices remain visible on-screen across frequent roster refreshes"
+	)
+end
+
+do
 	local DungeonConfig = require("../src/shared/DungeonConfig")
 
 	-- DungeonConfig normalization: defaults, numeric clamps, vector validation,
@@ -7923,14 +8334,57 @@ do
 	expectEqual(defaults.countdownSeconds, 5, "dungeon defaults keep the authored countdown")
 	expectEqual(defaults.defaultBossId, "forest_warden", "dungeon defaults resolve the authored boss id")
 	expectEqual(#defaults.bosses, 1, "dungeon defaults expose the authored boss list")
-	expectEqual(defaults.bosses[1].baseHealth, 2500, "dungeon default boss keeps its authored health")
-	expectEqual(defaults.attackCooldownSeconds, 0.35, "dungeon defaults keep the authored attack cooldown")
+	expectEqual(defaults.bosses[1].baseHealth, 4500, "dungeon default boss keeps its authored health")
+	expectEqual(defaults.attackCooldownSeconds, 0.45, "dungeon defaults keep the starter attack cooldown")
 	expectEqual(defaults.proximityAutoDps, false, "dungeon defaults make click-to-attack the damage source")
 	expectEqual(
 		defaults.bosses[1].attackDamagePerHit,
-		90,
-		"dungeon default boss keeps its authored hit damage"
+		70,
+		"dungeon legacy fallback keeps the starter weapon damage"
 	)
+	expectEqual(defaults.equipmentSlot, "DungeonWeapon", "dungeon weapons share one saved equipment slot")
+	expectEqual(defaults.starterWeaponId, "warden_blade", "dungeon defaults resolve the starter weapon")
+	expectEqual(defaults.weapons.warden_blade.damage, 70, "starter weapon damage is server configured")
+	expectEqual(defaults.weapons.thorn_spear.rangeStuds, 18, "spear trades damage for reach")
+	expectEqual(defaults.weapons.grove_hammer.cooldownSeconds, 0.8, "hammer trades speed for damage")
+	expectEqual(defaults.bosses[1].rewardItemId, "grove_hammer", "the forest boss unlocks a saved weapon")
+	expectEqual(defaults.bosses[1].rewardItemQuantity, 1, "boss weapon reward is bounded and deterministic")
+	local catalogsSource = fs.readFile("src/shared/Catalogs.luau")
+	local bladeDefinition = string.find(catalogsSource, "warden_blade = {", 1, true)
+	local spearDefinition = string.find(catalogsSource, "thorn_spear = {", 1, true)
+	local hammerDefinition = string.find(catalogsSource, "grove_hammer = {", 1, true)
+	local bladeSlot = if bladeDefinition ~= nil
+		then string.find(catalogsSource, 'equipmentSlot = "DungeonWeapon"', bladeDefinition, true)
+		else nil
+	local spearSlot = if spearDefinition ~= nil
+		then string.find(catalogsSource, 'equipmentSlot = "DungeonWeapon"', spearDefinition, true)
+		else nil
+	local spearPrice = if spearDefinition ~= nil
+		then string.find(catalogsSource, "priceCoins = 25_000", spearDefinition, true)
+		else nil
+	local hammerSlot = if hammerDefinition ~= nil
+		then string.find(catalogsSource, 'equipmentSlot = "DungeonWeapon"', hammerDefinition, true)
+		else nil
+	expectEqual(
+		bladeDefinition ~= nil
+			and spearDefinition ~= nil
+			and hammerDefinition ~= nil
+			and bladeDefinition < spearDefinition
+			and spearDefinition < hammerDefinition
+			and bladeSlot ~= nil
+			and bladeSlot < spearDefinition
+			and spearSlot ~= nil
+			and spearSlot < hammerDefinition
+			and spearPrice ~= nil
+			and spearPrice < hammerDefinition
+			and hammerSlot ~= nil
+			and string.find(catalogsSource, "priceCoins", hammerDefinition, true) == nil,
+		true,
+		"catalog persists starter, purchased, and boss-reward weapons in one exclusive equipment slot"
+	)
+	expectEqual(defaults.walkSpeed, 18, "dungeon movement has an explicit server-owned walk speed")
+	expectEqual(defaults.dodgeCooldownSeconds, 1.25, "dodge cadence is server configured")
+	expectEqual(defaults.camera.fieldOfView, 74, "dungeon camera presentation is configured")
 	expectEqual(defaults.telegraphSeconds, 1.1, "dungeon defaults keep the authored slam telegraph window")
 	expectEqual(
 		defaults.attackRingRadius > defaults.damageRingRadius,
@@ -7938,7 +8392,17 @@ do
 		"the boss slam out-reaches attack range so attacking is a real risk"
 	)
 
-	expectEqual(DungeonConfig.normalize({ partyMax = 999 }).partyMax, 12, "party max clamps to the ceiling")
+	expectEqual(
+		DungeonConfig.normalize({ partyMax = 999 }).partyMax,
+		DungeonConfig.AUTHORED_PARTY_SLOTS,
+		"party max clamps to the number of authored roster slots"
+	)
+	expectEqual(defaults.arrivalTimeoutSeconds, 45, "dungeon arrivals allow time for bounded retries")
+	expectEqual(
+		DungeonConfig.normalize({ arrivalTimeoutSeconds = 999 }).arrivalTimeoutSeconds,
+		60,
+		"dungeon arrival timeout clamps to the ceiling"
+	)
 	expectEqual(
 		DungeonConfig.normalize({ telegraphSeconds = 100 }).telegraphSeconds,
 		10,
@@ -7993,7 +8457,7 @@ do
 	)
 	expectEqual(
 		customBoss.bosses[1].attackDamagePerHit,
-		90,
+		70,
 		"an omitted attackDamagePerHit defaults to the authored value"
 	)
 
@@ -8053,10 +8517,63 @@ do
 		"bossById finds a configured boss"
 	)
 	expectEqual(DungeonConfig.bossById(defaults, "missing"), nil, "bossById returns nil for an unknown boss")
+	expectEqual(
+		DungeonConfig.weaponById(defaults, "thorn_spear") ~= nil,
+		true,
+		"weaponById resolves a server-configured saved weapon"
+	)
+	expectEqual(DungeonConfig.weaponById(defaults, "missing"), nil, "weaponById rejects unknown items")
+	local clampedCamera = DungeonConfig.normalize({ camera = { minZoom = 30, maxZoom = 5 } }).camera
+	expectEqual(clampedCamera.maxZoom, 30, "camera max zoom cannot normalize below min zoom")
 end
 
 do
 	local DungeonLogic = require("../src/shared/DungeonLogic")
+
+	local manifest = DungeonLogic.normalizePartyManifest({
+		kind = "DungeonParty",
+		v = 1,
+		launchId = "launch-123",
+		party = { 101, 202, 303 },
+	}, 4)
+	expectEqual(manifest ~= nil, true, "a dense unique bounded dungeon manifest is accepted")
+	expectEqual(if manifest ~= nil then manifest.party[2] else nil, 202, "manifest party order is retained")
+	expectEqual(
+		DungeonLogic.normalizePartyManifest({
+			kind = "DungeonParty",
+			v = 1,
+			launchId = "launch-123",
+			party = { 101 },
+			bossId = "client_choice",
+		}, 4),
+		nil,
+		"manifest rejects extra client-controlled fields"
+	)
+	expectEqual(
+		DungeonLogic.normalizePartyIds({ 101, 101 }, 4),
+		nil,
+		"manifest rejects duplicate party members"
+	)
+	expectEqual(
+		DungeonLogic.normalizePartyIds({ [1] = 101, [3] = 303 }, 4),
+		nil,
+		"manifest rejects sparse party arrays"
+	)
+	expectEqual(
+		DungeonLogic.normalizePartyIds({ 101, 202, 303, 404, 505 }, 4),
+		nil,
+		"manifest rejects parties above the authored limit"
+	)
+	expectEqual(
+		DungeonLogic.normalizePartyManifest({
+			kind = "DungeonParty",
+			v = 1,
+			launchId = "invalid launch id",
+			party = { 101 },
+		}, 4),
+		nil,
+		"manifest rejects malformed launch identifiers"
+	)
 
 	-- DungeonLogic combat + occupancy math is pure and server-authoritative.
 	expectEqual(DungeonLogic.isWithinCylinder(0, 0, 0, 10, 5), true, "the center of a cylinder is inside it")
@@ -8070,6 +8587,37 @@ do
 		DungeonLogic.isWithinCylinder(0, 6, 0, 10, 5),
 		false,
 		"a point above the height tolerance is outside the cylinder"
+	)
+	expectEqual(
+		DungeonLogic.canStrike(0, 0, 13, 0, 1, 13, 9, 0.25),
+		true,
+		"a target on the exact range boundary and in front can be struck"
+	)
+	expectEqual(
+		DungeonLogic.canStrike(0, 0, 13.01, 0, 1, 13, 9, 0.25),
+		false,
+		"a target beyond weapon range cannot be struck"
+	)
+	expectEqual(
+		DungeonLogic.canStrike(0, 0, 10, 0, -1, 13, 9, 0.25),
+		false,
+		"a target behind the attacker cannot be struck"
+	)
+	expectEqual(
+		DungeonLogic.canStrike(0, 9.01, 10, 0, 1, 13, 9, 0.25),
+		false,
+		"a target beyond the weapon vertical tolerance cannot be struck"
+	)
+	expectEqual(DungeonLogic.phaseForHealth(51, 100, 0.5), 1, "boss remains calm above threshold")
+	expectEqual(DungeonLogic.phaseForHealth(50, 100, 0.5), 2, "boss enrages at the threshold")
+	local allDeadSince = DungeonLogic.nextAllDeadSince(nil, 0, 10)
+	expectEqual(allDeadSince, 10, "party wipe timer starts when every player is down")
+	expectEqual(DungeonLogic.isPartyWiped(allDeadSince, 11.9, 2), false, "wipe grace allows a brief recovery")
+	expectEqual(DungeonLogic.isPartyWiped(allDeadSince, 12, 2), true, "wipe resolves at the grace boundary")
+	expectEqual(
+		DungeonLogic.nextAllDeadSince(allDeadSince, 1, 12),
+		nil,
+		"a living teammate clears wipe progress"
 	)
 
 	local boss = {
@@ -8110,6 +8658,361 @@ do
 	expectEqual(DungeonLogic.clampParty({ 1, 2, 3 }, 2)[2], 2, "the capped roster keeps arrival order")
 	expectEqual(#DungeonLogic.clampParty({ 1, 2 }, 5), 2, "a roster under the cap passes through")
 	expectEqual(#DungeonLogic.clampParty({ 1, 2, 3 }, 0), 0, "a zero party max yields an empty party")
+end
+
+do
+	local dungeonServiceSource = fs.readFile("src/server/Services/DungeonService.luau")
+	local portalServiceSource = fs.readFile("src/server/Services/PortalService.luau")
+	local inventoryServiceSource = fs.readFile("src/server/Services/InventoryService.luau")
+	local mainClientSource = fs.readFile("src/client/init.client.luau")
+	local runeClientSource = fs.readFile("src/starter-client/RuneCircle.client.luau")
+	local starterClientSource = fs.readFile("src/starter-client/StarterExample.client.luau")
+	expectEqual(
+		string.find(serverBootstrapSource, "publish = function(players, data)", 1, true) ~= nil
+			and string.find(serverBootstrapSource, "for _, player in players do", 1, true) ~= nil
+			and string.find(
+				serverBootstrapSource,
+				'RemoteService.sendEvent(player, "DungeonState", data)',
+				1,
+				true
+			) ~= nil
+			and string.find(serverBootstrapSource, 'RemoteService.broadcast("DungeonState"', 1, true) == nil
+			and string.find(
+					dungeonServiceSource,
+					"publish: (players: { Player }, data: any) -> ()",
+					1,
+					true
+				)
+				~= nil,
+		true,
+		"dungeon state is delivered only to the authoritative party instead of every server client"
+	)
+	local attackAckBranch = string.find(remoteServiceSource, 'elseif action == "DungeonAttack" then', 1, true)
+	local dodgeAckBranch = string.find(remoteServiceSource, 'elseif action == "DungeonDodge" then', 1, true)
+	local attackAckAction = if attackAckBranch ~= nil
+		then string.find(remoteServiceSource, 'action = "attack"', attackAckBranch, true)
+		else nil
+	local dodgeAckAction = if dodgeAckBranch ~= nil
+		then string.find(remoteServiceSource, 'action = "dodge"', dodgeAckBranch, true)
+		else nil
+	expectEqual(
+		attackAckBranch ~= nil
+			and dodgeAckBranch ~= nil
+			and attackAckAction ~= nil
+			and attackAckAction < dodgeAckBranch
+			and dodgeAckAction ~= nil
+			and string.find(remoteServiceSource, '"DungeonAttackResult"', attackAckBranch, true) ~= nil
+			and string.find(remoteServiceSource, '"DungeonAttackResult"', dodgeAckBranch, true) ~= nil,
+		true,
+		"attack and dodge acknowledgements identify their action on the shared lightweight result event"
+	)
+	expectEqual(
+		string.find(dungeonServiceSource, "TeleportService.TeleportInitFailed:Connect", 1, true) ~= nil
+			and string.find(dungeonServiceSource, "pendingTeleports", 1, true) ~= nil
+			and string.find(dungeonServiceSource, "retryScheduled", 1, true) ~= nil,
+		true,
+		"dungeon teleports retry both synchronous and late initialization failures"
+	)
+	expectEqual(
+		string.find(dungeonServiceSource, 'kind = "DungeonParty"', 1, true) ~= nil
+			and string.find(dungeonServiceSource, "launchId = launchId", 1, true) ~= nil
+			and string.find(dungeonServiceSource, "normalizePartyManifest", 1, true) ~= nil,
+		true,
+		"dungeon arrivals use a versioned launch-scoped party manifest"
+	)
+	expectEqual(
+		string.find(dungeonServiceSource, "waitForReadyParty", 1, true) ~= nil
+			and string.find(dungeonServiceSource, "if not target.ready(player) then", 1, true) ~= nil
+			and string.find(dungeonServiceSource, "if target.ready(player) then", 1, true) ~= nil
+			and string.find(dungeonServiceSource, "lockDungeonRoster", 1, true) ~= nil,
+		true,
+		"dungeon fights admit only profile-ready players and recheck rewards"
+	)
+	local positionPartyCall = string.find(dungeonServiceSource, "if not positionParty(current) then", 1, true)
+	local readyPhase = if positionPartyCall ~= nil
+		then string.find(dungeonServiceSource, 'current.phase = "ready"', positionPartyCall, true)
+		else nil
+	local awaitPreparation =
+		string.find(dungeonServiceSource, "local function awaitPreparedCharacter", 1, true)
+	local awaitRunGuard = if awaitPreparation ~= nil
+		then string.find(dungeonServiceSource, "if not isCurrentRun(current) then", awaitPreparation, true)
+		else nil
+	local prepareCharacter = string.find(dungeonServiceSource, "local function prepareCharacter", 1, true)
+	local prepareCharacterYield = if prepareCharacter ~= nil
+		then string.find(dungeonServiceSource, 'WaitForChild("HumanoidRootPart", 5)', prepareCharacter, true)
+		else nil
+	expectEqual(
+		string.find(dungeonServiceSource, "local function isCurrentRun(current: Run): boolean", 1, true)
+				~= nil
+			and string.find(dungeonServiceSource, "run == current and current.active", 1, true) ~= nil
+			and awaitPreparation ~= nil
+			and awaitRunGuard ~= nil
+			and prepareCharacterYield ~= nil
+			and string.find(dungeonServiceSource, "isCurrentRun(current)", prepareCharacterYield, true) ~= nil
+			and string.find(
+				dungeonServiceSource,
+				"player.Character ~= character",
+				prepareCharacterYield,
+				true
+			) ~= nil
+			and positionPartyCall ~= nil
+			and readyPhase ~= nil
+			and positionPartyCall < readyPhase,
+		true,
+		"character preparation revalidates the active run after yields and completes before ready countdown"
+	)
+	local hitHandler =
+		string.find(dungeonServiceSource, "function DungeonService.registerHit(player: Player)", 1, true)
+	local dodgeHandler =
+		string.find(dungeonServiceSource, "function DungeonService.registerDodge(player: Player)", 1, true)
+	local hitEliminatedCheck = if hitHandler ~= nil
+		then string.find(dungeonServiceSource, "if current.eliminated[player] then", hitHandler, true)
+		else nil
+	local dodgeEliminatedCheck = if dodgeHandler ~= nil
+		then string.find(dungeonServiceSource, "if current.eliminated[player] then", dodgeHandler, true)
+		else nil
+	expectEqual(
+		string.find(dungeonServiceSource, "player.CharacterRemoving:Connect", 1, true) ~= nil
+			and string.find(dungeonServiceSource, "player.CharacterAdded:Connect", 1, true) ~= nil
+			and string.find(dungeonServiceSource, "eliminatePlayer(current, player)", 1, true) ~= nil
+			and string.find(dungeonServiceSource, "prepareSpectator(current, player, index)", 1, true) ~= nil
+			and string.find(dungeonServiceSource, "eliminatedByUserId", 1, true) ~= nil
+			and hitHandler ~= nil
+			and dodgeHandler ~= nil
+			and hitEliminatedCheck ~= nil
+			and hitEliminatedCheck < dodgeHandler
+			and dodgeEliminatedCheck ~= nil,
+		true,
+		"death or reset spends one life, respawns at the spectator marker, and blocks later combat intents"
+	)
+	do
+		local prepareSpectatorStart =
+			string.find(dungeonServiceSource, "local function prepareSpectator", 1, true)
+		local prepareSpectatorEnd =
+			string.find(dungeonServiceSource, "local function awaitPreparedCharacter", 1, true)
+		local prepareSpectatorSource = if prepareSpectatorStart ~= nil and prepareSpectatorEnd ~= nil
+			then string.sub(dungeonServiceSource, prepareSpectatorStart, prepareSpectatorEnd - 1)
+			else ""
+		expectEqual(
+			string.find(
+				prepareSpectatorSource,
+				"character:PivotTo(spectatorCFrame(current.spectatorSpawn, current.partySpawn, index))",
+				1,
+				true
+			)
+					~= nil
+				and string.find(prepareSpectatorSource, "root.AssemblyLinearVelocity = Vector3.zero", 1, true) ~= nil
+				and string.find(prepareSpectatorSource, "humanoid.WalkSpeed = 0", 1, true) ~= nil,
+			true,
+			"an eliminated respawn is moved to spectators with horizontal movement and inherited velocity disabled"
+		)
+	end
+	expectEqual(
+		string.find(dungeonServiceSource, "TeleportData.bossId", 1, true) == nil
+			and string.find(dungeonServiceSource, "runFightSafely(party, dungeon.defaultBossId", 1, true)
+				~= nil,
+		true,
+		"teleport data cannot choose boss or reward authority"
+	)
+	do
+		local function countPlainOccurrences(source: string, needle: string): number
+			local count = 0
+			local cursor = 1
+			while true do
+				local startIndex = string.find(source, needle, cursor, true)
+				if startIndex == nil then
+					break
+				end
+				count += 1
+				cursor = startIndex + #needle
+			end
+			return count
+		end
+		local safeFightStart = string.find(dungeonServiceSource, "local function runFightSafely", 1, true)
+		local safeFightEnd =
+			string.find(dungeonServiceSource, "local function terminalTeleportFailure", 1, true)
+		local safeFightSource = if safeFightStart ~= nil and safeFightEnd ~= nil
+			then string.sub(dungeonServiceSource, safeFightStart, safeFightEnd - 1)
+			else ""
+		local failureInvalidation = string.find(safeFightSource, "current.active = false", 1, true)
+		local failureDisconnect = string.find(safeFightSource, "connection:Disconnect()", 1, true)
+		local failureRunClear = string.find(safeFightSource, "run = nil", 1, true)
+		local failureToolClear = string.find(safeFightSource, "clearPartyTools(party)", 1, true)
+		local failureInactivePublish = string.find(safeFightSource, "publishInactive(party)", 1, true)
+		expectEqual(
+			countPlainOccurrences(dungeonServiceSource, "runFight(") == 2
+				and countPlainOccurrences(dungeonServiceSource, "runFightSafely(") >= 4
+				and string.find(dungeonServiceSource, "local function attemptEncounterCleanup", 1, true) ~= nil
+				and string.find(dungeonServiceSource, "local ok, problem = pcall(callback)", 1, true) ~= nil
+				and string.find(safeFightSource, "local ok, failure = xpcall(function()", 1, true) ~= nil
+				and string.find(
+					safeFightSource,
+					"outcome, survivors = runFight(party, bossId, core)",
+					1,
+					true
+				) ~= nil
+				and string.find(safeFightSource, "return tostring(problem)", 1, true) ~= nil
+				and string.find(safeFightSource, 'attemptEncounterCleanup("connection"', 1, true) ~= nil
+				and string.find(safeFightSource, 'attemptEncounterCleanup("tool"', 1, true) ~= nil
+				and string.find(safeFightSource, 'attemptEncounterCleanup("state"', 1, true) ~= nil
+				and failureInvalidation ~= nil
+				and failureDisconnect ~= nil
+				and failureRunClear ~= nil
+				and failureToolClear ~= nil
+				and failureInactivePublish ~= nil
+				and failureInvalidation < failureRunClear
+				and failureRunClear < failureDisconnect
+				and failureDisconnect < failureToolClear
+				and failureToolClear < failureInactivePublish,
+			true,
+			"every encounter entry uses the xpcall boundary whose failure finalizer invalidates state and cleans the party"
+		)
+	end
+	expectEqual(
+		string.find(dungeonServiceSource, "resolvePartyWeapons", 1, true) ~= nil
+			and string.find(
+				dungeonServiceSource,
+				"target.equippedItemId(player, dungeon.equipmentSlot)",
+				1,
+				true
+			) ~= nil
+			and string.find(
+				dungeonServiceSource,
+				"target.ensureEquipped(player, dungeon.equipmentSlot, dungeon.starterWeaponId)",
+				1,
+				true
+			) ~= nil
+			and string.find(dungeonServiceSource, "current.weapons[player]", 1, true) ~= nil,
+		true,
+		"dungeon runs resolve and cache each server-owned saved weapon loadout"
+	)
+	expectEqual(
+		string.find(dungeonServiceSource, "function DungeonService.registerHit(player: Player)", 1, true)
+				~= nil
+			and string.find(dungeonServiceSource, "weapon.cooldownSeconds", 1, true) ~= nil
+			and string.find(dungeonServiceSource, "DungeonLogic.canStrike", 1, true) ~= nil
+			and string.find(dungeonServiceSource, "strikeHasLineOfSight", 1, true) ~= nil
+			and string.find(dungeonServiceSource, "Workspace:Raycast", 1, true) ~= nil
+			and string.find(
+					dungeonServiceSource,
+					"DungeonLogic.applyHit(current.health, weapon.damage)",
+					1,
+					true
+				)
+				~= nil,
+		true,
+		"server validates weapon cooldown, range, facing, height, and line of sight before damage"
+	)
+	expectEqual(
+		string.find(dungeonServiceSource, "function DungeonService.registerDodge(player: Player)", 1, true)
+				~= nil
+			and string.find(dungeonServiceSource, "current.lastDodgeAt[player]", 1, true) ~= nil
+			and string.find(dungeonServiceSource, "humanoid.MoveDirection", 1, true) ~= nil
+			and string.find(dungeonServiceSource, "dungeon.dodgeSpeed", 1, true) ~= nil
+			and string.find(dungeonServiceSource, "root.AssemblyLinearVelocity", 1, true) ~= nil,
+		true,
+		"dodge cadence and movement direction are resolved and applied by the server"
+	)
+	local defeatCheck = string.find(dungeonServiceSource, "DungeonLogic.isDefeated(current.health)", 1, true)
+	local wipeCheck = string.find(dungeonServiceSource, "DungeonLogic.isPartyWiped", 1, true)
+	expectEqual(
+		defeatCheck ~= nil
+			and wipeCheck ~= nil
+			and defeatCheck < wipeCheck
+			and string.find(dungeonServiceSource, 'current.resultReason = "partyWipe"', 1, true) ~= nil
+			and string.find(dungeonServiceSource, 'current.resultReason = "timeout"', 1, true) ~= nil,
+		true,
+		"boss defeat wins a tie while timeout and party wipe remain explicit server-owned outcomes"
+	)
+	expectEqual(
+		string.find(dungeonServiceSource, "target.award(player, boss.rewardCurrencyId", 1, true) ~= nil
+			and string.find(
+				dungeonServiceSource,
+				"target.grantItem(player, boss.rewardItemId, boss.rewardItemQuantity)",
+				1,
+				true
+			) ~= nil
+			and string.find(dungeonServiceSource, "if target.ready(player) then", 1, true) ~= nil,
+		true,
+		"victory currency and weapon rewards are granted only through ready server profiles"
+	)
+	local grantedRewardRecord =
+		string.find(dungeonServiceSource, "current.rewardByUserId[tostring(player.UserId)] = {", 1, true)
+	local finalResultPublish = if grantedRewardRecord ~= nil
+		then string.find(dungeonServiceSource, "publishRun(result)", grantedRewardRecord, true)
+		else nil
+	expectEqual(
+		string.find(dungeonServiceSource, 'if result == "victory" and target ~= nil then', 1, true) ~= nil
+			and grantedRewardRecord ~= nil
+			and string.find(dungeonServiceSource, "currencyId = actualCurrencyId", grantedRewardRecord, true) ~= nil
+			and string.find(
+				dungeonServiceSource,
+				"currencyAmount = actualCurrencyAmount",
+				grantedRewardRecord,
+				true
+			) ~= nil
+			and string.find(dungeonServiceSource, "itemName =", grantedRewardRecord, true) ~= nil
+			and string.find(
+				dungeonServiceSource,
+				"itemQuantity = actualItemQuantity",
+				grantedRewardRecord,
+				true
+			) ~= nil
+			and finalResultPublish ~= nil
+			and grantedRewardRecord < finalResultPublish,
+		true,
+		"final victory state publishes each player's actual granted currency and item record after mutation"
+	)
+	expectEqual(
+		string.find(inventoryServiceSource, "function InventoryService.grant", 1, true) ~= nil
+			and string.find(inventoryServiceSource, "actualAdded", 1, true) ~= nil
+			and string.find(inventoryServiceSource, "clearEquippedSlot", 1, true) ~= nil
+			and string.find(inventoryServiceSource, "function InventoryService.equippedItemId", 1, true) ~= nil
+			and string.find(inventoryServiceSource, "function InventoryService.ensureEquipped", 1, true) ~= nil
+			and string.find(inventoryServiceSource, "ProfileService.markDirty", 1, true) ~= nil,
+		true,
+		"dungeon weapon grants and exclusive equipment choices persist through InventoryService"
+	)
+	local launchCall = string.find(portalServiceSource, "if not target.launch(players) then", 1, true)
+	local clearRoster = string.find(portalServiceSource, "table.clear(order)", 1, true)
+	expectEqual(
+		launchCall ~= nil and clearRoster ~= nil and launchCall < clearRoster,
+		true,
+		"portal consumes its visible roster only after a launch is accepted"
+	)
+	expectEqual(
+		string.find(serverBootstrapSource, "Config.features.towerDefense and not dungeonMode", 1, true) ~= nil,
+		true,
+		"reserved dungeon servers do not start lobby tower defense systems"
+	)
+	local runtimeModePublish =
+		string.find(serverBootstrapSource, 'Template:SetAttribute("RuntimeMode"', 1, true)
+	local remoteInitialize = string.find(serverBootstrapSource, "RemoteService.initialize()", 1, true)
+	expectEqual(
+		runtimeModePublish ~= nil
+			and remoteInitialize ~= nil
+			and runtimeModePublish < remoteInitialize
+			and string.find(serverBootstrapSource, "Config.features.runes and not dungeonMode", 1, true) ~= nil
+			and string.find(serverBootstrapSource, "InventoryService.ensureEquipped", 1, true) ~= nil
+			and string.find(serverBootstrapSource, "grantItem = InventoryService.grant", 1, true) ~= nil,
+		true,
+		"server publishes runtime mode before remotes, skips lobby systems, and wires saved weapon rewards"
+	)
+	for clientName, source in
+		{
+			main = mainClientSource,
+			runes = runeClientSource,
+			starter = starterClientSource,
+		}
+	do
+		local dungeonGate = string.find(source, 'Template:GetAttribute("RuntimeMode") == "dungeon"', 1, true)
+		local firstWorldWait = string.find(source, "Workspace:WaitForChild", 1, true)
+		expectEqual(
+			dungeonGate ~= nil and (firstWorldWait == nil or dungeonGate < firstWorldWait),
+			true,
+			`{clientName} lobby client exits dungeon mode before waiting on lobby-only world content`
+		)
+	end
 end
 
 print(`{passed} pure Luau assertions passed`)

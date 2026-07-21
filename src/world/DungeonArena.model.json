@@ -9,82 +9,526 @@
         "CanCollide": true,
         "CanQuery": true,
         "CanTouch": false,
-        "CastShadow": false,
-        "Color": [0.06, 0.05, 0.09],
-        "Material": "Slate",
+        "CastShadow": true,
+        "Color": [0.105, 0.185, 0.095],
+        "Material": "Grass",
+        "Orientation": [0, 0, 90],
         "Position": [0, 500, 0],
-        "Size": [160, 3, 160],
+        "Shape": "Cylinder",
+        "Size": [3, 156, 156],
         "Transparency": 0
       },
       "Children": []
     },
     {
-      "Name": "WallNorth",
+      "Name": "MossInset",
       "ClassName": "Part",
       "Properties": {
         "Anchored": true,
-        "CanCollide": true,
+        "CanCollide": false,
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [0.33, 0.12, 0.42],
-        "Material": "Neon",
-        "Position": [0, 520, 80],
-        "Size": [164, 40, 3],
-        "Transparency": 0.55
+        "Color": [0.18, 0.285, 0.135],
+        "Material": "LeafyGrass",
+        "Orientation": [0, 0, 90],
+        "Position": [0, 501.54, 0],
+        "Shape": "Cylinder",
+        "Size": [0.08, 140, 140],
+        "Transparency": 0.08
       },
       "Children": []
     },
     {
-      "Name": "WallSouth",
+      "Name": "PartySpawn",
       "ClassName": "Part",
       "Properties": {
         "Anchored": true,
-        "CanCollide": true,
+        "CanCollide": false,
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [0.33, 0.12, 0.42],
-        "Material": "Neon",
-        "Position": [0, 520, -80],
-        "Size": [164, 40, 3],
-        "Transparency": 0.55
+        "Position": [0, 503, -28],
+        "Size": [4, 1, 4],
+        "Transparency": 1
       },
       "Children": []
     },
     {
-      "Name": "WallEast",
+      "Name": "SpectatorSpawn",
       "ClassName": "Part",
       "Properties": {
         "Anchored": true,
-        "CanCollide": true,
+        "CanCollide": false,
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [0.33, 0.12, 0.42],
-        "Material": "Neon",
-        "Position": [80, 520, 0],
-        "Size": [3, 40, 164],
-        "Transparency": 0.55
+        "Position": [0, 518, -66],
+        "Size": [8, 1, 8],
+        "Transparency": 1
       },
       "Children": []
     },
     {
-      "Name": "WallWest",
+      "Name": "SpectatorPlatform",
       "ClassName": "Part",
       "Properties": {
         "Anchored": true,
         "CanCollide": true,
+        "CanQuery": true,
+        "CanTouch": false,
+        "CastShadow": true,
+        "Color": [0.105, 0.14, 0.16],
+        "Material": "Slate",
+        "Position": [0, 514, -66],
+        "Size": [28, 3, 18]
+      },
+      "Children": []
+    },
+    {
+      "Name": "ReadyRing",
+      "ClassName": "Part",
+      "Properties": {
+        "Anchored": true,
+        "CanCollide": false,
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [0.33, 0.12, 0.42],
+        "Color": [0.34, 0.78, 0.39],
         "Material": "Neon",
-        "Position": [-80, 520, 0],
-        "Size": [3, 40, 164],
-        "Transparency": 0.55
+        "Orientation": [0, 0, 90],
+        "Position": [0, 501.65, -28],
+        "Shape": "Cylinder",
+        "Size": [0.12, 17, 17],
+        "Transparency": 0.72
       },
-      "Children": []
+      "Children": [
+        {
+          "Name": "ReadyLight",
+          "ClassName": "PointLight",
+          "Properties": {
+            "Brightness": 0.8,
+            "Color": [0.42, 0.9, 0.5],
+            "Range": 18,
+            "Shadows": false
+          },
+          "Children": []
+        }
+      ]
+    },
+    {
+      "Name": "PathStones",
+      "ClassName": "Model",
+      "Children": [
+        {
+          "Name": "Stone01",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": true,
+            "CanQuery": false,
+            "CanTouch": false,
+            "Color": [0.31, 0.335, 0.26],
+            "Material": "Slate",
+            "Position": [-2.5, 501.78, -17],
+            "Shape": "Ball",
+            "Size": [10, 0.65, 7]
+          },
+          "Children": []
+        },
+        {
+          "Name": "Stone02",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "Color": [0.27, 0.31, 0.235],
+            "Material": "Slate",
+            "Position": [3, 501.76, -7],
+            "Shape": "Ball",
+            "Size": [9, 0.6, 6.5]
+          },
+          "Children": []
+        },
+        {
+          "Name": "Stone03",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "Color": [0.33, 0.35, 0.27],
+            "Material": "Slate",
+            "Position": [-3.5, 501.77, 3],
+            "Shape": "Ball",
+            "Size": [10.5, 0.62, 7]
+          },
+          "Children": []
+        },
+        {
+          "Name": "Stone04",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "Color": [0.28, 0.325, 0.24],
+            "Material": "Slate",
+            "Position": [2, 501.75, 13],
+            "Shape": "Ball",
+            "Size": [8.5, 0.56, 6]
+          },
+          "Children": []
+        }
+      ]
+    },
+    {
+      "Name": "ArenaBoundary",
+      "ClassName": "Model",
+      "Children": [
+        {
+          "Name": "North",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": true,
+            "CanQuery": false,
+            "CanTouch": false,
+            "Position": [0, 514, 78],
+            "Size": [160, 28, 2],
+            "Transparency": 1
+          },
+          "Children": []
+        },
+        {
+          "Name": "South",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": true,
+            "CanQuery": false,
+            "CanTouch": false,
+            "Position": [0, 514, -78],
+            "Size": [160, 28, 2],
+            "Transparency": 1
+          },
+          "Children": []
+        },
+        {
+          "Name": "East",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": true,
+            "CanQuery": false,
+            "CanTouch": false,
+            "Position": [78, 514, 0],
+            "Size": [2, 28, 160],
+            "Transparency": 1
+          },
+          "Children": []
+        },
+        {
+          "Name": "West",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": true,
+            "CanQuery": false,
+            "CanTouch": false,
+            "Position": [-78, 514, 0],
+            "Size": [2, 28, 160],
+            "Transparency": 1
+          },
+          "Children": []
+        }
+      ]
+    },
+    {
+      "Name": "ForestBorder",
+      "ClassName": "Model",
+      "Children": [
+        {
+          "Name": "TreeNorthWest",
+          "ClassName": "Model",
+          "Children": [
+            {
+              "Name": "Trunk",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": false,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.22, 0.125, 0.07],
+                "Material": "Wood",
+                "Orientation": [0, 0, 90],
+                "Position": [-55, 508, 52],
+                "Shape": "Cylinder",
+                "Size": [14, 5, 5]
+              },
+              "Children": []
+            },
+            {
+              "Name": "CanopyA",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": false,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.1, 0.3, 0.105],
+                "Material": "Grass",
+                "Position": [-55, 517, 52],
+                "Shape": "Ball",
+                "Size": [16, 15, 16]
+              },
+              "Children": []
+            },
+            {
+              "Name": "CanopyB",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": false,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.15, 0.38, 0.13],
+                "Material": "Grass",
+                "Position": [-48, 515, 54],
+                "Shape": "Ball",
+                "Size": [12, 11, 12]
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "TreeNorthEast",
+          "ClassName": "Model",
+          "Children": [
+            {
+              "Name": "Trunk",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": true,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.24, 0.14, 0.075],
+                "Material": "Wood",
+                "Orientation": [0, 0, 90],
+                "Position": [56, 508, 49],
+                "Shape": "Cylinder",
+                "Size": [14, 5, 5]
+              },
+              "Children": []
+            },
+            {
+              "Name": "CanopyA",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": false,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.105, 0.315, 0.115],
+                "Material": "Grass",
+                "Position": [56, 517, 49],
+                "Shape": "Ball",
+                "Size": [17, 15, 17]
+              },
+              "Children": []
+            },
+            {
+              "Name": "CanopyB",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": false,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.17, 0.4, 0.14],
+                "Material": "Grass",
+                "Position": [49, 515, 52],
+                "Shape": "Ball",
+                "Size": [12, 11, 12]
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "TreeSouthWest",
+          "ClassName": "Model",
+          "Children": [
+            {
+              "Name": "Trunk",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": true,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.2, 0.115, 0.065],
+                "Material": "Wood",
+                "Orientation": [0, 0, 90],
+                "Position": [-58, 507, -48],
+                "Shape": "Cylinder",
+                "Size": [12, 4.5, 4.5]
+              },
+              "Children": []
+            },
+            {
+              "Name": "Canopy",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": false,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.09, 0.27, 0.1],
+                "Material": "Grass",
+                "Position": [-58, 515, -48],
+                "Shape": "Ball",
+                "Size": [15, 14, 15]
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "TreeSouthEast",
+          "ClassName": "Model",
+          "Children": [
+            {
+              "Name": "Trunk",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": true,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.22, 0.13, 0.07],
+                "Material": "Wood",
+                "Orientation": [0, 0, 90],
+                "Position": [58, 507, -46],
+                "Shape": "Cylinder",
+                "Size": [12, 4.5, 4.5]
+              },
+              "Children": []
+            },
+            {
+              "Name": "Canopy",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": false,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.115, 0.32, 0.11],
+                "Material": "Grass",
+                "Position": [58, 515, -46],
+                "Shape": "Ball",
+                "Size": [15, 14, 15]
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "StoneWest",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": true,
+            "CanQuery": false,
+            "CanTouch": false,
+            "Color": [0.27, 0.3, 0.25],
+            "Material": "Rock",
+            "Position": [-69, 503, 4],
+            "Shape": "Ball",
+            "Size": [11, 7, 9]
+          },
+          "Children": []
+        },
+        {
+          "Name": "StoneEast",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": true,
+            "CanQuery": false,
+            "CanTouch": false,
+            "Color": [0.3, 0.32, 0.275],
+            "Material": "Rock",
+            "Position": [69, 503, 2],
+            "Shape": "Ball",
+            "Size": [10, 6, 8]
+          },
+          "Children": []
+        },
+        {
+          "Name": "GlowMushroomWest",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "Color": [0.3, 0.83, 0.56],
+            "Material": "Neon",
+            "Position": [-43, 502.2, 19],
+            "Shape": "Ball",
+            "Size": [2.5, 1.2, 2.5]
+          },
+          "Children": [
+            {
+              "Name": "Glow",
+              "ClassName": "PointLight",
+              "Properties": {
+                "Brightness": 1.2,
+                "Color": [0.3, 0.83, 0.56],
+                "Range": 12,
+                "Shadows": false
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "GlowMushroomEast",
+          "ClassName": "Part",
+          "Properties": {
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "CanTouch": false,
+            "Color": [0.43, 0.7, 1],
+            "Material": "Neon",
+            "Position": [44, 502.1, 16],
+            "Shape": "Ball",
+            "Size": [2.2, 1.1, 2.2]
+          },
+          "Children": [
+            {
+              "Name": "Glow",
+              "ClassName": "PointLight",
+              "Properties": {
+                "Brightness": 1,
+                "Color": [0.43, 0.7, 1],
+                "Range": 11,
+                "Shadows": false
+              },
+              "Children": []
+            }
+          ]
+        }
+      ]
     },
     {
       "Name": "ArenaLight",
@@ -95,20 +539,49 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [0.1, 0.08, 0.14],
-        "Material": "SmoothPlastic",
-        "Position": [0, 540, 0],
-        "Size": [4, 4, 4],
+        "Position": [0, 538, 0],
+        "Size": [2, 2, 2],
         "Transparency": 1
       },
       "Children": [
         {
-          "Name": "Fill",
+          "Name": "ForestFill",
           "ClassName": "PointLight",
           "Properties": {
-            "Brightness": 1.6,
-            "Color": [0.7, 0.55, 1],
+            "Brightness": 2,
+            "Color": [0.57, 0.78, 0.48],
             "Range": 120,
+            "Shadows": true
+          },
+          "Children": []
+        }
+      ]
+    },
+    {
+      "Name": "SlamTelegraph",
+      "ClassName": "Part",
+      "Properties": {
+        "Anchored": true,
+        "CanCollide": false,
+        "CanQuery": false,
+        "CanTouch": false,
+        "CastShadow": false,
+        "Color": [1, 0.2, 0.08],
+        "Material": "Neon",
+        "Orientation": [0, 0, 90],
+        "Position": [0, 501.68, 30],
+        "Shape": "Cylinder",
+        "Size": [0.16, 30, 30],
+        "Transparency": 1
+      },
+      "Children": [
+        {
+          "Name": "SlamLight",
+          "ClassName": "PointLight",
+          "Properties": {
+            "Brightness": 0,
+            "Color": [1, 0.2, 0.08],
+            "Range": 45,
             "Shadows": false
           },
           "Children": []
@@ -128,21 +601,22 @@
             "CanQuery": true,
             "CanTouch": false,
             "CastShadow": false,
-            "Color": [0.42, 0.05, 0.08],
+            "Color": [0.48, 0.08, 0.055],
             "Material": "Neon",
-            "Position": [0, 507, 55],
-            "Size": [10, 12, 10],
-            "Transparency": 0.08
+            "Position": [0, 507, 30],
+            "Shape": "Ball",
+            "Size": [9, 9, 9],
+            "Transparency": 0.28
           },
           "Children": [
             {
               "Name": "CoreLight",
               "ClassName": "PointLight",
               "Properties": {
-                "Brightness": 3,
-                "Color": [1, 0.28, 0.28],
-                "Range": 30,
-                "Shadows": false
+                "Brightness": 3.5,
+                "Color": [1, 0.24, 0.12],
+                "Range": 28,
+                "Shadows": true
               },
               "Children": []
             }
@@ -157,11 +631,189 @@
             "CanQuery": false,
             "CanTouch": false,
             "CastShadow": false,
-            "Color": [1, 0.85, 0.3],
+            "Color": [1, 0.82, 0.2],
             "Material": "Neon",
-            "Position": [0, 509, 50],
-            "Size": [3, 3, 1],
-            "Transparency": 0.05
+            "Position": [0, 513, 24.6],
+            "Shape": "Ball",
+            "Size": [3.2, 3.2, 1.2],
+            "Transparency": 0.02
+          },
+          "Children": []
+        },
+        {
+          "Name": "Visual",
+          "ClassName": "Model",
+          "Children": [
+            {
+              "Name": "AncientBody",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": false,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.265, 0.145, 0.065],
+                "Material": "Wood",
+                "Position": [0, 509, 30],
+                "Size": [13, 16, 11]
+              },
+              "Children": []
+            },
+            {
+              "Name": "BarkChest",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": false,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.36, 0.205, 0.09],
+                "Material": "WoodPlanks",
+                "Position": [0, 509.5, 24.8],
+                "Size": [8, 10, 1.2]
+              },
+              "Children": []
+            },
+            {
+              "Name": "Crown",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": false,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.105, 0.34, 0.09],
+                "Material": "Grass",
+                "Position": [0, 519, 31],
+                "Shape": "Ball",
+                "Size": [17, 12, 16]
+              },
+              "Children": []
+            },
+            {
+              "Name": "CrownLight",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": false,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.25, 0.55, 0.12],
+                "Material": "Grass",
+                "Position": [4.5, 521, 29],
+                "Shape": "Ball",
+                "Size": [10, 8, 10]
+              },
+              "Children": []
+            },
+            {
+              "Name": "LeftArm",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": false,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.29, 0.16, 0.07],
+                "Material": "Wood",
+                "Orientation": [0, 0, -24],
+                "Position": [-9, 509, 30],
+                "Size": [5, 16, 5]
+              },
+              "Children": []
+            },
+            {
+              "Name": "RightArm",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": false,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.29, 0.16, 0.07],
+                "Material": "Wood",
+                "Orientation": [0, 0, 24],
+                "Position": [9, 509, 30],
+                "Size": [5, 16, 5]
+              },
+              "Children": []
+            },
+            {
+              "Name": "LeftAntler",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": false,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.34, 0.21, 0.1],
+                "Material": "Wood",
+                "Orientation": [0, 0, -18],
+                "Position": [-5.5, 525, 31],
+                "Size": [2.2, 12, 2.2]
+              },
+              "Children": []
+            },
+            {
+              "Name": "RightAntler",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": false,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.34, 0.21, 0.1],
+                "Material": "Wood",
+                "Orientation": [0, 0, 18],
+                "Position": [5.5, 525, 31],
+                "Size": [2.2, 12, 2.2]
+              },
+              "Children": []
+            },
+            {
+              "Name": "RootLeft",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": false,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.24, 0.13, 0.055],
+                "Material": "Wood",
+                "Orientation": [0, -24, 78],
+                "Position": [-8, 502.5, 28],
+                "Size": [3.5, 17, 3.5]
+              },
+              "Children": []
+            },
+            {
+              "Name": "RootRight",
+              "ClassName": "Part",
+              "Properties": {
+                "Anchored": true,
+                "CanCollide": false,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Color": [0.24, 0.13, 0.055],
+                "Material": "Wood",
+                "Orientation": [0, 24, -78],
+                "Position": [8, 502.5, 28],
+                "Size": [3.5, 17, 3.5]
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "HitHighlight",
+          "ClassName": "Highlight",
+          "Properties": {
+            "DepthMode": "AlwaysOnTop",
+            "Enabled": false,
+            "FillColor": [1, 0.42, 0.16],
+            "FillTransparency": 0.55,
+            "OutlineColor": [1, 0.86, 0.38],
+            "OutlineTransparency": 0.05
           },
           "Children": []
         }

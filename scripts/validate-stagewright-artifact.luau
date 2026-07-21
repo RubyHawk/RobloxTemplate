@@ -111,7 +111,7 @@ for _, marker in
 		"In Studio",
 		"ProjectStorage.writePayload",
 		"WorkspacePreview.new",
-		"StagewrightPanelV2",
+		"StagewrightPanelV3",
 		"MapNavigation",
 		"MapPlayable",
 		"MapAdmin",
@@ -219,9 +219,20 @@ do
 end
 
 local safePatch = roblox.deserializePlace(fs.readFile(safePatchPath))
-local _, safePatchNames = sourceAndNames(descendantsWithRoots({ safePatch }))
+local safePatchSource, safePatchNames = sourceAndNames(descendantsWithRoots({ safePatch }))
 for _, requiredName in
 	{
+		"DungeonArena",
+		"DungeonClient",
+		"DungeonConfig",
+		"DungeonHUD",
+		"DungeonLogic",
+		"DungeonService",
+		"DungeonWeapons",
+		"PortalClient",
+		"PortalPad",
+		"PortalService",
+		"PortalSign",
 		"TemplateConfig",
 		"RuneModeConfig",
 		"StageCell",
@@ -235,6 +246,23 @@ do
 end
 for _, retiredName in retiredLegacyInstanceNames do
 	assert(not safePatchNames[retiredName], `Shared-place safe patch retained legacy instance {retiredName}`)
+end
+for _, marker in
+	{
+		"DungeonAttack",
+		"DungeonDodge",
+		"DungeonAttackResult",
+		"ShouldReserveServer",
+		"RuntimeMode",
+		"warden_blade",
+		"dungeon = true",
+		"128136881672145",
+	}
+do
+	assert(
+		string.find(safePatchSource, marker, 1, true),
+		`Shared-place safe patch is missing dungeon source marker {marker}`
+	)
 end
 
 print("Stagewright plugin, player-test, and shared-place artifacts passed structural validation.")

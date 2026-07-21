@@ -12,14 +12,34 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
-local Shared = ReplicatedStorage:WaitForChild("Template"):WaitForChild("Shared")
+local Template = ReplicatedStorage:WaitForChild("Template")
+local Shared = Template:WaitForChild("Shared")
 local Config = require(Shared.TemplateConfig)
-local RemoteNames = require(Shared.RemoteNames)
-local RuneCatalog = require(Shared.RuneCatalog)
-local RuneLogic = require(Shared.RuneLogic)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+
+-- The altar is lobby-only. Return before waiting for its streamed world model or
+-- enabling its authored GUIs in a reserved dungeon server.
+if Template:GetAttribute("RuntimeMode") == "dungeon" then
+	local function disableRuneGui(instance: Instance)
+		if instance.Name ~= "RuneCircleUI" and instance.Name ~= "RuneCircleSign" then
+			return
+		end
+		if instance:IsA("ScreenGui") or instance:IsA("BillboardGui") then
+			instance.Enabled = false
+		end
+	end
+	for _, instance in playerGui:GetChildren() do
+		disableRuneGui(instance)
+	end
+	playerGui.ChildAdded:Connect(disableRuneGui)
+	return
+end
+
+local RemoteNames = require(Shared.RemoteNames)
+local RuneCatalog = require(Shared.RuneCatalog)
+local RuneLogic = require(Shared.RuneLogic)
 
 local screenGui = playerGui:WaitForChild("RuneCircleUI", 10)
 local sign = playerGui:WaitForChild("RuneCircleSign", 10)

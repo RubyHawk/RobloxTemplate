@@ -146,6 +146,7 @@ export type ClientSnapshot = {
 	towerPlacementRevision: number?,
 	serverTime: number,
 	features: { [string]: boolean },
+	runtimeMode: string?,
 }
 
 export type RuneClientState = {

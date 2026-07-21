@@ -29,7 +29,7 @@ No workflow below creates a Roblox experience.
    - Additional portals/goals appear as `NeedsRepair` nodes and validation errors rather than disappearing.
    - Moving `GamePlatform` does not change stored node coordinates.
 
-Do not connect the legacy `rng-defender-grid-demo` Rojo patch during this import. It contains a repository copy of the island and is not the Team Create source of truth.
+Do not connect the `rng-defender-grid-demo` Rojo patch during this import. Keep this first pass Rojo-free so Team Create-only map data can be exported before any repository-managed gameplay code is synchronized. The current safe patch does not own `FirstPrivateIsland`; use the guarded delivery workflow below only after import and repository review are complete.
 
 ## 2. Studio interaction checklist
 
@@ -80,7 +80,21 @@ Do not connect the legacy `rng-defender-grid-demo` Rojo patch during this import
 
 Import or export cancellation must leave both Studio and repository state unchanged.
 
-## 4. Runtime QA in playerTest
+## 4. Deliver gameplay to the permanent RNG Defender place
+
+After the Stagewright export/import diff and automated checks pass, run:
+
+```powershell
+8_RNG_DEFENDER.cmd
+```
+
+This launcher validates universe `10479279603`, place `128136881672145`, and the patch's single `servePlaceIds` entry before opening Studio or serving files. In Studio, connect **Plugins > Rojo**, stop and restart Play, and verify the in-place portal simulation, dungeon arena, combat, HUD, and simulated return. Publish with **File > Publish to Roblox** on this same place; never use **Publish As**.
+
+Studio cannot execute `TeleportAsync`. After publishing, join RNG Defender through the Roblox client and separately verify the real reserved-server entry, a complete party fight/reward, and the return teleport to the public lobby. The roundtrip is not considered validated until this published-client check passes.
+
+Do not open or publish `build/RNGDefenderSafePatch.rbxlx`. That artifact is only a structural validation build and intentionally omits Team Create world data.
+
+## 5. Runtime QA in playerTest
 
 Run:
 
@@ -118,7 +132,7 @@ Use MicroProfiler captures for the agreed device/server baseline. The pure local
 - Six-platform, 3,000-enemy route sampling under 30 ms per 20 Hz update.
 - 900 visible-cell incremental mutations under 16 ms.
 
-## 5. Automated acceptance
+## 6. Automated acceptance
 
 `3_CHECK.cmd` runs formatting, lint, deterministic parity, Rojo/recipe builds, plugin/runtime artifact inspection, Luau assertions, performance budgets, worker tests, and skill validation.
 

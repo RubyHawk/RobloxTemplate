@@ -9,12 +9,38 @@ local TextChatService = game:GetService("TextChatService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
-local Shared = ReplicatedStorage:WaitForChild("Template"):WaitForChild("Shared")
+local Template = ReplicatedStorage:WaitForChild("Template")
+local Shared = Template:WaitForChild("Shared")
 local IconCatalog = require(Shared.IconCatalog)
 local RemoteNames = require(Shared.RemoteNames)
 local Theme = require(Shared.Theme)
 
 type IconName = IconCatalog.IconName
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- A reserved dungeon server has a purpose-built HUD and input controller. Stop
+-- before any lobby controller, world wait, gallery, music, or AFK loop starts.
+if Template:GetAttribute("RuntimeMode") == "dungeon" then
+	local lobbyGuiNames: { [string]: boolean } = {
+		TemplateUI = true,
+		GalleryMenu = true,
+		GalleryBackdrop = true,
+		ZxglyV5Showroom = true,
+		NotificationV2Showroom = true,
+	}
+	local function disableLobbyGui(instance: Instance)
+		if lobbyGuiNames[instance.Name] and instance:IsA("ScreenGui") then
+			instance.Enabled = false
+		end
+	end
+	for _, instance in playerGui:GetChildren() do
+		disableLobbyGui(instance)
+	end
+	playerGui.ChildAdded:Connect(disableLobbyGui)
+	return
+end
 
 local Controllers = script.Controllers
 local AudioController = require(Controllers.AudioController)
@@ -32,7 +58,6 @@ local Screens = require(script.UI.Screens)
 StageGridRenderer.initialize()
 StagePlatformOwnerController.initialize()
 
-local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild(RemoteNames.folder)
 local requestRemote = remotes:WaitForChild(RemoteNames.request) :: RemoteEvent
 local stateRemote = remotes:WaitForChild(RemoteNames.state) :: RemoteEvent
@@ -50,7 +75,6 @@ task.spawn(function()
 	end
 end)
 
-local playerGui = player:WaitForChild("PlayerGui")
 local screenGui = playerGui:WaitForChild("TemplateUI") :: ScreenGui
 assert(screenGui:IsA("ScreenGui"), "StarterGui.TemplateUI must be a ScreenGui")
 screenGui.Enabled = true
