@@ -109,10 +109,12 @@ end
 
 local function playerAdded(player: Player)
 	task.spawn(function()
-		-- In a reserved dungeon server the party is here to fight the boss, not to
-		-- claim a tower-defense platform, so never bounce them for lacking one.
+		-- Reserved dungeons never claim a tower-defense platform. Hybrid lobbies
+		-- may also opt out of join-time platform admission while every actual
+		-- tower-defense request continues to require an authoritative platform.
 		if
 			Config.features.towerDefense
+			and Config.towerDefense.requirePlatformOnJoin
 			and not dungeonMode
 			and not StagePlatformService.hasPlatform(player)
 		then

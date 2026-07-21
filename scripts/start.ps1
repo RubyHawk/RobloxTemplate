@@ -14,6 +14,7 @@ $projectName = [string]$project.name
 $safeProjectName = $projectName -replace '[^A-Za-z0-9._-]', '_'
 $placeFile = Join-Path $placeDirectory "$safeProjectName.rbxlx"
 $bootstrapProject = Join-Path $root "bootstrap.project.json"
+. (Join-Path $PSScriptRoot "rojo-plugin-state.ps1")
 
 function Find-RobloxStudio {
     $localVersions = Join-Path $env:LOCALAPPDATA "Roblox\Versions"
@@ -86,8 +87,11 @@ try {
     $cloudConfigured = ($templateUniverseId -gt 0 -and $templatePlaceId -gt 0)
 
     if (-not $SmokeTest) {
-        $rojoPlugin = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Roblox/Plugins/RojoManagedPlugin.rbxm" } else { $null }
-        if (-not (Get-Command rojo -ErrorAction SilentlyContinue) -or ($rojoPlugin -and -not (Test-Path $rojoPlugin -PathType Leaf))) {
+        $rojoPluginState = Get-RojoStudioPluginState
+        if ($rojoPluginState.HasConflict) {
+            throw (Get-RojoStudioPluginConflictMessage)
+        }
+        if (-not (Get-Command rojo -ErrorAction SilentlyContinue) -or -not $rojoPluginState.HasAny) {
             Write-Host "The template needs its first-time setup. Running it now..." -ForegroundColor Yellow
             & (Join-Path $PSScriptRoot "setup.ps1") -SkipWorker
             if ($LASTEXITCODE -ne 0) {

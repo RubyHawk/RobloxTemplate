@@ -2,7 +2,7 @@
 
 Stagewright's production world is one complete six-island layout per Roblox server. The place must have **Maximum Players** set to `6`, matching `TemplateConfig.towerDefense.platformSlotCount`. Roblox handles additional concurrency by creating more server instances, each with a fresh six-slot layout.
 
-The runtime keeps a second safety boundary: `StagePlatformService` assigns each player one unique server-authoritative slot, publishes sanitized ownership fields on the slot's replicated `CFrameValue`, releases the slot when the player leaves, and rejects gameplay before profile loading if no valid platform exists. Clients only render the published assignment; they never choose or submit a platform.
+The runtime keeps a second safety boundary: `StagePlatformService` assigns each player one unique server-authoritative slot, publishes sanitized ownership fields on the slot's replicated `CFrameValue`, and releases the slot when the player leaves. Platform-exclusive recipes reject admission before profile loading if no valid platform exists. An explicit hybrid-lobby recipe may set `towerDefense.requirePlatformOnJoin = false`; that admits the player to non-tower-defense systems but does not manufacture a slot, and all tower-defense actions remain unavailable until an authoritative layout exists. Clients only render the published assignment; they never choose or submit a platform.
 
 Six permanent `BillboardGui` cards are authored under `StarterGui.StagePlatformOwners`. Runtime code sets their `Adornee`, text, visibility, and avatar image without creating or cloning GUI instances. Empty islands remain visibly labeled `AVAILABLE`, while the local owner's card says `YOUR PLATFORM`.
 

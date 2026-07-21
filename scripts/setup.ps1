@@ -20,6 +20,7 @@ $tools = @(
     "JohnnyMorganz/StyLua",
     "lune-org/lune"
 )
+. (Join-Path $PSScriptRoot "rojo-plugin-state.ps1")
 
 function Write-Step([string]$Message) {
     Write-Host ""
@@ -65,8 +66,18 @@ try {
     Write-Step "Preparing Roblox packages"
     Invoke-Checked "Wally install" { wally install }
 
-    Write-Step "Installing the matching Rojo plugin into Roblox Studio"
-    Invoke-Checked "Rojo plugin install" { rojo plugin install }
+    $rojoPluginState = Get-RojoStudioPluginState
+    if ($rojoPluginState.HasConflict) {
+        throw (Get-RojoStudioPluginConflictMessage)
+    }
+    if ($rojoPluginState.HasCreatorStore) {
+        Write-Step "Using the existing official Creator Store Rojo plugin"
+        Write-Host "Creator Store asset 13916111004 is installed; no duplicate local plugin was created." -ForegroundColor Green
+    }
+    else {
+        Write-Step "Installing the matching Rojo plugin into Roblox Studio"
+        Invoke-Checked "Rojo plugin install" { rojo plugin install }
+    }
 
     if (-not $SkipWorker) {
         if ((Get-Command node -ErrorAction SilentlyContinue) -and (Get-Command npm -ErrorAction SilentlyContinue)) {
