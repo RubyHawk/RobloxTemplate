@@ -68,6 +68,7 @@ local requestFeatures: { [string]: string } = {
 	ActivateTowerStage = "towerDefense",
 	DungeonAttack = "dungeon",
 	DungeonDodge = "dungeon",
+	SelectDungeonBoss = "dungeon",
 }
 
 -- Per-action rate-limit overrides (capacity, tokens/second). Actions absent here
@@ -227,6 +228,13 @@ local function handleRequest(player: Player, packet: any)
 		if action == "DungeonAttack" or action == "DungeonDodge" then
 			return
 		end
+		if action == "SelectDungeonBoss" then
+			RemoteService.sendEvent(player, "DungeonBossSelected", {
+				accepted = false,
+				reason = "rateLimited",
+			})
+			return
+		end
 		result(player, false, "Please slow down")
 		return
 	end
@@ -342,6 +350,20 @@ local function handleRequest(player: Player, packet: any)
 			action = "dodge",
 			accepted = accepted,
 			reason = reason,
+		})
+	elseif action == "SelectDungeonBoss" then
+		-- Shape check only; DungeonService re-validates the id against the catalog
+		-- and owns whether the pick also becomes the pad party's choice.
+		local bossId = if type(payload) == "table" then payload.bossId else nil
+		if type(bossId) ~= "string" or #bossId < 1 or #bossId > 32 then
+			result(player, false, "Invalid boss")
+			return
+		end
+		local accepted, reason = DungeonService.selectBoss(player, bossId)
+		RemoteService.sendEvent(player, "DungeonBossSelected", {
+			accepted = accepted,
+			bossId = if accepted then bossId else nil,
+			reason = if accepted then nil else reason,
 		})
 	elseif action == "AfkRollover" then
 		local profile = ProfileService.get(player)

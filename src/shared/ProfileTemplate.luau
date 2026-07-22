@@ -12,7 +12,7 @@ function ProfileTemplate.create(now: number): PlayerProfileV1
 	local currencies = CurrencyConfig.startingBalances(Config.economy.currencies)
 	local startingStageId = StageCatalog.defaultStageId()
 	return {
-		schemaVersion = 7,
+		schemaVersion = 8,
 		coins = currencies[Config.economy.primaryCurrencyId] or 0,
 		currencies = currencies,
 		inventory = {
@@ -70,6 +70,9 @@ function ProfileTemplate.create(now: number): PlayerProfileV1
 				losses = 0,
 				bestWave = 0,
 			},
+		},
+		dungeon = {
+			selectedBossId = "",
 		},
 		feedback = {
 			lastSubmittedAt = 0,

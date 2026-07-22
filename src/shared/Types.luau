@@ -77,6 +77,12 @@ export type TowerDefenseSaveState = {
 	},
 }
 
+-- Persistent per-player dungeon boss choice. Empty means "no personal pick";
+-- runtime resolution falls back to the configured default boss.
+export type DungeonSaveState = {
+	selectedBossId: string,
+}
+
 export type PlayerProfileV1 = {
 	schemaVersion: number,
 	coins: number,
@@ -106,6 +112,7 @@ export type PlayerProfileV1 = {
 	guild: GuildReservation,
 	runes: RuneSaveState,
 	towerDefense: TowerDefenseSaveState,
+	dungeon: DungeonSaveState,
 	feedback: {
 		lastSubmittedAt: number,
 	},

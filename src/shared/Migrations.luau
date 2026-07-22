@@ -7,7 +7,7 @@ local Config = require(script.Parent.TemplateConfig)
 local StageCatalog = require(script.Parent.StageCatalog)
 
 local Migrations = {}
-Migrations.CURRENT_VERSION = 7
+Migrations.CURRENT_VERSION = 8
 
 function Migrations.migrate(raw: any, now: number): any
 	local startingStageId = StageCatalog.defaultStageId()
@@ -69,6 +69,9 @@ function Migrations.migrate(raw: any, now: number): any
 		if type(profile.runes) == "table" and type(profile.runes.selectedMode) ~= "string" then
 			profile.runes.selectedMode = Config.runes.defaultChannelMode
 		end
+	end
+	if previousVersion < 8 and type(profile.dungeon) ~= "table" then
+		profile.dungeon = { selectedBossId = "" }
 	end
 	return profile
 end

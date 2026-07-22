@@ -13,13 +13,19 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Template"):WaitForChild("Shared")
 local Config = require(Shared.TemplateConfig)
+local DungeonConfig = require(Shared.DungeonConfig)
 local DungeonLogic = require(Shared.DungeonLogic)
+local DungeonBossSelection = require(Shared.DungeonBossSelection)
 
 export type Deps = {
 	-- Broadcasts the pad roster + countdown to lobby clients.
 	publish: (data: any) -> (),
-	-- Hands the finalized party to DungeonService (teleport or Studio sim).
-	launch: (players: { Player }) -> boolean,
+	-- Hands the finalized party + resolved boss to DungeonService.
+	launch: (players: { Player }, bossId: string) -> boolean,
+	-- The pad leader's saved personal boss choice; the resolution default.
+	savedBossId: (player: Player) -> string?,
+	-- The forced global event boss id, or nil when no event is active.
+	eventBossId: () -> string?,
 }
 
 local PortalService = {}
@@ -35,6 +41,15 @@ local deadline: number? = nil
 -- (still physically on the pad for a beat before they teleport or move) is not
 -- re-detected and re-launched, and so the pad reliably re-arms afterward.
 local cooldownUntil = 0
+-- True only while DungeonService is yielding through reserve/session setup. The
+-- launch boss is already captured, so party-pick writes must not appear to
+-- change the in-flight run.
+local launchInProgress = false
+local launchingBossId: string? = nil
+-- The party's boss for the current roster, set by the pad leader (order[1]); nil
+-- means "use the leader's saved personal choice". Reset when the pad empties or a
+-- party launches so a fresh roster starts from the new leader's default.
+local pendingBossId: string? = nil
 
 function PortalService.registerPad(platform: BasePart)
 	padPlatform = platform
@@ -79,11 +94,19 @@ local function indexOf(player: Player): number?
 	return nil
 end
 
+local function resetBossPickIfLeaderChanged(previousLeader: Player?)
+	if order[1] ~= previousLeader then
+		pendingBossId = nil
+	end
+end
+
 local function removeFromOrder(player: Player)
+	local previousLeader = order[1]
 	local index = indexOf(player)
 	if index ~= nil then
 		table.remove(order, index)
 	end
+	resetBossPickIfLeaderChanged(previousLeader)
 end
 
 function PortalService.forget(player: Player)
@@ -91,6 +114,7 @@ function PortalService.forget(player: Player)
 end
 
 local function refreshOrder(platform: BasePart)
+	local previousLeader = order[1]
 	-- Drop anyone who stepped off or left; keep arrival order for the rest.
 	for i = #order, 1, -1 do
 		local player = order[i]
@@ -104,6 +128,10 @@ local function refreshOrder(platform: BasePart)
 			table.insert(order, player)
 		end
 	end
+	-- A party pick belongs only to the player who made it as leader. Preserve it
+	-- while that same leader remains first, but never transfer it when step-off,
+	-- disconnect, forget, or a refreshed roster promotes somebody else.
+	resetBossPickIfLeaderChanged(previousLeader)
 end
 
 local function buildRoster(): { { userId: number, name: string } }
@@ -117,6 +145,43 @@ local function buildRoster(): { { userId: number, name: string } }
 	return roster
 end
 
+local function isKnownBoss(bossId: string): boolean
+	return DungeonConfig.bossById(dungeon, bossId) ~= nil
+end
+
+-- Records the pad leader's boss pick for the current roster. Only the arrival
+-- leader (order[1]) governs the party; a non-leader request is ignored here (a
+-- non-leader's personal profile choice is still saved by DungeonService).
+function PortalService.setBossPick(player: Player, bossId: string)
+	if launchInProgress or order[1] ~= player or type(bossId) ~= "string" or not isKnownBoss(bossId) then
+		return
+	end
+	pendingBossId = bossId
+end
+
+-- The forced global event boss if one is active and known, else nil.
+local function activeEventBoss(): string?
+	local target = deps
+	local eventId = if target ~= nil then target.eventBossId() else nil
+	return if eventId ~= nil and isKnownBoss(eventId) then eventId else nil
+end
+
+-- Resolves the boss the current pad party would enter: a forced event boss wins,
+-- else the leader's party pick, else the leader's saved personal choice, else the
+-- configured default. Every candidate is validated against the catalog.
+local function resolveEffectiveBoss(): string
+	local target = deps
+	local leader = order[1]
+	local personalId = if target ~= nil and leader ~= nil then target.savedBossId(leader) else nil
+	return DungeonBossSelection.resolveBossId(
+		activeEventBoss(),
+		pendingBossId,
+		personalId,
+		dungeon.defaultBossId,
+		isKnownBoss
+	)
+end
+
 local function publishState(launching: boolean)
 	local target = deps
 	if target == nil then
@@ -126,12 +191,23 @@ local function publishState(launching: boolean)
 	if deadline ~= nil then
 		countdown = DungeonLogic.countdownRemaining(deadline, os.clock())
 	end
+	local leader = order[1]
+	local effectiveBossId = if launching and launchingBossId ~= nil
+		then launchingBossId
+		else resolveEffectiveBoss()
+	local boss = DungeonConfig.bossById(dungeon, effectiveBossId)
 	target.publish({
 		occupants = buildRoster(),
 		count = #order,
 		partyMax = dungeon.partyMax,
 		countdown = countdown,
 		launching = launching,
+		bossId = effectiveBossId,
+		bossName = if boss ~= nil then boss.name else effectiveBossId,
+		leaderUserId = if leader ~= nil then leader.UserId else nil,
+		-- When an event forces the boss, the client locks the selector and shows a
+		-- badge; personal/party picks are ignored until the event ends.
+		eventActive = activeEventBoss() ~= nil,
 	})
 end
 
@@ -150,13 +226,21 @@ local function launchParty(): boolean
 	if target == nil then
 		return false
 	end
-	if not target.launch(players) then
+	local bossId = resolveEffectiveBoss()
+	launchingBossId = bossId
+	launchInProgress = true
+	publishState(true)
+	if not target.launch(players, bossId) then
+		launchInProgress = false
+		launchingBossId = nil
 		return false
 	end
-	-- Only consume the roster after DungeonService has synchronously reserved
-	-- pending state for at least one connected, profile-ready player.
+	-- Only consume the roster after DungeonService has synchronously claimed
+	-- pending state for the complete connected, profile-ready party.
 	deadline = nil
 	table.clear(order)
+	pendingBossId = nil
+	launchInProgress = false
 	cooldownUntil = os.clock() + 3
 	return true
 end
@@ -166,11 +250,13 @@ local function tick(platform: BasePart)
 		publishState(true)
 		return
 	end
+	launchingBossId = nil
 
 	refreshOrder(platform)
 
 	if #order == 0 then
 		deadline = nil
+		pendingBossId = nil
 		publishState(false)
 		return
 	end

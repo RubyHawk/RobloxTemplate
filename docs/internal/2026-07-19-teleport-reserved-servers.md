@@ -1,6 +1,6 @@
 # Teleport / reserved servers / MemoryStore — platform doc check
 
-**Checked:** 2026-07-21 (rechecked for the RNG Defender delivery/runtime repair)
+**Checked:** 2026-07-22 (rechecked for the authoritative dungeon boss handoff)
 
 ## Sources
 - TeleportService — https://create.roblox.com/docs/reference/engine/classes/TeleportService
@@ -8,6 +8,9 @@
 - Teleporting between places — https://create.roblox.com/docs/projects/teleport
 - DataModel (PrivateServerId / PrivateServerOwnerId) — https://create.roblox.com/docs/reference/engine/classes/DataModel
 - MemoryStoreService — https://create.roblox.com/docs/reference/engine/classes/MemoryStoreService
+- MemoryStoreHashMap — https://create.roblox.com/docs/reference/engine/classes/MemoryStoreHashMap
+- GlobalDataStore — https://create.roblox.com/docs/reference/engine/classes/GlobalDataStore
+- TextChatCommand — https://create.roblox.com/docs/reference/engine/classes/TextChatCommand
 
 ## What is current (2026-07)
 
@@ -47,17 +50,33 @@
 - **Studio:** teleports do not actually run in Studio — guard with
   `RunService:IsStudio()` and simulate (mirrors `AfkService.rollOver`).
 
-## MemoryStore (optional hardening, not in the first slice)
-`MemoryStoreService:GetSortedMap(name)` → `SetAsync(key, value, expiration)` /
-`GetAsync(key)` / `UpdateAsync`. Keyed by the reserved `PrivateServerId`, it lets
-the dungeon server read an authoritative party manifest independent of TeleportData
-(defends against access-code guessing / half-joined parties). The current flow
-uses strictly validated `TeleportData` only to coordinate expected arrivals.
-Boss choice and rewards always come from server-owned configuration; MemoryStore
-remains an optional authority hardening step.
+## MemoryStore boss handoff
+`MemoryStoreService:GetHashMap(name)` → `SetAsync(key, value, expiration)` /
+`GetAsync(key)`. The lobby explicitly reserves a server, writes the resolved boss
+and launch id under the returned `PrivateServerId`, then teleports with the
+reserved access code. The destination revalidates the record, launch id, and boss
+catalog entry. A missing, expired, malformed, or unavailable record falls back to
+the configured default boss. Strictly validated `TeleportData` coordinates only
+the expected party and launch identity; it never selects the boss or rewards.
+
+## Global event boss and admin command
+- Clearing the global event key uses `GlobalDataStore:RemoveAsync`; `SetAsync`
+  remains the write path only when a concrete event record exists.
+- The native `TextChatCommand` supplies a server-owned `TextSource.UserId`, but
+  the dungeon service still enforces the configured allowlist. The handler also
+  validates bounded arguments and applies its own write cooldown.
+- An empty event-admin allowlist disables the override and skips the store read,
+  so removing every admin cannot leave a persisted event forced without a clear
+  path.
+- Event-cache startup is bounded. Failed refreshes preserve the last successful
+  value briefly, but the forced event is ignored once that cache is 90 seconds
+  old, so a store outage cannot keep stale authority indefinitely.
 
 ## Decisions for this feature
 - Same place, dual-mode (lobby vs reserved dungeon) via the detection above.
-- One `TeleportAsync` call with `ShouldReserveServer = true` sends the pad party to
-  a fresh reserved instance of `game.PlaceId`.
+- `ReserveServerAsync` obtains the access code and `PrivateServerId`; the lobby
+  writes the server-authoritative boss session, then calls `TeleportAsync` with
+  `ReservedServerAccessCode`. Teleport retries reuse the same reservation.
+- The launch roster is revalidated atomically after reservation/session writes
+  and is never silently reduced while retaining a stale full-party manifest.
 - Server authoritative for occupancy, party, countdown, boss HP, and rewards.

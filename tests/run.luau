@@ -3434,9 +3434,22 @@ expectEqual(futureOk, false, "future profile schemas are refused instead of over
 local migrationsSource = fs.readFile("src/shared/Migrations.luau")
 local profileTemplateSource = fs.readFile("src/shared/ProfileTemplate.luau")
 expectEqual(
-	string.find(migrationsSource, "Migrations.CURRENT_VERSION = 7", 1, true) ~= nil,
+	string.find(migrationsSource, "Migrations.CURRENT_VERSION = 8", 1, true) ~= nil,
 	true,
 	"profile schema version is current"
+)
+for _, dungeonMigrationMarker in { "previousVersion < 8", "selectedBossId" } do
+	expectEqual(
+		string.find(migrationsSource, dungeonMigrationMarker, 1, true) ~= nil,
+		true,
+		`dungeon profile migration includes {dungeonMigrationMarker}`
+	)
+end
+expectEqual(
+	string.find(profileTemplateSource, "schemaVersion = 8", 1, true) ~= nil
+		and string.find(profileTemplateSource, "selectedBossId", 1, true) ~= nil,
+	true,
+	"profile template seeds the dungeon boss choice at the current version"
 )
 expectEqual(
 	string.find(migrationsSource, "previousVersion < 6", 1, true) ~= nil,
@@ -9637,7 +9650,8 @@ do
 	expectEqual(defaults.partyMax, 4, "dungeon defaults keep the authored party max")
 	expectEqual(defaults.countdownSeconds, 5, "dungeon defaults keep the authored countdown")
 	expectEqual(defaults.defaultBossId, "forest_warden", "dungeon defaults resolve the authored boss id")
-	expectEqual(#defaults.bosses, 1, "dungeon defaults expose the authored boss list")
+	expectEqual(#defaults.bosses, 2, "dungeon defaults expose the authored boss list")
+	expectEqual(defaults.bosses[2].id, "grove_matron", "dungeon defaults include the second selectable boss")
 	expectEqual(defaults.bosses[1].baseHealth, 4500, "dungeon default boss keeps its authored health")
 	expectEqual(defaults.attackCooldownSeconds, 0.45, "dungeon defaults keep the starter attack cooldown")
 	expectEqual(defaults.proximityAutoDps, false, "dungeon defaults make click-to-attack the damage source")
@@ -9820,6 +9834,12 @@ do
 		true,
 		"bossById finds a configured boss"
 	)
+	expectEqual(
+		DungeonConfig.bossById(defaults, "grove_matron") ~= nil,
+		true,
+		"the second authored boss is available for selection"
+	)
+	expectEqual(#defaults.bosses >= 2, true, "boss selection has at least two bosses to choose from")
 	expectEqual(DungeonConfig.bossById(defaults, "missing"), nil, "bossById returns nil for an unknown boss")
 	expectEqual(
 		DungeonConfig.weaponById(defaults, "thorn_spear") ~= nil,
@@ -9829,6 +9849,337 @@ do
 	expectEqual(DungeonConfig.weaponById(defaults, "missing"), nil, "weaponById rejects unknown items")
 	local clampedCamera = DungeonConfig.normalize({ camera = { minZoom = 30, maxZoom = 5 } }).camera
 	expectEqual(clampedCamera.maxZoom, 30, "camera max zoom cannot normalize below min zoom")
+
+	expectEqual(#defaults.eventAdminUserIds, 0, "no event-boss admins are configured by default")
+	local admins =
+		DungeonConfig.normalize({ eventAdminUserIds = { 101, 101, -5, 202, "nope" } }).eventAdminUserIds
+	expectEqual(
+		#admins == 2 and admins[1] == 101 and admins[2] == 202,
+		true,
+		"event admin ids dedupe and skip malformed entries without dropping the list"
+	)
+	expectEqual(
+		#DungeonConfig.normalize({ eventAdminUserIds = "nope" }).eventAdminUserIds,
+		0,
+		"a malformed admin list normalizes to empty"
+	)
+end
+
+do
+	-- Server-authoritative boss resolution: forced event > party pad pick >
+	-- personal saved choice > configured default, each validated against the
+	-- catalog so a stale or empty id safely falls through.
+	local DungeonBossSelection = require("../src/shared/DungeonBossSelection")
+	local function known(id: string): boolean
+		return id == "forest_warden" or id == "grove_matron"
+	end
+	expectEqual(
+		DungeonBossSelection.resolveBossId(
+			"grove_matron",
+			"forest_warden",
+			"forest_warden",
+			"forest_warden",
+			known
+		),
+		"grove_matron",
+		"a forced event boss overrides the party and personal picks"
+	)
+	expectEqual(
+		DungeonBossSelection.resolveBossId(nil, "grove_matron", "forest_warden", "forest_warden", known),
+		"grove_matron",
+		"the party pad pick beats the personal choice"
+	)
+	expectEqual(
+		DungeonBossSelection.resolveBossId(nil, nil, "grove_matron", "forest_warden", known),
+		"grove_matron",
+		"the personal choice applies when no party pick is set"
+	)
+	expectEqual(
+		DungeonBossSelection.resolveBossId(nil, nil, nil, "forest_warden", known),
+		"forest_warden",
+		"resolution falls back to the configured default"
+	)
+	expectEqual(
+		DungeonBossSelection.resolveBossId("ghost", "phantom", "", "forest_warden", known),
+		"forest_warden",
+		"unknown or empty candidates are skipped in favor of the default"
+	)
+
+	local record = DungeonBossSelection.normalizeSessionRecord({
+		v = 1,
+		bossId = "grove_matron",
+		launchId = "launch-abc",
+	})
+	expectEqual(record ~= nil and record.bossId, "grove_matron", "a well-formed session record is accepted")
+	expectEqual(
+		DungeonBossSelection.normalizeSessionRecord({
+			v = 1,
+			bossId = "grove_matron",
+			launchId = "launch-abc",
+			extra = "nope",
+		}),
+		nil,
+		"session records reject unexpected keys"
+	)
+	expectEqual(
+		DungeonBossSelection.normalizeSessionRecord({ v = 1, bossId = "Bad Id!", launchId = "l" }),
+		nil,
+		"session records reject malformed boss ids"
+	)
+	expectEqual(DungeonBossSelection.normalizeSessionRecord("nope"), nil, "session records must be tables")
+
+	expectEqual(
+		DungeonBossSelection.eventBossIfActive("grove_matron", nil, 1000),
+		"grove_matron",
+		"an event boss with no expiry stays active"
+	)
+	expectEqual(
+		DungeonBossSelection.eventBossIfActive("grove_matron", 1500, 1000),
+		"grove_matron",
+		"an event boss before its expiry is active"
+	)
+	expectEqual(
+		DungeonBossSelection.eventBossIfActive("grove_matron", 1000, 1000),
+		nil,
+		"an event boss at or past its expiry is inactive"
+	)
+	expectEqual(
+		DungeonBossSelection.eventBossIfActive("", nil, 1000),
+		nil,
+		"an empty event boss id is inactive"
+	)
+end
+
+do
+	-- Lock in the server-authoritative handoff: the reserved server is explicitly
+	-- reserved, the boss travels through the session store keyed by its id, and
+	-- the client-visible one-shot ShouldReserveServer path is gone.
+	local dungeonServiceSource = fs.readFile("src/server/Services/DungeonService.luau")
+	for _, marker in
+		{
+			"TeleportService:ReserveServer",
+			"ReservedServerAccessCode",
+			"DungeonSessionStore.write",
+			"DungeonSessionStore.read",
+			"normalizeSessionRecord",
+			"function DungeonService.selectBoss",
+		}
+	do
+		expectEqual(
+			string.find(dungeonServiceSource, marker, 1, true) ~= nil,
+			true,
+			`dungeon boss handoff includes {marker}`
+		)
+	end
+	expectEqual(
+		string.find(dungeonServiceSource, "ShouldReserveServer", 1, true),
+		nil,
+		"the one-shot ShouldReserveServer reservation is replaced by an explicit reserve"
+	)
+	local portalServiceSource = fs.readFile("src/server/Services/PortalService.luau")
+	for _, marker in
+		{ "PortalService.setBossPick", "resolveEffectiveBoss", "DungeonBossSelection.resolveBossId" }
+	do
+		expectEqual(
+			string.find(portalServiceSource, marker, 1, true) ~= nil,
+			true,
+			`portal boss selection includes {marker}`
+		)
+	end
+	local dungeonRemoteSource = fs.readFile("src/server/Services/RemoteService.luau")
+	expectEqual(
+		string.find(dungeonRemoteSource, 'SelectDungeonBoss = "dungeon"', 1, true) ~= nil,
+		true,
+		"the boss selection request is feature-gated on the dungeon system"
+	)
+
+	-- Forced admin event boss: allowlist-gated setter, a lobby-only global store
+	-- feeding the resolver's event slot, and an admin chat command surface.
+	for _, marker in
+		{
+			"function DungeonService.setEventBoss",
+			"dungeon.eventAdminUserIds",
+			"DungeonEventStore.set",
+		}
+	do
+		expectEqual(
+			string.find(dungeonServiceSource, marker, 1, true) ~= nil,
+			true,
+			`dungeon event boss admin path includes {marker}`
+		)
+	end
+	expectEqual(
+		string.find(portalServiceSource, "activeEventBoss", 1, true) ~= nil
+			and string.find(portalServiceSource, "target.eventBossId()", 1, true) ~= nil,
+		true,
+		"the portal resolves a forced event boss ahead of party and personal picks"
+	)
+	local dungeonBootstrapSource = fs.readFile("src/server/init.server.luau")
+	expectEqual(
+		string.find(dungeonBootstrapSource, "DungeonEventStore.start()", 1, true) ~= nil
+			and string.find(dungeonBootstrapSource, '"/dungeonevent"', 1, true) ~= nil
+			and string.find(dungeonBootstrapSource, "DungeonService.setEventBoss", 1, true) ~= nil,
+		true,
+		"the lobby starts the event store and installs the allowlisted admin command"
+	)
+end
+
+do
+	-- Roblox-only flows use source-order contracts; pure boss precedence and
+	-- session-record normalization are executed immediately above.
+	local function ordered(source: string, markers: { string }): boolean
+		local cursor = 1
+		for _, value in markers do
+			local found = string.find(source, value, cursor, true)
+			if found == nil then
+				return false
+			end
+			cursor = found + #value
+		end
+		return true
+	end
+
+	local dungeonSource = fs.readFile("src/server/Services/DungeonService.luau")
+	local portalSource = fs.readFile("src/server/Services/PortalService.luau")
+	local eventStoreSource = fs.readFile("src/server/Util/DungeonEventStore.luau")
+	local bootstrapSource = fs.readFile("src/server/init.server.luau")
+	local portalClientSource = fs.readFile("src/starter-client/Portal.client.luau")
+	local remoteSource = fs.readFile("src/server/Services/RemoteService.luau")
+	local portalModelSource = fs.readFile("src/ui/PortalSign.model.json")
+
+	expectEqual(
+		ordered(dungeonSource, {
+			"TeleportService:ReserveServerAsync(game.PlaceId)",
+			"if launchablePlayers(roster) == nil then",
+			"DungeonSessionStore.write(privateServerId",
+			"local finalRoster = launchablePlayers(roster)",
+			"local ids = DungeonLogic.normalizePartyIds(userIds(finalRoster), dungeon.partyMax)",
+			"return beginExactTeleport(",
+		}),
+		true,
+		"reserved launch revalidates after every yield before manifest creation and atomic claim"
+	)
+	expectEqual(
+		string.find(dungeonSource, "TeleportService:ReserveServer(game.PlaceId)", 1, true),
+		nil,
+		"dungeon launch never calls deprecated ReserveServer"
+	)
+	expectEqual(
+		ordered(dungeonSource, {
+			"local function beginExactTeleport(",
+			"if player.Parent ~= Players or seen[player] or pendingTeleports[player] ~= nil then",
+			"pendingTeleports[player] = {",
+			"task.spawn(attemptTeleport, players, game.PlaceId, options, kind, launchId)",
+		}),
+		true,
+		"exact dungeon teleport validates all players before installing pending claims and starting retries"
+	)
+	expectEqual(
+		ordered(dungeonSource, {
+			"function DungeonService.selectBoss",
+			"if not target.setSavedBossId(player, bossId) then",
+			'return false, "profileUnavailable"',
+			"target.notePadBossPick(player, bossId)",
+			"return true, bossId",
+		}),
+		true,
+		"failed personal persistence prevents both the party pick and success response"
+	)
+	expectEqual(
+		ordered(dungeonSource, {
+			"local record = DungeonBossSelection.normalizeSessionRecord",
+			"party = waitForReadyParty(party)",
+			"lockDungeonRoster(manifest, party)",
+			"runFightSafely(party, bossId, core)",
+		})
+			and string.find(dungeonSource, "result ~= Enum.TeleportResult.Failure", 1, true) ~= nil
+			and string.find(dungeonSource, "result ~= Enum.TeleportResult.Flooded", 1, true) ~= nil,
+		true,
+		"session reads revalidate the party and teleport retries reject permanent failures"
+	)
+	expectEqual(
+		string.find(eventStoreSource, "resolved:RemoveAsync(KEY)", 1, true) ~= nil
+			and string.find(eventStoreSource, "local function validUntilTime", 1, true) ~= nil
+			and string.find(eventStoreSource, "untilTime ~= nil and not validUntilTime", 1, true) ~= nil
+			and ordered(dungeonSource, {
+				"function DungeonService.setEventBoss",
+				"if not allowed then",
+				"if not DungeonEventStore.set(nil, nil) then",
+				"The dungeon event store could not be cleared.",
+				"Dungeon event boss cleared.",
+			}),
+		true,
+		"event clear uses RemoveAsync, enforces the allowlist, and propagates failure before success"
+	)
+	expectEqual(ordered(eventStoreSource, {
+		"MAX_CACHE_STALE_SECONDS",
+		"lastSuccessfulStoreClock",
+		"function DungeonEventStore.activeBossId",
+		"os.clock() - refreshedAt > MAX_CACHE_STALE_SECONDS",
+	}) and string.find(eventStoreSource, "function DungeonEventStore.start(): boolean", 1, true) ~= nil and ordered(
+		bootstrapSource,
+		{
+			"local dungeonEventsEnabled = #Config.dungeon.eventAdminUserIds > 0",
+			"if dungeonEventsEnabled then",
+			"local eventStoreReady = DungeonEventStore.start()",
+			"PortalService.start({",
+		}
+	), true, "live event cache has bounded readiness and stale fallback before portal launch")
+	expectEqual(
+		ordered(bootstrapSource, {
+			"now - lastAttemptAt < EVENT_COMMAND_COOLDOWN_SECONDS",
+			"eventCommandLastAttemptAt[textSource.UserId] = now",
+			"local parts = commandParts(message)",
+			"if #parts < 2 or #parts > 3 then",
+			"or parsed <= 0",
+			"DungeonService.setEventBoss(textSource.UserId, bossId, durationMinutes)",
+		}) and string.find(bootstrapSource, 'string.gmatch(message, "%S+")', 1, true) ~= nil,
+		true,
+		"/dungeonevent rate-limits all attempts before parsing and the allowlisted setter"
+	)
+	expectEqual(
+		ordered(portalSource, {
+			"local function resetBossPickIfLeaderChanged",
+			"if order[1] ~= previousLeader then",
+			"pendingBossId = nil",
+			"local function removeFromOrder",
+			"local previousLeader = order[1]",
+			"resetBossPickIfLeaderChanged(previousLeader)",
+			"local function refreshOrder",
+			"local previousLeader = order[1]",
+			"resetBossPickIfLeaderChanged(previousLeader)",
+		}),
+		true,
+		"forget and occupancy refresh clear a party pick only when the effective leader changes"
+	)
+	expectEqual(
+		ordered(portalSource, {
+			"local bossId = resolveEffectiveBoss()",
+			"launchingBossId = bossId",
+			"launchInProgress = true",
+			"publishState(true)",
+			"target.launch(players, bossId)",
+			"launchInProgress = false",
+		})
+			and string.find(portalSource, "if launching and launchingBossId ~= nil", 1, true) ~= nil
+			and ordered(portalClientSource, {
+				"pendingPersonalBossId = nextBoss.id",
+				'packet.kind == "DungeonBossSelected"',
+				"personalBossId = data.bossId",
+			})
+			and string.find(portalClientSource, "if not launching and not eventActive", 1, true) ~= nil
+			and string.find(remoteSource, 'action == "SelectDungeonBoss"', 1, true) ~= nil
+			and ordered(portalModelSource, {
+				'"ClassName": "BillboardGui"',
+				'"Active": true',
+				'"Name": "Prev"',
+				'"Active": true',
+				'"Name": "Next"',
+				'"Active": true',
+			}),
+		true,
+		"launching locks party picks while interactive authored controls reconcile dedicated acknowledgements"
+	)
 end
 
 do
@@ -10277,7 +10628,7 @@ do
 		true,
 		"dungeon weapon grants and exclusive equipment choices persist through InventoryService"
 	)
-	local launchCall = string.find(portalServiceSource, "if not target.launch(players) then", 1, true)
+	local launchCall = string.find(portalServiceSource, "if not target.launch(players, bossId) then", 1, true)
 	local clearRoster = string.find(portalServiceSource, "table.clear(order)", 1, true)
 	expectEqual(
 		launchCall ~= nil and clearRoster ~= nil and launchCall < clearRoster,

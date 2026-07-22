@@ -23,6 +23,10 @@ local Shared = ReplicatedStorage:WaitForChild("Template"):WaitForChild("Shared")
 local Config = require(Shared.TemplateConfig)
 local DungeonConfig = require(Shared.DungeonConfig)
 local DungeonLogic = require(Shared.DungeonLogic)
+local DungeonBossSelection = require(Shared.DungeonBossSelection)
+
+local DungeonSessionStore = require(script.Parent.Parent.Util.DungeonSessionStore)
+local DungeonEventStore = require(script.Parent.Parent.Util.DungeonEventStore)
 
 export type Deps = {
 	-- Sends a dungeon HUD snapshot only to the authoritative party. This must not
@@ -42,6 +46,13 @@ export type Deps = {
 	equippedItemId: (player: Player, slot: string) -> string?,
 	ensureEquipped: (player: Player, slot: string, fallbackItemId: string) -> string?,
 	grantItem: (player: Player, itemId: string, quantity: number) -> (boolean, number),
+	-- Persists a player's chosen boss to their profile (their personal default,
+	-- used for solo runs and as the party default when they lead the pad).
+	setSavedBossId: (player: Player, bossId: string) -> boolean,
+	-- Records the choice as the lobby pad's party pick when the player is the pad
+	-- leader; PortalService enforces the leader check, so this is a no-op for a
+	-- non-leader or on a reserved server with no pad.
+	notePadBossPick: (player: Player, bossId: string) -> (),
 }
 
 local DungeonService = {}
@@ -1325,6 +1336,40 @@ local function beginTeleport(
 	return true
 end
 
+-- Dungeon launches must claim the finalized party atomically. This helper does
+-- not yield: it first validates the complete roster, then installs every
+-- pending entry before the caller can report success to PortalService. Return
+-- teleports intentionally keep beginTeleport's best-effort subset behavior.
+local function beginExactTeleport(
+	players: { Player },
+	options: TeleportOptions,
+	kind: string,
+	launchId: string,
+	terminalMessage: string
+): boolean
+	if RunService:IsStudio() or #players == 0 then
+		return false
+	end
+	local seen: { [Player]: boolean } = {}
+	for _, player in players do
+		if player.Parent ~= Players or seen[player] or pendingTeleports[player] ~= nil then
+			return false
+		end
+		seen[player] = true
+	end
+	for _, player in players do
+		pendingTeleports[player] = {
+			kind = kind,
+			launchId = launchId,
+			attempts = 0,
+			retryScheduled = false,
+			terminalMessage = terminalMessage,
+		}
+	end
+	task.spawn(attemptTeleport, players, game.PlaceId, options, kind, launchId)
+	return true
+end
+
 local function teleportDataIdentity(options: TeleportOptions): (string?, string?)
 	local ok, data = pcall(function()
 		return options:GetTeleportData()
@@ -1348,7 +1393,7 @@ local function installTeleportFailureHandler()
 	teleportFailureConnection = TeleportService.TeleportInitFailed:Connect(
 		function(
 			player: Player,
-			_result: Enum.TeleportResult,
+			result: Enum.TeleportResult,
 			message: string,
 			placeId: number,
 			options: TeleportOptions
@@ -1362,6 +1407,11 @@ local function installTeleportFailureHandler()
 				warn(`Ignoring unrelated teleport failure for {player.Name}: {message}`)
 				return
 			end
+			if result ~= Enum.TeleportResult.Failure and result ~= Enum.TeleportResult.Flooded then
+				warn(`Dungeon teleport failed permanently for {player.Name} ({result.Name}): {message}`)
+				terminalTeleportFailure(player, pending)
+				return
+			end
 			if player.Parent ~= Players or pending.attempts >= dungeon.teleportRetries + 1 then
 				terminalTeleportFailure(player, pending)
 				return
@@ -1371,7 +1421,10 @@ local function installTeleportFailureHandler()
 			end
 			pending.retryScheduled = true
 			local expected = pending
-			task.delay(retryDelay(pending.attempts), function()
+			local delaySeconds = if result == Enum.TeleportResult.Flooded
+				then 15
+				else retryDelay(pending.attempts)
+			task.delay(delaySeconds, function()
 				if pendingTeleports[player] ~= expected or player.Parent ~= Players then
 					return
 				end
@@ -1693,9 +1746,29 @@ local function runDungeonServer()
 	-- the ready, connected subset and return anyone who could not safely join.
 	lockDungeonRoster(manifest, party)
 
-	-- Boss and reward selection are always destination configuration. TeleportData
-	-- is visible to clients and is never trusted for either value.
-	runFightSafely(party, dungeon.defaultBossId, core)
+	-- The boss is resolved server-authoritatively on the lobby and handed over in
+	-- a store keyed by this reserved server's id -- never via client-visible
+	-- TeleportData. Re-validate the record shape, that it belongs to this launch,
+	-- and that the id is a known boss; anything off falls back to the default.
+	local bossId = dungeon.defaultBossId
+	local record = DungeonBossSelection.normalizeSessionRecord(DungeonSessionStore.read(game.PrivateServerId))
+	if
+		record ~= nil
+		and record.launchId == manifest.launchId
+		and DungeonConfig.bossById(dungeon, record.bossId) ~= nil
+	then
+		bossId = record.bossId
+	end
+	-- The session read yields. A party member can depart during it, so refresh the
+	-- ready connected subset and admission lock before boss health/rewards are
+	-- sized from the party table.
+	party = waitForReadyParty(party)
+	if #party == 0 then
+		abortDungeon("The dungeon party left before the encounter began.")
+		return
+	end
+	lockDungeonRoster(manifest, party)
+	runFightSafely(party, bossId, core)
 	task.wait(4)
 	publishInactive(party)
 	clearPartyTools(party)
@@ -1705,8 +1778,9 @@ local function runDungeonServer()
 end
 
 -- Studio-only: run the same fight in-place (no teleport), then set characters
--- back where they were so the loop is testable without a published place.
-local function simulateInPlace(players: { Player })
+-- back where they were so the loop is testable without a published place. The
+-- boss is passed in-process (no reserve/store) so selection is testable in Studio.
+local function simulateInPlace(players: { Player }, bossId: string)
 	local requestedPlayers = players
 	local returnStates: { [Player]: StudioReturnState } = {}
 	for _, player in players do
@@ -1735,7 +1809,7 @@ local function simulateInPlace(players: { Player })
 		return
 	end
 
-	runFightSafely(players, dungeon.defaultBossId, core)
+	runFightSafely(players, bossId, core)
 	task.wait(4)
 	publishInactive(players)
 	clearPartyTools(players)
@@ -1759,29 +1833,6 @@ local function simulateInPlace(players: { Player })
 	runInProgress = false
 end
 
-local function teleportPartyToReservedServer(players: { Player }): boolean
-	local ids = DungeonLogic.normalizePartyIds(userIds(players), dungeon.partyMax)
-	if ids == nil then
-		return false
-	end
-	local options = Instance.new("TeleportOptions")
-	local launchId = HttpService:GenerateGUID(false)
-	options.ShouldReserveServer = true
-	options:SetTeleportData({
-		kind = "DungeonParty",
-		v = 1,
-		launchId = launchId,
-		party = ids,
-	})
-	return beginTeleport(
-		players,
-		options,
-		"DungeonParty",
-		launchId,
-		"The dungeon portal is busy. Please try again."
-	)
-end
-
 local function launchablePlayers(players: { Player }): { Player }?
 	local result: { Player } = {}
 	local seen: { [Player]: boolean } = {}
@@ -1789,8 +1840,8 @@ local function launchablePlayers(players: { Player }): { Player }?
 	if target == nil then
 		return nil
 	end
-	local selectedCount = math.min(#players, dungeon.partyMax)
-	if selectedCount == 0 then
+	local selectedCount = #players
+	if selectedCount == 0 or selectedCount > dungeon.partyMax then
 		return nil
 	end
 	for index = 1, selectedCount do
@@ -1813,8 +1864,67 @@ local function launchablePlayers(players: { Player }): { Player }?
 	return result
 end
 
+local function teleportPartyToReservedServer(players: { Player }, bossId: string): boolean
+	-- Preserve one exact roster across every yielding setup step. This first
+	-- validation also copies the caller-owned table so later checks cannot be
+	-- weakened by a mutation of that table.
+	local roster = launchablePlayers(players)
+	if roster == nil then
+		return false
+	end
+	local launchId = HttpService:GenerateGUID(false)
+	-- Reserve explicitly (rather than the one-shot reserve+teleport) so we learn
+	-- the reserved server's id and can hand it the resolved boss out-of-band.
+	-- Reserving yields once at launch; retries reuse this access code and the one
+	-- TeleportOptions instance below, never re-reserving.
+	local reserveOk, accessCode, privateServerId = pcall(function()
+		return TeleportService:ReserveServerAsync(game.PlaceId)
+	end)
+	if not reserveOk or type(accessCode) ~= "string" or type(privateServerId) ~= "string" then
+		warn(`Dungeon reserve failed: {tostring(accessCode)}`)
+		return false
+	end
+	-- Reservation yielded. A disconnect, profile loss, or competing teleport
+	-- invalidates the entire original roster rather than narrowing the manifest.
+	if launchablePlayers(roster) == nil then
+		return false
+	end
+
+	-- Server-authoritative boss handoff. A write failure is non-fatal: the
+	-- reserved server simply falls back to the default boss. The write may yield,
+	-- so the complete roster is validated once more before any pending state is
+	-- installed or manifest ids are derived.
+	DungeonSessionStore.write(privateServerId, { v = 1, bossId = bossId, launchId = launchId })
+	local finalRoster = launchablePlayers(roster)
+	if finalRoster == nil then
+		return false
+	end
+	local ids = DungeonLogic.normalizePartyIds(userIds(finalRoster), dungeon.partyMax)
+	if ids == nil or #ids ~= #finalRoster then
+		return false
+	end
+
+	local options = Instance.new("TeleportOptions")
+	options.ReservedServerAccessCode = accessCode
+	options:SetTeleportData({
+		kind = "DungeonParty",
+		v = 1,
+		launchId = launchId,
+		party = ids,
+	})
+	return beginExactTeleport(
+		finalRoster,
+		options,
+		"DungeonParty",
+		launchId,
+		"The dungeon portal is busy. Please try again."
+	)
+end
+
 -- Lobby-server entry point used by PortalService when the pad countdown ends.
-function DungeonService.launchParty(players: { Player }): boolean
+-- `bossId` is the boss the lobby resolved for this run (event > party > personal
+-- > default); runFight re-validates it against the catalog on the destination.
+function DungeonService.launchParty(players: { Player }, bossId: string): boolean
 	local accepted = launchablePlayers(players)
 	if accepted == nil then
 		return false
@@ -1824,10 +1934,77 @@ function DungeonService.launchParty(players: { Player }): boolean
 			return false
 		end
 		runInProgress = true
-		task.spawn(simulateInPlace, accepted)
+		task.spawn(simulateInPlace, accepted, bossId)
 		return true
 	end
-	return teleportPartyToReservedServer(accepted)
+	return teleportPartyToReservedServer(accepted, bossId)
+end
+
+-- Lobby request entry: a player picked a boss on the portal. Persist it as their
+-- personal default and, when they lead the pad, apply it as the party's pick.
+function DungeonService.selectBoss(player: Player, bossId: any): (boolean, string)
+	if type(bossId) ~= "string" or DungeonConfig.bossById(dungeon, bossId) == nil then
+		return false, "unknownBoss"
+	end
+	local target = deps
+	if target == nil then
+		return false, "unavailable"
+	end
+	if not target.setSavedBossId(player, bossId) then
+		return false, "profileUnavailable"
+	end
+	target.notePadBossPick(player, bossId)
+	return true, bossId
+end
+
+-- Admin-only: force (or clear) the global event boss. The allowlist is enforced
+-- here on the server, so a non-admin request is always rejected regardless of how
+-- it was triggered. A nil/empty/"off" id clears the event; `durationMinutes`
+-- optionally auto-expires it (capped at a week).
+function DungeonService.setEventBoss(
+	userId: number,
+	bossId: string?,
+	durationMinutes: number?
+): (boolean, string)
+	local allowed = false
+	for _, adminId in dungeon.eventAdminUserIds do
+		if adminId == userId then
+			allowed = true
+			break
+		end
+	end
+	if not allowed then
+		return false, "You are not allowed to set the dungeon event boss."
+	end
+	if
+		durationMinutes ~= nil
+		and (
+			type(durationMinutes) ~= "number"
+			or durationMinutes ~= durationMinutes
+			or durationMinutes == math.huge
+			or durationMinutes == -math.huge
+			or durationMinutes <= 0
+		)
+	then
+		return false, "Duration must be a finite number greater than zero."
+	end
+	if bossId == nil or bossId == "" or bossId == "off" then
+		if not DungeonEventStore.set(nil, nil) then
+			return false, "The dungeon event store could not be cleared."
+		end
+		return true, "Dungeon event boss cleared."
+	end
+	if DungeonConfig.bossById(dungeon, bossId) == nil then
+		return false, `Unknown boss "{bossId}".`
+	end
+	local untilTime: number? = nil
+	if durationMinutes ~= nil then
+		untilTime = os.time() + math.max(1, math.floor(math.min(durationMinutes, 10080) * 60))
+	end
+	if not DungeonEventStore.set(bossId, untilTime) then
+		return false, "The dungeon event store could not be written."
+	end
+	return true, `Dungeon event boss set to {bossId}.`
 end
 
 function DungeonService.start(dependencies: Deps)
