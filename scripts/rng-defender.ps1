@@ -140,7 +140,7 @@ try {
     Write-Host ""
     Write-Host "In Studio, connect Plugins > Rojo, stop and restart Play, then verify the portal." -ForegroundColor Cyan
     Write-Host "Use File > Publish to Roblox to update this same place; never use Publish As." -ForegroundColor Yellow
-    Write-Host "Do not open or publish build\RNGDefenderSafePatch.rbxlx; it intentionally omits Team Create world data." -ForegroundColor Yellow
+    Write-Host "Do not open or publish build\RNGDefenderSafePatch.rbxlx; this structural build intentionally omits unknown Team Create world data." -ForegroundColor Yellow
     Write-Host "Keep this window open while editing. Press Ctrl+C when finished."
 
     & rojo serve $patchProjectPath --port $rojoPort

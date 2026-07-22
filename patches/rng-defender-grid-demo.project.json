@@ -155,6 +155,15 @@
     },
     "StarterGui": {
       "$ignoreUnknownInstances": true,
+      "TemplateUI": {
+        "$path": "../src/ui/presets/incremental/TemplateUI.model.json"
+      },
+      "TemplateLoading": {
+        "$path": "../src/ui/presets/incremental/TemplateLoading.model.json"
+      },
+      "StarterSignUI": {
+        "$path": "../src/ui/presets/incremental/StarterSignUI.model.json"
+      },
       "RuneCircleSign": {
         "$path": "../src/ui/RuneCircleSign.model.json"
       },

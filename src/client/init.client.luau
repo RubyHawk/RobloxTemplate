@@ -57,6 +57,8 @@ local Screens = require(script.UI.Screens)
 
 StageGridRenderer.initialize()
 StagePlatformOwnerController.initialize()
+StageEnemyRenderer.initialize()
+StageTowerRenderer.initialize()
 
 local remotes = ReplicatedStorage:WaitForChild(RemoteNames.folder)
 local requestRemote = remotes:WaitForChild(RemoteNames.request) :: RemoteEvent
@@ -192,8 +194,6 @@ local function showToast(message: string)
 end
 
 AudioController.initialize()
-StageEnemyRenderer.initialize()
-StageTowerRenderer.initialize()
 
 local function optionalScreenGui(name: string): ScreenGui?
 	local candidate = playerGui:FindFirstChild(name)

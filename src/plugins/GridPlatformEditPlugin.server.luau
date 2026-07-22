@@ -125,6 +125,7 @@ local validationFilter = "Overview"
 local pendingConfirmation: { id: string, expires: number }? = nil
 local islandOutlinesEnabled = false
 local validationIssues: { any } = {}
+local latestPaintRoutePreview: any? = nil
 local worldPathController: WorldPathController.Controller
 local routeDragSession: PaintRouteDragSession.Session
 local paintStrokeSession: PaintStrokeSession.Session
@@ -365,6 +366,14 @@ MapNavigationController.bind(shell.mapPlayable, shell.mapAdmin, {
 	cancelInteraction = function()
 		cancelActiveEditorInteraction(false)
 	end,
+	focusPlayable = function(): boolean
+		local current = stage()
+		if current == nil then
+			return false
+		end
+		return AuthoringArea.focusPlayable(current.grid.columns, current.grid.rows, current.grid.cellSize)
+	end,
+	focusAdmin = AuthoringArea.focus,
 	reportBlocked = flowRuntime.reportBlocked,
 	setStatus = setStatus,
 })
@@ -1682,11 +1691,13 @@ end
 function renderCanvas()
 	local current = stage()
 	if current == nil then
+		latestPaintRoutePreview = nil
 		return
 	end
 	local grid = current.grid
 	local paintLayer = Brushes.find(activeBrushId).layer
 	local routePreview = ProjectStore.preview(selectedStageId)
+	latestPaintRoutePreview = routePreview
 	local routeMask = if routePreview ~= nil then routePreview.routeNoBuildMask or {} else {}
 	local width = grid.columns * paintCellPixels + 22
 	local height = grid.rows * paintCellPixels + 22
@@ -4855,24 +4866,31 @@ UserInputService.InputChanged:Connect(function(input)
 		if not ProjectStore.isWritable() then
 			return
 		end
-		local localPosition = paintRuntime.localPositionAt(position)
+		local draggingRoute = routeDragSession:isActive()
+		local column, row = paintRuntime.cellAt(position)
 		if
-			routeDragSession:isActive()
-			and not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+			not draggingRoute
+			and (column == nil or row == nil or not shell:isWorkspaceInputAllowed(position))
 		then
+			showHoveredCell(nil, nil)
+			return
+		end
+		local localPosition = if draggingRoute then paintRuntime.localPositionAt(position) else nil
+		if draggingRoute and not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
 			routeDragSession:release(routePoint(position), localPosition)
 			renderAll()
 			return
 		end
-		local column, row = paintRuntime.cellAt(position)
 		if column ~= nil and row ~= nil then
-			local preview = ProjectStore.preview(selectedStageId)
+			local preview = latestPaintRoutePreview
 			local routeAffected = preview ~= nil and preview.routeNoBuildMask[`{column}:{row}`] == true
 			showHoveredCell(column, row, routeAffected)
 		else
 			showHoveredCell(nil, nil)
 		end
-		routeDragSession:move(routePoint(position), localPosition)
+		if draggingRoute then
+			routeDragSession:move(routePoint(position), localPosition)
+		end
 		return
 	end
 end)

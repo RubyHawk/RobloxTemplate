@@ -1,12 +1,15 @@
 # Stagewright migration and production QA
 
-Stagewright uses three intentionally different surfaces:
+Stagewright uses four intentionally different surfaces:
 
 - Shared authoring source: place `128136881672145`, universe `10479279603`. This is where Team Create-only legacy cells and route controls must be imported.
 - Repository artifact: `stage-data/stagewright-project.json` plus `StageCatalog.generated.luau`. This is the deployable source of truth after export/import.
+- Production scenery: the existing Team Create world. Team Create exclusively owns every island, bridge, upgrade area, and other map-scene object; the guarded RNG patch owns no map scenery.
 - Runtime sandbox: the permanent `playerTest` experience. Use the `tower-defense` recipe so live QA never mutates the shared authoring place accidentally.
 
-The production world uses `center_grass` as its center. The configured slot-1 offset defines the first playable island; slots 2–6 rotate that local frame around the center in 60-degree steps. The movable authoring `GamePlatform` is deliberately not a runtime anchor.
+The RNG recipe stores the logical layout center `(0, 15.5, 0)`. The configured slot-1 offset and yaw define the first 32×27 playable grid footprint; slots 2–6 rotate that complete local frame around the center in 60-degree steps. The movable authoring `GamePlatform` and Team Create scenery are deliberately not runtime anchors for this recipe.
+
+There is one canonical admin `GamePlatform`, not six raw copies. `StagePlatformService` assigns six server-authoritative runtime slots, and the exported stage data is transformed independently at those logical origins. Missing or invalid layout configuration must continue to fail closed; assigning a slot without a valid origin would only manufacture a misleading platform.
 
 No workflow below creates a Roblox experience.
 
@@ -18,10 +21,11 @@ No workflow below creates a Roblox experience.
 4. The launcher installs the local Stagewright plugin and opens the existing shared place without starting Rojo.
 5. Open **Plugins → Stagewright**. The plugin moves the existing `FirstPrivateIsland.GamePlatform` intact into the open-front white `Workspace.StagewrightAdminArea`, 1,000 studs below and 3,000 studs outside the map footprint. If the place has no `ServerStorage.StagewrightProject`, Stagewright imports that admin platform once.
 6. Confirm before editing:
+   - The existing Team Create islands, bridges, upgrade areas, and all other map scenery remain intact. No repository-owned `Workspace.StagewrightPlayableWorld` should appear when the safe patch connects.
    - **Stage → Focus Admin** frames the white authoring room and the main `GamePlatform` remains visible inside it. From the production map, the room is too deep to show through water or island gaps.
    - **Island Guides: On** shows the complete cyan 32×27 cell grid on all six beaches. No unexplained orange orientation line should cross an island. Toggle it off and on without changing authored stage data.
    - Start a Server + Client test and confirm `StagewrightAdminArea` moves to `ServerStorage` for the running session. The white room and its legacy grid cannot appear through the world during Play; Studio restores the editor copy when the test stops.
-   - `FirstPrivateIsland` no longer owns the editable `GamePlatform`; the six island origins remain unchanged because they come from `center_grass` plus configuration.
+   - `FirstPrivateIsland` no longer owns the editable `GamePlatform`; the six logical grid origins remain unchanged because they come from the configured center, slot-1 offset, slot-1 yaw, and 60-degree rotations.
    - Every legacy `#` remains an authored `Blocked` cell.
    - `P`, `G`, and `A` appear as independent roles.
    - If `P` is absent but path controls exist, `Control_001` becomes the explicit inferred spawn and the validation panel reports that migration decision.
@@ -29,7 +33,7 @@ No workflow below creates a Roblox experience.
    - Additional portals/goals appear as `NeedsRepair` nodes and validation errors rather than disappearing.
    - Moving `GamePlatform` does not change stored node coordinates.
 
-Do not connect the `rng-defender-grid-demo` Rojo patch during this import. Keep this first pass Rojo-free so Team Create-only map data can be exported before any repository-managed gameplay code is synchronized. The current safe patch does not own `FirstPrivateIsland`; use the guarded delivery workflow below only after import and repository review are complete.
+Do not connect the `rng-defender-grid-demo` Rojo patch during the first legacy-authoring import. Keep that pass Rojo-free so Team Create-only cells and route controls can be exported before repository-managed gameplay code is synchronized. After review, the safe patch still owns no map scenery: it does not own `FirstPrivateIsland`, any island/bridge/upgrade model, or any other Team Create map root. It synchronizes gameplay code, authored Stagewright data, portal assets, the configured independent UI pack, and the logical layout configuration only. Use the guarded delivery workflow below only after import and repository review are complete.
 
 ## 2. Studio interaction checklist
 
@@ -90,9 +94,11 @@ After the Stagewright export/import diff and automated checks pass, run:
 
 This launcher validates universe `10479279603`, place `128136881672145`, and the patch's single `servePlaceIds` entry before opening Studio or serving files. In Studio, connect **Plugins > Rojo**, stop and restart Play, and verify the in-place portal simulation, dungeon arena, combat, HUD, and simulated return. Publish with **File > Publish to Roblox** on this same place; never use **Publish As**.
 
+After connecting, verify that all Team Create island, bridge, upgrade, and other map scenery is unchanged and that Rojo has not added a repository-owned `Workspace.StagewrightPlayableWorld`. Confirm `StagePlatformOrigins.LayoutSource` reports the configured center and that the six derived 32×27 grid footprints line up with the existing first-island play areas. They must not be implemented as clones of `StagewrightAdminArea.GamePlatform`.
+
 Studio cannot execute `TeleportAsync`. After publishing, join RNG Defender through the Roblox client and separately verify the real reserved-server entry, a complete party fight/reward, and the return teleport to the public lobby. The roundtrip is not considered validated until this published-client check passes.
 
-Do not open or publish `build/RNGDefenderSafePatch.rbxlx`. That artifact is only a structural validation build and intentionally omits Team Create world data.
+Do not open or publish `build/RNGDefenderSafePatch.rbxlx`. That artifact is only a structural validation build and intentionally omits unknown Team Create world data; it contains no production map scenery.
 
 ## 5. Runtime QA in playerTest
 
@@ -124,7 +130,7 @@ In Studio:
 
 Before live tower-defense testing, open **File > Game Settings > Places > ... > Configure Place** and set **Maximum Players** to `6`. Roblox then admits at most six players to each server and creates additional servers for further players. Platform-exclusive recipes reject a player before profile loading if no authoritative platform is available, so nobody can remain in gameplay without an island.
 
-RNG Defender is currently an explicit hybrid-lobby exception: `towerDefense.requirePlatformOnJoin = false` allows the rune lobby and reserved dungeon flow to load while the Team Create platform world is absent. Tower-defense activation, placement, and wave requests still fail server-side until the authored six-island layout has one unique `center_grass` anchor. This exception must not be implemented by synthesizing or sharing a platform origin.
+RNG Defender is currently an explicit hybrid-lobby exception: `towerDefense.requirePlatformOnJoin = false` allows the rune lobby and reserved dungeon flow to remain available if the logical platform layout is missing or invalid. Tower-defense activation, placement, and wave requests still fail server-side until the configured center can produce all six authoritative slot origins. This fail-closed behavior is intentional and must not be bypassed by synthesizing, sharing, or cloning an admin platform origin.
 
 Use MicroProfiler captures for the agreed device/server baseline. The pure local gate checks:
 
