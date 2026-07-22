@@ -84,11 +84,32 @@ local function configuredRelativeFrame(): CFrame
 		* CFrame.Angles(0, math.rad(Config.towerDefense.firstPlatformYawDegrees), 0)
 end
 
+local function configuredCenterFrame(): CFrame?
+	local position = Config.towerDefense.platformCenterPosition
+	if type(position) ~= "table" then
+		return nil
+	end
+	local x = position[1]
+	local y = position[2]
+	local z = position[3]
+	if type(x) ~= "number" or type(y) ~= "number" or type(z) ~= "number" then
+		return nil
+	end
+	return CFrame.new(x, y, z)
+end
+
 local function layout(): (CFrame?, CFrame?)
 	if layoutAttempted then
 		return cachedCenter, cachedFirstRelative
 	end
 	layoutAttempted = true
+	local configuredCenter = configuredCenterFrame()
+	if configuredCenter ~= nil then
+		cachedCenter = configuredCenter
+		cachedFirstRelative = configuredRelativeFrame()
+		cachedLayoutSource = "ConfiguredCenter"
+		return cachedCenter, cachedFirstRelative
+	end
 	local center, centerContractValid = uniqueCenterAnchor(Config.towerDefense.centerPartNames)
 	if not centerContractValid then
 		cachedLayoutSource = "AmbiguousCenter"

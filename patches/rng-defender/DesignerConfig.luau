@@ -30,5 +30,9 @@ return {
 		-- disable tower-defense actions, not eject players before they can use the
 		-- rune and dungeon systems.
 		requirePlatformOnJoin = false,
+		-- The existing Team Create world owns all island and upgrade scenery.
+		-- Stagewright only needs the shared radial origin so it can place one
+		-- 32x27 logical grid on each of the six first-island play areas.
+		platformCenterPosition = { 0, 15.5, 0 },
 	},
 }

@@ -5,9 +5,11 @@ The team supplied two Studio model exports from the existing shared tower-defens
 - `StagewrightLegacySource.rbxm`: the one authored playable `FirstPrivateIsland.GamePlatform`.
 - `SixIslandWorldLayout.rbxm`: the central world mesh and its six radial player islands.
 
+Those exports were measurement and migration inputs only. The persistent islands, bridges, upgrade areas, and all other production scenery remain exclusively owned by the Team Create place. The repository does not contain or deliver a `SixIslandWorldLayout` scene, and the guarded RNG patch owns no map-scenery root.
+
 Confirmed authoring measurements:
 
-- `center_grass` is the radial center, with CFrame position `(0, 15.5, 0)` in the exported layout.
+- `center_grass` measured the radial center at CFrame position `(0, 15.5, 0)` in the export. The RNG recipe records that position as logical configuration and does not require the scenery instance at runtime.
 - `island1_grass` is a combined mesh containing the first island surface for each of the six players; the six islands are not six separately transformable Instances.
 - The authored `PlatformOrigin` for slot 1 is `(183.524, 28.844, 94.169)`. The production yaw is derived from the stage's local center-facing vector rather than retaining the legacy zero-yaw test transform.
 - Relative to `center_grass`, slot 1 is `(183.524, 13.344, 94.169)`.
@@ -18,12 +20,15 @@ Confirmed authoring measurements:
 Runtime decisions:
 
 - One Stagewright stage definition is authored and reused for all six players.
+- One canonical `Workspace.StagewrightAdminArea.GamePlatform` remains the editable source. It is never raw-cloned into the six playable slots.
 - `StagePlatformService` assigns one authoritative slot per player and supplies the transformed origin to `StageRuntimeService`.
 - `StageRuntimeService` has no independent Workspace-geometry fallback; server bootstrap injects the authoritative platform origin provider before player loading, and an uninitialized service fails closed off-map.
 - No runtime cloning of the grid's SurfaceGui objects is performed. Stage data, towers, and client enemy visuals are transformed through the assigned origin.
-- The attachment name mentioned as `ccenter_grass` is supported as an alias, while the supplied model's actual part name is `center_grass`.
-- Runtime accepts a center anchor only when exactly one supported name resolves. Duplicate matching descendants fail the layout closed instead of choosing an arbitrary first match, and `StagePlatformOrigins.LayoutSource` reports the resolver path for Studio diagnostics.
+- RNG Defender uses the explicit configured center before inspecting Workspace scenery. Recipes without an explicit center may use the supported `center_grass` / `ccenter_grass` names only as a compatibility fallback.
+- A fallback center is accepted only when exactly one supported name resolves. Duplicate matching descendants fail the layout closed instead of choosing an arbitrary first match, and `StagePlatformOrigins.LayoutSource` reports whether configuration or fallback supplied the center.
+- Missing or invalid layout data also fails closed. The service must not publish a player slot unless it can publish its authoritative origin.
 - A seventh player receives no tower-defense platform; placement, stage activation, and wave actions fail instead of overlapping another player.
+- The production place must set **Maximum Players** to `6`, matching the six authoritative slots.
 
 Legacy-source characterization result (superseded by the production layout below):
 
@@ -44,9 +49,9 @@ Legacy-source characterization result (superseded by the production layout below
 
 ## Authoring-area separation update — 2026-07-13
 
-- The measured slot-1 transform is now represented only by
-  `firstPlatformOffsetFromCenter`; runtime no longer reads the movable
-  `GamePlatform.PlatformOrigin` when `center_grass` is available.
+- The measured slot-1 transform is represented by
+  `firstPlatformOffsetFromCenter` plus the derived center-facing yaw. Runtime
+  never reads the movable `GamePlatform.PlatformOrigin` for player placement.
 - The canonical editable `GamePlatform` is moved intact into
   `Workspace.StagewrightAdminArea`, 1,000 studs below and 3,000 studs outside
   the center world footprint, inside an open-front white room. During Play the
@@ -54,3 +59,12 @@ Legacy-source characterization result (superseded by the production layout below
 - The admin platform is editor state, not a seventh player slot. Each player
   island continues to receive a generated playable grid from the exported
   stage catalog.
+
+## Team Create world-ownership clarification — 2026-07-22
+
+- Team Create is the sole owner of the persistent central island, six surrounding player islands, bridges, upgrade areas, and every other map-scene object.
+- The guarded RNG Rojo project owns no map scenery and must not add `Workspace.StagewrightPlayableWorld`, `SixIslandWorldLayout`, or replacement island models.
+- The RNG repository owns only the logical center `(0, 15.5, 0)`, the measured slot-1 offset and yaw, and the derivation that rotates that complete frame in 60-degree increments.
+- Each derived slot receives one 32×27 logical Stagewright grid footprint. Runtime owns assignment and level rendering at those transforms, not creation or ownership of the islands beneath them.
+- `Workspace.StagewrightAdminArea.GamePlatform` remains the single editable authoring source and is never cloned into the six player slots.
+- If neither valid configuration nor one unambiguous compatibility center can resolve the layout, `LayoutAvailable` remains false and tower-defense actions remain unavailable. A fake slot or cloned admin platform is not a valid fallback.

@@ -33,6 +33,29 @@ local designerTowerDefense: { [string]: any } = if type((DesignerConfig :: any).
 	then (DesignerConfig :: any).towerDefense
 	else {}
 
+local function optionalFiniteVec3(value: any): { number }?
+	if type(value) ~= "table" then
+		return nil
+	end
+	local x = value[1]
+	local y = value[2]
+	local z = value[3]
+	if
+		type(x) ~= "number"
+		or type(y) ~= "number"
+		or type(z) ~= "number"
+		or x ~= x
+		or y ~= y
+		or z ~= z
+		or math.abs(x) == math.huge
+		or math.abs(y) == math.huge
+		or math.abs(z) == math.huge
+	then
+		return nil
+	end
+	return { x, y, z }
+end
+
 local function runeNumber(key: string, fallback: number, minimum: number, maximum: number): number
 	local value = designerRunes[key]
 	if type(value) ~= "number" or value ~= value or value == math.huge or value == -math.huge then
@@ -207,6 +230,7 @@ local Config = {
 		starterLevelsPerStage = 10,
 		requirePlatformOnJoin = designerTowerDefense.requirePlatformOnJoin ~= false,
 		platformSlotCount = 6,
+		platformCenterPosition = optionalFiniteVec3(designerTowerDefense.platformCenterPosition),
 		centerPartNames = { "center_grass", "ccenter_grass" },
 		firstPlatformIslandName = "FirstPrivateIsland",
 		platformModelName = "GamePlatform",

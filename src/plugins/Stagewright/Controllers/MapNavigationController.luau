@@ -1,12 +1,13 @@
 --!strict
 
-local AuthoringArea = require(script.Parent.Parent.AuthoringArea)
 local ProjectStore = require(script.Parent.Parent.ProjectStore)
 
 local MapNavigationController = {}
 
 export type Callbacks = {
 	cancelInteraction: () -> (),
+	focusPlayable: () -> boolean,
+	focusAdmin: () -> boolean,
 	reportBlocked: (string) -> (),
 	setStatus: (string, boolean?) -> (),
 }
@@ -18,9 +19,9 @@ function MapNavigationController.bind(
 )
 	playableButton.Activated:Connect(function()
 		callbacks.cancelInteraction()
-		local focused = AuthoringArea.focusPlayable()
+		local focused = callbacks.focusPlayable()
 		callbacks.setStatus(
-			if focused then "Focused the playable map." else "The playable map could not be found.",
+			if focused then "Focused the first playable grid." else "The playable grid could not be resolved.",
 			not focused
 		)
 	end)
@@ -30,7 +31,7 @@ function MapNavigationController.bind(
 			return
 		end
 		callbacks.cancelInteraction()
-		local focused = AuthoringArea.focus()
+		local focused = callbacks.focusAdmin()
 		callbacks.setStatus(
 			if focused
 				then "Focused the Stagewright admin work area."

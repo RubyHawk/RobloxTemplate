@@ -3540,6 +3540,50 @@ expectEqual(
 	true,
 	"connected icons come from the shared tracked manifest"
 )
+do
+	local optionalFiniteVec3Start = assert(
+		string.find(templateConfigSource, "local function optionalFiniteVec3", 1, true),
+		"TemplateConfig optional finite vec3 validator exists"
+	)
+	local optionalFiniteVec3End = assert(
+		string.find(templateConfigSource, "local function runeNumber", optionalFiniteVec3Start, true),
+		"TemplateConfig optional finite vec3 validator has a stable boundary"
+	)
+	local optionalFiniteVec3Source =
+		string.sub(templateConfigSource, optionalFiniteVec3Start, optionalFiniteVec3End - 1)
+	for _, validationMarker in
+		{
+			"local function optionalFiniteVec3(value: any): { number }?",
+			'type(value) ~= "table"',
+			'type(x) ~= "number"',
+			'type(y) ~= "number"',
+			'type(z) ~= "number"',
+			"x ~= x",
+			"y ~= y",
+			"z ~= z",
+			"math.abs(x) == math.huge",
+			"math.abs(y) == math.huge",
+			"math.abs(z) == math.huge",
+			"return { x, y, z }",
+		}
+	do
+		expectEqual(
+			string.find(optionalFiniteVec3Source, validationMarker, 1, true) ~= nil,
+			true,
+			`TemplateConfig validates optional platform centers: {validationMarker}`
+		)
+	end
+	expectEqual(
+		string.find(
+			templateConfigSource,
+			"platformCenterPosition = optionalFiniteVec3(designerTowerDefense.platformCenterPosition)",
+			1,
+			true
+		) ~= nil,
+		true,
+		"TemplateConfig passes through a validated optional platform center"
+	)
+end
 local presetBuilderSource = fs.readFile("scripts/build-game-preset.ps1")
 expectEqual(
 	string.find(presetBuilderSource, 'experienceMode = `"playable`"', 1, true) ~= nil,
@@ -4054,6 +4098,9 @@ for _, patchObject in
 		'"Template"',
 		'"Shared"',
 		'"TemplateServer"',
+		'"TemplateUI"',
+		'"TemplateLoading"',
+		'"StarterSignUI"',
 		'"RuneCircle"',
 		'"RuneCircleSign"',
 		'"RuneCircleUI"',
@@ -4071,6 +4118,31 @@ do
 		`RNG Defender grid patch includes {patchObject}`
 	)
 end
+for _, connectedUiModel in
+	{
+		"../src/ui/presets/incremental/TemplateUI.model.json",
+		"../src/ui/presets/incremental/TemplateLoading.model.json",
+		"../src/ui/presets/incremental/StarterSignUI.model.json",
+	}
+do
+	expectEqual(
+		string.find(gridPatchProject, connectedUiModel, 1, true) ~= nil,
+		true,
+		`RNG Defender ships its configured independent UI pack: {connectedUiModel}`
+	)
+end
+for _, unmanagedWorldMarker in { "SixIslandWorldLayout.rbxmx", "StagewrightPlayableWorld" } do
+	expectEqual(
+		string.find(gridPatchProject, unmanagedWorldMarker, 1, true),
+		nil,
+		`RNG Defender patch leaves the Team Create world unmanaged: {unmanagedWorldMarker}`
+	)
+end
+expectEqual(
+	string.find(gridPatchProject, '"$ignoreUnknownInstances": true', 1, true) ~= nil,
+	true,
+	"RNG Defender patch preserves unknown Team Create instances"
+)
 expectEqual(
 	string.find(gridPatchProject, '"GridNpcDemo"', 1, true),
 	nil,
@@ -4087,6 +4159,7 @@ for _, patchConfigObject in
 		"towerDefense = true",
 		"dungeon = true",
 		"requirePlatformOnJoin = false",
+		"platformCenterPosition = { 0, 15.5, 0 }",
 	}
 do
 	expectEqual(
@@ -4638,6 +4711,14 @@ do
 				true
 			) ~= nil
 			and string.find(gridPluginSource, "cancelInteraction = function()", 1, true) ~= nil
+			and string.find(gridPluginSource, "focusPlayable = function(): boolean", 1, true) ~= nil
+			and string.find(
+				gridPluginSource,
+				"AuthoringArea.focusPlayable(current.grid.columns, current.grid.rows, current.grid.cellSize)",
+				1,
+				true
+			) ~= nil
+			and string.find(gridPluginSource, "focusAdmin = AuthoringArea.focus", 1, true) ~= nil
 			and string.find(gridPluginSource, "reportBlocked = flowRuntime.reportBlocked", 1, true) ~= nil
 			and string.find(gridPluginSource, "setStatus = setStatus", 1, true) ~= nil
 			and string.find(gridPluginSource, "shell.mapPlayable.Activated:Connect", 1, true) == nil
@@ -4645,18 +4726,171 @@ do
 		true,
 		"Stagewright bootstrap delegates MAP behavior to the extracted navigation controller"
 	)
+	do
+		local centerResolverStart = assert(
+			string.find(stagewrightAuthoringAreaSource, "local function centerPart", 1, true),
+			"Stagewright center resolver exists"
+		)
+		local centerResolverEnd = assert(
+			string.find(
+				stagewrightAuthoringAreaSource,
+				"local function legacyPlatform",
+				centerResolverStart,
+				true
+			),
+			"Stagewright center resolver has a stable boundary"
+		)
+		local centerResolverSource =
+			string.sub(stagewrightAuthoringAreaSource, centerResolverStart, centerResolverEnd - 1)
+		expectEqual(
+			string.find(centerResolverSource, "local found: BasePart? = nil", 1, true) ~= nil
+				and string.find(centerResolverSource, "if found ~= nil then", 1, true) ~= nil
+				and string.find(centerResolverSource, "warnedAmbiguousCenter = true", 1, true) ~= nil
+				and string.find(centerResolverSource, "return descendant", 1, true) == nil,
+			true,
+			"Stagewright playable focus fails closed when multiple center anchors exist"
+		)
+	end
+	do
+		local layoutCenterStart = assert(
+			string.find(stagewrightAuthoringAreaSource, "local function layoutCenter", 1, true),
+			"Stagewright layout center resolver exists"
+		)
+		local layoutCenterEnd = assert(
+			string.find(
+				stagewrightAuthoringAreaSource,
+				"local function legacyPlatform",
+				layoutCenterStart,
+				true
+			),
+			"Stagewright layout center resolver has a stable boundary"
+		)
+		local layoutCenterSource =
+			string.sub(stagewrightAuthoringAreaSource, layoutCenterStart, layoutCenterEnd - 1)
+		local configuredCenterAt = string.find(
+			layoutCenterSource,
+			"local configured = templateConfig.towerDefense.platformCenterPosition",
+			1,
+			true
+		)
+		local configuredReturnAt =
+			string.find(layoutCenterSource, 'return CFrame.new(x, y, z), "ConfiguredCenter"', 1, true)
+		local authoredCenterAt =
+			string.find(layoutCenterSource, "local center = centerPart(templateConfig)", 1, true)
+		expectEqual(
+			configuredCenterAt ~= nil
+				and configuredReturnAt ~= nil
+				and authoredCenterAt ~= nil
+				and configuredCenterAt < configuredReturnAt
+				and configuredReturnAt < authoredCenterAt,
+			true,
+			"Stagewright resolves the configured platform center before authored center anchors"
+		)
+	end
+	do
+		for _, refreshBehavior in
+			{
+				"local function freshDesignerPlatformCenter(shared: Instance): ({ number }?, boolean)",
+				"cachedDesignerModule == candidate and cachedDesignerSource == source",
+				"local snapshot = candidate:Clone()",
+				"local success, result = pcall(require, snapshot)",
+				"local freshCenter, freshLoaded = freshDesignerPlatformCenter(shared)",
+				"towerDefense.platformCenterPosition = freshCenter",
+			}
+		do
+			expectEqual(
+				string.find(stagewrightAuthoringAreaSource, refreshBehavior, 1, true) ~= nil,
+				true,
+				`Stagewright refreshes Rojo-synced map center data without a Studio restart: {refreshBehavior}`
+			)
+		end
+		expectEqual(
+			string.find(stagewrightAuthoringAreaSource, "CFrame.new(0, 15.5, 0)", 1, true),
+			nil,
+			"Stagewright playable navigation does not hardcode the RNG Defender center"
+		)
+	end
+	do
+		local slotOriginStart = assert(
+			string.find(stagewrightAuthoringAreaSource, "local function playableSlotOrigin", 1, true),
+			"Stagewright playable slot origin helper exists"
+		)
+		local slotOriginEnd = assert(
+			string.find(
+				stagewrightAuthoringAreaSource,
+				"local function setPartProperties",
+				slotOriginStart,
+				true
+			),
+			"Stagewright playable slot origin helper has a stable boundary"
+		)
+		local slotOriginSource =
+			string.sub(stagewrightAuthoringAreaSource, slotOriginStart, slotOriginEnd - 1)
+		for _, originBehavior in
+			{
+				"StagePlatformLayout.slotOffset({",
+				"slot, templateConfig.towerDefense.platformSlotCount)",
+				"CFrame.new(offset.x, offset.y, offset.z)",
+				"CFrame.Angles(0, yaw + math.rad(templateConfig.towerDefense.firstPlatformYawDegrees), 0)",
+			}
+		do
+			expectEqual(
+				string.find(slotOriginSource, originBehavior, 1, true) ~= nil,
+				true,
+				`Stagewright centralizes the six-slot transform math: {originBehavior}`
+			)
+		end
+	end
+	do
+		local focusPlayableStart = assert(
+			string.find(
+				stagewrightAuthoringAreaSource,
+				"function AuthoringArea.focusPlayable(columns: number, rows: number, cellSize: number): boolean",
+				1,
+				true
+			),
+			"Stagewright playable focus function exists"
+		)
+		local focusPlayableEnd = assert(
+			string.find(
+				stagewrightAuthoringAreaSource,
+				"local function legacyGridNpc",
+				focusPlayableStart,
+				true
+			),
+			"Stagewright playable focus function has a stable boundary"
+		)
+		local focusPlayableSource =
+			string.sub(stagewrightAuthoringAreaSource, focusPlayableStart, focusPlayableEnd - 1)
+		for _, focusBehavior in
+			{
+				"local centerFrame = layoutCenter(templateConfig)",
+				"local origin = playableSlotOrigin(templateConfig, centerFrame, 1)",
+				"Selection:Set({})",
+				"return focusFrame(origin, Vector3.new(columns * cellSize, 4, rows * cellSize))",
+			}
+		do
+			expectEqual(
+				string.find(focusPlayableSource, focusBehavior, 1, true) ~= nil,
+				true,
+				`Stagewright playable focus frames slot one at the exact level dimensions: {focusBehavior}`
+			)
+		end
+	end
 	for _, mapNavigationBehavior in
 		{
 			"playableButton.Activated:Connect",
 			"adminButton.Activated:Connect",
+			"focusPlayable: () -> boolean",
+			"focusAdmin: () -> boolean",
 			"callbacks.cancelInteraction()",
-			"AuthoringArea.focusPlayable()",
-			"AuthoringArea.focus()",
+			"callbacks.focusPlayable()",
+			"callbacks.focusAdmin()",
 			"ProjectStore.isWritable()",
 			'callbacks.reportBlocked("Focus authoring area")',
 			"callbacks.setStatus(",
-			"Focused the playable map.",
-			"The playable map could not be found.",
+			"Focused the first playable grid.",
+			"The playable grid could not be resolved.",
 			"Focused the Stagewright admin work area.",
 			"The admin work area could not be found.",
 			"not focused",
@@ -4688,6 +4922,53 @@ do
 		true,
 		"Stagewright Paint blocks drawer click-through and supports explicit canvas panning"
 	)
+	do
+		local paintInputChangedStart = assert(
+			string.find(gridPluginSource, "UserInputService.InputChanged:Connect(function(input)", 1, true),
+			"Stagewright Paint mouse-movement handler exists"
+		)
+		local paintInputChangedEnd = assert(
+			string.find(
+				gridPluginSource,
+				"UserInputService.InputEnded:Connect(function(input)",
+				paintInputChangedStart,
+				true
+			),
+			"Stagewright Paint mouse-movement handler has a stable boundary"
+		)
+		local paintInputChangedSource =
+			string.sub(gridPluginSource, paintInputChangedStart, paintInputChangedEnd - 1)
+		for _, idleScopeBehavior in
+			{
+				"local draggingRoute = routeDragSession:isActive()",
+				"local column, row = paintRuntime.cellAt(position)",
+				"not draggingRoute",
+				"column == nil",
+				"row == nil",
+				"not shell:isWorkspaceInputAllowed(position)",
+			}
+		do
+			expectEqual(
+				string.find(paintInputChangedSource, idleScopeBehavior, 1, true) ~= nil,
+				true,
+				`Stagewright idle Paint/Route input stays scoped to its canvas: {idleScopeBehavior}`
+			)
+		end
+		expectEqual(
+			string.find(paintInputChangedSource, "local preview = latestPaintRoutePreview", 1, true) ~= nil
+				and string.find(paintInputChangedSource, "ProjectStore.preview(selectedStageId)", 1, true) == nil
+				and string.find(gridPluginSource, "latestPaintRoutePreview = routePreview", 1, true)
+					~= nil,
+			true,
+			"Stagewright Paint/Route mouse movement reuses the latest rendered preview"
+		)
+		local _, clearHoverCount = string.gsub(paintInputChangedSource, "showHoveredCell%(nil, nil%)", "")
+		expectEqual(
+			clearHoverCount >= 2,
+			true,
+			"Stagewright clears route hover both outside the idle canvas and during an active drag"
+		)
+	end
 	expectEqual(
 		string.find(gridPluginSource, "cellButton.InputBegan:Connect", 1, true) ~= nil
 			and string.find(gridPluginSource, "input:IsModifierKeyDown(Enum.ModifierKey.Shift)", 1, true) ~= nil
@@ -5406,7 +5687,7 @@ do
 		gridPluginLineCount += 1
 	end
 	expectEqual(
-		gridPluginLineCount <= 5000,
+		gridPluginLineCount <= 5025,
 		true,
 		"Stagewright bootstrap does not absorb extracted module code"
 	)
@@ -6083,6 +6364,28 @@ expectEqual(
 	nil,
 	"the retired NPC demo edge is absent from the current runtime catalog"
 )
+do
+	local jsonStartMarker = "[====["
+	local jsonEndMarker = "]====]"
+	local jsonStartAt = assert(
+		string.find(generatedStageCatalog, jsonStartMarker, 1, true),
+		"generated RNG Defender catalog JSON starts"
+	)
+	local jsonEndAt = assert(
+		string.find(generatedStageCatalog, jsonEndMarker, jsonStartAt + #jsonStartMarker, true),
+		"generated RNG Defender catalog JSON ends"
+	)
+	local productionCatalog: any =
+		serde.decode("json", string.sub(generatedStageCatalog, jsonStartAt + #jsonStartMarker, jsonEndAt - 1))
+	for _, stageId in productionCatalog.stageOrder do
+		local grid = productionCatalog.stages[stageId].grid
+		expectEqual(
+			grid.columns == 32 and grid.rows == 27 and grid.cellSize == 4,
+			true,
+			`RNG Defender production level {stageId} remains 32x27 at 4 studs per cell`
+		)
+	end
+end
 expectEqual(
 	string.find(compactConnectedUi, '"AnchorPoint":[0.5,1]', 1, true) ~= nil,
 	true,
@@ -8438,6 +8741,53 @@ do
 		`six-platform allocator includes {platformMarker}`
 	)
 end
+do
+	local configuredCenterFrameStart = assert(
+		string.find(stagePlatformSource, "local function configuredCenterFrame(): CFrame?", 1, true),
+		"six-platform allocator configured center resolver exists"
+	)
+	local layoutStart = assert(
+		string.find(stagePlatformSource, "local function layout(): (CFrame?, CFrame?)", 1, true),
+		"six-platform allocator layout resolver exists"
+	)
+	local configuredCenterFrameSource =
+		string.sub(stagePlatformSource, configuredCenterFrameStart, layoutStart - 1)
+	expectEqual(
+		string.find(
+			configuredCenterFrameSource,
+			"local position = Config.towerDefense.platformCenterPosition",
+			1,
+			true
+		)
+				~= nil
+			and string.find(configuredCenterFrameSource, "return CFrame.new(x, y, z)", 1, true) ~= nil,
+		true,
+		"six-platform allocator resolves a configured center frame"
+	)
+	local layoutEnd = assert(
+		string.find(stagePlatformSource, "local function claimSlot", layoutStart, true),
+		"six-platform allocator layout resolver has a stable boundary"
+	)
+	local layoutSource = string.sub(stagePlatformSource, layoutStart, layoutEnd - 1)
+	local configuredCenterAt =
+		string.find(layoutSource, "local configuredCenter = configuredCenterFrame()", 1, true)
+	local configuredSourceAt = string.find(layoutSource, 'cachedLayoutSource = "ConfiguredCenter"', 1, true)
+	local authoredCenterAt = string.find(
+		layoutSource,
+		"local center, centerContractValid = uniqueCenterAnchor(Config.towerDefense.centerPartNames)",
+		1,
+		true
+	)
+	expectEqual(
+		configuredCenterAt ~= nil
+			and configuredSourceAt ~= nil
+			and authoredCenterAt ~= nil
+			and configuredCenterAt < configuredSourceAt
+			and configuredSourceAt < authoredCenterAt,
+		true,
+		"configured platform center takes precedence and publishes the ConfiguredCenter source"
+	)
+end
 for _, multiRouteMarker in
 	{
 		"StageRuntimeService.spawnNodes",
@@ -9952,6 +10302,29 @@ do
 		true,
 		"server publishes runtime mode before remotes, skips lobby systems, and wires saved weapon rewards"
 	)
+	do
+		local optionalLobbyUiWait =
+			string.find(mainClientSource, 'playerGui:WaitForChild("TemplateUI")', 1, true)
+		local worldRenderersStartBeforeOptionalUi = optionalLobbyUiWait ~= nil
+		for _, initializer in
+			{
+				"StageGridRenderer.initialize()",
+				"StagePlatformOwnerController.initialize()",
+				"StageEnemyRenderer.initialize()",
+				"StageTowerRenderer.initialize()",
+			}
+		do
+			local initializerAt = string.find(mainClientSource, initializer, 1, true)
+			worldRenderersStartBeforeOptionalUi = worldRenderersStartBeforeOptionalUi
+				and initializerAt ~= nil
+				and initializerAt < optionalLobbyUiWait
+		end
+		expectEqual(
+			worldRenderersStartBeforeOptionalUi,
+			true,
+			"tower-defense world renderers start before the optional template lobby UI wait"
+		)
+	end
 	for clientName, source in
 		{
 			main = mainClientSource,

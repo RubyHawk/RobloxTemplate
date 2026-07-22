@@ -26,7 +26,65 @@ type AuthoringConfig = {
 
 local warnedMissingConfig = false
 local warnedMissingCenter = false
+local warnedAmbiguousCenter = false
 local sessionOutlineFolder: Folder? = nil
+local cachedDesignerModule: ModuleScript? = nil
+local cachedDesignerSource: string? = nil
+local cachedDesignerCenter: { number }? = nil
+local cachedDesignerLoaded = false
+
+local function finiteVec3(value: any): { number }?
+	if type(value) ~= "table" then
+		return nil
+	end
+	local x = value[1]
+	local y = value[2]
+	local z = value[3]
+	if
+		type(x) ~= "number"
+		or type(y) ~= "number"
+		or type(z) ~= "number"
+		or x ~= x
+		or y ~= y
+		or z ~= z
+		or math.abs(x) == math.huge
+		or math.abs(y) == math.huge
+		or math.abs(z) == math.huge
+	then
+		return nil
+	end
+	return { x, y, z }
+end
+
+-- Rojo can replace DesignerConfig.Source after this plugin has already required
+-- TemplateConfig. Roblox caches ModuleScript results per Luau environment, so a
+-- unique clone lets edit-mode navigation see the current recipe without a Studio
+-- restart. DesignerConfig recipes are dependency-free data modules.
+local function freshDesignerPlatformCenter(shared: Instance): ({ number }?, boolean)
+	local candidate = shared:FindFirstChild("DesignerConfig")
+	if candidate == nil or not candidate:IsA("ModuleScript") then
+		return nil, false
+	end
+	local source = candidate.Source
+	if cachedDesignerLoaded and cachedDesignerModule == candidate and cachedDesignerSource == source then
+		return cachedDesignerCenter, true
+	end
+	local snapshot = candidate:Clone()
+	local success, result = pcall(require, snapshot)
+	snapshot:Destroy()
+	if not success or type(result) ~= "table" then
+		return nil, false
+	end
+	local towerDefense = result.towerDefense
+	local center = if type(towerDefense) == "table"
+		then finiteVec3(towerDefense.platformCenterPosition)
+		else nil
+	cachedDesignerModule = candidate
+	cachedDesignerSource = source
+	cachedDesignerCenter = center
+	cachedDesignerLoaded = true
+	return center, true
+end
 
 local function config(): (any?, AuthoringConfig?)
 	local template = ReplicatedStorage:FindFirstChild("Template")
@@ -47,6 +105,14 @@ local function config(): (any?, AuthoringConfig?)
 		end
 		return nil, nil
 	end
+	local freshCenter, freshLoaded = freshDesignerPlatformCenter(shared)
+	if freshLoaded then
+		local resolved = table.clone(result)
+		local towerDefense = table.clone(result.towerDefense)
+		towerDefense.platformCenterPosition = freshCenter
+		resolved.towerDefense = towerDefense
+		result = resolved
+	end
 	local authoring = result.towerDefense.authoringArea
 	if type(authoring) ~= "table" then
 		return result, nil
@@ -59,12 +125,39 @@ local function centerPart(templateConfig: any): BasePart?
 	for _, name in templateConfig.towerDefense.centerPartNames do
 		allowed[name] = true
 	end
+	local found: BasePart? = nil
 	for _, descendant in Workspace:GetDescendants() do
 		if descendant:IsA("BasePart") and allowed[descendant.Name] then
-			return descendant
+			if found ~= nil then
+				if not warnedAmbiguousCenter then
+					warn(
+						`Stagewright playable map is ambiguous: both {found:GetFullName()} and {descendant:GetFullName()} match the configured center anchors`
+					)
+					warnedAmbiguousCenter = true
+				end
+				return nil
+			end
+			found = descendant
 		end
 	end
-	return nil
+	if found ~= nil then
+		warnedAmbiguousCenter = false
+	end
+	return found
+end
+
+local function layoutCenter(templateConfig: any): (CFrame?, string?)
+	local configured = templateConfig.towerDefense.platformCenterPosition
+	if type(configured) == "table" then
+		local x = configured[1]
+		local y = configured[2]
+		local z = configured[3]
+		if type(x) == "number" and type(y) == "number" and type(z) == "number" then
+			return CFrame.new(x, y, z), "ConfiguredCenter"
+		end
+	end
+	local center = centerPart(templateConfig)
+	return if center ~= nil then center.CFrame else nil, if center ~= nil then center.Name else nil
 end
 
 local function legacyPlatform(templateConfig: any): Model?
@@ -83,9 +176,21 @@ local function platformInArea(area: Instance?, templateConfig: any): Model?
 	return if platform ~= nil and platform:IsA("Model") then platform else nil
 end
 
-local function targetOrigin(center: BasePart, authoring: AuthoringConfig): CFrame
+local function targetOrigin(centerFrame: CFrame, authoring: AuthoringConfig): CFrame
 	local offset = authoring.offsetFromCenter
-	return center.CFrame * CFrame.new(offset[1], offset[2], offset[3])
+	return centerFrame * CFrame.new(offset[1], offset[2], offset[3])
+end
+
+local function playableSlotOrigin(templateConfig: any, centerFrame: CFrame, slot: number): CFrame
+	local first = templateConfig.towerDefense.firstPlatformOffsetFromCenter
+	local offset, yaw = StagePlatformLayout.slotOffset({
+		x = first[1],
+		y = first[2],
+		z = first[3],
+	}, slot, templateConfig.towerDefense.platformSlotCount)
+	return centerFrame
+		* CFrame.new(offset.x, offset.y, offset.z)
+		* CFrame.Angles(0, yaw + math.rad(templateConfig.towerDefense.firstPlatformYawDegrees), 0)
 end
 
 local function setPartProperties(part: Part, size: Vector3, frame: CFrame)
@@ -337,9 +442,9 @@ function AuthoringArea.showIslandOutlines(columns: number, rows: number, cellSiz
 	if templateConfig == nil then
 		return false
 	end
-	local center = centerPart(templateConfig)
+	local centerFrame = layoutCenter(templateConfig)
 	local outlines = templateConfig.towerDefense.developmentOutlines
-	if center == nil or type(outlines) ~= "table" then
+	if centerFrame == nil or type(outlines) ~= "table" then
 		return false
 	end
 	local folder = Instance.new("Folder")
@@ -355,16 +460,11 @@ function AuthoringArea.showIslandOutlines(columns: number, rows: number, cellSiz
 	CollectionService:AddTag(folder, OUTLINE_TAG)
 	local width = columns * cellSize
 	local depth = rows * cellSize
-	local first = templateConfig.towerDefense.firstPlatformOffsetFromCenter
-	local firstOffset = { x = first[1], y = first[2], z = first[3] }
 	local slotCount = templateConfig.towerDefense.platformSlotCount
 	local lineColor = Color3.fromRGB(outlines.lineColor[1], outlines.lineColor[2], outlines.lineColor[3])
 	local fillColor = Color3.fromRGB(outlines.fillColor[1], outlines.fillColor[2], outlines.fillColor[3])
 	for slot = 1, slotCount do
-		local offset, yaw = StagePlatformLayout.slotOffset(firstOffset, slot, slotCount)
-		local origin = center.CFrame
-			* CFrame.new(offset.x, offset.y, offset.z)
-			* CFrame.Angles(0, yaw + math.rad(templateConfig.towerDefense.firstPlatformYawDegrees), 0)
+		local origin = playableSlotOrigin(templateConfig, centerFrame, slot)
 		local model = Instance.new("Model")
 		model.Name = `Island_{string.format("%02d", slot)}`
 		model:SetAttribute("PlatformSlot", slot)
@@ -450,6 +550,21 @@ function AuthoringArea.showIslandOutlines(columns: number, rows: number, cellSiz
 	return true
 end
 
+local function focusFrame(frame: CFrame, size: Vector3)
+	local camera = Workspace.CurrentCamera
+	if camera == nil then
+		return false
+	end
+	local span = math.max(size.X, size.Z, 24)
+	local targetPosition = frame.Position
+	local offset = frame:VectorToWorldSpace(
+		Vector3.new(0, math.max(size.Y + span * 0.65, 35), -math.max(span * 1.1, 45))
+	)
+	camera.CFrame = CFrame.lookAt(targetPosition + offset, targetPosition)
+	camera.Focus = CFrame.new(targetPosition)
+	return true
+end
+
 local function focusTarget(target: Instance?): boolean
 	if target == nil then
 		return false
@@ -468,17 +583,7 @@ local function focusTarget(target: Instance?): boolean
 		frame, size = part.CFrame, part.Size
 	end
 	Selection:Set({ target })
-	local camera = Workspace.CurrentCamera
-	if camera ~= nil then
-		local span = math.max(size.X, size.Z, 24)
-		local targetPosition = frame.Position
-		local offset = frame:VectorToWorldSpace(
-			Vector3.new(0, math.max(size.Y + span * 0.65, 35), -math.max(span * 1.1, 45))
-		)
-		camera.CFrame = CFrame.lookAt(targetPosition + offset, targetPosition)
-		camera.Focus = CFrame.new(targetPosition)
-	end
-	return true
+	return focusFrame(frame, size)
 end
 
 function AuthoringArea.focus(): boolean
@@ -489,13 +594,25 @@ function AuthoringArea.focus(): boolean
 	return focusTarget(platform)
 end
 
-function AuthoringArea.focusPlayable(): boolean
+function AuthoringArea.focusPlayable(columns: number, rows: number, cellSize: number): boolean
 	local templateConfig = config()
-	if templateConfig == nil then
+	if
+		templateConfig == nil
+		or columns < 1
+		or rows < 1
+		or cellSize <= 0
+		or columns % 1 ~= 0
+		or rows % 1 ~= 0
+	then
 		return false
 	end
-	local island = Workspace:FindFirstChild(templateConfig.towerDefense.firstPlatformIslandName)
-	return focusTarget(island or centerPart(templateConfig))
+	local centerFrame = layoutCenter(templateConfig)
+	if centerFrame == nil then
+		return false
+	end
+	local origin = playableSlotOrigin(templateConfig, centerFrame, 1)
+	Selection:Set({})
+	return focusFrame(origin, Vector3.new(columns * cellSize, 4, rows * cellSize))
 end
 
 local function legacyGridNpc(candidate: Instance?): Model?
@@ -603,12 +720,10 @@ function AuthoringArea.ensure(): Model?
 	if RunService:IsRunning() then
 		return AuthoringArea.findPlatform()
 	end
-	local center = centerPart(templateConfig)
-	if center == nil then
+	local centerFrame, centerSource = layoutCenter(templateConfig)
+	if centerFrame == nil then
 		if not warnedMissingCenter then
-			warn(
-				"Stagewright admin area needs center_grass (or its configured alias) before it can move GamePlatform"
-			)
+			warn("Stagewright admin area needs a configured or authored platform center")
 			warnedMissingCenter = true
 		end
 		return legacyPlatform(templateConfig)
@@ -639,7 +754,7 @@ function AuthoringArea.ensure(): Model?
 			area.Name = authoring.areaName
 			area.Parent = Workspace
 		end
-		local desiredOrigin = targetOrigin(center, authoring)
+		local desiredOrigin = targetOrigin(centerFrame, authoring)
 		ensureRoom(area, desiredOrigin, authoring)
 		local platform = platformInArea(area, templateConfig) or legacy
 		if platform == nil then
@@ -653,7 +768,7 @@ function AuthoringArea.ensure(): Model?
 		area:SetAttribute("EditorOnly", true)
 		area:SetAttribute("StagewrightEditorOnly", true)
 		area:SetAttribute("RuntimeIslandCount", templateConfig.towerDefense.platformSlotCount)
-		area:SetAttribute("WorldCenterName", center.Name)
+		area:SetAttribute("WorldCenterName", centerSource or "")
 		return platform
 	end)
 	if recording ~= nil then
