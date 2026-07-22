@@ -24,6 +24,8 @@ export type Deps = {
 	launch: (players: { Player }, bossId: string) -> boolean,
 	-- The pad leader's saved personal boss choice; the resolution default.
 	savedBossId: (player: Player) -> string?,
+	-- The forced global event boss id, or nil when no event is active.
+	eventBossId: () -> string?,
 }
 
 local PortalService = {}
@@ -139,15 +141,22 @@ function PortalService.setBossPick(player: Player, bossId: string)
 	pendingBossId = bossId
 end
 
--- Resolves the boss the current pad party would enter: the leader's party pick if
--- set, else the leader's saved personal choice, else the configured default. The
--- forced event boss (Stage B) will slot in as the first argument here.
+-- The forced global event boss if one is active and known, else nil.
+local function activeEventBoss(): string?
+	local target = deps
+	local eventId = if target ~= nil then target.eventBossId() else nil
+	return if eventId ~= nil and isKnownBoss(eventId) then eventId else nil
+end
+
+-- Resolves the boss the current pad party would enter: a forced event boss wins,
+-- else the leader's party pick, else the leader's saved personal choice, else the
+-- configured default. Every candidate is validated against the catalog.
 local function resolveEffectiveBoss(): string
 	local target = deps
 	local leader = order[1]
 	local personalId = if target ~= nil and leader ~= nil then target.savedBossId(leader) else nil
 	return DungeonBossSelection.resolveBossId(
-		nil,
+		activeEventBoss(),
 		pendingBossId,
 		personalId,
 		dungeon.defaultBossId,
@@ -176,6 +185,9 @@ local function publishState(launching: boolean)
 		bossId = effectiveBossId,
 		bossName = if boss ~= nil then boss.name else effectiveBossId,
 		leaderUserId = if leader ~= nil then leader.UserId else nil,
+		-- When an event forces the boss, the client locks the selector and shows a
+		-- badge; personal/party picks are ignored until the event ends.
+		eventActive = activeEventBoss() ~= nil,
 	})
 end
 

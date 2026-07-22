@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TextChatService = game:GetService("TextChatService")
 
 local Template = ReplicatedStorage:WaitForChild("Template")
 local Config = require(Template:WaitForChild("Shared").TemplateConfig)
@@ -27,6 +28,7 @@ local PortalService = require(Services.PortalService)
 local DungeonService = require(Services.DungeonService)
 local EconomyRateProvider = require(script.Providers.DefaultEconomyRateProvider)
 local DataStoreRuntime = require(script.Util.DataStoreRuntime)
+local DungeonEventStore = require(script.Util.DungeonEventStore)
 
 -- Publish one explicit, immutable runtime mode before any client-facing service
 -- starts. Lobby clients use it to return before waiting on lobby-only world/UI,
@@ -106,6 +108,9 @@ if Config.features.dungeon then
 		notePadBossPick = PortalService.setBossPick,
 	})
 	if not dungeonMode then
+		-- The event boss is a global value shared by every lobby; keep it fresh so
+		-- an admin's change on any server takes effect here within a refresh cycle.
+		DungeonEventStore.start()
 		PortalService.start({
 			publish = function(data)
 				RemoteService.broadcast("PortalState", data)
@@ -118,7 +123,30 @@ if Config.features.dungeon then
 				end
 				return nil
 			end,
+			eventBossId = function()
+				return DungeonEventStore.activeBossId(os.time())
+			end,
 		})
+		-- Admin surface for the forced event boss: a server-created chat command,
+		-- gated to the configured allowlist inside DungeonService.setEventBoss. Only
+		-- created when a recipe actually names admins, so it never appears otherwise.
+		if #Config.dungeon.eventAdminUserIds > 0 then
+			local command = Instance.new("TextChatCommand")
+			command.Name = "DungeonEventCommand"
+			command.PrimaryAlias = "/dungeonevent"
+			command.SecondaryAlias = "/de"
+			command.Triggered:Connect(function(textSource: TextSource, message: string)
+				local parts = string.split(message, " ")
+				local bossId = parts[2]
+				local durationMinutes = if parts[3] ~= nil then tonumber(parts[3]) else nil
+				local _, feedback = DungeonService.setEventBoss(textSource.UserId, bossId, durationMinutes)
+				local player = Players:GetPlayerByUserId(textSource.UserId)
+				if player ~= nil then
+					RemoteService.sendEvent(player, "PortalNotice", { message = feedback })
+				end
+			end)
+			command.Parent = TextChatService
+		end
 	end
 end
 

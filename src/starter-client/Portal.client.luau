@@ -118,14 +118,19 @@ local function applyPortalState(data: any)
 	end
 
 	currentBossId = if type(data.bossId) == "string" then data.bossId else currentBossId
+	local eventActive = data.eventActive == true
 	local nameLabel = bossNameLabel
 	if nameLabel ~= nil then
-		nameLabel.Text = if type(data.bossName) == "string" then string.upper(data.bossName) else ""
+		local bossText = if type(data.bossName) == "string" then string.upper(data.bossName) else ""
+		nameLabel.Text = if eventActive and bossText ~= "" then `⚡ EVENT: {bossText}` else bossText
+		nameLabel.TextColor3 = if eventActive
+			then Color3.fromRGB(255, 96, 84)
+			else Color3.fromRGB(255, 219, 92)
 	end
-	-- Only the pad leader (or a player alone before anyone leads) can change the
-	-- party's boss; others see the party's boss read-only.
+	-- A forced event boss locks the selector for everyone; otherwise only the pad
+	-- leader (or a player alone before anyone leads) can change the party's boss.
 	local leaderUserId = data.leaderUserId
-	local canPick = leaderUserId == nil or leaderUserId == Players.LocalPlayer.UserId
+	local canPick = not eventActive and (leaderUserId == nil or leaderUserId == Players.LocalPlayer.UserId)
 	if bossPrevButton ~= nil then
 		bossPrevButton.Visible = canPick
 	end

@@ -40,6 +40,20 @@ function DungeonBossSelection.resolveBossId(
 	return defaultBossId
 end
 
+-- The forced event boss, if one is active. Returns the boss id when set and not
+-- past its optional expiry (`untilTime`, os.time seconds); nil otherwise. Purely
+-- the activity/expiry decision -- the caller still validates the id against the
+-- catalog through resolveBossId.
+function DungeonBossSelection.eventBossIfActive(bossId: string?, untilTime: number?, now: number): string?
+	if type(bossId) ~= "string" or bossId == "" then
+		return nil
+	end
+	if type(untilTime) == "number" and now >= untilTime then
+		return nil
+	end
+	return bossId
+end
+
 -- Shape-validates a session record read back from the reserved-server store.
 -- Mirrors DungeonLogic.normalizePartyManifest: strict key set, bounded strings,
 -- the same lowercase boss-id rule DungeonConfig enforces. Returns nil on any

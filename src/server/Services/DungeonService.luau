@@ -26,6 +26,7 @@ local DungeonLogic = require(Shared.DungeonLogic)
 local DungeonBossSelection = require(Shared.DungeonBossSelection)
 
 local DungeonSessionStore = require(script.Parent.Parent.Util.DungeonSessionStore)
+local DungeonEventStore = require(script.Parent.Parent.Util.DungeonEventStore)
 
 export type Deps = {
 	-- Sends a dungeon HUD snapshot only to the authoritative party. This must not
@@ -1881,6 +1882,42 @@ function DungeonService.selectBoss(player: Player, bossId: any): (boolean, strin
 	target.setSavedBossId(player, bossId)
 	target.notePadBossPick(player, bossId)
 	return true, bossId
+end
+
+-- Admin-only: force (or clear) the global event boss. The allowlist is enforced
+-- here on the server, so a non-admin request is always rejected regardless of how
+-- it was triggered. A nil/empty/"off" id clears the event; `durationMinutes`
+-- optionally auto-expires it (capped at a week).
+function DungeonService.setEventBoss(
+	userId: number,
+	bossId: string?,
+	durationMinutes: number?
+): (boolean, string)
+	local allowed = false
+	for _, adminId in dungeon.eventAdminUserIds do
+		if adminId == userId then
+			allowed = true
+			break
+		end
+	end
+	if not allowed then
+		return false, "You are not allowed to set the dungeon event boss."
+	end
+	if bossId == nil or bossId == "" or bossId == "off" then
+		DungeonEventStore.set(nil, nil)
+		return true, "Dungeon event boss cleared."
+	end
+	if DungeonConfig.bossById(dungeon, bossId) == nil then
+		return false, `Unknown boss "{bossId}".`
+	end
+	local untilTime: number? = nil
+	if type(durationMinutes) == "number" and durationMinutes > 0 then
+		untilTime = os.time() + math.floor(math.min(durationMinutes, 10080) * 60)
+	end
+	if not DungeonEventStore.set(bossId, untilTime) then
+		return false, "The dungeon event store could not be written."
+	end
+	return true, `Dungeon event boss set to {bossId}.`
 end
 
 function DungeonService.start(dependencies: Deps)

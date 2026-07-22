@@ -9499,6 +9499,20 @@ do
 	expectEqual(DungeonConfig.weaponById(defaults, "missing"), nil, "weaponById rejects unknown items")
 	local clampedCamera = DungeonConfig.normalize({ camera = { minZoom = 30, maxZoom = 5 } }).camera
 	expectEqual(clampedCamera.maxZoom, 30, "camera max zoom cannot normalize below min zoom")
+
+	expectEqual(#defaults.eventAdminUserIds, 0, "no event-boss admins are configured by default")
+	local admins =
+		DungeonConfig.normalize({ eventAdminUserIds = { 101, 101, -5, 202, "nope" } }).eventAdminUserIds
+	expectEqual(
+		#admins == 2 and admins[1] == 101 and admins[2] == 202,
+		true,
+		"event admin ids dedupe and skip malformed entries without dropping the list"
+	)
+	expectEqual(
+		#DungeonConfig.normalize({ eventAdminUserIds = "nope" }).eventAdminUserIds,
+		0,
+		"a malformed admin list normalizes to empty"
+	)
 end
 
 do
@@ -9563,6 +9577,27 @@ do
 		"session records reject malformed boss ids"
 	)
 	expectEqual(DungeonBossSelection.normalizeSessionRecord("nope"), nil, "session records must be tables")
+
+	expectEqual(
+		DungeonBossSelection.eventBossIfActive("grove_matron", nil, 1000),
+		"grove_matron",
+		"an event boss with no expiry stays active"
+	)
+	expectEqual(
+		DungeonBossSelection.eventBossIfActive("grove_matron", 1500, 1000),
+		"grove_matron",
+		"an event boss before its expiry is active"
+	)
+	expectEqual(
+		DungeonBossSelection.eventBossIfActive("grove_matron", 1000, 1000),
+		nil,
+		"an event boss at or past its expiry is inactive"
+	)
+	expectEqual(
+		DungeonBossSelection.eventBossIfActive("", nil, 1000),
+		nil,
+		"an empty event boss id is inactive"
+	)
 end
 
 do
@@ -9606,6 +9641,36 @@ do
 		string.find(dungeonRemoteSource, 'SelectDungeonBoss = "dungeon"', 1, true) ~= nil,
 		true,
 		"the boss selection request is feature-gated on the dungeon system"
+	)
+
+	-- Forced admin event boss: allowlist-gated setter, a lobby-only global store
+	-- feeding the resolver's event slot, and an admin chat command surface.
+	for _, marker in
+		{
+			"function DungeonService.setEventBoss",
+			"dungeon.eventAdminUserIds",
+			"DungeonEventStore.set",
+		}
+	do
+		expectEqual(
+			string.find(dungeonServiceSource, marker, 1, true) ~= nil,
+			true,
+			`dungeon event boss admin path includes {marker}`
+		)
+	end
+	expectEqual(
+		string.find(portalServiceSource, "activeEventBoss", 1, true) ~= nil
+			and string.find(portalServiceSource, "target.eventBossId()", 1, true) ~= nil,
+		true,
+		"the portal resolves a forced event boss ahead of party and personal picks"
+	)
+	local dungeonBootstrapSource = fs.readFile("src/server/init.server.luau")
+	expectEqual(
+		string.find(dungeonBootstrapSource, "DungeonEventStore.start()", 1, true) ~= nil
+			and string.find(dungeonBootstrapSource, '"/dungeonevent"', 1, true) ~= nil
+			and string.find(dungeonBootstrapSource, "DungeonService.setEventBoss", 1, true) ~= nil,
+		true,
+		"the lobby starts the event store and installs the allowlisted admin command"
 	)
 end
 

@@ -86,6 +86,9 @@ export type Dungeon = {
 	profileReadyTimeoutSeconds: number,
 	defaultBossId: string,
 	bosses: { Boss },
+	-- UserIds allowed to force a global event boss via the admin chat command.
+	-- Empty by default; a recipe opts specific staff in through DesignerConfig.
+	eventAdminUserIds: { number },
 }
 
 local WEAPON_IDS = { "warden_blade", "thorn_spear", "grove_hammer" }
@@ -216,6 +219,7 @@ local DEFAULTS: Dungeon = {
 	profileReadyTimeoutSeconds = 30,
 	defaultBossId = "forest_warden",
 	bosses = DEFAULT_BOSSES,
+	eventAdminUserIds = {},
 }
 
 local function isFiniteNumber(value: any): boolean
@@ -477,6 +481,28 @@ local function resolveDefaultBossId(raw: any, bosses: { Boss }): string
 	return bosses[1].id
 end
 
+-- A dense, unique list of positive integer UserIds. Any malformed entry is
+-- skipped rather than rejecting the whole list (unlike the boss list) because an
+-- admin roster is additive and a bad id should never disable the others.
+local function normalizedAdminUserIds(raw: any): { number }
+	local value = if type(raw) == "table" then raw.eventAdminUserIds else nil
+	if type(value) ~= "table" then
+		return {}
+	end
+	local result: { number } = {}
+	local seen: { [number]: boolean } = {}
+	for _, entry in value do
+		if #result >= 32 then
+			break
+		end
+		if isFiniteNumber(entry) and entry % 1 == 0 and entry > 0 and entry <= 9e15 and not seen[entry] then
+			seen[entry] = true
+			table.insert(result, entry)
+		end
+	end
+	return result
+end
+
 -- Returns a fully populated, range-checked dungeon configuration. `raw` is the
 -- optional `DesignerConfig.dungeon` table; anything missing or malformed falls
 -- back to the authored defaults.
@@ -565,6 +591,7 @@ function DungeonConfig.normalize(raw: any): Dungeon
 		),
 		defaultBossId = resolveDefaultBossId(raw, bosses),
 		bosses = bosses,
+		eventAdminUserIds = normalizedAdminUserIds(raw),
 	}
 end
 
