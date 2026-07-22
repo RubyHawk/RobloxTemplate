@@ -9675,6 +9675,164 @@ do
 end
 
 do
+	-- Roblox-only flows use source-order contracts; pure boss precedence and
+	-- session-record normalization are executed immediately above.
+	local function ordered(source: string, markers: { string }): boolean
+		local cursor = 1
+		for _, value in markers do
+			local found = string.find(source, value, cursor, true)
+			if found == nil then
+				return false
+			end
+			cursor = found + #value
+		end
+		return true
+	end
+
+	local dungeonSource = fs.readFile("src/server/Services/DungeonService.luau")
+	local portalSource = fs.readFile("src/server/Services/PortalService.luau")
+	local eventStoreSource = fs.readFile("src/server/Util/DungeonEventStore.luau")
+	local bootstrapSource = fs.readFile("src/server/init.server.luau")
+	local portalClientSource = fs.readFile("src/starter-client/Portal.client.luau")
+	local remoteSource = fs.readFile("src/server/Services/RemoteService.luau")
+	local portalModelSource = fs.readFile("src/ui/PortalSign.model.json")
+
+	expectEqual(
+		ordered(dungeonSource, {
+			"TeleportService:ReserveServerAsync(game.PlaceId)",
+			"if launchablePlayers(roster) == nil then",
+			"DungeonSessionStore.write(privateServerId",
+			"local finalRoster = launchablePlayers(roster)",
+			"local ids = DungeonLogic.normalizePartyIds(userIds(finalRoster), dungeon.partyMax)",
+			"return beginExactTeleport(",
+		}),
+		true,
+		"reserved launch revalidates after every yield before manifest creation and atomic claim"
+	)
+	expectEqual(
+		string.find(dungeonSource, "TeleportService:ReserveServer(game.PlaceId)", 1, true),
+		nil,
+		"dungeon launch never calls deprecated ReserveServer"
+	)
+	expectEqual(
+		ordered(dungeonSource, {
+			"local function beginExactTeleport(",
+			"if player.Parent ~= Players or seen[player] or pendingTeleports[player] ~= nil then",
+			"pendingTeleports[player] = {",
+			"task.spawn(attemptTeleport, players, game.PlaceId, options, kind, launchId)",
+		}),
+		true,
+		"exact dungeon teleport validates all players before installing pending claims and starting retries"
+	)
+	expectEqual(
+		ordered(dungeonSource, {
+			"function DungeonService.selectBoss",
+			"if not target.setSavedBossId(player, bossId) then",
+			'return false, "profileUnavailable"',
+			"target.notePadBossPick(player, bossId)",
+			"return true, bossId",
+		}),
+		true,
+		"failed personal persistence prevents both the party pick and success response"
+	)
+	expectEqual(
+		ordered(dungeonSource, {
+			"local record = DungeonBossSelection.normalizeSessionRecord",
+			"party = waitForReadyParty(party)",
+			"lockDungeonRoster(manifest, party)",
+			"runFightSafely(party, bossId, core)",
+		})
+			and string.find(dungeonSource, "result ~= Enum.TeleportResult.Failure", 1, true) ~= nil
+			and string.find(dungeonSource, "result ~= Enum.TeleportResult.Flooded", 1, true) ~= nil,
+		true,
+		"session reads revalidate the party and teleport retries reject permanent failures"
+	)
+	expectEqual(
+		string.find(eventStoreSource, "resolved:RemoveAsync(KEY)", 1, true) ~= nil
+			and string.find(eventStoreSource, "local function validUntilTime", 1, true) ~= nil
+			and string.find(eventStoreSource, "untilTime ~= nil and not validUntilTime", 1, true) ~= nil
+			and ordered(dungeonSource, {
+				"function DungeonService.setEventBoss",
+				"if not allowed then",
+				"if not DungeonEventStore.set(nil, nil) then",
+				"The dungeon event store could not be cleared.",
+				"Dungeon event boss cleared.",
+			}),
+		true,
+		"event clear uses RemoveAsync, enforces the allowlist, and propagates failure before success"
+	)
+	expectEqual(ordered(eventStoreSource, {
+		"MAX_CACHE_STALE_SECONDS",
+		"lastSuccessfulStoreClock",
+		"function DungeonEventStore.activeBossId",
+		"os.clock() - refreshedAt > MAX_CACHE_STALE_SECONDS",
+	}) and string.find(eventStoreSource, "function DungeonEventStore.start(): boolean", 1, true) ~= nil and ordered(
+		bootstrapSource,
+		{
+			"local dungeonEventsEnabled = #Config.dungeon.eventAdminUserIds > 0",
+			"if dungeonEventsEnabled then",
+			"local eventStoreReady = DungeonEventStore.start()",
+			"PortalService.start({",
+		}
+	), true, "live event cache has bounded readiness and stale fallback before portal launch")
+	expectEqual(
+		ordered(bootstrapSource, {
+			"now - lastAttemptAt < EVENT_COMMAND_COOLDOWN_SECONDS",
+			"eventCommandLastAttemptAt[textSource.UserId] = now",
+			"local parts = commandParts(message)",
+			"if #parts < 2 or #parts > 3 then",
+			"or parsed <= 0",
+			"DungeonService.setEventBoss(textSource.UserId, bossId, durationMinutes)",
+		}) and string.find(bootstrapSource, 'string.gmatch(message, "%S+")', 1, true) ~= nil,
+		true,
+		"/dungeonevent rate-limits all attempts before parsing and the allowlisted setter"
+	)
+	expectEqual(
+		ordered(portalSource, {
+			"local function resetBossPickIfLeaderChanged",
+			"if order[1] ~= previousLeader then",
+			"pendingBossId = nil",
+			"local function removeFromOrder",
+			"local previousLeader = order[1]",
+			"resetBossPickIfLeaderChanged(previousLeader)",
+			"local function refreshOrder",
+			"local previousLeader = order[1]",
+			"resetBossPickIfLeaderChanged(previousLeader)",
+		}),
+		true,
+		"forget and occupancy refresh clear a party pick only when the effective leader changes"
+	)
+	expectEqual(
+		ordered(portalSource, {
+			"local bossId = resolveEffectiveBoss()",
+			"launchingBossId = bossId",
+			"launchInProgress = true",
+			"publishState(true)",
+			"target.launch(players, bossId)",
+			"launchInProgress = false",
+		})
+			and string.find(portalSource, "if launching and launchingBossId ~= nil", 1, true) ~= nil
+			and ordered(portalClientSource, {
+				"pendingPersonalBossId = nextBoss.id",
+				'packet.kind == "DungeonBossSelected"',
+				"personalBossId = data.bossId",
+			})
+			and string.find(portalClientSource, "if not launching and not eventActive", 1, true) ~= nil
+			and string.find(remoteSource, 'action == "SelectDungeonBoss"', 1, true) ~= nil
+			and ordered(portalModelSource, {
+				'"ClassName": "BillboardGui"',
+				'"Active": true',
+				'"Name": "Prev"',
+				'"Active": true',
+				'"Name": "Next"',
+				'"Active": true',
+			}),
+		true,
+		"launching locks party picks while interactive authored controls reconcile dedicated acknowledgements"
+	)
+end
+
+do
 	local DungeonLogic = require("../src/shared/DungeonLogic")
 
 	local manifest = DungeonLogic.normalizePartyManifest({

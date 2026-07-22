@@ -228,6 +228,13 @@ local function handleRequest(player: Player, packet: any)
 		if action == "DungeonAttack" or action == "DungeonDodge" then
 			return
 		end
+		if action == "SelectDungeonBoss" then
+			RemoteService.sendEvent(player, "DungeonBossSelected", {
+				accepted = false,
+				reason = "rateLimited",
+			})
+			return
+		end
 		result(player, false, "Please slow down")
 		return
 	end

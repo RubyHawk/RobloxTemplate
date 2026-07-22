@@ -41,6 +41,11 @@ local deadline: number? = nil
 -- (still physically on the pad for a beat before they teleport or move) is not
 -- re-detected and re-launched, and so the pad reliably re-arms afterward.
 local cooldownUntil = 0
+-- True only while DungeonService is yielding through reserve/session setup. The
+-- launch boss is already captured, so party-pick writes must not appear to
+-- change the in-flight run.
+local launchInProgress = false
+local launchingBossId: string? = nil
 -- The party's boss for the current roster, set by the pad leader (order[1]); nil
 -- means "use the leader's saved personal choice". Reset when the pad empties or a
 -- party launches so a fresh roster starts from the new leader's default.
@@ -89,11 +94,19 @@ local function indexOf(player: Player): number?
 	return nil
 end
 
+local function resetBossPickIfLeaderChanged(previousLeader: Player?)
+	if order[1] ~= previousLeader then
+		pendingBossId = nil
+	end
+end
+
 local function removeFromOrder(player: Player)
+	local previousLeader = order[1]
 	local index = indexOf(player)
 	if index ~= nil then
 		table.remove(order, index)
 	end
+	resetBossPickIfLeaderChanged(previousLeader)
 end
 
 function PortalService.forget(player: Player)
@@ -101,6 +114,7 @@ function PortalService.forget(player: Player)
 end
 
 local function refreshOrder(platform: BasePart)
+	local previousLeader = order[1]
 	-- Drop anyone who stepped off or left; keep arrival order for the rest.
 	for i = #order, 1, -1 do
 		local player = order[i]
@@ -114,6 +128,10 @@ local function refreshOrder(platform: BasePart)
 			table.insert(order, player)
 		end
 	end
+	-- A party pick belongs only to the player who made it as leader. Preserve it
+	-- while that same leader remains first, but never transfer it when step-off,
+	-- disconnect, forget, or a refreshed roster promotes somebody else.
+	resetBossPickIfLeaderChanged(previousLeader)
 end
 
 local function buildRoster(): { { userId: number, name: string } }
@@ -135,7 +153,7 @@ end
 -- leader (order[1]) governs the party; a non-leader request is ignored here (a
 -- non-leader's personal profile choice is still saved by DungeonService).
 function PortalService.setBossPick(player: Player, bossId: string)
-	if order[1] ~= player or type(bossId) ~= "string" or not isKnownBoss(bossId) then
+	if launchInProgress or order[1] ~= player or type(bossId) ~= "string" or not isKnownBoss(bossId) then
 		return
 	end
 	pendingBossId = bossId
@@ -174,7 +192,9 @@ local function publishState(launching: boolean)
 		countdown = DungeonLogic.countdownRemaining(deadline, os.clock())
 	end
 	local leader = order[1]
-	local effectiveBossId = resolveEffectiveBoss()
+	local effectiveBossId = if launching and launchingBossId ~= nil
+		then launchingBossId
+		else resolveEffectiveBoss()
 	local boss = DungeonConfig.bossById(dungeon, effectiveBossId)
 	target.publish({
 		occupants = buildRoster(),
@@ -207,14 +227,20 @@ local function launchParty(): boolean
 		return false
 	end
 	local bossId = resolveEffectiveBoss()
+	launchingBossId = bossId
+	launchInProgress = true
+	publishState(true)
 	if not target.launch(players, bossId) then
+		launchInProgress = false
+		launchingBossId = nil
 		return false
 	end
-	-- Only consume the roster after DungeonService has synchronously reserved
-	-- pending state for at least one connected, profile-ready player.
+	-- Only consume the roster after DungeonService has synchronously claimed
+	-- pending state for the complete connected, profile-ready party.
 	deadline = nil
 	table.clear(order)
 	pendingBossId = nil
+	launchInProgress = false
 	cooldownUntil = os.clock() + 3
 	return true
 end
@@ -224,6 +250,7 @@ local function tick(platform: BasePart)
 		publishState(true)
 		return
 	end
+	launchingBossId = nil
 
 	refreshOrder(platform)
 

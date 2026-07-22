@@ -49,9 +49,12 @@ local bossPrevButton: TextButton? = nil
 local bossNextButton: TextButton? = nil
 local bossSelectorConnections: { RBXScriptConnection } = {}
 local currentBossId: string? = nil
+local personalBossId: string? = nil
+local pendingPersonalBossId: string? = nil
 -- Forward-declared so bindPortalSign (defined above the remote lookups) can wire
--- the authored selector buttons to it; assigned once the request remote exists.
-local cycleBoss: (direction: number) -> ()
+-- the authored selector buttons to it. The safe no-op covers the brief startup
+-- window before the request remote exists and the real implementation is bound.
+local cycleBoss: (direction: number) -> () = function(_direction: number) end
 local latestPortalState: any = nil
 local latestPortalNotice: string? = nil
 local portalNoticeRevision = 0
@@ -64,6 +67,32 @@ local function textChild(parent: Instance?, name: string): TextLabel?
 	end
 	local child = parent:FindFirstChild(name)
 	return if child ~= nil and child:IsA("TextLabel") then child else nil
+end
+
+local function configuredBossName(bossId: string?): string?
+	if bossId == nil then
+		return nil
+	end
+	for _, boss in Config.dungeon.bosses do
+		if boss.id == bossId then
+			return boss.name
+		end
+	end
+	return nil
+end
+
+local function renderBossName(bossId: string?, serverBossName: any, eventActive: boolean)
+	local nameLabel = bossNameLabel
+	if nameLabel == nil then
+		return
+	end
+	local configuredName = configuredBossName(bossId)
+	local bossName = if configuredName ~= nil
+		then configuredName
+		else if type(serverBossName) == "string" then serverBossName else ""
+	local bossText = string.upper(bossName)
+	nameLabel.Text = if eventActive and bossText ~= "" then `⚡ EVENT: {bossText}` else bossText
+	nameLabel.TextColor3 = if eventActive then Color3.fromRGB(255, 96, 84) else Color3.fromRGB(255, 219, 92)
 end
 
 local function applyPortalState(data: any)
@@ -117,20 +146,22 @@ local function applyPortalState(data: any)
 		end
 	end
 
-	currentBossId = if type(data.bossId) == "string" then data.bossId else currentBossId
 	local eventActive = data.eventActive == true
-	local nameLabel = bossNameLabel
-	if nameLabel ~= nil then
-		local bossText = if type(data.bossName) == "string" then string.upper(data.bossName) else ""
-		nameLabel.Text = if eventActive and bossText ~= "" then `⚡ EVENT: {bossText}` else bossText
-		nameLabel.TextColor3 = if eventActive
-			then Color3.fromRGB(255, 96, 84)
-			else Color3.fromRGB(255, 219, 92)
-	end
+	local serverBossId = if type(data.bossId) == "string" then data.bossId else nil
 	-- A forced event boss locks the selector for everyone; otherwise only the pad
 	-- leader (or a player alone before anyone leads) can change the party's boss.
-	local leaderUserId = data.leaderUserId
-	local canPick = not eventActive and (leaderUserId == nil or leaderUserId == Players.LocalPlayer.UserId)
+	local leaderUserId = if type(data.leaderUserId) == "number" then data.leaderUserId else nil
+	local ownsSelection = leaderUserId == nil or leaderUserId == Players.LocalPlayer.UserId
+	local displayedBossId = serverBossId
+	if not launching and not eventActive and ownsSelection then
+		displayedBossId = pendingPersonalBossId or personalBossId or serverBossId
+	end
+	currentBossId = displayedBossId or currentBossId
+	renderBossName(currentBossId, data.bossName, eventActive)
+
+	local canPick = not launching
+		and not eventActive
+		and (leaderUserId == nil or leaderUserId == Players.LocalPlayer.UserId)
 	if bossPrevButton ~= nil then
 		bossPrevButton.Visible = canPick
 	end
@@ -150,6 +181,20 @@ local function restoreAfterPortalNotice()
 	if latestPortalState ~= nil then
 		applyPortalState(latestPortalState)
 	end
+end
+
+local function showTemporaryPortalNotice(message: string)
+	portalNoticeRevision += 1
+	local revision = portalNoticeRevision
+	latestPortalNotice = message
+	applyPortalNotice(message)
+	task.delay(6, function()
+		if portalNoticeRevision ~= revision then
+			return
+		end
+		latestPortalNotice = nil
+		restoreAfterPortalNotice()
+	end)
 end
 
 local function refreshPortalAdornee()
@@ -299,6 +344,9 @@ cycleBoss = function(direction: number)
 		end
 	end
 	local nextBoss = bosses[((index - 1 + direction) % #bosses) + 1]
+	pendingPersonalBossId = nextBoss.id
+	currentBossId = nextBoss.id
+	renderBossName(nextBoss.id, nextBoss.name, false)
 	requestRemote:FireServer({ action = "SelectDungeonBoss", payload = { bossId = nextBoss.id } })
 end
 
@@ -312,21 +360,31 @@ stateRemote.OnClientEvent:Connect(function(packet: any)
 		if latestPortalNotice ~= nil then
 			applyPortalNotice(latestPortalNotice)
 		end
+	elseif packet.kind == "DungeonBossSelected" then
+		local data = packet.data
+		if type(data) == "table" and data.accepted == true and type(data.bossId) == "string" then
+			personalBossId = data.bossId
+			if pendingPersonalBossId == data.bossId then
+				pendingPersonalBossId = nil
+			end
+			currentBossId = pendingPersonalBossId or personalBossId
+			if latestPortalState ~= nil then
+				applyPortalState(latestPortalState)
+			else
+				renderBossName(currentBossId, nil, false)
+			end
+		elseif type(data) == "table" and data.accepted == false then
+			pendingPersonalBossId = nil
+			if latestPortalState ~= nil then
+				applyPortalState(latestPortalState)
+			end
+			showTemporaryPortalNotice("Boss selection is unavailable right now.")
+		end
 	elseif packet.kind == "PortalNotice" then
 		local message = if type(packet.data) == "table" and type(packet.data.message) == "string"
 			then packet.data.message
 			else "The dungeon portal is unavailable right now."
-		portalNoticeRevision += 1
-		local revision = portalNoticeRevision
-		latestPortalNotice = message
-		applyPortalNotice(message)
-		task.delay(6, function()
-			if portalNoticeRevision ~= revision then
-				return
-			end
-			latestPortalNotice = nil
-			restoreAfterPortalNotice()
-		end)
+		showTemporaryPortalNotice(message)
 	end
 end)
 
