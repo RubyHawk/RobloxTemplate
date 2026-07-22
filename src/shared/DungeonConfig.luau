@@ -143,6 +143,23 @@ local DEFAULT_BOSSES: { Boss } = {
 		rewardItemId = "grove_hammer",
 		rewardItemQuantity = 1,
 	},
+	{
+		-- A tougher second encounter so boss selection is meaningful: more health,
+		-- harder-hitting slams, a longer timer, and a richer reward with a
+		-- different weapon drop. Same authored arena/core; only the tuning differs.
+		id = "grove_matron",
+		name = "Grove Matron",
+		baseHealth = 6200,
+		healthPerExtraPlayer = 6200,
+		partyDpsPerPlayer = 150,
+		attackDamagePerHit = 85,
+		attackDamage = 32,
+		timeLimitSeconds = 140,
+		rewardCurrencyId = "coins",
+		rewardAmount = 8000,
+		rewardItemId = "thorn_spear",
+		rewardItemQuantity = 1,
+	},
 }
 
 local DEFAULTS: Dungeon = {

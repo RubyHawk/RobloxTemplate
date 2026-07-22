@@ -13,13 +13,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Template"):WaitForChild("Shared")
 local Config = require(Shared.TemplateConfig)
+local DungeonConfig = require(Shared.DungeonConfig)
 local DungeonLogic = require(Shared.DungeonLogic)
+local DungeonBossSelection = require(Shared.DungeonBossSelection)
 
 export type Deps = {
 	-- Broadcasts the pad roster + countdown to lobby clients.
 	publish: (data: any) -> (),
-	-- Hands the finalized party to DungeonService (teleport or Studio sim).
-	launch: (players: { Player }) -> boolean,
+	-- Hands the finalized party + resolved boss to DungeonService.
+	launch: (players: { Player }, bossId: string) -> boolean,
+	-- The pad leader's saved personal boss choice; the resolution default.
+	savedBossId: (player: Player) -> string?,
 }
 
 local PortalService = {}
@@ -35,6 +39,10 @@ local deadline: number? = nil
 -- (still physically on the pad for a beat before they teleport or move) is not
 -- re-detected and re-launched, and so the pad reliably re-arms afterward.
 local cooldownUntil = 0
+-- The party's boss for the current roster, set by the pad leader (order[1]); nil
+-- means "use the leader's saved personal choice". Reset when the pad empties or a
+-- party launches so a fresh roster starts from the new leader's default.
+local pendingBossId: string? = nil
 
 function PortalService.registerPad(platform: BasePart)
 	padPlatform = platform
@@ -117,6 +125,36 @@ local function buildRoster(): { { userId: number, name: string } }
 	return roster
 end
 
+local function isKnownBoss(bossId: string): boolean
+	return DungeonConfig.bossById(dungeon, bossId) ~= nil
+end
+
+-- Records the pad leader's boss pick for the current roster. Only the arrival
+-- leader (order[1]) governs the party; a non-leader request is ignored here (a
+-- non-leader's personal profile choice is still saved by DungeonService).
+function PortalService.setBossPick(player: Player, bossId: string)
+	if order[1] ~= player or type(bossId) ~= "string" or not isKnownBoss(bossId) then
+		return
+	end
+	pendingBossId = bossId
+end
+
+-- Resolves the boss the current pad party would enter: the leader's party pick if
+-- set, else the leader's saved personal choice, else the configured default. The
+-- forced event boss (Stage B) will slot in as the first argument here.
+local function resolveEffectiveBoss(): string
+	local target = deps
+	local leader = order[1]
+	local personalId = if target ~= nil and leader ~= nil then target.savedBossId(leader) else nil
+	return DungeonBossSelection.resolveBossId(
+		nil,
+		pendingBossId,
+		personalId,
+		dungeon.defaultBossId,
+		isKnownBoss
+	)
+end
+
 local function publishState(launching: boolean)
 	local target = deps
 	if target == nil then
@@ -126,12 +164,18 @@ local function publishState(launching: boolean)
 	if deadline ~= nil then
 		countdown = DungeonLogic.countdownRemaining(deadline, os.clock())
 	end
+	local leader = order[1]
+	local effectiveBossId = resolveEffectiveBoss()
+	local boss = DungeonConfig.bossById(dungeon, effectiveBossId)
 	target.publish({
 		occupants = buildRoster(),
 		count = #order,
 		partyMax = dungeon.partyMax,
 		countdown = countdown,
 		launching = launching,
+		bossId = effectiveBossId,
+		bossName = if boss ~= nil then boss.name else effectiveBossId,
+		leaderUserId = if leader ~= nil then leader.UserId else nil,
 	})
 end
 
@@ -150,13 +194,15 @@ local function launchParty(): boolean
 	if target == nil then
 		return false
 	end
-	if not target.launch(players) then
+	local bossId = resolveEffectiveBoss()
+	if not target.launch(players, bossId) then
 		return false
 	end
 	-- Only consume the roster after DungeonService has synchronously reserved
 	-- pending state for at least one connected, profile-ready player.
 	deadline = nil
 	table.clear(order)
+	pendingBossId = nil
 	cooldownUntil = os.clock() + 3
 	return true
 end
@@ -171,6 +217,7 @@ local function tick(platform: BasePart)
 
 	if #order == 0 then
 		deadline = nil
+		pendingBossId = nil
 		publishState(false)
 		return
 	end

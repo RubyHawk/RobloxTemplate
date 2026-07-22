@@ -44,6 +44,14 @@ local vortex: BasePart? = nil
 local titleCountdown: TextLabel? = nil
 local statusLine: TextLabel? = nil
 local slots: { Frame } = {}
+local bossNameLabel: TextLabel? = nil
+local bossPrevButton: TextButton? = nil
+local bossNextButton: TextButton? = nil
+local bossSelectorConnections: { RBXScriptConnection } = {}
+local currentBossId: string? = nil
+-- Forward-declared so bindPortalSign (defined above the remote lookups) can wire
+-- the authored selector buttons to it; assigned once the request remote exists.
+local cycleBoss: (direction: number) -> ()
 local latestPortalState: any = nil
 local latestPortalNotice: string? = nil
 local portalNoticeRevision = 0
@@ -108,6 +116,22 @@ local function applyPortalState(data: any)
 			status.Text = "STAND ON THE PORTAL TO ENTER THE DUNGEON"
 		end
 	end
+
+	currentBossId = if type(data.bossId) == "string" then data.bossId else currentBossId
+	local nameLabel = bossNameLabel
+	if nameLabel ~= nil then
+		nameLabel.Text = if type(data.bossName) == "string" then string.upper(data.bossName) else ""
+	end
+	-- Only the pad leader (or a player alone before anyone leads) can change the
+	-- party's boss; others see the party's boss read-only.
+	local leaderUserId = data.leaderUserId
+	local canPick = leaderUserId == nil or leaderUserId == Players.LocalPlayer.UserId
+	if bossPrevButton ~= nil then
+		bossPrevButton.Visible = canPick
+	end
+	if bossNextButton ~= nil then
+		bossNextButton.Visible = canPick
+	end
 end
 
 local function applyPortalNotice(message: string)
@@ -160,9 +184,42 @@ local function bindPortalSign(instance: Instance)
 				end
 			end
 		end
+		for _, connection in bossSelectorConnections do
+			connection:Disconnect()
+		end
+		table.clear(bossSelectorConnections)
+		local selector = card:FindFirstChild("BossSelector")
+		if selector ~= nil then
+			bossNameLabel = textChild(selector, "BossName")
+			local prev = selector:FindFirstChild("Prev")
+			local nextButton = selector:FindFirstChild("Next")
+			bossPrevButton = if prev ~= nil and prev:IsA("TextButton") then prev else nil
+			bossNextButton = if nextButton ~= nil and nextButton:IsA("TextButton") then nextButton else nil
+			if bossPrevButton ~= nil then
+				table.insert(
+					bossSelectorConnections,
+					bossPrevButton.Activated:Connect(function()
+						cycleBoss(-1)
+					end)
+				)
+			end
+			if bossNextButton ~= nil then
+				table.insert(
+					bossSelectorConnections,
+					bossNextButton.Activated:Connect(function()
+						cycleBoss(1)
+					end)
+				)
+			end
+		else
+			bossNameLabel = nil
+			bossPrevButton = nil
+			bossNextButton = nil
+		end
 	else
 		titleCountdown = nil
 		statusLine = nil
+		bossNameLabel = nil
 		warn("PlayerGui.PortalSign.Card is unavailable; lobby portal status is hidden")
 	end
 	refreshPortalAdornee()
@@ -219,6 +276,26 @@ end
 
 local remotes = ReplicatedStorage:WaitForChild(RemoteNames.folder)
 local stateRemote = remotes:WaitForChild(RemoteNames.state) :: RemoteEvent
+local requestRemote = remotes:WaitForChild(RemoteNames.request) :: RemoteEvent
+
+-- The boss catalog is shared config, so the client cycles it locally and asks the
+-- server to record the choice. The server validates the id, saves it as the
+-- player's personal default, and (when they lead the pad) applies it to the party.
+cycleBoss = function(direction: number)
+	local bosses = Config.dungeon.bosses
+	if #bosses == 0 then
+		return
+	end
+	local index = 1
+	for order, boss in bosses do
+		if boss.id == currentBossId then
+			index = order
+			break
+		end
+	end
+	local nextBoss = bosses[((index - 1 + direction) % #bosses) + 1]
+	requestRemote:FireServer({ action = "SelectDungeonBoss", payload = { bossId = nextBoss.id } })
+end
 
 stateRemote.OnClientEvent:Connect(function(packet: any)
 	if type(packet) ~= "table" then
@@ -259,6 +336,13 @@ playerGui.ChildRemoved:Connect(function(instance: Instance)
 		sign = nil
 		titleCountdown = nil
 		statusLine = nil
+		bossNameLabel = nil
+		bossPrevButton = nil
+		bossNextButton = nil
+		for _, connection in bossSelectorConnections do
+			connection:Disconnect()
+		end
+		table.clear(bossSelectorConnections)
 		table.clear(slots)
 	end
 end)

@@ -96,6 +96,14 @@ if Config.features.dungeon then
 		equippedItemId = InventoryService.equippedItemId,
 		ensureEquipped = InventoryService.ensureEquipped,
 		grantItem = InventoryService.grant,
+		setSavedBossId = function(player, bossId)
+			local profile = ProfileService.get(player)
+			if profile ~= nil and type(profile.dungeon) == "table" then
+				profile.dungeon.selectedBossId = bossId
+				ProfileService.markDirty(player, "dungeon:selectBoss")
+			end
+		end,
+		notePadBossPick = PortalService.setBossPick,
 	})
 	if not dungeonMode then
 		PortalService.start({
@@ -103,6 +111,13 @@ if Config.features.dungeon then
 				RemoteService.broadcast("PortalState", data)
 			end,
 			launch = DungeonService.launchParty,
+			savedBossId = function(player)
+				local profile = ProfileService.get(player)
+				if profile ~= nil and type(profile.dungeon) == "table" then
+					return profile.dungeon.selectedBossId
+				end
+				return nil
+			end,
 		})
 	end
 end

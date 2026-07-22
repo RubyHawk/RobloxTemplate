@@ -23,6 +23,9 @@ local Shared = ReplicatedStorage:WaitForChild("Template"):WaitForChild("Shared")
 local Config = require(Shared.TemplateConfig)
 local DungeonConfig = require(Shared.DungeonConfig)
 local DungeonLogic = require(Shared.DungeonLogic)
+local DungeonBossSelection = require(Shared.DungeonBossSelection)
+
+local DungeonSessionStore = require(script.Parent.Parent.Util.DungeonSessionStore)
 
 export type Deps = {
 	-- Sends a dungeon HUD snapshot only to the authoritative party. This must not
@@ -42,6 +45,13 @@ export type Deps = {
 	equippedItemId: (player: Player, slot: string) -> string?,
 	ensureEquipped: (player: Player, slot: string, fallbackItemId: string) -> string?,
 	grantItem: (player: Player, itemId: string, quantity: number) -> (boolean, number),
+	-- Persists a player's chosen boss to their profile (their personal default,
+	-- used for solo runs and as the party default when they lead the pad).
+	setSavedBossId: (player: Player, bossId: string) -> (),
+	-- Records the choice as the lobby pad's party pick when the player is the pad
+	-- leader; PortalService enforces the leader check, so this is a no-op for a
+	-- non-leader or on a reserved server with no pad.
+	notePadBossPick: (player: Player, bossId: string) -> (),
 }
 
 local DungeonService = {}
@@ -1693,9 +1703,20 @@ local function runDungeonServer()
 	-- the ready, connected subset and return anyone who could not safely join.
 	lockDungeonRoster(manifest, party)
 
-	-- Boss and reward selection are always destination configuration. TeleportData
-	-- is visible to clients and is never trusted for either value.
-	runFightSafely(party, dungeon.defaultBossId, core)
+	-- The boss is resolved server-authoritatively on the lobby and handed over in
+	-- a store keyed by this reserved server's id -- never via client-visible
+	-- TeleportData. Re-validate the record shape, that it belongs to this launch,
+	-- and that the id is a known boss; anything off falls back to the default.
+	local bossId = dungeon.defaultBossId
+	local record = DungeonBossSelection.normalizeSessionRecord(DungeonSessionStore.read(game.PrivateServerId))
+	if
+		record ~= nil
+		and record.launchId == manifest.launchId
+		and DungeonConfig.bossById(dungeon, record.bossId) ~= nil
+	then
+		bossId = record.bossId
+	end
+	runFightSafely(party, bossId, core)
 	task.wait(4)
 	publishInactive(party)
 	clearPartyTools(party)
@@ -1705,8 +1726,9 @@ local function runDungeonServer()
 end
 
 -- Studio-only: run the same fight in-place (no teleport), then set characters
--- back where they were so the loop is testable without a published place.
-local function simulateInPlace(players: { Player })
+-- back where they were so the loop is testable without a published place. The
+-- boss is passed in-process (no reserve/store) so selection is testable in Studio.
+local function simulateInPlace(players: { Player }, bossId: string)
 	local requestedPlayers = players
 	local returnStates: { [Player]: StudioReturnState } = {}
 	for _, player in players do
@@ -1735,7 +1757,7 @@ local function simulateInPlace(players: { Player })
 		return
 	end
 
-	runFightSafely(players, dungeon.defaultBossId, core)
+	runFightSafely(players, bossId, core)
 	task.wait(4)
 	publishInactive(players)
 	clearPartyTools(players)
@@ -1759,14 +1781,28 @@ local function simulateInPlace(players: { Player })
 	runInProgress = false
 end
 
-local function teleportPartyToReservedServer(players: { Player }): boolean
+local function teleportPartyToReservedServer(players: { Player }, bossId: string): boolean
 	local ids = DungeonLogic.normalizePartyIds(userIds(players), dungeon.partyMax)
 	if ids == nil then
 		return false
 	end
-	local options = Instance.new("TeleportOptions")
 	local launchId = HttpService:GenerateGUID(false)
-	options.ShouldReserveServer = true
+	-- Reserve explicitly (rather than the one-shot reserve+teleport) so we learn
+	-- the reserved server's id and can hand it the resolved boss out-of-band.
+	-- Reserving yields once at launch; retries reuse this access code, never
+	-- re-reserving.
+	local reserveOk, accessCode, privateServerId = pcall(function()
+		return TeleportService:ReserveServer(game.PlaceId)
+	end)
+	if not reserveOk or type(accessCode) ~= "string" or type(privateServerId) ~= "string" then
+		warn(`Dungeon reserve failed: {tostring(accessCode)}`)
+		return false
+	end
+	-- Server-authoritative boss handoff. A write failure is non-fatal: the
+	-- reserved server simply falls back to the default boss.
+	DungeonSessionStore.write(privateServerId, { v = 1, bossId = bossId, launchId = launchId })
+	local options = Instance.new("TeleportOptions")
+	options.ReservedServerAccessCode = accessCode
 	options:SetTeleportData({
 		kind = "DungeonParty",
 		v = 1,
@@ -1814,7 +1850,9 @@ local function launchablePlayers(players: { Player }): { Player }?
 end
 
 -- Lobby-server entry point used by PortalService when the pad countdown ends.
-function DungeonService.launchParty(players: { Player }): boolean
+-- `bossId` is the boss the lobby resolved for this run (event > party > personal
+-- > default); runFight re-validates it against the catalog on the destination.
+function DungeonService.launchParty(players: { Player }, bossId: string): boolean
 	local accepted = launchablePlayers(players)
 	if accepted == nil then
 		return false
@@ -1824,10 +1862,25 @@ function DungeonService.launchParty(players: { Player }): boolean
 			return false
 		end
 		runInProgress = true
-		task.spawn(simulateInPlace, accepted)
+		task.spawn(simulateInPlace, accepted, bossId)
 		return true
 	end
-	return teleportPartyToReservedServer(accepted)
+	return teleportPartyToReservedServer(accepted, bossId)
+end
+
+-- Lobby request entry: a player picked a boss on the portal. Persist it as their
+-- personal default and, when they lead the pad, apply it as the party's pick.
+function DungeonService.selectBoss(player: Player, bossId: any): (boolean, string)
+	if type(bossId) ~= "string" or DungeonConfig.bossById(dungeon, bossId) == nil then
+		return false, "unknownBoss"
+	end
+	local target = deps
+	if target == nil then
+		return false, "unavailable"
+	end
+	target.setSavedBossId(player, bossId)
+	target.notePadBossPick(player, bossId)
+	return true, bossId
 end
 
 function DungeonService.start(dependencies: Deps)

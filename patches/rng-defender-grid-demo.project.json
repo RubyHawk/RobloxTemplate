@@ -33,6 +33,9 @@
           "DesignerConfig": {
             "$path": "rng-defender/DesignerConfig.luau"
           },
+          "DungeonBossSelection": {
+            "$path": "../src/shared/DungeonBossSelection.luau"
+          },
           "DungeonConfig": {
             "$path": "../src/shared/DungeonConfig.luau"
           },
