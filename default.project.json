@@ -46,6 +46,9 @@
       "StagewrightPlaytestHUD": {
         "$path": "src/ui/StagewrightPlaytestHUD.model.json"
       },
+      "TowerDefenseTravelHUD": {
+        "$path": "src/ui/TowerDefenseTravelHUD.model.json"
+      },
       "PortalSign": {
         "$path": "src/ui/PortalSign.model.json"
       },

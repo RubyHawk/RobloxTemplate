@@ -104,7 +104,7 @@ type PaintRuntime = {
 	deleteRouteSelection: () -> (),
 }
 
-local authoringPlatform = AuthoringArea.findPlatform()
+local authoringPlatform = AuthoringArea.ensure() or AuthoringArea.findPlatform()
 local project = ProjectStore.load(authoringPlatform)
 local stageIds = ProjectStore.stageIds()
 local selectedStageId = project.startingStageId or stageIds[1]

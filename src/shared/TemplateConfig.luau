@@ -242,6 +242,7 @@ local Config = {
 		platformOwnerMarkersFolderName = "StagePlatformOwners",
 		platformOwnerAnchorsFolderName = "StagewrightOwnerAnchors",
 		platformOwnerMarkerHeight = 16,
+		platformTravelHeight = 7,
 		authoringArea = {
 			enabled = true,
 			areaName = "StagewrightAdminArea",
