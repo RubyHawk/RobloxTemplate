@@ -62,6 +62,22 @@ Do not connect the `rng-defender-grid-demo` Rojo patch during the first legacy-a
 - Reload during a paint or graph movement and confirm the recording finalizes and previews are cleaned up.
 - Save, close Studio, reopen, and confirm the payload checksum and previews recover.
 
+### Fast mob-wave playtest loop
+
+For iteration in the existing RNG Defender place, connect the guarded patch with
+`8_RNG_DEFENDER.cmd`, edit the selected level in **Waves**, and click
+**Prepare Playtest**. The action validates and bakes the current working copy
+into `ReplicatedStorage.Template.StagewrightPlaytestRuntime`; it does not replace
+the repository export/import workflow.
+
+Press Play after preparing. The Studio-only **Stagewright • Mob Playtest** HUD
+shows the prepared source checksum and can run any authored wave from Levels
+1–3, or reset the current wave immediately. Each run session-selects its level
+and goes through the real server spawn scheduler, route graph, lane assignment,
+enemy rigs, damage, and client renderer. These runs do not save level selection,
+wins, losses, best wave, clears, or unlocks. Stop Play, change Stagewright data,
+prepare again, and confirm the next Play session shows the new checksum.
+
 ## 3. Export into the repository
 
 1. Resolve every export-blocking validation error.

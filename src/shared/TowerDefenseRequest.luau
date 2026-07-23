@@ -16,6 +16,11 @@ export type StageActivation = {
 	stageId: string,
 }
 
+export type WavePlaytest = {
+	stageId: string,
+	waveNumber: number,
+}
+
 export type Loadout = {
 	unitIds: { string },
 }
@@ -28,6 +33,11 @@ local PLACEMENT_FIELDS: { [string]: boolean } = {
 
 local STAGE_ACTIVATION_FIELDS: { [string]: boolean } = {
 	stageId = true,
+}
+
+local WAVE_PLAYTEST_FIELDS: { [string]: boolean } = {
+	stageId = true,
+	waveNumber = true,
 }
 
 local LOADOUT_FIELDS: { [string]: boolean } = {
@@ -85,6 +95,32 @@ function TowerDefenseRequest.parseStageActivation(payload: any): StageActivation
 		return nil
 	end
 	return { stageId = stageId }
+end
+
+function TowerDefenseRequest.parseWavePlaytest(payload: any): WavePlaytest?
+	if type(payload) ~= "table" or not hasOnlyFields(payload, WAVE_PLAYTEST_FIELDS) then
+		return nil
+	end
+	local stageId = payload.stageId
+	local waveNumber = payload.waveNumber
+	if
+		type(stageId) ~= "string"
+		or #stageId < 1
+		or #stageId > TowerDefenseRequest.MAX_STAGE_ID_LENGTH
+		or type(waveNumber) ~= "number"
+		or waveNumber ~= waveNumber
+		or waveNumber == math.huge
+		or waveNumber == -math.huge
+		or waveNumber % 1 ~= 0
+		or waveNumber < 1
+		or waveNumber > 100
+	then
+		return nil
+	end
+	return {
+		stageId = stageId,
+		waveNumber = waveNumber,
+	}
 end
 
 function TowerDefenseRequest.parseUnitIds(unitIds: any, maxSlots: number): { string }?

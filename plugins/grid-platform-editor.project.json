@@ -59,6 +59,9 @@
         "$path": "../src/plugins/Stagewright/Paint/Brushes.luau"
       }
     },
+    "PlaytestPreparation": {
+      "$path": "../src/plugins/Stagewright/PlaytestPreparation.luau"
+    },
     "Persistence": {
       "$className": "Folder",
       "ProjectLoadPolicy": {
@@ -174,6 +177,9 @@
       },
       "StagePayload": {
         "$path": "../src/shared/StagePayload.luau"
+      },
+      "StagePlaytestArtifact": {
+        "$path": "../src/shared/StagePlaytestArtifact.luau"
       },
       "StageExport": {
         "$path": "../src/shared/StageExport.luau"

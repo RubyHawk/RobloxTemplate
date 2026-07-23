@@ -6,7 +6,7 @@
 --
 -- The reserved server never trusts client-visible TeleportData for the boss. The
 -- lobby resolves one boss id per launch and writes an opaque session record to a
--- store keyed by the reserved server id; the reserved server reads it back and
+-- store keyed by the server-generated launch id; the reserved server reads it back and
 -- re-validates the shape here before running that boss.
 
 local DungeonBossSelection = {}

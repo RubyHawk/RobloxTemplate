@@ -21,6 +21,7 @@ export type Config = {
 	mutate: (name: string, callback: () -> ()) -> boolean,
 	setStatus: (message: string, errorState: boolean?) -> (),
 	confirm: (id: string, prompt: string) -> boolean,
+	preparePlaytest: () -> (),
 }
 
 export type Controller = {
@@ -300,6 +301,8 @@ function WaveDesignerView.new(config: Config): Controller
 		end)
 	end)
 	newEnemyButton.LayoutOrder = 4
+	local prepareButton = button(newIdsRow, "Prepare Playtest", 126, config.preparePlaytest)
+	prepareButton.LayoutOrder = 5
 
 	-- Wave-set column footer actions live inside the list as pinned rows.
 	local entryFields: { [string]: TextBox } = {}

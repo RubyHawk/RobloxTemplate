@@ -1747,11 +1747,11 @@ local function runDungeonServer()
 	lockDungeonRoster(manifest, party)
 
 	-- The boss is resolved server-authoritatively on the lobby and handed over in
-	-- a store keyed by this reserved server's id -- never via client-visible
-	-- TeleportData. Re-validate the record shape, that it belongs to this launch,
-	-- and that the id is a known boss; anything off falls back to the default.
+	-- a store keyed by the server-generated launch id -- never via client-visible
+	-- TeleportData. Re-validate the record shape, launch identity, and boss id;
+	-- anything off falls back to the default.
 	local bossId = dungeon.defaultBossId
-	local record = DungeonBossSelection.normalizeSessionRecord(DungeonSessionStore.read(game.PrivateServerId))
+	local record = DungeonBossSelection.normalizeSessionRecord(DungeonSessionStore.read(manifest.launchId))
 	if
 		record ~= nil
 		and record.launchId == manifest.launchId
@@ -1865,36 +1865,19 @@ local function launchablePlayers(players: { Player }): { Player }?
 end
 
 local function teleportPartyToReservedServer(players: { Player }, bossId: string): boolean
-	-- Preserve one exact roster across every yielding setup step. This first
-	-- validation also copies the caller-owned table so later checks cannot be
-	-- weakened by a mutation of that table.
+	-- Preserve one exact roster while the session write yields. This first
+	-- validation also copies the caller-owned table so the post-write check
+	-- cannot be weakened by a mutation of that table.
 	local roster = launchablePlayers(players)
 	if roster == nil then
 		return false
 	end
 	local launchId = HttpService:GenerateGUID(false)
-	-- Reserve explicitly (rather than the one-shot reserve+teleport) so we learn
-	-- the reserved server's id and can hand it the resolved boss out-of-band.
-	-- Reserving yields once at launch; retries reuse this access code and the one
-	-- TeleportOptions instance below, never re-reserving.
-	local reserveOk, accessCode, privateServerId = pcall(function()
-		return TeleportService:ReserveServerAsync(game.PlaceId)
-	end)
-	if not reserveOk or type(accessCode) ~= "string" or type(privateServerId) ~= "string" then
-		warn(`Dungeon reserve failed: {tostring(accessCode)}`)
-		return false
-	end
-	-- Reservation yielded. A disconnect, profile loss, or competing teleport
-	-- invalidates the entire original roster rather than narrowing the manifest.
-	if launchablePlayers(roster) == nil then
-		return false
-	end
-
-	-- Server-authoritative boss handoff. A write failure is non-fatal: the
-	-- reserved server simply falls back to the default boss. The write may yield,
-	-- so the complete roster is validated once more before any pending state is
-	-- installed or manifest ids are derived.
-	DungeonSessionStore.write(privateServerId, { v = 1, bossId = bossId, launchId = launchId })
+	-- Store the boss under an opaque server-generated launch id before teleport.
+	-- A write failure is non-fatal: the destination safely falls back to its
+	-- configured default boss. The write may yield, so revalidate the complete
+	-- roster before deriving the manifest and claiming pending teleport state.
+	DungeonSessionStore.write(launchId, { v = 1, bossId = bossId, launchId = launchId })
 	local finalRoster = launchablePlayers(roster)
 	if finalRoster == nil then
 		return false
@@ -1905,7 +1888,10 @@ local function teleportPartyToReservedServer(players: { Player }, bossId: string
 	end
 
 	local options = Instance.new("TeleportOptions")
-	options.ReservedServerAccessCode = accessCode
+	-- Keep reservation and teleport in Roblox's proven atomic path. The previous
+	-- split reserve/access-code handoff regressed the countdown rune by putting a
+	-- separate reservation request on its launch path.
+	options.ShouldReserveServer = true
 	options:SetTeleportData({
 		kind = "DungeonParty",
 		v = 1,

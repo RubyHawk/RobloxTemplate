@@ -2,6 +2,11 @@
 
 **Checked:** 2026-07-22 (rechecked for the authoritative dungeon boss handoff)
 
+**Superseded for the dungeon rune launch:** The explicit reservation decision
+below regressed live launch behavior. See
+[2026-07-23: boss rune teleport regression](2026-07-23-boss-rune-teleport-regression.md)
+for the restored one-call reservation/teleport design.
+
 ## Sources
 - TeleportService — https://create.roblox.com/docs/reference/engine/classes/TeleportService
 - TeleportOptions — https://create.roblox.com/docs/reference/engine/classes/TeleportOptions

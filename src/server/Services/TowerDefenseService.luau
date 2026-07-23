@@ -75,6 +75,7 @@ type MatchState = {
 	graph: any?,
 	stageFlags: { [string]: boolean },
 	nextSnapshotAt: number,
+	isPlaytest: boolean,
 }
 
 type GridData = {
@@ -162,6 +163,7 @@ local function defaultMatch(): MatchState
 		graph = nil,
 		stageFlags = {},
 		nextSnapshotAt = 0,
+		isPlaytest = false,
 	}
 end
 
@@ -504,7 +506,11 @@ local function spawnEnemy(player: Player, match: MatchState, stream: TowerDefens
 	return true
 end
 
-function TowerDefenseService.startWave(player: Player): (boolean, string)
+local function startWaveInternal(
+	player: Player,
+	requestedWave: number?,
+	isPlaytest: boolean
+): (boolean, string)
 	local profile = ProfileService.get(player)
 	if profile == nil then
 		return false, "Profile is not loaded"
@@ -516,6 +522,7 @@ function TowerDefenseService.startWave(player: Player): (boolean, string)
 	if match.baseHealth <= 0 then
 		matches[player] = defaultMatch()
 		match = matches[player]
+		match.isPlaytest = isPlaytest
 		publishPlacements()
 	end
 	local grid = readGrid(player)
@@ -527,8 +534,9 @@ function TowerDefenseService.startWave(player: Player): (boolean, string)
 		return false, "The active stage needs a valid route graph"
 	end
 
-	match.wave += 1
+	match.wave = requestedWave or (match.wave + 1)
 	match.waveRunning = true
+	match.isPlaytest = isPlaytest
 	match.stageId = grid.stage.id
 	match.graphId = graph.id
 	match.graph = graph
@@ -545,9 +553,46 @@ function TowerDefenseService.startWave(player: Player): (boolean, string)
 	match.spawnStreams = TowerDefenseWaves.buildStreams(wave, os.clock(), loopScale)
 	match.waveIsBoss = TowerDefenseWaves.isBossWave(wave)
 	match.waveCount = waveCount
-	profile.towerDefense.stats.bestWave = math.max(profile.towerDefense.stats.bestWave, match.wave)
-	ProfileService.markDirty(player, "towerDefense:startWave")
+	if not match.isPlaytest then
+		profile.towerDefense.stats.bestWave = math.max(profile.towerDefense.stats.bestWave, match.wave)
+		ProfileService.markDirty(player, "towerDefense:startWave")
+	end
 	return true, `Started wave {match.wave}`
+end
+
+function TowerDefenseService.startWave(player: Player): (boolean, string)
+	return startWaveInternal(player, nil, StageRuntimeService.isPlaytesting(player))
+end
+
+function TowerDefenseService.runWavePlaytest(
+	player: Player,
+	stageId: string,
+	waveNumber: number
+): (boolean, string)
+	if not RunService:IsStudio() or StageCatalog.isPlaytestCatalog ~= true then
+		return false, "Stagewright playtest is unavailable"
+	end
+	if not StageRuntimeService.hasPlatform(player) then
+		return false, "No tower-defense platform is available"
+	end
+	local stage = StageCatalog.get(stageId)
+	local waveSet = StageCatalog.waveSetForStage(stageId)
+	if stage == nil or waveSet == nil or waveNumber < 1 or waveNumber > #waveSet.waves then
+		return false, "Unknown playtest level or wave"
+	end
+	local activated, activationMessage = StageRuntimeService.activateForPlaytest(player, stageId)
+	if not activated then
+		return false, activationMessage
+	end
+	local match = defaultMatch()
+	match.isPlaytest = true
+	matches[player] = match
+	publishPlacements()
+	local started, message = startWaveInternal(player, waveNumber, true)
+	if not started then
+		return false, message
+	end
+	return true, `{activationMessage}; {message}`
 end
 
 function TowerDefenseService.resetMatch(player: Player): (boolean, string)
@@ -666,7 +711,7 @@ local function tickEnemies(player: Player, match: MatchState, deltaTime: number)
 				removeEnemy(match, enemyId)
 				if match.baseHealth <= 0 then
 					local profile = ProfileService.get(player)
-					if profile ~= nil then
+					if profile ~= nil and not match.isPlaytest then
 						profile.towerDefense.stats.losses += 1
 						ProfileService.markDirty(player, "towerDefense:loss")
 					end
@@ -817,7 +862,7 @@ local function tickWaveCompletion(player: Player, match: MatchState)
 	then
 		match.waveRunning = false
 		local profile = ProfileService.get(player)
-		if profile ~= nil then
+		if profile ~= nil and not match.isPlaytest then
 			profile.towerDefense.stats.wins += 1
 			profile.towerDefense.stats.bestWave = math.max(profile.towerDefense.stats.bestWave, match.wave)
 			local stageProgress = profile.towerDefense.stageProgress[match.stageId]

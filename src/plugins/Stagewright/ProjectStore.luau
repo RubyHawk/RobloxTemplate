@@ -197,7 +197,9 @@ local function applyLoadedPlan(state: ProjectLoadPolicy.Ready | ProjectLoadPolic
 			)
 			return true
 		end
-		return ensureStarterLevels(configuredStarterLevelCount())
+		local levelsChanged = ensureStarterLevels(configuredStarterLevelCount())
+		local revisionChanged = StageStarterProject.upgradeApprovedStarter(project)
+		return levelsChanged or revisionChanged
 	end)
 	if not normalizeSuccess then
 		project = original
