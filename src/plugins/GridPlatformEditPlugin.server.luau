@@ -15,6 +15,7 @@ local MapNavigationController = require(script.Controllers.MapNavigationControll
 local MapBackdrop = require(script.MapBackdrop)
 local PaintRouteDragSession = require(script.Controllers.PaintRouteDragSession)
 local PaintStrokeSession = require(script.Controllers.PaintStrokeSession)
+local PlaytestPreparation = require(script.PlaytestPreparation)
 local WorldPathController = require(script.Controllers.WorldPathController)
 local GraphOperations = require(script.Graph.Operations)
 local PredicateFields = require(script.Graph.PredicateFields)
@@ -463,6 +464,19 @@ local function renderWorkspacePreview()
 		selectedEdgeId = selectedEdgeId,
 		tracedEdgeIds = tracedEdgeIds,
 	})
+end
+
+local function preparePlaytest()
+	local success, message, outcome = PlaytestPreparation.prepare(selectedStageId, stage().name)
+	if outcome == "Blocked" then
+		flowRuntime.reportBlocked("Prepare playtest")
+		return
+	end
+	if outcome == "Validate" then
+		activeMode = "Validate"
+		renderAll()
+	end
+	setStatus(message, not success)
 end
 
 for order, modeName in { "Graph", "Paint", "Stage", "Waves", "Validate" } :: { Mode } do
@@ -2331,6 +2345,7 @@ local waveDesigner = WaveDesignerView.new({
 	end,
 	setStatus = setStatus,
 	confirm = confirm,
+	preparePlaytest = preparePlaytest,
 })
 
 local stageActionOrder = 0

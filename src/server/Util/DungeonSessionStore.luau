@@ -1,10 +1,10 @@
 --!strict
 
--- Per-reserved-server dungeon session handoff. The lobby reserves a server,
--- resolves one boss id, and writes it here keyed by the reserved server's
--- PrivateServerId; the reserved server reads it back on boot. This is the
--- server-authoritative channel that replaces trusting client-visible
--- TeleportData for the boss.
+-- Per-launch dungeon session handoff. The lobby resolves one boss id and writes
+-- it here under the server-generated launch id before starting the reserved
+-- teleport; the destination reads it after validating the matching launch
+-- manifest. This keeps boss authority server-only without replacing Roblox's
+-- reliable one-call ShouldReserveServer path.
 --
 -- MemoryStore is a live-only, published-place service. In mock mode (template
 -- workbench) and in Studio -- where the dungeon is simulated in-place and never
@@ -40,12 +40,12 @@ local function hashMap(): any
 	return map
 end
 
-function DungeonSessionStore.write(privateServerId: string, record: any): boolean
-	if type(privateServerId) ~= "string" or privateServerId == "" then
+function DungeonSessionStore.write(launchId: string, record: any): boolean
+	if type(launchId) ~= "string" or launchId == "" then
 		return false
 	end
 	if DataStoreRuntime.isMock() then
-		mockRecords[privateServerId] = record
+		mockRecords[launchId] = record
 		return true
 	end
 	local map = hashMap()
@@ -53,7 +53,7 @@ function DungeonSessionStore.write(privateServerId: string, record: any): boolea
 		return false
 	end
 	local ok, err = pcall(function()
-		map:SetAsync(privateServerId, record, TTL_SECONDS)
+		map:SetAsync(launchId, record, TTL_SECONDS)
 	end)
 	if not ok then
 		DataStoreRuntime.failure("dungeon", "SetAsync", err)
@@ -62,19 +62,19 @@ function DungeonSessionStore.write(privateServerId: string, record: any): boolea
 	return true
 end
 
-function DungeonSessionStore.read(privateServerId: string): any?
-	if type(privateServerId) ~= "string" or privateServerId == "" then
+function DungeonSessionStore.read(launchId: string): any?
+	if type(launchId) ~= "string" or launchId == "" then
 		return nil
 	end
 	if DataStoreRuntime.isMock() then
-		return mockRecords[privateServerId]
+		return mockRecords[launchId]
 	end
 	local map = hashMap()
 	if map == nil then
 		return nil
 	end
 	local ok, value = pcall(function()
-		return map:GetAsync(privateServerId)
+		return map:GetAsync(launchId)
 	end)
 	if not ok then
 		DataStoreRuntime.failure("dungeon", "GetAsync", value)

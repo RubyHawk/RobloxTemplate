@@ -1,12 +1,79 @@
 --!strict
 
+local HttpService = if script ~= nil then game:GetService("HttpService") else nil
+local RunService = if script ~= nil then game:GetService("RunService") else nil
+
 local StageHierarchy = require(script.Parent.StageHierarchy)
+local StagePlaytestArtifact = require(script.Parent.StagePlaytestArtifact)
+local StagePayload = require(script.Parent.StagePayload)
 local StageTypes = require(script.Parent.StageTypes)
 
 type RuntimeStageBundle = StageTypes.RuntimeStageBundle
 type RuntimeStageDefinition = StageTypes.RuntimeStageDefinition
 
-local bundle: any = require(script.Parent["StageCatalog.generated"]) :: RuntimeStageBundle
+local generatedBundle: any = require(script.Parent["StageCatalog.generated"]) :: RuntimeStageBundle
+
+local function studioPlaytestBundle(): (any?, string?, string?)
+	if script == nil or RunService == nil or HttpService == nil or not RunService:IsStudio() then
+		return nil, nil, nil
+	end
+	local template = script.Parent.Parent
+	local root = template:FindFirstChild(StagePlaytestArtifact.ROOT_NAME)
+	if
+		root == nil
+		or not root:IsA("Folder")
+		or root:GetAttribute(StagePlaytestArtifact.FORMAT_ATTRIBUTE) ~= StagePlaytestArtifact.FORMAT
+	then
+		return nil, nil, nil
+	end
+	local stored = root:FindFirstChild(StagePlaytestArtifact.VALUE_NAME)
+	if stored == nil or not stored:IsA("StringValue") then
+		return nil, nil, nil
+	end
+	local chunksByName: { [string]: any } = {}
+	local chunksFolder = root:FindFirstChild(StagePayload.chunksName(StagePlaytestArtifact.VALUE_NAME))
+	if chunksFolder ~= nil and chunksFolder:IsA("Folder") then
+		for _, child in chunksFolder:GetChildren() do
+			if child:IsA("StringValue") then
+				chunksByName[child.Name] = child.Value
+			end
+		end
+	end
+	local encoded = StagePlaytestArtifact.decode(stored.Value, chunksByName)
+	if encoded == nil then
+		return nil, nil, nil
+	end
+	local success, candidate = pcall(function()
+		return HttpService:JSONDecode(encoded)
+	end)
+	local expectedChecksum = root:GetAttribute(StagePlaytestArtifact.RUNTIME_CHECKSUM_ATTRIBUTE)
+	local sourceChecksum = root:GetAttribute(StagePlaytestArtifact.SOURCE_CHECKSUM_ATTRIBUTE)
+	if
+		not success
+		or type(candidate) ~= "table"
+		or type(candidate.stages) ~= "table"
+		or type(candidate.stageOrder) ~= "table"
+		or type(candidate.checksum) ~= "string"
+		or type(expectedChecksum) ~= "string"
+		or type(sourceChecksum) ~= "string"
+		or candidate.checksum ~= expectedChecksum
+	then
+		return nil, nil, nil
+	end
+	local selectedStageId = root:GetAttribute(StagePlaytestArtifact.SELECTED_STAGE_ATTRIBUTE)
+	return candidate,
+		sourceChecksum,
+		if type(selectedStageId) == "string" and candidate.stages[selectedStageId] ~= nil
+			then selectedStageId
+			else nil
+end
+
+local preparedBundle, preparedSourceChecksum, preparedStageId = studioPlaytestBundle()
+local bundle, usingPlaytestCatalog = StagePlaytestArtifact.selectCatalog(
+	generatedBundle,
+	preparedBundle,
+	RunService ~= nil and RunService:IsStudio()
+)
 local StageCatalog = {}
 local stages: { [string]: RuntimeStageDefinition } = bundle.stages
 local maps: { [string]: StageTypes.RuntimeMapDefinition } = if type(bundle.maps) == "table"
@@ -107,5 +174,8 @@ StageCatalog.enemyTypeOrder = table.freeze(enemyTypeOrder)
 StageCatalog.waveSets = table.freeze(waveSets)
 StageCatalog.waveSetOrder = table.freeze(waveSetOrder)
 StageCatalog.bundleChecksum = bundle.checksum
+StageCatalog.isPlaytestCatalog = usingPlaytestCatalog
+StageCatalog.sourceChecksum = preparedSourceChecksum or generatedBundle.checksum
+StageCatalog.preparedStageId = preparedStageId
 
 return table.freeze(StageCatalog)

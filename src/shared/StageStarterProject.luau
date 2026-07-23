@@ -6,7 +6,10 @@ local StageWaveDefaults = if script ~= nil
 
 local StageStarterProject = {}
 
-StageStarterProject.REVISION = 1
+StageStarterProject.REVISION = 2
+StageStarterProject.BASICS_WAVE_SET_ID = "mvp_basics"
+StageStarterProject.MIXED_WAVE_SET_ID = "mvp_mixed"
+StageStarterProject.BOSS_WAVE_SET_ID = "mvp_boss"
 
 export type IdFactory = (string) -> string
 
@@ -175,6 +178,101 @@ local function makeGrid(): any
 	}
 end
 
+local function waveEntry(
+	enemyTypeId: string,
+	count: number,
+	spacingSeconds: number,
+	startDelaySeconds: number
+): any
+	return {
+		enemyTypeId = enemyTypeId,
+		count = count,
+		spacingSeconds = spacingSeconds,
+		startDelaySeconds = startDelaySeconds,
+	}
+end
+
+function StageStarterProject.playtestWaveSets(): { [string]: any }
+	return {
+		[StageStarterProject.BASICS_WAVE_SET_ID] = {
+			id = StageStarterProject.BASICS_WAVE_SET_ID,
+			name = "MVP Basics",
+			waves = {
+				{ entries = { waveEntry("forest_grunt", 6, 0.8, 0) } },
+				{
+					entries = {
+						waveEntry("forest_grunt", 8, 0.65, 0),
+						waveEntry("forest_runner", 4, 0.5, 2.5),
+					},
+				},
+				{
+					entries = {
+						waveEntry("forest_grunt", 8, 0.6, 0),
+						waveEntry("bark_bruiser", 2, 1.2, 4),
+					},
+				},
+			},
+		},
+		[StageStarterProject.MIXED_WAVE_SET_ID] = {
+			id = StageStarterProject.MIXED_WAVE_SET_ID,
+			name = "MVP Mixed",
+			waves = {
+				{ entries = { waveEntry("forest_runner", 10, 0.4, 0) } },
+				{
+					entries = {
+						waveEntry("forest_grunt", 6, 0.7, 0),
+						waveEntry("sky_wisp", 6, 0.55, 1.5),
+					},
+				},
+				{
+					entries = {
+						waveEntry("forest_runner", 8, 0.4, 0),
+						waveEntry("bark_bruiser", 4, 1, 2),
+						waveEntry("sky_wisp", 6, 0.5, 4),
+					},
+				},
+			},
+		},
+		[StageStarterProject.BOSS_WAVE_SET_ID] = {
+			id = StageStarterProject.BOSS_WAVE_SET_ID,
+			name = "MVP Boss",
+			waves = {
+				{
+					entries = {
+						waveEntry("bark_bruiser", 6, 0.9, 0),
+						waveEntry("forest_runner", 8, 0.4, 2),
+					},
+				},
+				{
+					entries = {
+						waveEntry("sky_wisp", 10, 0.5, 0),
+						waveEntry("bark_bruiser", 4, 1, 3),
+					},
+				},
+				{
+					isBoss = true,
+					entries = {
+						waveEntry("forest_grunt", 8, 0.55, 0),
+						waveEntry("grove_titan", 1, 1, 2),
+						waveEntry("forest_runner", 6, 0.4, 3),
+					},
+				},
+			},
+		},
+	}
+end
+
+local function playtestWaveSetId(levelNumber: number): string
+	if levelNumber == 1 then
+		return StageStarterProject.BASICS_WAVE_SET_ID
+	elseif levelNumber == 2 then
+		return StageStarterProject.MIXED_WAVE_SET_ID
+	elseif levelNumber == 3 then
+		return StageStarterProject.BOSS_WAVE_SET_ID
+	end
+	return StageWaveDefaults.DEFAULT_WAVE_SET_ID
+end
+
 function StageStarterProject.build(
 	levelCount: number,
 	idFactory: IdFactory,
@@ -202,7 +300,7 @@ function StageStarterProject.build(
 			levelNumber = levelNumber,
 			grid = makeGrid(),
 			pathGraphs = { [graphId] = graph },
-			waveSetId = "default",
+			waveSetId = playtestWaveSetId(levelNumber),
 			themeId = "default",
 			modifierIds = {},
 			unlockRequirements = if previousId == nil
@@ -230,9 +328,11 @@ function StageStarterProject.build(
 		},
 		stages = stages,
 		enemyTypes = StageWaveDefaults.enemyTypes(),
-		waveSets = {
-			[StageWaveDefaults.DEFAULT_WAVE_SET_ID] = StageWaveDefaults.defaultWaveSet(),
-		},
+		waveSets = (function(): { [string]: any }
+			local result = StageStarterProject.playtestWaveSets()
+			result[StageWaveDefaults.DEFAULT_WAVE_SET_ID] = StageWaveDefaults.defaultWaveSet()
+			return result
+		end)(),
 		metadata = {
 			["stagewright.starterLevelCount"] = count,
 			["stagewright.starterMapId"] = mapId,
@@ -240,6 +340,62 @@ function StageStarterProject.build(
 			["stagewright.approvedStarterRevision"] = StageStarterProject.REVISION,
 		},
 	}
+end
+
+-- Revision 1 was the exact ten-level starter layout with every level assigned
+-- to the default wave set. Upgrade only that untouched assignment boundary;
+-- custom wave sets or custom level assignments are never replaced.
+function StageStarterProject.upgradeApprovedStarter(project: any): boolean
+	if
+		type(project) ~= "table"
+		or type(project.metadata) ~= "table"
+		or project.metadata["stagewright.approvedStarterRevision"] ~= 1
+		or type(project.stages) ~= "table"
+		or type(project.waveSets) ~= "table"
+	then
+		return false
+	end
+	local starting = project.stages[project.startingStageId]
+	if type(starting) ~= "table" then
+		return false
+	end
+	local levelIds: { string } = {}
+	for stageId, stage in project.stages do
+		if
+			type(stage) == "table"
+			and stage.mapId == starting.mapId
+			and stage.stageGroupId == starting.stageGroupId
+			and stage.stageNumber == starting.stageNumber
+			and type(stage.levelNumber) == "number"
+		then
+			table.insert(levelIds, stageId)
+		end
+	end
+	table.sort(levelIds, function(left, right)
+		return project.stages[left].levelNumber < project.stages[right].levelNumber
+	end)
+	if #levelIds ~= 10 or project.metadata["stagewright.starterLevelCount"] ~= 10 then
+		return false
+	end
+	for levelNumber = 1, 3 do
+		if project.stages[levelIds[levelNumber]].waveSetId ~= StageWaveDefaults.DEFAULT_WAVE_SET_ID then
+			return false
+		end
+	end
+	local fixtureSets = StageStarterProject.playtestWaveSets()
+	for waveSetId in fixtureSets do
+		if project.waveSets[waveSetId] ~= nil then
+			return false
+		end
+	end
+	for waveSetId, waveSet in fixtureSets do
+		project.waveSets[waveSetId] = waveSet
+	end
+	for levelNumber = 1, 3 do
+		project.stages[levelIds[levelNumber]].waveSetId = playtestWaveSetId(levelNumber)
+	end
+	project.metadata["stagewright.approvedStarterRevision"] = StageStarterProject.REVISION
+	return true
 end
 
 function StageStarterProject.isRecognizedLegacyTestProject(project: any): boolean

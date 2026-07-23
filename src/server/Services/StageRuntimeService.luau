@@ -1,5 +1,6 @@
 --!strict
 
+local RunService = game:GetService("RunService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
 local StageCatalog = require(Shared.StageCatalog)
 local StageCell = require(Shared.StageCell)
@@ -28,6 +29,7 @@ type StageAvailabilityProvider = (player: Player) -> boolean
 type StageActivationPublisher = (player: Player, stageId: string) -> boolean
 
 local activeStageIds: { [Player]: string } = {}
+local playtestStageIds: { [Player]: string } = {}
 local UNAVAILABLE_ORIGIN = CFrame.new(0, -10_000, 0)
 local upgradeLevelProvider: UpgradeLevelProvider = function(_player: Player, _upgradeId: string): number
 	return 0
@@ -67,6 +69,10 @@ local function unlockedStages(player: Player): { [string]: boolean }
 	local unlocked: { [string]: boolean } = {}
 	for stageId, state in progress do
 		unlocked[stageId] = type(state) == "table" and state.unlocked == true
+	end
+	local playtestStageId = playtestStageIds[player]
+	if playtestStageId ~= nil then
+		unlocked[playtestStageId] = true
 	end
 	return unlocked
 end
@@ -120,6 +126,7 @@ function StageRuntimeService.activate(player: Player, stageId: any): (boolean, s
 	if profile == nil then
 		return false, "Profile is not loaded"
 	end
+	playtestStageIds[player] = nil
 	activeStageIds[player] = stageId
 	activationPublisher(player, stageId)
 	profile.towerDefense.selectedStageId = stageId
@@ -127,7 +134,39 @@ function StageRuntimeService.activate(player: Player, stageId: any): (boolean, s
 	return true, `Activated {stage.name}`
 end
 
+function StageRuntimeService.activateForPlaytest(player: Player, stageId: any): (boolean, string)
+	if
+		not RunService:IsStudio()
+		or StageCatalog.isPlaytestCatalog ~= true
+		or type(stageId) ~= "string"
+		or #stageId > 80
+	then
+		return false, "Stagewright playtest is unavailable"
+	end
+	local stage = stageById(stageId)
+	if stage == nil then
+		return false, "Unknown stage"
+	end
+	playtestStageIds[player] = stageId
+	activeStageIds[player] = stageId
+	activationPublisher(player, stageId)
+	return true, `Playtesting {stage.name}`
+end
+
+function StageRuntimeService.isPlaytesting(player: Player): boolean
+	local stageId = playtestStageIds[player]
+	return RunService:IsStudio()
+		and StageCatalog.isPlaytestCatalog == true
+		and stageId ~= nil
+		and stageById(stageId) ~= nil
+end
+
 function StageRuntimeService.activeStageId(player: Player): string
+	local playtestStageId = playtestStageIds[player]
+	if playtestStageId ~= nil and StageRuntimeService.isPlaytesting(player) then
+		activationPublisher(player, playtestStageId)
+		return playtestStageId
+	end
 	local active = activeStageIds[player]
 	if active ~= nil and stageById(active) ~= nil and StageRuntimeService.isUnlocked(player, active) then
 		activationPublisher(player, active)
@@ -329,6 +368,7 @@ end
 
 function StageRuntimeService.forget(player: Player)
 	activeStageIds[player] = nil
+	playtestStageIds[player] = nil
 end
 
 return StageRuntimeService

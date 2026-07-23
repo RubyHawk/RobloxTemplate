@@ -50,6 +50,7 @@ local ResponsiveController = require(Controllers.ResponsiveController)
 local StageEnemyRenderer = require(Controllers.StageEnemyRenderer)
 local StageGridRenderer = require(Controllers.StageGridRenderer)
 local StagePlatformOwnerController = require(Controllers.StagePlatformOwnerController)
+local StagewrightPlaytestController = require(Controllers.StagewrightPlaytestController)
 local StageTowerRenderer = require(Controllers.StageTowerRenderer)
 local UIFactory = require(script.UI.UIFactory)
 local ScreenRegistry = require(script.UI.ScreenRegistry)
@@ -324,6 +325,8 @@ local function request(action: string, payload: any, audioCue: string?)
 	requestRemote:FireServer({ action = action, payload = payload })
 end
 
+StagewrightPlaytestController.initialize(request)
+
 local function query(action: string, payload: any, audioCue: string?): any
 	AudioController.play(audioCue or "click")
 	local success, response = pcall(function()
@@ -576,6 +579,7 @@ local function applyState(nextState: any)
 	end
 	AfkController.setEnabled(state.profile.settings.afKRollOver)
 	StageEnemyRenderer.apply(state.towerDefense)
+	StagewrightPlaytestController.apply(state.towerDefense)
 	binder.apply(state)
 end
 
@@ -587,6 +591,7 @@ stateRemote.OnClientEvent:Connect(function(packet)
 		applyState(packet.data)
 	elseif packet.kind == "TowerEnemies" then
 		StageEnemyRenderer.apply(packet.data)
+		StagewrightPlaytestController.apply(packet.data)
 		if state ~= nil then
 			state.towerDefense = packet.data
 			binder.apply(state)

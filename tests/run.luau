@@ -1888,6 +1888,32 @@ do
 		)
 	end
 
+	local playtestWave = TowerDefenseRequest.parseWavePlaytest({
+		stageId = "stage_default",
+		waveNumber = 3,
+	})
+	expectEqual(
+		playtestWave ~= nil and playtestWave.stageId == "stage_default" and playtestWave.waveNumber == 3,
+		true,
+		"tower playtest accepts an exact authored stage and wave"
+	)
+	for _, invalidPlaytestPayload in
+		{
+			{},
+			{ stageId = "", waveNumber = 1 },
+			{ stageId = "stage_default", waveNumber = 0 },
+			{ stageId = "stage_default", waveNumber = 1.5 },
+			{ stageId = "stage_default", waveNumber = math.huge },
+			{ stageId = "stage_default", waveNumber = 1, unlocked = true },
+		}
+	do
+		expectEqual(
+			TowerDefenseRequest.parseWavePlaytest(invalidPlaytestPayload),
+			nil,
+			"tower playtest rejects malformed or unauthorized fields"
+		)
+	end
+
 	expectEqual(TowerDefenseRequest.acceptsNoPayload(nil), true, "tower wave accepts omitted payload")
 	expectEqual(TowerDefenseRequest.acceptsNoPayload({}), true, "tower wave accepts an empty payload")
 	expectEqual(TowerDefenseRequest.acceptsNoPayload(1), false, "tower wave rejects wrong payload type")
@@ -2576,6 +2602,7 @@ end
 
 do
 	local StagePayload = require("../src/shared/StagePayload")
+	local StagePlaytestArtifact = require("../src/shared/StagePlaytestArtifact")
 	expectEqual(
 		StagePayload.BUNDLE_FORMAT,
 		"StagewrightBundle:v1",
@@ -2625,6 +2652,41 @@ do
 		StageSchema.checksumEncoded(canonicalChecksumFixture),
 		StageSchema.checksum(checksumFixture),
 		"Stagewright transport checksum hashes canonical payload bytes without reparsing numbers"
+	)
+	local preparedPayload = string.rep("prepared-stagewright-runtime", 20_000)
+	local preparedChunks = StagePayload.split(preparedPayload)
+	local chunksByName: { [string]: any } = {}
+	for index, chunk in preparedChunks do
+		chunksByName[StagePayload.chunkName(index)] = chunk
+	end
+	local preparedManifest = StagePayload.manifest("fnv1a32-playtest", #preparedChunks, #preparedPayload)
+	local decodedPrepared, decodedPreparedError = StagePlaytestArtifact.decode(preparedManifest, chunksByName)
+	expectEqual(decodedPreparedError, nil, "prepared playtest snapshot decodes without an error")
+	expectEqual(
+		decodedPrepared,
+		preparedPayload,
+		"prepared playtest snapshot round trips through the shared chunk format"
+	)
+	chunksByName[StagePayload.chunkName(2)] = nil
+	local missingPreparedChunk, missingPreparedError =
+		StagePlaytestArtifact.decode(preparedManifest, chunksByName)
+	expectEqual(missingPreparedChunk, nil, "prepared snapshot rejects a missing runtime chunk")
+	expectEqual(type(missingPreparedError), "string", "missing prepared chunks report a diagnostic")
+	local generatedFixture = { checksum = "generated" }
+	local preparedFixture = { checksum = "prepared" }
+	local staticSelection, staticUsesPlaytest =
+		StagePlaytestArtifact.selectCatalog(generatedFixture, preparedFixture, false)
+	expectEqual(
+		staticSelection == generatedFixture and staticUsesPlaytest == false,
+		true,
+		"published servers keep the generated static catalog"
+	)
+	local studioSelection, studioUsesPlaytest =
+		StagePlaytestArtifact.selectCatalog(generatedFixture, preparedFixture, true)
+	expectEqual(
+		studioSelection == preparedFixture and studioUsesPlaytest == true,
+		true,
+		"Studio selects the prepared Stagewright catalog"
 	)
 end
 
@@ -4293,6 +4355,12 @@ do
 	local stagewrightWaveModelSource = fs.readFile("src/plugins/Stagewright/Waves/Model.luau")
 	local stagewrightWaveDesignerSource = fs.readFile("src/plugins/Stagewright/UI/WaveDesignerView.luau")
 	local stagewrightImportSource = fs.readFile("scripts/stagewright-import.luau")
+	local stagePlaytestArtifactSource = fs.readFile("src/shared/StagePlaytestArtifact.luau")
+	local stagewrightPlaytestControllerSource =
+		fs.readFile("src/client/Controllers/StagewrightPlaytestController.luau")
+	local stagewrightPlaytestPreparationSource =
+		fs.readFile("src/plugins/Stagewright/PlaytestPreparation.luau")
+	local stagewrightPlaytestHudSource = fs.readFile("src/ui/StagewrightPlaytestHUD.model.json")
 	local stagewrightUiSource = stagewrightAppShellSource
 		.. stagewrightThemeSource
 		.. stagewrightFactorySource
@@ -4348,6 +4416,58 @@ do
 	expectCompiles(stagewrightWaveModelSource, "Stagewright wave designer model compiles as Luau")
 	expectCompiles(stagewrightWaveDesignerSource, "Stagewright wave designer view compiles as Luau")
 	expectCompiles(stagewrightImportSource, "Stagewright repository importer compiles as Luau")
+	expectCompiles(stagePlaytestArtifactSource, "Stagewright playtest artifact contract compiles as Luau")
+	expectCompiles(
+		stagewrightPlaytestPreparationSource,
+		"Stagewright playtest preparation module compiles as Luau"
+	)
+	expectCompiles(
+		stagewrightPlaytestControllerSource,
+		"Stagewright playtest HUD controller compiles as Luau"
+	)
+	for _, prepareMarker in
+		{
+			"local function preparePlaytest()",
+			"ProjectStore.export()",
+			"ProjectStorage.writePayload(",
+			"StagePlaytestArtifact.SOURCE_CHECKSUM_ATTRIBUTE",
+			"StagePlaytestArtifact.RUNTIME_CHECKSUM_ATTRIBUTE",
+			"preparePlaytest = preparePlaytest",
+		}
+	do
+		expectEqual(
+			string.find(gridPluginSource .. stagewrightPlaytestPreparationSource, prepareMarker, 1, true)
+				~= nil,
+			true,
+			`Stagewright prepares a checked chunked runtime snapshot: {prepareMarker}`
+		)
+	end
+	for _, hudObject in
+		{
+			'"Name": "Level1Button"',
+			'"Name": "Level2Button"',
+			'"Name": "Level3Button"',
+			'"Name": "WaveLabel"',
+			'"Name": "RunButton"',
+			'"Name": "ResetButton"',
+			'"Name": "StatsLabel"',
+			'"Name": "StatusLabel"',
+		}
+	do
+		expectEqual(
+			string.find(stagewrightPlaytestHudSource, hudObject, 1, true) ~= nil,
+			true,
+			`playtest HUD pre-authors {hudObject}`
+		)
+	end
+	expectEqual(
+		string.find(gridPluginProject, '"StagePlaytestArtifact"', 1, true) ~= nil
+			and string.find(gridPatchProject, '"StagewrightPlaytestRuntime"', 1, true) ~= nil
+			and string.find(gridPatchProject, '"StagewrightPlaytestHUD"', 1, true) ~= nil
+			and string.find(gridPatchProject, '"StagePayload"', 1, true) ~= nil,
+		true,
+		"plugin and RNG Defender patch map the prepared snapshot transport and authored HUD"
+	)
 	expectEqual(
 		string.find(
 			stagewrightAppShellSource,
@@ -6617,6 +6737,21 @@ do
 	local firstWave, waveCount = TowerDefenseWaves.waveForIndex(defaultSet, 1)
 	expectEqual(waveCount, #defaultSet.waves, "wave lookup reports the authored set length")
 	expectEqual(firstWave.entries[1].enemyTypeId, "forest_grunt", "wave one sends the starter grunt")
+	local bossSet = StageStarterProject.playtestWaveSets()[StageStarterProject.BOSS_WAVE_SET_ID]
+	local requestedBossWave, bossWaveCount = TowerDefenseWaves.waveForIndex(bossSet, 3)
+	local requestedBossStreams = TowerDefenseWaves.buildStreams(requestedBossWave, 50, 1)
+	expectEqual(
+		bossWaveCount == 3
+			and requestedBossWave.isBoss == true
+			and #requestedBossStreams == 3
+			and requestedBossStreams[1].enemyTypeId == "forest_grunt"
+			and requestedBossStreams[2].enemyTypeId == "grove_titan"
+			and requestedBossStreams[2].nextSpawnAt == 52
+			and requestedBossStreams[3].enemyTypeId == "forest_runner"
+			and requestedBossStreams[3].nextSpawnAt == 53,
+		true,
+		"requesting boss wave 3 schedules its exact authored concurrent and delayed streams"
+	)
 	local loopedWave = TowerDefenseWaves.waveForIndex(defaultSet, #defaultSet.waves + 1)
 	expectEqual(
 		StageSchema.encodeCanonical(loopedWave :: any),
@@ -7310,6 +7445,55 @@ do
 	)
 	local authoredLevelIds = StageHierarchy.sortedIds(authoringProject.stages)
 	expectEqual(#authoredLevelIds, 10, "repository seeds Stage 1 with the first ten levels")
+	local expectedPlaytestSets = {
+		StageStarterProject.BASICS_WAVE_SET_ID,
+		StageStarterProject.MIXED_WAVE_SET_ID,
+		StageStarterProject.BOSS_WAVE_SET_ID,
+	}
+	for levelNumber = 1, 3 do
+		expectEqual(
+			authoringProject.stages[authoredLevelIds[levelNumber]].waveSetId,
+			expectedPlaytestSets[levelNumber],
+			`repository assigns the MVP wave set for Level {levelNumber}`
+		)
+	end
+	for levelNumber = 4, 10 do
+		expectEqual(
+			authoringProject.stages[authoredLevelIds[levelNumber]].waveSetId,
+			StageWaveDefaults.DEFAULT_WAVE_SET_ID,
+			`Level {levelNumber} remains on the default wave set`
+		)
+	end
+	local basicsSet = authoringProject.waveSets[StageStarterProject.BASICS_WAVE_SET_ID]
+	local mixedSet = authoringProject.waveSets[StageStarterProject.MIXED_WAVE_SET_ID]
+	local bossSet = authoringProject.waveSets[StageStarterProject.BOSS_WAVE_SET_ID]
+	expectEqual(
+		#basicsSet.waves == 3
+			and basicsSet.waves[1].entries[1].count == 6
+			and basicsSet.waves[2].entries[2].enemyTypeId == "forest_runner"
+			and basicsSet.waves[2].entries[2].startDelaySeconds == 2.5
+			and basicsSet.waves[3].entries[2].enemyTypeId == "bark_bruiser",
+		true,
+		"Level 1 seeds basic timing and delayed reinforcements"
+	)
+	expectEqual(
+		#mixedSet.waves == 3
+			and #mixedSet.waves[3].entries == 3
+			and mixedSet.waves[3].entries[1].enemyTypeId == "forest_runner"
+			and mixedSet.waves[3].entries[2].enemyTypeId == "bark_bruiser"
+			and mixedSet.waves[3].entries[3].enemyTypeId == "sky_wisp",
+		true,
+		"Level 2 seeds concurrent ground, armored, fast, and flying streams"
+	)
+	expectEqual(
+		#bossSet.waves == 3
+			and bossSet.waves[3].isBoss == true
+			and bossSet.waves[3].entries[2].enemyTypeId == "grove_titan"
+			and bossSet.waves[3].entries[2].count == 1
+			and bossSet.waves[3].entries[2].startDelaySeconds == 2,
+		true,
+		"Level 3 seeds the delayed titan boss and escort streams"
+	)
 	local copiedStarterLayoutsMatch = true
 	local uniqueGraphIds: { [string]: boolean } = {}
 	local function topologySignature(level: any): string
@@ -8537,6 +8721,7 @@ for _, towerDefenseMarker in
 		"TowerDefenseService.placeUnit",
 		"TowerDefenseService.autoPlaceBest",
 		"TowerDefenseService.startWave",
+		"TowerDefenseService.runWavePlaytest",
 		"TowerDefenseService.resetMatch",
 		"TowerDefenseService.activateStage",
 		"TowerDefenseService.snapshotFor",
@@ -8545,6 +8730,7 @@ for _, towerDefenseMarker in
 		"TowerDefenseLogic.isBuildableCell",
 		"RunService.Heartbeat",
 		"StageRuntimeService.chooseEdge",
+		"StageRuntimeService.isPlaytesting",
 		"maximum travel distance exceeded",
 		"Workspace:GetServerTimeNow",
 		"buildEnemySpatialIndex",
@@ -8557,12 +8743,46 @@ for _, towerDefenseMarker in
 		"publishEnemies",
 		"publishPlacements",
 		"placementRevision",
+		"startWaveInternal(player, waveNumber, true)",
 	}
 do
 	expectEqual(
 		string.find(towerDefenseServiceSource, towerDefenseMarker, 1, true) ~= nil,
 		true,
 		`tower defense service includes {towerDefenseMarker}`
+	)
+end
+do
+	local _, playtestProgressionGuardCount =
+		string.gsub(towerDefenseServiceSource, "if profile ~= nil and not match%.isPlaytest then", "")
+	expectEqual(
+		playtestProgressionGuardCount >= 2
+			and string.find(towerDefenseServiceSource, "if not match.isPlaytest then", 1, true) ~= nil,
+		true,
+		"playtest wave start, loss, and completion stay outside saved profile progression"
+	)
+	local stageRuntimeServiceSource = fs.readFile("src/server/Services/StageRuntimeService.luau")
+	local playtestActivationAt = assert(
+		string.find(stageRuntimeServiceSource, "function StageRuntimeService.activateForPlaytest", 1, true),
+		"playtest stage activation exists"
+	)
+	local normalActivationResumeAt = assert(
+		string.find(
+			stageRuntimeServiceSource,
+			"function StageRuntimeService.activeStageId",
+			playtestActivationAt,
+			true
+		),
+		"normal active stage lookup follows playtest activation"
+	)
+	local playtestActivationSource =
+		string.sub(stageRuntimeServiceSource, playtestActivationAt, normalActivationResumeAt - 1)
+	expectEqual(#playtestActivationSource > 0, true, "playtest stage activation has a testable boundary")
+	expectEqual(
+		string.find(playtestActivationSource, "selectedStageId", 1, true) == nil
+			and string.find(playtestActivationSource, "markDirty", 1, true) == nil,
+		true,
+		"session-only playtest level activation never selects or saves profile progression"
 	)
 end
 for _, retiredServerPresentation in
@@ -9120,6 +9340,17 @@ expectEqual(
 	true,
 	"shared-place patch delivers authored platform owner markers"
 )
+do
+	local playtestHudModel = fs.readFile("src/ui/StagewrightPlaytestHUD.model.json")
+	expectEqual(
+		string.find(gridPatchProject, '"StagewrightPlaytestHUD"', 1, true) ~= nil
+			and string.find(playtestHudModel, '"Enabled": false', 1, true) ~= nil
+			and string.find(initClient, "StagewrightPlaytestController.initialize(request)", 1, true) ~= nil
+			and string.find(initClient, "StagewrightPlaytestController.apply", 1, true) ~= nil,
+		true,
+		"RNG Defender receives the disabled-by-default authored Studio playtest HUD and controller"
+	)
+end
 expectEqual(
 	string.find(stagePlatformSource, "OnServerEvent", 1, true),
 	nil,
@@ -9144,6 +9375,7 @@ for _, towerDefenseRemoteMarker in
 		"PlaceUnit",
 		"AutoPlaceBestUnits",
 		"StartTowerWave",
+		"RunTowerWavePlaytest",
 		"ResetTowerDefense",
 		"ActivateTowerStage",
 		"TowerEnemies",
@@ -9951,14 +10183,15 @@ do
 end
 
 do
-	-- Lock in the server-authoritative handoff: the reserved server is explicitly
-	-- reserved, the boss travels through the session store keyed by its id, and
-	-- the client-visible one-shot ShouldReserveServer path is gone.
+	-- Lock in the server-authoritative handoff: boss choice travels through the
+	-- server-only session store keyed by launch id, while the countdown rune uses
+	-- Roblox's reliable one-call reserved-server teleport.
 	local dungeonServiceSource = fs.readFile("src/server/Services/DungeonService.luau")
 	for _, marker in
 		{
-			"TeleportService:ReserveServer",
-			"ReservedServerAccessCode",
+			"options.ShouldReserveServer = true",
+			"DungeonSessionStore.write(launchId",
+			"DungeonSessionStore.read(manifest.launchId)",
 			"DungeonSessionStore.write",
 			"DungeonSessionStore.read",
 			"normalizeSessionRecord",
@@ -9972,9 +10205,9 @@ do
 		)
 	end
 	expectEqual(
-		string.find(dungeonServiceSource, "ShouldReserveServer", 1, true),
+		string.find(dungeonServiceSource, "ReservedServerAccessCode", 1, true),
 		nil,
-		"the one-shot ShouldReserveServer reservation is replaced by an explicit reserve"
+		"the rune launch does not use a separately reserved access code"
 	)
 	local portalServiceSource = fs.readFile("src/server/Services/PortalService.luau")
 	for _, marker in
@@ -10049,20 +10282,20 @@ do
 
 	expectEqual(
 		ordered(dungeonSource, {
-			"TeleportService:ReserveServerAsync(game.PlaceId)",
-			"if launchablePlayers(roster) == nil then",
-			"DungeonSessionStore.write(privateServerId",
+			"local launchId = HttpService:GenerateGUID(false)",
+			"DungeonSessionStore.write(launchId",
 			"local finalRoster = launchablePlayers(roster)",
 			"local ids = DungeonLogic.normalizePartyIds(userIds(finalRoster), dungeon.partyMax)",
+			"options.ShouldReserveServer = true",
 			"return beginExactTeleport(",
 		}),
 		true,
-		"reserved launch revalidates after every yield before manifest creation and atomic claim"
+		"rune launch stores its boss, revalidates, then atomically reserves and teleports"
 	)
 	expectEqual(
-		string.find(dungeonSource, "TeleportService:ReserveServer(game.PlaceId)", 1, true),
+		string.find(dungeonSource, "TeleportService:ReserveServer", 1, true),
 		nil,
-		"dungeon launch never calls deprecated ReserveServer"
+		"dungeon launch never performs a separate server reservation"
 	)
 	expectEqual(
 		ordered(dungeonSource, {

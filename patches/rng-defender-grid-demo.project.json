@@ -13,6 +13,10 @@
         "EnemyRigs": {
           "$path": "../src/world/EnemyRigs.model.json"
         },
+        "StagewrightPlaytestRuntime": {
+          "$className": "Folder",
+          "$ignoreUnknownInstances": true
+        },
         "Shared": {
           "$className": "Folder",
           "Calculations": {
@@ -105,6 +109,12 @@
           "StagePathAssets": {
             "$path": "../src/shared/StagePathAssets.luau"
           },
+          "StagePayload": {
+            "$path": "../src/shared/StagePayload.luau"
+          },
+          "StagePlaytestArtifact": {
+            "$path": "../src/shared/StagePlaytestArtifact.luau"
+          },
           "StagePlatformLayout": {
             "$path": "../src/shared/StagePlatformLayout.luau"
           },
@@ -175,6 +185,9 @@
       },
       "StagePlatformOwners": {
         "$path": "../src/ui/StagePlatformOwners.model.json"
+      },
+      "StagewrightPlaytestHUD": {
+        "$path": "../src/ui/StagewrightPlaytestHUD.model.json"
       },
       "PortalSign": {
         "$path": "../src/ui/PortalSign.model.json"

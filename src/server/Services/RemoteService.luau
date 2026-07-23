@@ -64,6 +64,7 @@ local requestFeatures: { [string]: string } = {
 	PlaceUnit = "towerDefense",
 	AutoPlaceBestUnits = "towerDefense",
 	StartTowerWave = "towerDefense",
+	RunTowerWavePlaytest = "towerDefense",
 	ResetTowerDefense = "towerDefense",
 	ActivateTowerStage = "towerDefense",
 	DungeonAttack = "dungeon",
@@ -325,6 +326,13 @@ local function handleRequest(player: Player, packet: any)
 		result(player, TowerDefenseService.autoPlaceBest(player))
 	elseif action == "StartTowerWave" then
 		result(player, TowerDefenseService.startWave(player))
+	elseif action == "RunTowerWavePlaytest" then
+		local playtest = TowerDefenseRequest.parseWavePlaytest(payload)
+		if playtest == nil then
+			result(player, false, "Invalid playtest wave")
+			return
+		end
+		result(player, TowerDefenseService.runWavePlaytest(player, playtest.stageId, playtest.waveNumber))
 	elseif action == "ResetTowerDefense" then
 		result(player, TowerDefenseService.resetMatch(player))
 	elseif action == "ActivateTowerStage" then

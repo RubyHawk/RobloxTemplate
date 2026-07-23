@@ -43,6 +43,9 @@
       "StagePlatformOwners": {
         "$path": "src/ui/StagePlatformOwners.model.json"
       },
+      "StagewrightPlaytestHUD": {
+        "$path": "src/ui/StagewrightPlaytestHUD.model.json"
+      },
       "PortalSign": {
         "$path": "src/ui/PortalSign.model.json"
       },
