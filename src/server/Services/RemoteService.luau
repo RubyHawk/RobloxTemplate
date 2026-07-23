@@ -22,6 +22,7 @@ local PublicProfileService = require(script.Parent.PublicProfileService)
 local RewardService = require(script.Parent.RewardService)
 local RuneService = require(script.Parent.RuneService)
 local SettingsService = require(script.Parent.SettingsService)
+local StagePlatformService = require(script.Parent.StagePlatformService)
 local TowerDefenseService = require(script.Parent.TowerDefenseService)
 
 local RemoteService = {}
@@ -67,6 +68,7 @@ local requestFeatures: { [string]: string } = {
 	RunTowerWavePlaytest = "towerDefense",
 	ResetTowerDefense = "towerDefense",
 	ActivateTowerStage = "towerDefense",
+	TravelToTowerPlatform = "towerDefense",
 	DungeonAttack = "dungeon",
 	DungeonDodge = "dungeon",
 	SelectDungeonBoss = "dungeon",
@@ -76,6 +78,7 @@ local requestFeatures: { [string]: string } = {
 -- use the default 6-burst / 1-per-second bucket. Click-to-attack is already paced
 -- by DungeonService's per-player cooldown, so its bucket only guards raw spam.
 local requestRates: { [string]: { number } } = {
+	TravelToTowerPlatform = { 2, 0.5 },
 	DungeonAttack = { 12, 8 },
 	DungeonDodge = { 4, 2 },
 }
@@ -92,6 +95,7 @@ local noPayloadActions: { [string]: boolean } = {
 	AutoPlaceBestUnits = true,
 	StartTowerWave = true,
 	ResetTowerDefense = true,
+	TravelToTowerPlatform = true,
 	DungeonAttack = true,
 	DungeonDodge = true,
 }
@@ -342,6 +346,8 @@ local function handleRequest(player: Player, packet: any)
 			return
 		end
 		result(player, TowerDefenseService.activateStage(player, activation.stageId))
+	elseif action == "TravelToTowerPlatform" then
+		result(player, StagePlatformService.travelToPlatform(player))
 	elseif action == "DungeonAttack" then
 		-- Combat stays payload-free and server-authoritative. A tiny acknowledgement
 		-- powers hit/rejection feedback without sending a full profile snapshot.

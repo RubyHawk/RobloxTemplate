@@ -8960,6 +8960,10 @@ for _, platformMarker in
 		"OwnerDisplayName",
 		"ActiveStageId",
 		"StagePlatformService.publishActiveStage",
+		"StagePlatformService.travelToPlatform",
+		"character:PivotTo(origin * CFrame.new(0, travelHeight, 0))",
+		"root.AssemblyLinearVelocity = Vector3.zero",
+		"root.AssemblyAngularVelocity = Vector3.zero",
 		"Players.MaxPlayers",
 		"CapacityMatchesSlotCount",
 		"Players.PlayerAdded:Connect",
@@ -8972,6 +8976,28 @@ do
 		string.find(stagePlatformSource, platformMarker, 1, true) ~= nil,
 		true,
 		`six-platform allocator includes {platformMarker}`
+	)
+end
+do
+	local authoringAreaSource = fs.readFile("src/plugins/Stagewright/AuthoringArea.luau")
+	local pluginBootstrapSource = fs.readFile("src/plugins/GridPlatformEditPlugin.server.luau")
+	expectEqual(
+		string.find(authoringAreaSource, "local LAYOUT_VERSION = 4", 1, true) ~= nil
+			and string.find(
+				authoringAreaSource,
+				'existingArea:GetAttribute("StagewrightLayoutVersion") ~= LAYOUT_VERSION',
+				1,
+				true
+			) ~= nil
+			and string.find(
+					pluginBootstrapSource,
+					"local authoringPlatform = AuthoringArea.ensure() or AuthoringArea.findPlatform()",
+					1,
+					true
+				)
+				~= nil,
+		true,
+		"Stagewright startup applies layout v4 and rehomes stale version-3 admin rooms"
 	)
 end
 do
@@ -9351,6 +9377,36 @@ do
 		"RNG Defender receives the disabled-by-default authored Studio playtest HUD and controller"
 	)
 end
+do
+	local travelHudModel = fs.readFile("src/ui/TowerDefenseTravelHUD.model.json")
+	local travelControllerSource = fs.readFile("src/client/Controllers/TowerDefenseTravelController.luau")
+	local defaultProjectSource = fs.readFile("default.project.json")
+	expectCompiles(travelControllerSource, "tower-defense platform travel controller compiles as Luau")
+	expectEqual(
+		string.find(defaultProjectSource, '"TowerDefenseTravelHUD"', 1, true) ~= nil
+			and string.find(gridPatchProject, '"TowerDefenseTravelHUD"', 1, true) ~= nil
+			and string.find(travelHudModel, '"Name": "TravelButton"', 1, true) ~= nil
+			and string.find(travelHudModel, '"Text": "FINDING PLATFORM"', 1, true) ~= nil
+			and string.find(initClient, "TowerDefenseTravelController.initialize(request)", 1, true)
+				~= nil,
+		true,
+		"default and RNG Defender builds deliver the pre-authored platform travel control"
+	)
+	for _, marker in
+		{
+			"TowerDefensePlatformSlot",
+			'request("TravelToTowerPlatform", {})',
+			"Config.features.towerDefense ~= true",
+			"travelButton.Activated:Connect",
+		}
+	do
+		expectEqual(
+			string.find(travelControllerSource, marker, 1, true) ~= nil,
+			true,
+			`tower-defense platform travel client includes {marker}`
+		)
+	end
+end
 expectEqual(
 	string.find(stagePlatformSource, "OnServerEvent", 1, true),
 	nil,
@@ -9378,6 +9434,7 @@ for _, towerDefenseRemoteMarker in
 		"RunTowerWavePlaytest",
 		"ResetTowerDefense",
 		"ActivateTowerStage",
+		"TravelToTowerPlatform",
 		"TowerEnemies",
 		"TowerPlacements",
 		"TowerDefenseService.snapshotFor",

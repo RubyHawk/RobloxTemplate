@@ -1,5 +1,20 @@
 # Stagewright admin authoring-area separation — 2026-07-13
 
+## 2026-07-23 access correction
+
+Layout version 4 deliberately realigns any version-3 admin room to the
+configured editor-only offset. Version 3 preserved manual movement, which could
+leave `StagewrightAdminArea` overlapping the production lobby after a Team
+Create edit. Stagewright applies this migration before it loads the working
+project, so opening the plugin repairs the room without requiring a separate
+focus action.
+
+The playable islands remain remote runtime surfaces. Players now receive the
+pre-authored `TowerDefenseTravelHUD` whenever tower defense is enabled. Its
+**Go to My Tower** button sends a payload-free, rate-limited request; the server
+resolves the player's assigned slot and moves the live character seven studs
+above that platform origin. The client cannot choose a slot or world CFrame.
+
 ## Decision
 
 The editable `GamePlatform` is no longer the runtime anchor for player slot 1.

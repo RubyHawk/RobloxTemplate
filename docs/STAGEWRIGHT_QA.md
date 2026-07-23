@@ -78,6 +78,13 @@ enemy rigs, damage, and client renderer. These runs do not save level selection,
 wins, losses, best wave, clears, or unlocks. Stop Play, change Stagewright data,
 prepare again, and confirm the next Play session shows the new checksum.
 
+The separate **Your Tower • Platform 01** travel strip is available in every
+tower-defense lobby, including Studio sessions without a prepared playtest
+snapshot. Select **Go to My Tower** and confirm the server moves the player onto
+their assigned playable grid. The strip must show `Platform unavailable`
+instead of moving the character if the authoritative six-platform layout cannot
+be resolved.
+
 ## 3. Export into the repository
 
 1. Resolve every export-blocking validation error.

@@ -190,6 +190,36 @@ function StagePlatformService.originFor(player: Player, _stageId: string): CFram
 	return origin or CFrame.new(0, -10_000, 0)
 end
 
+function StagePlatformService.travelToPlatform(player: Player): (boolean, string)
+	if player.Parent ~= Players then
+		return false, "Player is not available"
+	end
+	local slot = claimSlot(player)
+	local origin = if slot ~= nil then StagePlatformService.originForSlot(slot) else nil
+	if slot == nil or origin == nil then
+		return false, "Your tower-defense platform is not available"
+	end
+
+	local character = player.Character
+	if character == nil then
+		return false, "Your character is not ready"
+	end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if humanoid == nil or humanoid.Health <= 0 or root == nil or not root:IsA("BasePart") then
+		return false, "Your character is not ready"
+	end
+
+	local travelHeight = Config.towerDefense.platformTravelHeight
+	if type(travelHeight) ~= "number" or travelHeight < 3 or travelHeight > 30 then
+		return false, "Tower platform travel is not configured"
+	end
+	character:PivotTo(origin * CFrame.new(0, travelHeight, 0))
+	root.AssemblyLinearVelocity = Vector3.zero
+	root.AssemblyAngularVelocity = Vector3.zero
+	return true, `Moved to tower-defense platform {slot}`
+end
+
 function StagePlatformService.publishActiveStage(player: Player, stageId: string): boolean
 	if type(stageId) ~= "string" or stageId == "" or #stageId > 80 then
 		return false

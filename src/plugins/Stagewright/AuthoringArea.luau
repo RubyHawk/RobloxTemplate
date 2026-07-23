@@ -11,7 +11,10 @@ local Workspace = game:GetService("Workspace")
 local AuthoringArea = {}
 local StagePlatformLayout = require(script.Parent.Shared.StagePlatformLayout)
 
-local LAYOUT_VERSION = 3
+-- Version 4 intentionally realigns version-3 rooms. An earlier migration
+-- preserved manual room movement, which allowed the editor-only admin room to
+-- remain on top of the production lobby platform.
+local LAYOUT_VERSION = 4
 local AUTHORING_ATTRIBUTE = "StagewrightAuthoringPlatform"
 local MANAGED_ATTRIBUTE = "StagewrightManaged"
 local OUTLINE_TAG = "StagewrightIslandOutlinePreview"

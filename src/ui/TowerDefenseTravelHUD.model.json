@@ -1,0 +1,119 @@
+{
+  "ClassName": "ScreenGui",
+  "Properties": {
+    "DisplayOrder": 94,
+    "Enabled": false,
+    "IgnoreGuiInset": false,
+    "ResetOnSpawn": false,
+    "ZIndexBehavior": "Sibling"
+  },
+  "Children": [
+    {
+      "Name": "Panel",
+      "ClassName": "Frame",
+      "Properties": {
+        "AnchorPoint": [0.5, 0],
+        "BackgroundColor3": [0.035, 0.055, 0.075],
+        "BackgroundTransparency": 0.04,
+        "BorderSizePixel": 0,
+        "Position": { "UDim2": [[0.5, 0], [0, 14]] },
+        "Size": { "UDim2": [[0.92, 0], [0, 82]] }
+      },
+      "Children": [
+        {
+          "ClassName": "UISizeConstraint",
+          "Properties": {
+            "MaxSize": [420, 82],
+            "MinSize": [286, 82]
+          },
+          "Children": []
+        },
+        {
+          "ClassName": "UICorner",
+          "Properties": {
+            "CornerRadius": { "UDim": [0, 14] }
+          },
+          "Children": []
+        },
+        {
+          "ClassName": "UIStroke",
+          "Properties": {
+            "Color": [0.176, 0.733, 0.463],
+            "Thickness": 2,
+            "Transparency": 0.08
+          },
+          "Children": []
+        },
+        {
+          "Name": "Title",
+          "ClassName": "TextLabel",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "FontFace": {
+              "family": "rbxasset://fonts/families/GothamSSm.json",
+              "weight": "Bold",
+              "style": "Normal"
+            },
+            "Position": { "UDim2": [[0, 14], [0, 12]] },
+            "Size": { "UDim2": [[1, -184], [0, 24]] },
+            "Text": "TOWER DEFENSE",
+            "TextColor3": [0.91, 0.97, 0.95],
+            "TextSize": 15,
+            "TextTruncate": "AtEnd",
+            "TextXAlignment": "Left"
+          },
+          "Children": []
+        },
+        {
+          "Name": "Status",
+          "ClassName": "TextLabel",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "FontFace": {
+              "family": "rbxasset://fonts/families/GothamSSm.json",
+              "weight": "Medium",
+              "style": "Normal"
+            },
+            "Position": { "UDim2": [[0, 14], [0, 39]] },
+            "Size": { "UDim2": [[1, -184], [0, 26]] },
+            "Text": "Finding your playable platform...",
+            "TextColor3": [0.56, 0.73, 0.78],
+            "TextSize": 11,
+            "TextTruncate": "AtEnd",
+            "TextXAlignment": "Left"
+          },
+          "Children": []
+        },
+        {
+          "Name": "TravelButton",
+          "ClassName": "TextButton",
+          "Properties": {
+            "AutoButtonColor": false,
+            "BackgroundColor3": [0.306, 0.357, 0.408],
+            "BorderSizePixel": 0,
+            "FontFace": {
+              "family": "rbxasset://fonts/families/GothamSSm.json",
+              "weight": "Bold",
+              "style": "Normal"
+            },
+            "Position": { "UDim2": [[1, -168], [0, 14]] },
+            "Size": { "UDim2": [[0, 154], [0, 54]] },
+            "Text": "FINDING PLATFORM",
+            "TextColor3": [0.96, 1, 0.98],
+            "TextSize": 12,
+            "TextWrapped": true
+          },
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": { "UDim": [0, 10] }
+              },
+              "Children": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

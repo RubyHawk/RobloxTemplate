@@ -52,6 +52,7 @@ local StageGridRenderer = require(Controllers.StageGridRenderer)
 local StagePlatformOwnerController = require(Controllers.StagePlatformOwnerController)
 local StagewrightPlaytestController = require(Controllers.StagewrightPlaytestController)
 local StageTowerRenderer = require(Controllers.StageTowerRenderer)
+local TowerDefenseTravelController = require(Controllers.TowerDefenseTravelController)
 local UIFactory = require(script.UI.UIFactory)
 local ScreenRegistry = require(script.UI.ScreenRegistry)
 local Screens = require(script.UI.Screens)
@@ -326,6 +327,7 @@ local function request(action: string, payload: any, audioCue: string?)
 end
 
 StagewrightPlaytestController.initialize(request)
+TowerDefenseTravelController.initialize(request)
 
 local function query(action: string, payload: any, audioCue: string?): any
 	AudioController.play(audioCue or "click")
