@@ -117,6 +117,12 @@ Invoke-Checked "Rojo Studio plugin install-state detector" {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-rojo-plugin-state.ps1
 }
 Invoke-Checked "Figma bridge syntax" { node --check figma\roblox-ui-bridge\code.js }
+Invoke-Checked "Figma bridge world-space containers" { node tests\figma-ui-bridge.test.cjs }
+Invoke-Checked "Figma RNG Defender apply route" {
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\figma-ui.ps1 `
+        -PatchPath tests\fixtures\rng-defender-workspace.figma-patch.json `
+        -SmokeTest
+}
 $presetDirectories = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot "..\src\ui\presets") -Directory | Sort-Object Name)
 foreach ($presetDirectory in $presetDirectories) {
     $presetName = $presetDirectory.Name
@@ -126,6 +132,74 @@ foreach ($presetDirectory in $presetDirectories) {
 }
 Invoke-Checked "Figma patch application" {
     node scripts\figma-ui-bridge.mjs self-test --model src\ui\presets\incremental\TemplateUI.model.json
+}
+$figmaWorkspaces = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot "..\figma\workspaces") -Filter "*.json" -File)
+$figmaWorkspaceIds = @{}
+foreach ($figmaWorkspaceFile in $figmaWorkspaces) {
+    $figmaWorkspace = Get-Content -LiteralPath $figmaWorkspaceFile.FullName -Raw | ConvertFrom-Json
+    $requiredWorkspaceFields = @("id", "name", "project", "output")
+    $missingWorkspaceFields = @($requiredWorkspaceFields | Where-Object {
+        -not ($figmaWorkspace.PSObject.Properties.Name -contains $_) -or
+        [string]::IsNullOrWhiteSpace([string]$figmaWorkspace.$_)
+    })
+    if (
+        $figmaWorkspace.format -ne "roblox-ui-workspace-v1" -or
+        $missingWorkspaceFields.Count -gt 0 -or
+        -not $figmaWorkspace.models -or
+        @($figmaWorkspace.models).Count -eq 0
+    ) {
+        throw "Invalid Figma workspace manifest: $($figmaWorkspaceFile.FullName)"
+    }
+    $workspaceId = [string]$figmaWorkspace.id
+    if ($figmaWorkspaceIds.ContainsKey($workspaceId)) {
+        throw "Duplicate Figma workspace ID '$workspaceId': $($figmaWorkspaceIds[$workspaceId]) and $($figmaWorkspaceFile.FullName)"
+    }
+    $figmaWorkspaceIds[$workspaceId] = $figmaWorkspaceFile.FullName
+
+    $repositoryPath = [System.IO.Path]::GetFullPath($root)
+    $repositoryPrefix = $repositoryPath.TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    ) + [System.IO.Path]::DirectorySeparatorChar
+    foreach ($workspacePathField in @("project", "output")) {
+        $relativeWorkspacePath = [string]$figmaWorkspace.$workspacePathField
+        if ([System.IO.Path]::IsPathRooted($relativeWorkspacePath)) {
+            throw "Figma workspace $workspacePathField must be repository-relative: $relativeWorkspacePath"
+        }
+        $resolvedWorkspacePath = [System.IO.Path]::GetFullPath((Join-Path $root $relativeWorkspacePath))
+        if (-not $resolvedWorkspacePath.StartsWith($repositoryPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Figma workspace $workspacePathField leaves the repository: $relativeWorkspacePath"
+        }
+        if ($workspacePathField -eq "project") {
+            if (-not $relativeWorkspacePath.EndsWith(".project.json", [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "Figma workspace project must be a Rojo *.project.json file: $relativeWorkspacePath"
+            }
+            if (-not (Test-Path -LiteralPath $resolvedWorkspacePath -PathType Leaf)) {
+                throw "Figma workspace Rojo project is missing: $resolvedWorkspacePath"
+            }
+        }
+        elseif ([System.IO.Path]::GetExtension($resolvedWorkspacePath) -notin @(".rbxlx", ".rbxm")) {
+            throw "Figma workspace output must be an .rbxlx or .rbxm file: $relativeWorkspacePath"
+        }
+    }
+
+    $figmaWorkspaceModelRoots = @{}
+    foreach ($modelDefinition in @($figmaWorkspace.models)) {
+        if (
+            [string]::IsNullOrWhiteSpace([string]$modelDefinition.root) -or
+            [string]::IsNullOrWhiteSpace([string]$modelDefinition.path)
+        ) {
+            throw "Every workspace model requires root and path: $($figmaWorkspaceFile.FullName)"
+        }
+        $modelRoot = [string]$modelDefinition.root
+        if ($figmaWorkspaceModelRoots.ContainsKey($modelRoot)) {
+            throw "Duplicate model root '$modelRoot' in Figma workspace '$workspaceId'."
+        }
+        $figmaWorkspaceModelRoots[$modelRoot] = $true
+        Invoke-Checked "Figma workspace mapping ($($figmaWorkspace.id)/$($modelDefinition.root))" {
+            node scripts\figma-ui-bridge.mjs verify --model $modelDefinition.path
+        }
+    }
 }
 Invoke-Checked "Luau tests" { lune run tests/run }
 Invoke-Checked "Stagewright performance budgets" { lune run scripts/benchmark-stagewright.luau }

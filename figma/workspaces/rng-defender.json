@@ -1,0 +1,65 @@
+{
+  "format": "roblox-ui-workspace-v1",
+  "id": "rng-defender",
+  "name": "RNG Defender",
+  "preset": "incremental",
+  "project": "patches/rng-defender-grid-demo.project.json",
+  "output": "build/RNGDefenderSafePatch.rbxlx",
+  "models": [
+    {
+      "root": "TemplateUI",
+      "path": "src/ui/presets/incremental/TemplateUI.model.json",
+      "scope": "production"
+    },
+    {
+      "root": "TemplateLoading",
+      "path": "src/ui/presets/incremental/TemplateLoading.model.json",
+      "scope": "production"
+    },
+    {
+      "root": "StarterSignUI",
+      "path": "src/ui/presets/incremental/StarterSignUI.model.json",
+      "scope": "production"
+    },
+    {
+      "root": "RuneCircleSign",
+      "path": "src/ui/RuneCircleSign.model.json",
+      "scope": "production"
+    },
+    {
+      "root": "RuneCircleUI",
+      "path": "src/ui/RuneCircleUI.model.json",
+      "scope": "production"
+    },
+    {
+      "root": "StagePlatformOwners",
+      "path": "src/ui/StagePlatformOwners.model.json",
+      "scope": "production"
+    },
+    {
+      "root": "TowerDefenseTravelHUD",
+      "path": "src/ui/TowerDefenseTravelHUD.model.json",
+      "scope": "production"
+    },
+    {
+      "root": "TowerDefenseLevelHUD",
+      "path": "src/ui/TowerDefenseLevelHUD.model.json",
+      "scope": "production"
+    },
+    {
+      "root": "PortalSign",
+      "path": "src/ui/PortalSign.model.json",
+      "scope": "production"
+    },
+    {
+      "root": "DungeonHUD",
+      "path": "src/ui/DungeonHUD.model.json",
+      "scope": "production"
+    },
+    {
+      "root": "StagewrightPlaytestHUD",
+      "path": "src/ui/StagewrightPlaytestHUD.model.json",
+      "scope": "studio-only"
+    }
+  ]
+}
