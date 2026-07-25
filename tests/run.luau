@@ -10319,6 +10319,22 @@ do
 	-- Nested scope: the ability catalog + wiring assertions declare enough locals to
 	-- exceed Luau's 200-per-function register limit if left in the outer block.
 	do
+		local function abilityDescendant(root: any, name: string): any
+			if type(root) ~= "table" then
+				return nil
+			end
+			if root.Name == name then
+				return root
+			end
+			for _, child in if type(root.Children) == "table" then root.Children else {} do
+				local found = abilityDescendant(child, name)
+				if found ~= nil then
+					return found
+				end
+			end
+			return nil
+		end
+
 		-- Hotbar ability catalog: four fixed, ordered slots the board always resolves.
 		local abilityIds = {}
 		for _, ability in defaults.abilities do
@@ -10516,6 +10532,15 @@ do
 				and string.find(dungeonWeaponsAbilitySource, '"TrailAttach1"', 1, true) ~= nil,
 			true,
 			"the swing trail has authored attachment endpoints"
+		)
+		local authoredWeapons = serde.decode("json", dungeonWeaponsAbilitySource)
+		local thornSpear = abilityDescendant(authoredWeapons, "ThornSpear")
+		local spearTrailStart = abilityDescendant(thornSpear, "TrailAttach0")
+		local spearTrailEnd = abilityDescendant(thornSpear, "TrailAttach1")
+		expectEqual(
+			spearTrailStart.Properties.Position[2] == -3.4 and spearTrailEnd.Properties.Position[2] == 3.4,
+			true,
+			"the thorn spear ability trail spans the authored 7.2-stud weapon handle"
 		)
 		local dungeonArenaAbilitySource = fs.readFile("src/world/DungeonArena.model.json")
 		expectEqual(
