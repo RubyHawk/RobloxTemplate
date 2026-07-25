@@ -83,10 +83,19 @@ function TowerDefenseLogic.bestLoadout(
 
 	local loadout: { string } = {}
 	for _, unit in candidates do
-		if #loadout >= maxSlots then
-			break
+		local entry = owned[unit.id]
+		local copies = if entry ~= nil and type(entry.count) == "number"
+			then math.max(math.floor(entry.count), 0)
+			else 0
+		for _ = 1, copies do
+			if #loadout >= maxSlots then
+				break
+			end
+			table.insert(loadout, unit.id)
 		end
-		table.insert(loadout, unit.id)
+		if #loadout >= maxSlots then
+			return loadout
+		end
 	end
 	return loadout
 end

@@ -1942,6 +1942,19 @@ do
 		"unit_guard",
 		"tower loadout preserves declared unit order"
 	)
+	do
+		local duplicateLoadout = TowerDefenseRequest.parseLoadout({
+			unitIds = { "unit_scout", "unit_scout" },
+		}, 2)
+		expectEqual(
+			duplicateLoadout ~= nil
+				and #duplicateLoadout.unitIds == 2
+				and duplicateLoadout.unitIds[1] == "unit_scout"
+				and duplicateLoadout.unitIds[2] == "unit_scout",
+			true,
+			"tower loadout accepts separate equipped copies of one owned unit"
+		)
+	end
 	local keyedUnitIds: any = { "unit_scout" }
 	keyedUnitIds.metadata = true
 	for _, invalidLoadoutPayload in
@@ -1949,7 +1962,6 @@ do
 			{},
 			{ unitIds = "unit_scout" },
 			{ unitIds = { "" } },
-			{ unitIds = { "unit_scout", "unit_scout" } },
 			{ unitIds = { "unit_scout", "unit_guard", "unit_mage" } },
 			{ unitIds = { [2] = "unit_scout" } },
 			{ unitIds = keyedUnitIds },
@@ -1959,7 +1971,7 @@ do
 		expectEqual(
 			TowerDefenseRequest.parseLoadout(invalidLoadoutPayload, 2),
 			nil,
-			"tower loadout rejects malformed, oversized, duplicate, or undeclared data"
+			"tower loadout rejects malformed, oversized, or undeclared data"
 		)
 	end
 end
@@ -6743,6 +6755,20 @@ local bestTowerLoadout = TowerDefenseLogic.bestLoadout({
 }, TowerDefenseCatalog.units, 2)
 expectEqual(bestTowerLoadout[1], "ancient_treant", "equip best favors the strongest owned unit")
 expectEqual(#bestTowerLoadout, 2, "equip best respects loadout slot cap")
+do
+	local duplicateTowerLoadout = TowerDefenseLogic.bestLoadout({
+		forest_archer = { count = 1 },
+		mushroom_bomber = { count = 1 },
+		ancient_treant = { count = 2 },
+	}, TowerDefenseCatalog.units, 3)
+	expectEqual(
+		duplicateTowerLoadout[1] == "ancient_treant"
+			and duplicateTowerLoadout[2] == "ancient_treant"
+			and duplicateTowerLoadout[3] == "mushroom_bomber",
+		true,
+		"equip best fills separate slots with every owned copy in strength order"
+	)
+end
 expectEqual(TowerDefenseLogic.waveScale(1), 1, "first tower defense wave uses base scale")
 expectEqual(TowerDefenseLogic.waveScale(5) > 1, true, "later tower defense waves scale up")
 expectEqual(
@@ -9178,6 +9204,12 @@ for _, gridRendererMarker in
 		"hideLegacyEditGridUi",
 		'"edit grid"',
 		"gridplatformeditor",
+		"PlacementPreview",
+		"routeNoBuildMask",
+		"placementAllowedColor",
+		"placementForbiddenColor",
+		"placementOccupiedColor",
+		"StageGridRenderer.setPlacementMode",
 	}
 do
 	expectEqual(
@@ -9214,6 +9246,9 @@ for _, towerRendererMarker in
 		'SetAttribute("PlacementId", record.id)',
 		'SetAttribute("UnitId", record.unitId)',
 		"local enabled = Config.features.towerDefense == true",
+		"StageTowerRenderer.localPlacementAtScreen",
+		"WorldToViewportPoint",
+		"WorldToScreenPoint",
 	}
 do
 	expectEqual(
@@ -9572,6 +9607,15 @@ do
 			'"Name": "UpgradeTreeButton"',
 			'"Name": "TalentPanel"',
 			'"Name": "DynamicWidthConstraint"',
+			'"Name": "PlacedBadge"',
+			'"Name": "UnitDetailsPanel"',
+			'"Name": "DamageValue"',
+			'"Name": "RangeValue"',
+			'"Name": "TreeCanvas"',
+			'"Name": "SlotNode03"',
+			'"Name": "SlotNode04"',
+			'"Name": "SlotNode05"',
+			'"Name": "SlotNode06"',
 		}
 	do
 		expectEqual(
@@ -9590,6 +9634,13 @@ do
 			'send("PlaceUnit", { unitId = unitId, column = column, row = row })',
 			"DynamicWidthConstraint",
 			"currentLoadout()[index]",
+			"equippedCount",
+			"placementForSlot",
+			"StageGridRenderer.setPlacementMode",
+			"StageTowerRenderer.localPlacementAtScreen",
+			"showUnitDetails",
+			"EQUIPPED x{",
+			'"PLACED ON GRID"',
 		}
 	do
 		expectEqual(
@@ -9603,6 +9654,22 @@ do
 			string.find(loadoutControllerSource, forbiddenRuntimeGuiMutation, 1, true),
 			nil,
 			`loadout controller never performs runtime GUI mutation {forbiddenRuntimeGuiMutation}`
+		)
+	end
+	for _, serverCopyContract in
+		{
+			"local function loadoutCount",
+			"requestedCounts",
+			'"Not enough owned copies"',
+			"placedCopies >= loadoutCount(player, unitId)",
+			'"Every equipped copy of this unit is already placed"',
+			'"A placed copy must stay equipped"',
+		}
+	do
+		expectEqual(
+			string.find(towerDefenseServiceSource, serverCopyContract, 1, true) ~= nil,
+			true,
+			`tower server enforces owned/equipped copy contract {serverCopyContract}`
 		)
 	end
 end

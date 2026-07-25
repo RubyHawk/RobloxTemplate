@@ -1,5 +1,6 @@
 --!strict
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
@@ -8,6 +9,7 @@ local Config = require(Shared.TemplateConfig)
 
 local StageTowerRenderer = {}
 local enabled = Config.features.towerDefense == true
+local localPlayer = Players.LocalPlayer
 
 type TowerRecord = {
 	ownerUserId: number,
@@ -27,6 +29,7 @@ local FALLBACK_SIZE = Vector3.new(1.4, 2.6, 2.6)
 local MAX_GRID_INDEX = 512
 local MAX_ID_LENGTH = 128
 local MAX_SAFE_INTEGER = 9_007_199_254_740_991
+local SCREEN_HIT_RADIUS = 52
 
 local partsByKey: { [string]: Part } = {}
 local partPool: { Part } = {}
@@ -263,6 +266,49 @@ function StageTowerRenderer.apply(records: any?)
 			partsByKey[key] = nil
 		end
 	end
+end
+
+function StageTowerRenderer.localPlacementAtScreen(
+	screenPoint: Vector2,
+	viewportPoint: boolean?
+): (string?, string?)
+	local camera = Workspace.CurrentCamera
+	if not enabled or camera == nil then
+		return nil, nil
+	end
+	local closestDistance = SCREEN_HIT_RADIUS
+	local closestPlacementId: string? = nil
+	local closestUnitId: string? = nil
+	for _, part in partsByKey do
+		if part.Parent == nil or part.Transparency >= 1 then
+			continue
+		end
+		if part:GetAttribute("OwnerUserId") ~= localPlayer.UserId then
+			continue
+		end
+		local projected: Vector3
+		local visible: boolean
+		if viewportPoint == true then
+			projected, visible = camera:WorldToViewportPoint(part.Position)
+		else
+			projected, visible = camera:WorldToScreenPoint(part.Position)
+		end
+		if not visible or projected.Z <= 0 then
+			continue
+		end
+		local distance = (Vector2.new(projected.X, projected.Y) - screenPoint).Magnitude
+		if distance > closestDistance then
+			continue
+		end
+		local placementId = part:GetAttribute("PlacementId")
+		local unitId = part:GetAttribute("UnitId")
+		if type(placementId) == "string" and type(unitId) == "string" then
+			closestDistance = distance
+			closestPlacementId = placementId
+			closestUnitId = unitId
+		end
+	end
+	return closestPlacementId, closestUnitId
 end
 
 return StageTowerRenderer

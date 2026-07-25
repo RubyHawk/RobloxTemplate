@@ -136,7 +136,6 @@ function TowerDefenseRequest.parseUnitIds(unitIds: any, maxSlots: number): { str
 	end
 
 	local count = 0
-	local seen: { [string]: boolean } = {}
 	for index, unitId in unitIds do
 		if
 			type(index) ~= "number"
@@ -146,12 +145,10 @@ function TowerDefenseRequest.parseUnitIds(unitIds: any, maxSlots: number): { str
 			or type(unitId) ~= "string"
 			or #unitId < 1
 			or #unitId > TowerDefenseRequest.MAX_UNIT_ID_LENGTH
-			or seen[unitId] == true
 		then
 			return nil
 		end
 		count += 1
-		seen[unitId] = true
 	end
 
 	local parsed: { string } = {}

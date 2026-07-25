@@ -12,6 +12,8 @@ local StageCatalog = require(Shared:WaitForChild("StageCatalog"))
 local StageCell = require(Shared:WaitForChild("StageCell"))
 local StageSchema = require(Shared:WaitForChild("StageSchema"))
 local TowerDefenseCatalog = require(Shared:WaitForChild("TowerDefenseCatalog"))
+local StageGridRenderer = require(script.Parent:WaitForChild("StageGridRenderer"))
+local StageTowerRenderer = require(script.Parent:WaitForChild("StageTowerRenderer"))
 
 type Request = (action: string, payload: any, audioCue: string?) -> ()
 
@@ -22,6 +24,7 @@ type SlotView = {
 	glyph: TextLabel,
 	name: TextLabel,
 	cost: TextLabel,
+	placedBadge: TextLabel,
 	stroke: UIStroke,
 }
 
@@ -34,6 +37,30 @@ type InventoryView = {
 	rarity: TextLabel,
 	owned: TextLabel,
 	equipped: TextLabel,
+	stroke: UIStroke,
+}
+
+type DetailsView = {
+	panel: Frame,
+	stroke: UIStroke,
+	accent: Frame,
+	icon: ImageLabel,
+	glyph: TextLabel,
+	name: TextLabel,
+	rarity: TextLabel,
+	status: TextLabel,
+	damage: TextLabel,
+	range: TextLabel,
+	fireRate: TextLabel,
+	cost: TextLabel,
+	targeting: TextLabel,
+	owned: TextLabel,
+	placement: TextLabel,
+}
+
+type TalentNodeView = {
+	targetSlot: number,
+	button: TextButton,
 	stroke: UIStroke,
 }
 
@@ -51,15 +78,23 @@ local inventoryPanel: Frame? = nil
 local talentPanel: Frame? = nil
 local slots: { SlotView } = {}
 local inventoryViews: { InventoryView } = {}
+local detailsView: DetailsView? = nil
+local talentNodes: { TalentNodeView } = {}
 local currentSlotsLabel: TextLabel? = nil
 local nextCostLabel: TextLabel? = nil
-local unlockButton: TextButton? = nil
 local lastInputWasGamepad = false
+local detailsUnitId: string? = nil
+local detailsSlot: number? = nil
+local detailsPlacementId: string? = nil
 
 local EMPTY_COLOR = Color3.fromRGB(23, 33, 43)
 local EMPTY_ACCENT = Color3.fromRGB(54, 72, 86)
-local LOCKED_ACTION_COLOR = Color3.fromRGB(63, 73, 84)
 local SELECTED_COLOR = Color3.fromRGB(255, 214, 76)
+local PLACED_COLOR = Color3.fromRGB(48, 54, 60)
+local PLACED_ACCENT = Color3.fromRGB(76, 82, 88)
+local TALENT_UNLOCKED_COLOR = Color3.fromRGB(34, 128, 91)
+local TALENT_AVAILABLE_COLOR = Color3.fromRGB(120, 82, 209)
+local TALENT_LOCKED_COLOR = Color3.fromRGB(38, 42, 48)
 local BAR_HORIZONTAL_PADDING = 24
 local SLOT_WIDTH = 84
 local SLOT_GAP = 8
@@ -138,13 +173,124 @@ local function setImage(icon: ImageLabel, glyph: TextLabel, assetId: any, fallba
 	end
 end
 
-local function equippedSlot(unitId: string, loadout: { string }): number?
-	for index, equippedUnitId in loadout do
+local function equippedCount(unitId: string, loadout: { string }): number
+	local count = 0
+	for _, equippedUnitId in loadout do
 		if equippedUnitId == unitId then
-			return index
+			count += 1
+		end
+	end
+	return count
+end
+
+local function ownedCount(unitId: string): number
+	local state = latestState
+	local entry = if type(state) == "table" and type(state.ownedUnits) == "table"
+		then state.ownedUnits[unitId]
+		else nil
+	return if type(entry) == "table" then math.max(integer(entry.count, 0), 0) else 0
+end
+
+local function placementById(placementId: string?): any?
+	local state = latestState
+	if placementId == nil or type(state) ~= "table" or type(state.placements) ~= "table" then
+		return nil
+	end
+	for _, placement in state.placements do
+		if type(placement) == "table" and placement.id == placementId then
+			return placement
 		end
 	end
 	return nil
+end
+
+local function placementForSlot(slotIndex: number, loadout: { string }?): any?
+	local resolvedLoadout = loadout or currentLoadout()
+	local unitId = resolvedLoadout[slotIndex]
+	local state = latestState
+	if unitId == nil or type(state) ~= "table" or type(state.placements) ~= "table" then
+		return nil
+	end
+	local slotOccurrence = 0
+	for index = 1, slotIndex do
+		if resolvedLoadout[index] == unitId then
+			slotOccurrence += 1
+		end
+	end
+	local placementOccurrence = 0
+	for _, placement in state.placements do
+		if type(placement) == "table" and placement.unitId == unitId then
+			placementOccurrence += 1
+			if placementOccurrence == slotOccurrence then
+				return placement
+			end
+		end
+	end
+	return nil
+end
+
+local function refreshDetails()
+	local view = detailsView
+	local unitId = detailsUnitId
+	if view == nil or unitId == nil then
+		return
+	end
+	local unit = TowerDefenseCatalog.unit(unitId)
+	if unit == nil then
+		view.panel.Visible = false
+		return
+	end
+	local loadout = currentLoadout()
+	if detailsSlot ~= nil and loadout[detailsSlot] ~= unitId then
+		detailsSlot = nil
+	end
+	local placement = placementById(detailsPlacementId)
+	if detailsPlacementId ~= nil and placement == nil and detailsSlot == nil then
+		view.panel.Visible = false
+		return
+	end
+	if placement == nil and detailsSlot ~= nil then
+		placement = placementForSlot(detailsSlot, loadout)
+	end
+	local rarity = TowerDefenseCatalog.rarity(unit.rarityId)
+	local backgroundColor = catalogColor(unit.backgroundColor, EMPTY_COLOR)
+	local accentColor = catalogColor(unit.accentColor, EMPTY_ACCENT)
+	view.panel.BackgroundColor3 = backgroundColor:Lerp(Color3.fromRGB(7, 11, 15), 0.72)
+	view.stroke.Color = accentColor
+	view.accent.BackgroundColor3 = accentColor
+	view.name.Text = string.upper(unit.name)
+	view.rarity.Text = if rarity ~= nil then string.upper(rarity.name) else "UNIT"
+	view.rarity.TextColor3 = if rarity ~= nil
+		then catalogColor(rarity.color, Color3.fromRGB(150, 180, 170))
+		else Color3.fromRGB(150, 180, 170)
+	view.status.Text = if placement ~= nil then "PLACED ON GRID" else "READY TO PLACE"
+	view.status.TextColor3 = if placement ~= nil
+		then Color3.fromRGB(210, 220, 225)
+		else Color3.fromRGB(128, 238, 178)
+	view.damage.Text = `DAMAGE  {unit.damage}`
+	view.range.Text = `RANGE  {unit.range}`
+	view.fireRate.Text = `FIRE RATE  {string.format("%.2fs", unit.fireRate)}`
+	view.cost.Text = `COST  {unit.deployCost}`
+	view.targeting.Text = `TARGETING  {string.upper(unit.targeting)}`
+	view.owned.Text = `OWNED x{ownedCount(unitId)}  |  EQUIPPED x{equippedCount(unitId, loadout)}`
+	if placement ~= nil and type(placement.cell) == "table" then
+		view.placement.Text = `PLACED  |  CELL {placement.cell.column}:{placement.cell.row}`
+	elseif detailsSlot ~= nil then
+		view.placement.Text = `SLOT {detailsSlot}  |  NOT PLACED`
+	else
+		view.placement.Text = "UNIT DETAILS"
+	end
+	setImage(view.icon, view.glyph, unit.iconAssetId, unit.iconGlyph)
+end
+
+local function showUnitDetails(unitId: string, slotIndex: number?, placementId: string?)
+	detailsUnitId = unitId
+	detailsSlot = slotIndex
+	detailsPlacementId = placementId
+	if detailsView ~= nil then
+		detailsView.panel.Visible = true
+		refreshDetails()
+	end
 end
 
 local function refreshBarWidth()
@@ -171,6 +317,9 @@ local function refresh()
 	if selectedSlot ~= nil and (selectedSlot > unlocked or loadout[selectedSlot] == nil) then
 		selectedSlot = nil
 	end
+	if selectedSlot ~= nil and placementForSlot(selectedSlot, loadout) ~= nil then
+		selectedSlot = nil
+	end
 
 	for index, view in slots do
 		local visible = index <= unlocked
@@ -180,8 +329,13 @@ local function refresh()
 		end
 		local unitId = loadout[index]
 		local unit = if unitId ~= nil then TowerDefenseCatalog.unit(unitId) else nil
+		local placement = placementForSlot(index, loadout)
+		local isPlaced = placement ~= nil
 		view.stroke.Color = SELECTED_COLOR
 		view.stroke.Transparency = if selectedSlot == index then 0 else 1
+		view.placedBadge.Visible = isPlaced
+		view.icon.ImageColor3 = if isPlaced then Color3.fromRGB(150, 156, 160) else Color3.new(1, 1, 1)
+		view.glyph.TextColor3 = if isPlaced then Color3.fromRGB(170, 176, 180) else Color3.new(1, 1, 1)
 		if unit == nil then
 			view.button.BackgroundColor3 = EMPTY_COLOR
 			view.accent.BackgroundColor3 = EMPTY_ACCENT
@@ -189,10 +343,14 @@ local function refresh()
 			view.cost.Text = "OPEN INVENTORY"
 			setImage(view.icon, view.glyph, "", "+")
 		else
-			view.button.BackgroundColor3 = catalogColor(unit.backgroundColor, EMPTY_COLOR)
-			view.accent.BackgroundColor3 = catalogColor(unit.accentColor, EMPTY_ACCENT)
+			view.button.BackgroundColor3 = if isPlaced
+				then PLACED_COLOR
+				else catalogColor(unit.backgroundColor, EMPTY_COLOR)
+			view.accent.BackgroundColor3 = if isPlaced
+				then PLACED_ACCENT
+				else catalogColor(unit.accentColor, EMPTY_ACCENT)
 			view.name.Text = string.upper(unit.name)
-			view.cost.Text = `{unit.deployCost} COINS`
+			view.cost.Text = if isPlaced then "CLICK FOR DETAILS" else `{unit.deployCost} COINS`
 			setImage(view.icon, view.glyph, unit.iconAssetId, unit.iconGlyph)
 		end
 	end
@@ -204,10 +362,10 @@ local function refresh()
 			continue
 		end
 		local entry = if type(state.ownedUnits) == "table" then state.ownedUnits[unit.id] else nil
-		local ownedCount = if type(entry) == "table" then math.max(integer(entry.count, 0), 0) else 0
+		local copiesOwned = if type(entry) == "table" then math.max(integer(entry.count, 0), 0) else 0
 		local rarity = TowerDefenseCatalog.rarity(unit.rarityId)
-		local slotIndex = equippedSlot(unit.id, loadout)
-		local owned = ownedCount > 0
+		local copiesEquipped = equippedCount(unit.id, loadout)
+		local owned = copiesOwned > 0
 		view.button.Active = owned
 		view.button.AutoButtonColor = owned
 		view.button.BackgroundColor3 = catalogColor(unit.backgroundColor, EMPTY_COLOR)
@@ -219,9 +377,9 @@ local function refresh()
 		view.rarity.TextColor3 = if rarity ~= nil
 			then catalogColor(rarity.color, Color3.fromRGB(150, 180, 170))
 			else Color3.fromRGB(150, 180, 170)
-		view.owned.Text = if owned then `OWNED x{ownedCount}` else "NOT OWNED - ROLL TO FIND"
-		view.equipped.Visible = slotIndex ~= nil
-		view.equipped.Text = if slotIndex ~= nil then `SLOT {slotIndex}` else ""
+		view.owned.Text = if owned then `OWNED x{copiesOwned}` else "NOT OWNED - ROLL TO FIND"
+		view.equipped.Visible = copiesEquipped > 0
+		view.equipped.Text = if copiesEquipped > 0 then `EQUIPPED x{copiesEquipped}` else ""
 		setImage(view.icon, view.glyph, unit.iconAssetId, unit.iconGlyph)
 	end
 
@@ -236,29 +394,56 @@ local function refresh()
 			elseif type(nextCost) == "number" then `NEXT SLOT: {math.floor(nextCost)} COINS`
 			else "NEXT SLOT UNAVAILABLE"
 	end
-	if unlockButton ~= nil then
-		local canUnlock = unlocked < maximum and type(nextCost) == "number"
-		unlockButton.Active = canUnlock
-		unlockButton.AutoButtonColor = canUnlock
-		unlockButton.BackgroundColor3 = if canUnlock
-			then Color3.fromRGB(120, 82, 209)
-			else LOCKED_ACTION_COLOR
-		unlockButton.Text = if unlocked >= maximum then "MAXIMUM SLOTS" else "UNLOCK SLOT"
+	for _, node in talentNodes do
+		local unlockedNode = node.targetSlot <= unlocked
+		local availableNode = node.targetSlot == unlocked + 1
+			and node.targetSlot <= maximum
+			and type(nextCost) == "number"
+		node.button.Active = availableNode
+		node.button.AutoButtonColor = availableNode
+		node.button.BackgroundColor3 = if unlockedNode
+			then TALENT_UNLOCKED_COLOR
+			elseif availableNode then TALENT_AVAILABLE_COLOR
+			else TALENT_LOCKED_COLOR
+		node.stroke.Color = if unlockedNode
+			then Color3.fromRGB(80, 235, 164)
+			elseif availableNode then SELECTED_COLOR
+			else Color3.fromRGB(88, 94, 104)
+		node.stroke.Transparency = if unlockedNode or availableNode then 0.04 else 0.4
+		if unlockedNode then
+			node.button.Text = `SLOT {node.targetSlot}\nUNLOCKED`
+		elseif availableNode and type(nextCost) == "number" then
+			node.button.Text = `SLOT {node.targetSlot}\n{math.floor(nextCost)} COINS\nTAP TO UNLOCK`
+		else
+			local costIndex = node.targetSlot - Config.towerDefense.startingLoadoutSlots
+			local configuredCost = Config.towerDefense.loadoutSlotUnlockCosts[costIndex]
+			local costText = if type(configuredCost) == "number"
+				then `{math.floor(configuredCost)} COINS`
+				else "UNAVAILABLE"
+			node.button.Text = `SLOT {node.targetSlot}\n{costText}\nREQUIRES SLOT {node.targetSlot - 1}`
+		end
 	end
 
-	if selectedSlot ~= nil and loadout[selectedSlot] ~= nil then
+	local selectedReady = selectedSlot ~= nil
+		and loadout[selectedSlot] ~= nil
+		and placementForSlot(selectedSlot, loadout) == nil
+	if selectedReady and selectedSlot ~= nil then
 		local selectedUnit = TowerDefenseCatalog.unit(loadout[selectedSlot])
 		setHint(
 			if selectedUnit ~= nil
-				then `{string.upper(selectedUnit.name)} SELECTED - TAP A BUILDABLE CELL`
+				then `{string.upper(selectedUnit.name)} - GREEN/BLUE PLACE | RED BLOCKED | GOLD OCCUPIED`
 				else "SELECT A UNIT SLOT TO PLACE"
 		)
 	else
 		setHint("SELECT A UNIT SLOT TO PLACE")
 	end
 	if aimDot ~= nil then
-		aimDot.Visible = selectedSlot ~= nil and lastInputWasGamepad
+		aimDot.Visible = selectedReady and lastInputWasGamepad
 	end
+	local panelBlocking = inventoryPanel ~= nil and inventoryPanel.Visible
+		or talentPanel ~= nil and talentPanel.Visible
+	StageGridRenderer.setPlacementMode(selectedReady and not panelBlocking, state)
+	refreshDetails()
 	refreshBarWidth()
 	screenGui.Enabled = true
 end
@@ -278,25 +463,40 @@ local function selectInventoryUnit(unitIndex: number)
 		return
 	end
 	local entry = if type(state.ownedUnits) == "table" then state.ownedUnits[unit.id] else nil
-	if type(entry) ~= "table" or integer(entry.count, 0) <= 0 then
+	local copiesOwned = if type(entry) == "table" then math.max(integer(entry.count, 0), 0) else 0
+	if copiesOwned <= 0 then
 		setHint("ROLL THIS UNIT BEFORE EQUIPPING IT")
 		return
 	end
 
 	local nextLoadout = currentLoadout()
-	local alreadyEquipped = equippedSlot(unit.id, nextLoadout)
-	if alreadyEquipped ~= nil then
-		table.remove(nextLoadout, alreadyEquipped)
-		if selectedSlot == alreadyEquipped then
-			selectedSlot = nil
-		end
-		sendLoadout(nextLoadout)
-		return
-	end
-
 	if selectedSlot ~= nil and selectedSlot <= #nextLoadout then
+		local currentUnitId = nextLoadout[selectedSlot]
+		if currentUnitId == unit.id then
+			if equippedCount(unit.id, nextLoadout) >= copiesOwned then
+				setHint(`ALL {copiesOwned} OWNED COPIES ARE ALREADY EQUIPPED`)
+				return
+			end
+			if #nextLoadout >= unlockedSlots() then
+				setHint("UNLOCK ANOTHER UNIT SLOT FOR THIS COPY")
+				return
+			end
+			table.insert(nextLoadout, unit.id)
+			selectedSlot = #nextLoadout
+			sendLoadout(nextLoadout)
+			return
+		end
+		local copiesAfterReplace = equippedCount(unit.id, nextLoadout) + 1
+		if copiesAfterReplace > copiesOwned then
+			setHint(`ALL {copiesOwned} OWNED COPIES ARE ALREADY EQUIPPED`)
+			return
+		end
 		nextLoadout[selectedSlot] = unit.id
 	elseif #nextLoadout < unlockedSlots() then
+		if equippedCount(unit.id, nextLoadout) >= copiesOwned then
+			setHint(`ALL {copiesOwned} OWNED COPIES ARE ALREADY EQUIPPED`)
+			return
+		end
 		table.insert(nextLoadout, unit.id)
 		selectedSlot = #nextLoadout
 	else
@@ -339,7 +539,11 @@ local function selectedUnitId(): string?
 	if selectedSlot == nil then
 		return nil
 	end
-	return currentLoadout()[selectedSlot]
+	local loadout = currentLoadout()
+	if placementForSlot(selectedSlot, loadout) ~= nil then
+		return nil
+	end
+	return loadout[selectedSlot]
 end
 
 local function isClientBuildable(stage: any, column: number, row: number): boolean
@@ -437,6 +641,16 @@ local function placeAt(screenPoint: Vector2, viewportPoint: boolean)
 	send("PlaceUnit", { unitId = unitId, column = column, row = row })
 end
 
+local function interactAt(screenPoint: Vector2, viewportPoint: boolean)
+	local placementId, unitId = StageTowerRenderer.localPlacementAtScreen(screenPoint, viewportPoint)
+	if placementId ~= nil and unitId ~= nil then
+		selectedSlot = nil
+		showUnitDetails(unitId, nil, placementId)
+		return
+	end
+	placeAt(screenPoint, viewportPoint)
+end
+
 local function setPanelVisible(panel: Frame?, visible: boolean)
 	if panel ~= nil then
 		panel.Visible = visible
@@ -457,7 +671,16 @@ local function cycleSelection(direction: number)
 		return
 	end
 	local current = selectedSlot or if direction > 0 then 0 else #loadout + 1
-	selectedSlot = ((current - 1 + direction) % #loadout) + 1
+	for offset = 1, #loadout do
+		local candidate = ((current - 1 + direction * offset) % #loadout) + 1
+		if placementForSlot(candidate, loadout) == nil then
+			selectedSlot = candidate
+			refresh()
+			return
+		end
+	end
+	selectedSlot = nil
+	setHint("EVERY EQUIPPED COPY IS ALREADY PLACED")
 	refresh()
 end
 
@@ -496,6 +719,31 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 		aimDot = candidate:WaitForChild("AimDot") :: Frame
 		inventoryPanel = candidate:WaitForChild("InventoryPanel") :: Frame
 		talentPanel = candidate:WaitForChild("TalentPanel") :: Frame
+		local detailsPanel = candidate:WaitForChild("UnitDetailsPanel") :: Frame
+		detailsView = {
+			panel = detailsPanel,
+			stroke = detailsPanel:WaitForChild("PanelStroke") :: UIStroke,
+			accent = detailsPanel:WaitForChild("Accent") :: Frame,
+			icon = detailsPanel:WaitForChild("Icon") :: ImageLabel,
+			glyph = detailsPanel:WaitForChild("Glyph") :: TextLabel,
+			name = detailsPanel:WaitForChild("UnitName") :: TextLabel,
+			rarity = detailsPanel:WaitForChild("Rarity") :: TextLabel,
+			status = detailsPanel:WaitForChild("Status") :: TextLabel,
+			damage = detailsPanel:WaitForChild("DamageValue") :: TextLabel,
+			range = detailsPanel:WaitForChild("RangeValue") :: TextLabel,
+			fireRate = detailsPanel:WaitForChild("FireRateValue") :: TextLabel,
+			cost = detailsPanel:WaitForChild("CostValue") :: TextLabel,
+			targeting = detailsPanel:WaitForChild("TargetingValue") :: TextLabel,
+			owned = detailsPanel:WaitForChild("OwnedValue") :: TextLabel,
+			placement = detailsPanel:WaitForChild("PlacementValue") :: TextLabel,
+		}
+		local detailsCloseButton = detailsPanel:WaitForChild("CloseButton") :: TextButton
+		detailsCloseButton.Activated:Connect(function()
+			detailsPanel.Visible = false
+			detailsUnitId = nil
+			detailsSlot = nil
+			detailsPlacementId = nil
+		end)
 
 		local controlRow = candidate:WaitForChild("ControlRow")
 		local inventoryButton = controlRow:WaitForChild("InventoryButton") :: TextButton
@@ -511,6 +759,7 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 				glyph = button:WaitForChild("Glyph") :: TextLabel,
 				name = button:WaitForChild("UnitName") :: TextLabel,
 				cost = button:WaitForChild("Cost") :: TextLabel,
+				placedBadge = button:WaitForChild("PlacedBadge") :: TextLabel,
 				stroke = button:WaitForChild("SelectionStroke") :: UIStroke,
 			}
 			button.Activated:Connect(function()
@@ -520,10 +769,27 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 					setPanelVisible(talentPanel, false)
 					setPanelVisible(inventoryPanel, true)
 				else
-					selectedSlot = index
 					closePanels()
+					local placement = placementForSlot(index, currentLoadout())
+					local placementId = if type(placement) == "table"
+							and type(placement.id) == "string"
+						then placement.id
+						else nil
+					selectedSlot = if placement == nil then index else nil
+					showUnitDetails(unitId, index, placementId)
 				end
 				refresh()
+			end)
+			button.MouseEnter:Connect(function()
+				local unitId = currentLoadout()[index]
+				if unitId ~= nil then
+					local placement = placementForSlot(index, currentLoadout())
+					local placementId = if type(placement) == "table"
+							and type(placement.id) == "string"
+						then placement.id
+						else nil
+					showUnitDetails(unitId, index, placementId)
+				end
 			end)
 		end
 
@@ -559,31 +825,46 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 		end)
 		inventoryCloseButton.Activated:Connect(function()
 			setPanelVisible(inventoryPanel, false)
+			refresh()
 		end)
 
-		local slotNode = talentPanel:WaitForChild("SlotUpgradeNode")
-		currentSlotsLabel = slotNode:WaitForChild("CurrentSlots") :: TextLabel
-		nextCostLabel = slotNode:WaitForChild("NextCost") :: TextLabel
-		unlockButton = slotNode:WaitForChild("UnlockButton") :: TextButton
+		local treeCanvas = talentPanel:WaitForChild("TreeCanvas")
+		currentSlotsLabel = treeCanvas:WaitForChild("CurrentSlots") :: TextLabel
+		nextCostLabel = treeCanvas:WaitForChild("NextCost") :: TextLabel
+		for targetSlot = Config.towerDefense.startingLoadoutSlots + 1, Config.towerDefense.loadoutSlots do
+			local nodeSlot = targetSlot
+			local button = treeCanvas:WaitForChild(`SlotNode{string.format("%02d", nodeSlot)}`) :: TextButton
+			table.insert(talentNodes, {
+				targetSlot = nodeSlot,
+				button = button,
+				stroke = button:WaitForChild("NodeStroke") :: UIStroke,
+			})
+			button.Activated:Connect(function()
+				if nodeSlot == unlockedSlots() + 1 then
+					request("UnlockTowerLoadoutSlot", {})
+				end
+			end)
+		end
 		local talentCloseButton = talentPanel:WaitForChild("CloseButton") :: TextButton
-		unlockButton.Activated:Connect(function()
-			request("UnlockTowerLoadoutSlot", {})
-		end)
 		talentCloseButton.Activated:Connect(function()
 			setPanelVisible(talentPanel, false)
+			refresh()
 		end)
 
 		inventoryButton.Activated:Connect(function()
 			setPanelVisible(talentPanel, false)
 			setPanelVisible(inventoryPanel, not inventoryPanel.Visible)
+			refresh()
 		end)
 		diceButton.Activated:Connect(function()
 			closePanels()
+			refresh()
 			request("RollUnit", {})
 		end)
 		upgradeTreeButton.Activated:Connect(function()
 			setPanelVisible(inventoryPanel, false)
 			setPanelVisible(talentPanel, not talentPanel.Visible)
+			refresh()
 		end)
 
 		local templateGui = playerGui:FindFirstChild("TemplateUI")
@@ -611,6 +892,11 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 				or talentPanel ~= nil and talentPanel.Visible
 			then
 				closePanels()
+			elseif detailsView ~= nil and detailsView.panel.Visible then
+				detailsView.panel.Visible = false
+				detailsUnitId = nil
+				detailsSlot = nil
+				detailsPlacementId = nil
 			else
 				selectedSlot = nil
 			end
@@ -627,7 +913,16 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 		}
 		local slotIndex = numberKeys[input.KeyCode]
 		if slotIndex ~= nil and slotIndex <= unlockedSlots() then
-			selectedSlot = if currentLoadout()[slotIndex] ~= nil then slotIndex else nil
+			local loadout = currentLoadout()
+			local unitId = loadout[slotIndex]
+			local placement = placementForSlot(slotIndex, loadout)
+			selectedSlot = if unitId ~= nil and placement == nil then slotIndex else nil
+			if unitId ~= nil then
+				local placementId = if type(placement) == "table" and type(placement.id) == "string"
+					then placement.id
+					else nil
+				showUnitDetails(unitId, slotIndex, placementId)
+			end
 			refresh()
 		elseif input.KeyCode == Enum.KeyCode.ButtonL1 then
 			cycleSelection(-1)
@@ -640,14 +935,14 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 		then
 			local camera = Workspace.CurrentCamera
 			if camera ~= nil then
-				placeAt(camera.ViewportSize / 2, true)
+				interactAt(camera.ViewportSize / 2, true)
 			end
 		elseif
 			input.UserInputType == Enum.UserInputType.MouseButton1
 			and (inventoryPanel == nil or not inventoryPanel.Visible)
 			and (talentPanel == nil or not talentPanel.Visible)
 		then
-			placeAt(Vector2.new(input.Position.X, input.Position.Y), false)
+			interactAt(Vector2.new(input.Position.X, input.Position.Y), false)
 		end
 		refresh()
 	end)
@@ -659,7 +954,7 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 			and (inventoryPanel == nil or not inventoryPanel.Visible)
 			and (talentPanel == nil or not talentPanel.Visible)
 		then
-			placeAt(position, false)
+			interactAt(position, false)
 		end
 		refresh()
 	end)
