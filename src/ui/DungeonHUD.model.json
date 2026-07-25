@@ -197,7 +197,7 @@
         "BackgroundColor3": [0.025, 0.035, 0.065],
         "BackgroundTransparency": 0.1,
         "BorderSizePixel": 0,
-        "Position": { "UDim2": [[0, 18], [1, -222]] },
+        "Position": { "UDim2": [[0, 18], [1, -256]] },
         "Size": { "UDim2": [[0, 272], [0, 110]] },
         "Visible": false,
         "ZIndex": 10
@@ -306,7 +306,7 @@
       "Properties": {
         "AnchorPoint": [1, 1],
         "BackgroundTransparency": 1,
-        "Position": { "UDim2": [[1, -18], [1, -112]] },
+        "Position": { "UDim2": [[1, -18], [1, -146]] },
         "Size": { "UDim2": [[0, 218], [0, 92]] },
         "Visible": false,
         "ZIndex": 15
@@ -371,7 +371,7 @@
         "BackgroundTransparency": 0.18,
         "BorderSizePixel": 0,
         "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
-        "Position": { "UDim2": [[0.5, 0], [1, -24]] },
+        "Position": { "UDim2": [[0.5, 0], [1, -146]] },
         "Size": { "UDim2": [[0.48, 0], [0, 38]] },
         "Text": "LMB / F ATTACK   |   Q DODGE",
         "TextColor3": [0.88, 0.92, 1],
@@ -526,6 +526,490 @@
           "Children": [
             { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 12] } }, "Children": [] },
             { "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 18, "MinTextSize": 12 }, "Children": [] }
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "AbilityFlash",
+      "ClassName": "Frame",
+      "Properties": {
+        "BackgroundColor3": [0.3, 0.7, 1],
+        "BackgroundTransparency": 1,
+        "BorderSizePixel": 0,
+        "Size": { "UDim2": [[1, 0], [1, 0]] },
+        "Visible": false,
+        "ZIndex": 2
+      },
+      "Children": [
+        {
+          "ClassName": "UIGradient",
+          "Properties": {
+            "Rotation": 90,
+            "Transparency": {
+              "NumberSequence": {
+                "keypoints": [
+                  { "time": 0, "value": 0.2, "envelope": 0 },
+                  { "time": 0.5, "value": 0.85, "envelope": 0 },
+                  { "time": 1, "value": 0.2, "envelope": 0 }
+                ]
+              }
+            }
+          },
+          "Children": []
+        }
+      ]
+    },
+    {
+      "Name": "AbilityBar",
+      "ClassName": "Frame",
+      "Properties": {
+        "AnchorPoint": [0.5, 1],
+        "BackgroundColor3": [0.025, 0.039, 0.055],
+        "BackgroundTransparency": 0.03,
+        "BorderSizePixel": 0,
+        "ClipsDescendants": true,
+        "Position": { "UDim2": [[0.5, 0], [1, -14]] },
+        "Size": { "UDim2": [[0.96, 0], [0, 116]] },
+        "Visible": false,
+        "ZIndex": 15
+      },
+      "Children": [
+        {
+          "ClassName": "UISizeConstraint",
+          "Properties": {
+            "MaxSize": [392, 116],
+            "MinSize": [280, 96]
+          },
+          "Children": []
+        },
+        {
+          "ClassName": "UICorner",
+          "Properties": {
+            "CornerRadius": { "UDim": [0, 18] }
+          },
+          "Children": []
+        },
+        {
+          "ClassName": "UIStroke",
+          "Properties": {
+            "Color": [0.176, 0.733, 0.463],
+            "Thickness": 2,
+            "Transparency": 0.08
+          },
+          "Children": []
+        },
+        {
+          "ClassName": "UIGridLayout",
+          "Properties": {
+            "CellPadding": { "UDim2": [[0, 8], [0, 0]] },
+            "CellSize": { "UDim2": [[0.25, -10], [1, -20]] },
+            "FillDirection": "Horizontal",
+            "FillDirectionMaxCells": 4,
+            "HorizontalAlignment": "Center",
+            "SortOrder": "LayoutOrder",
+            "VerticalAlignment": "Center"
+          },
+          "Children": []
+        },
+        {
+          "Name": "Ability1",
+          "ClassName": "TextButton",
+          "Properties": {
+            "AutoButtonColor": false,
+            "BackgroundColor3": [0.06, 0.08, 0.13],
+            "BorderSizePixel": 0,
+            "ClipsDescendants": true,
+            "LayoutOrder": 1,
+            "Selectable": true,
+            "Size": { "UDim2": [[0, 60], [0, 72]] },
+            "Text": "",
+            "ZIndex": 16
+          },
+          "Children": [
+            { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 12] } }, "Children": [] },
+            { "ClassName": "UIStroke", "Properties": { "Color": [0.4, 0.55, 0.85], "Thickness": 2, "Transparency": 0.2 }, "Children": [] },
+            { "ClassName": "UIScale", "Properties": { "Scale": 1 }, "Children": [] },
+            {
+              "Name": "Glyph",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/FredokaOne.json", "weight": "Regular", "style": "Normal" },
+                "Position": { "UDim2": [[0, 0], [0, 9]] },
+                "Size": { "UDim2": [[1, 0], [0, 34]] },
+                "Text": "★",
+                "TextColor3": [0.95, 0.97, 1],
+                "TextSize": 26,
+                "ZIndex": 17
+              },
+              "Children": []
+            },
+            {
+              "Name": "AbilityName",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
+                "Position": { "UDim2": [[0, 2], [1, -20]] },
+                "Size": { "UDim2": [[1, -4], [0, 16]] },
+                "Text": "ABILITY",
+                "TextColor3": [0.74, 0.82, 0.95],
+                "TextSize": 9,
+                "TextTruncate": "AtEnd",
+                "ZIndex": 17
+              },
+              "Children": []
+            },
+            {
+              "Name": "KeyBadge",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundColor3": [0.02, 0.03, 0.06],
+                "BackgroundTransparency": 0.25,
+                "BorderSizePixel": 0,
+                "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
+                "Position": { "UDim2": [[0, 4], [0, 4]] },
+                "Size": { "UDim2": [[0, 16], [0, 15]] },
+                "Text": "1",
+                "TextColor3": [0.85, 0.9, 1],
+                "TextSize": 11,
+                "ZIndex": 21
+              },
+              "Children": [
+                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 5] } }, "Children": [] }
+              ]
+            },
+            {
+              "Name": "CooldownCover",
+              "ClassName": "Frame",
+              "Properties": {
+                "AnchorPoint": [0, 1],
+                "BackgroundColor3": [0.01, 0.02, 0.04],
+                "BackgroundTransparency": 0.42,
+                "BorderSizePixel": 0,
+                "Position": { "UDim2": [[0, 0], [1, 0]] },
+                "Size": { "UDim2": [[1, 0], [0, 0]] },
+                "ZIndex": 19
+              },
+              "Children": []
+            },
+            {
+              "Name": "CooldownText",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/FredokaOne.json", "weight": "Regular", "style": "Normal" },
+                "Size": { "UDim2": [[1, 0], [1, 0]] },
+                "Text": "",
+                "TextColor3": [1, 1, 1],
+                "TextSize": 20,
+                "TextStrokeColor3": [0, 0, 0],
+                "TextStrokeTransparency": 0.3,
+                "ZIndex": 22
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "Ability2",
+          "ClassName": "TextButton",
+          "Properties": {
+            "AutoButtonColor": false,
+            "BackgroundColor3": [0.06, 0.08, 0.13],
+            "BorderSizePixel": 0,
+            "ClipsDescendants": true,
+            "LayoutOrder": 2,
+            "Selectable": true,
+            "Size": { "UDim2": [[0, 60], [0, 72]] },
+            "Text": "",
+            "ZIndex": 16
+          },
+          "Children": [
+            { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 12] } }, "Children": [] },
+            { "ClassName": "UIStroke", "Properties": { "Color": [0.4, 0.55, 0.85], "Thickness": 2, "Transparency": 0.2 }, "Children": [] },
+            { "ClassName": "UIScale", "Properties": { "Scale": 1 }, "Children": [] },
+            {
+              "Name": "Glyph",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/FredokaOne.json", "weight": "Regular", "style": "Normal" },
+                "Position": { "UDim2": [[0, 0], [0, 9]] },
+                "Size": { "UDim2": [[1, 0], [0, 34]] },
+                "Text": "★",
+                "TextColor3": [0.95, 0.97, 1],
+                "TextSize": 26,
+                "ZIndex": 17
+              },
+              "Children": []
+            },
+            {
+              "Name": "AbilityName",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
+                "Position": { "UDim2": [[0, 2], [1, -20]] },
+                "Size": { "UDim2": [[1, -4], [0, 16]] },
+                "Text": "ABILITY",
+                "TextColor3": [0.74, 0.82, 0.95],
+                "TextSize": 9,
+                "TextTruncate": "AtEnd",
+                "ZIndex": 17
+              },
+              "Children": []
+            },
+            {
+              "Name": "KeyBadge",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundColor3": [0.02, 0.03, 0.06],
+                "BackgroundTransparency": 0.25,
+                "BorderSizePixel": 0,
+                "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
+                "Position": { "UDim2": [[0, 4], [0, 4]] },
+                "Size": { "UDim2": [[0, 16], [0, 15]] },
+                "Text": "2",
+                "TextColor3": [0.85, 0.9, 1],
+                "TextSize": 11,
+                "ZIndex": 21
+              },
+              "Children": [
+                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 5] } }, "Children": [] }
+              ]
+            },
+            {
+              "Name": "CooldownCover",
+              "ClassName": "Frame",
+              "Properties": {
+                "AnchorPoint": [0, 1],
+                "BackgroundColor3": [0.01, 0.02, 0.04],
+                "BackgroundTransparency": 0.42,
+                "BorderSizePixel": 0,
+                "Position": { "UDim2": [[0, 0], [1, 0]] },
+                "Size": { "UDim2": [[1, 0], [0, 0]] },
+                "ZIndex": 19
+              },
+              "Children": []
+            },
+            {
+              "Name": "CooldownText",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/FredokaOne.json", "weight": "Regular", "style": "Normal" },
+                "Size": { "UDim2": [[1, 0], [1, 0]] },
+                "Text": "",
+                "TextColor3": [1, 1, 1],
+                "TextSize": 20,
+                "TextStrokeColor3": [0, 0, 0],
+                "TextStrokeTransparency": 0.3,
+                "ZIndex": 22
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "Ability3",
+          "ClassName": "TextButton",
+          "Properties": {
+            "AutoButtonColor": false,
+            "BackgroundColor3": [0.06, 0.08, 0.13],
+            "BorderSizePixel": 0,
+            "ClipsDescendants": true,
+            "LayoutOrder": 3,
+            "Selectable": true,
+            "Size": { "UDim2": [[0, 60], [0, 72]] },
+            "Text": "",
+            "ZIndex": 16
+          },
+          "Children": [
+            { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 12] } }, "Children": [] },
+            { "ClassName": "UIStroke", "Properties": { "Color": [0.4, 0.55, 0.85], "Thickness": 2, "Transparency": 0.2 }, "Children": [] },
+            { "ClassName": "UIScale", "Properties": { "Scale": 1 }, "Children": [] },
+            {
+              "Name": "Glyph",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/FredokaOne.json", "weight": "Regular", "style": "Normal" },
+                "Position": { "UDim2": [[0, 0], [0, 9]] },
+                "Size": { "UDim2": [[1, 0], [0, 34]] },
+                "Text": "★",
+                "TextColor3": [0.95, 0.97, 1],
+                "TextSize": 26,
+                "ZIndex": 17
+              },
+              "Children": []
+            },
+            {
+              "Name": "AbilityName",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
+                "Position": { "UDim2": [[0, 2], [1, -20]] },
+                "Size": { "UDim2": [[1, -4], [0, 16]] },
+                "Text": "ABILITY",
+                "TextColor3": [0.74, 0.82, 0.95],
+                "TextSize": 9,
+                "TextTruncate": "AtEnd",
+                "ZIndex": 17
+              },
+              "Children": []
+            },
+            {
+              "Name": "KeyBadge",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundColor3": [0.02, 0.03, 0.06],
+                "BackgroundTransparency": 0.25,
+                "BorderSizePixel": 0,
+                "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
+                "Position": { "UDim2": [[0, 4], [0, 4]] },
+                "Size": { "UDim2": [[0, 16], [0, 15]] },
+                "Text": "3",
+                "TextColor3": [0.85, 0.9, 1],
+                "TextSize": 11,
+                "ZIndex": 21
+              },
+              "Children": [
+                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 5] } }, "Children": [] }
+              ]
+            },
+            {
+              "Name": "CooldownCover",
+              "ClassName": "Frame",
+              "Properties": {
+                "AnchorPoint": [0, 1],
+                "BackgroundColor3": [0.01, 0.02, 0.04],
+                "BackgroundTransparency": 0.42,
+                "BorderSizePixel": 0,
+                "Position": { "UDim2": [[0, 0], [1, 0]] },
+                "Size": { "UDim2": [[1, 0], [0, 0]] },
+                "ZIndex": 19
+              },
+              "Children": []
+            },
+            {
+              "Name": "CooldownText",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/FredokaOne.json", "weight": "Regular", "style": "Normal" },
+                "Size": { "UDim2": [[1, 0], [1, 0]] },
+                "Text": "",
+                "TextColor3": [1, 1, 1],
+                "TextSize": 20,
+                "TextStrokeColor3": [0, 0, 0],
+                "TextStrokeTransparency": 0.3,
+                "ZIndex": 22
+              },
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Name": "Ability4",
+          "ClassName": "TextButton",
+          "Properties": {
+            "AutoButtonColor": false,
+            "BackgroundColor3": [0.06, 0.08, 0.13],
+            "BorderSizePixel": 0,
+            "ClipsDescendants": true,
+            "LayoutOrder": 4,
+            "Selectable": true,
+            "Size": { "UDim2": [[0, 60], [0, 72]] },
+            "Text": "",
+            "ZIndex": 16
+          },
+          "Children": [
+            { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 12] } }, "Children": [] },
+            { "ClassName": "UIStroke", "Properties": { "Color": [0.4, 0.55, 0.85], "Thickness": 2, "Transparency": 0.2 }, "Children": [] },
+            { "ClassName": "UIScale", "Properties": { "Scale": 1 }, "Children": [] },
+            {
+              "Name": "Glyph",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/FredokaOne.json", "weight": "Regular", "style": "Normal" },
+                "Position": { "UDim2": [[0, 0], [0, 9]] },
+                "Size": { "UDim2": [[1, 0], [0, 34]] },
+                "Text": "★",
+                "TextColor3": [0.95, 0.97, 1],
+                "TextSize": 26,
+                "ZIndex": 17
+              },
+              "Children": []
+            },
+            {
+              "Name": "AbilityName",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
+                "Position": { "UDim2": [[0, 2], [1, -20]] },
+                "Size": { "UDim2": [[1, -4], [0, 16]] },
+                "Text": "ABILITY",
+                "TextColor3": [0.74, 0.82, 0.95],
+                "TextSize": 9,
+                "TextTruncate": "AtEnd",
+                "ZIndex": 17
+              },
+              "Children": []
+            },
+            {
+              "Name": "KeyBadge",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundColor3": [0.02, 0.03, 0.06],
+                "BackgroundTransparency": 0.25,
+                "BorderSizePixel": 0,
+                "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
+                "Position": { "UDim2": [[0, 4], [0, 4]] },
+                "Size": { "UDim2": [[0, 16], [0, 15]] },
+                "Text": "4",
+                "TextColor3": [0.85, 0.9, 1],
+                "TextSize": 11,
+                "ZIndex": 21
+              },
+              "Children": [
+                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 5] } }, "Children": [] }
+              ]
+            },
+            {
+              "Name": "CooldownCover",
+              "ClassName": "Frame",
+              "Properties": {
+                "AnchorPoint": [0, 1],
+                "BackgroundColor3": [0.01, 0.02, 0.04],
+                "BackgroundTransparency": 0.42,
+                "BorderSizePixel": 0,
+                "Position": { "UDim2": [[0, 0], [1, 0]] },
+                "Size": { "UDim2": [[1, 0], [0, 0]] },
+                "ZIndex": 19
+              },
+              "Children": []
+            },
+            {
+              "Name": "CooldownText",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "FontFace": { "family": "rbxasset://fonts/families/FredokaOne.json", "weight": "Regular", "style": "Normal" },
+                "Size": { "UDim2": [[1, 0], [1, 0]] },
+                "Text": "",
+                "TextColor3": [1, 1, 1],
+                "TextSize": 20,
+                "TextStrokeColor3": [0, 0, 0],
+                "TextStrokeTransparency": 0.3,
+                "ZIndex": 22
+              },
+              "Children": []
+            }
           ]
         }
       ]

@@ -72,6 +72,7 @@ local requestFeatures: { [string]: string } = {
 	TravelToTowerPlatform = "towerDefense",
 	DungeonAttack = "dungeon",
 	DungeonDodge = "dungeon",
+	UseDungeonAbility = "dungeon",
 	SelectDungeonBoss = "dungeon",
 }
 
@@ -231,8 +232,9 @@ local function handleRequest(player: Player, packet: any)
 	if not limiter:allow(player, action, rateCapacity, rateRefill) then
 		-- Dungeon attacks are fire-and-forget. Silently drop excess clicks so an
 		-- attacker cannot turn rate-limit rejection into an unbounded stream of
-		-- full profile snapshots through result().
-		if action == "DungeonAttack" or action == "DungeonDodge" then
+		-- full profile snapshots through result(). Hotbar abilities share this
+		-- path; their own per-ability server cooldown already paces real use.
+		if action == "DungeonAttack" or action == "DungeonDodge" or action == "UseDungeonAbility" then
 			return
 		end
 		if action == "SelectDungeonBoss" then
@@ -368,6 +370,24 @@ local function handleRequest(player: Player, packet: any)
 			action = "dodge",
 			accepted = accepted,
 			reason = reason,
+		})
+	elseif action == "UseDungeonAbility" then
+		-- Shape check only; DungeonService re-validates the id against the catalog
+		-- plus liveness, arena, cooldown, range, and line of sight before any effect.
+		local abilityId = if type(payload) == "table" then payload.abilityId else nil
+		if type(abilityId) ~= "string" or #abilityId < 1 or #abilityId > 32 then
+			RemoteService.sendEvent(player, "DungeonAbilityResult", {
+				accepted = false,
+				reason = "invalid",
+			})
+			return
+		end
+		local accepted, reason, damage = DungeonService.useAbility(player, abilityId)
+		RemoteService.sendEvent(player, "DungeonAbilityResult", {
+			abilityId = abilityId,
+			accepted = accepted,
+			reason = reason,
+			damage = damage,
 		})
 	elseif action == "SelectDungeonBoss" then
 		-- Shape check only; DungeonService re-validates the id against the catalog

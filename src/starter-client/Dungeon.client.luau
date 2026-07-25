@@ -93,6 +93,9 @@ local DEFAULT_CAMERA_MIN_ZOOM = 8
 local DEFAULT_CAMERA_MAX_ZOOM = 28
 
 local dungeonConfig: any = Config.dungeon
+local dungeonAbilities: { any } = if type(dungeonConfig.abilities) == "table"
+	then dungeonConfig.abilities
+	else {}
 local cameraConfig: any = if type(dungeonConfig.camera) == "table" then dungeonConfig.camera else {}
 
 local function finiteNumber(value: any): boolean
@@ -183,6 +186,35 @@ local resultTitle: TextLabel? = nil
 local resultDetail: TextLabel? = nil
 local rewardText: TextLabel? = nil
 
+-- One authored hotbar slot (keys 1-4). Runtime only binds behavior and animates
+-- the cooldown; it never constructs the slot instances.
+type AbilitySlot = {
+	index: number,
+	button: TextButton,
+	scale: UIScale?,
+	stroke: UIStroke?,
+	glyph: TextLabel?,
+	nameLabel: TextLabel?,
+	keyBadge: TextLabel?,
+	cover: Frame?,
+	cooldownText: TextLabel?,
+	ability: any,
+	lastUseAt: number,
+	cooling: boolean,
+	connection: RBXScriptConnection?,
+}
+local abilityBar: Frame? = nil
+local abilityFlash: Frame? = nil
+local abilityFlashRevision = 0
+local abilitySlots: { AbilitySlot } = {}
+local baseGlowBrightness: { [PointLight]: number } = setmetatable({}, { __mode = "k" }) :: any
+-- Real-animation playback: the character's Animator plus one preloaded track per
+-- ability that has a configured animationId. Empty means every ability uses its
+-- procedural pose fallback.
+local animator: Animator? = nil
+local abilityTracks: { [string]: AnimationTrack } = {}
+local trailRevision = 0
+
 local attackButtonConnection: RBXScriptConnection? = nil
 local dodgeButtonConnection: RBXScriptConnection? = nil
 local bossHealthTween: Tween? = nil
@@ -241,6 +273,7 @@ local LOBBY_GUI_ROOTS: { [string]: boolean } = {
 	StagePlatformOwners = true,
 	TowerDefenseTravelHUD = true,
 	TowerDefenseLevelHUD = true,
+	TowerDefenseLoadoutHUD = true,
 	StarterSignUI = true,
 	PortalSign = true,
 	GalleryMenu = true,
@@ -366,6 +399,26 @@ local function flashDamage()
 		TweenService:Create(vignette, tweenInfo(0.24), {
 			BackgroundTransparency = targetVignetteTransparency(),
 		}):Play()
+	end)
+end
+
+-- Brief full-screen tint when an ability fires. The authored frame's gradient
+-- shapes it into an edge glow; reduced motion skips it entirely.
+local function flashAbility(color: Color3)
+	local flash = abilityFlash
+	if flash == nil or GuiService.ReducedMotionEnabled then
+		return
+	end
+	abilityFlashRevision += 1
+	local revision = abilityFlashRevision
+	flash.BackgroundColor3 = color
+	flash.BackgroundTransparency = 0.2
+	flash.Visible = true
+	TweenService:Create(flash, tweenInfo(0.34), { BackgroundTransparency = 1 }):Play()
+	task.delay(0.36, function()
+		if abilityFlashRevision == revision and abilityFlash == flash then
+			flash.Visible = false
+		end
 	end)
 end
 
@@ -610,6 +663,100 @@ local function playDodgePose()
 	end)
 end
 
+-- Distinct procedural swing per ability kind, reusing the same Motor6D pose system
+-- as the basic attack/dodge so no uploaded animation assets are required.
+local function playAbilityPose(kind: string)
+	if GuiService.ReducedMotionEnabled then
+		return
+	end
+	poseRevision += 1
+	local revision = poseRevision
+	if kind == "cleave" then
+		-- Whirlwind: fling the arms out and sweep the whole body around.
+		setAvatarPose({
+			RightShoulder = CFrame.Angles(0, 0, math.rad(78)),
+			LeftShoulder = CFrame.Angles(0, 0, math.rad(-78)),
+			Waist = CFrame.Angles(0, math.rad(-40), 0),
+			RootJoint = CFrame.Angles(0, math.rad(-60), 0),
+		}, 0.08, revision)
+		task.delay(0.09, function()
+			if poseRevision ~= revision then
+				return
+			end
+			setAvatarPose({
+				RightShoulder = CFrame.Angles(0, 0, math.rad(78)),
+				LeftShoulder = CFrame.Angles(0, 0, math.rad(-78)),
+				Waist = CFrame.Angles(0, math.rad(40), 0),
+				RootJoint = CFrame.Angles(0, math.rad(300), 0),
+			}, 0.22, revision)
+			task.delay(0.24, function()
+				if poseRevision == revision then
+					restoreAvatarPose(0.12)
+				end
+			end)
+		end)
+	elseif kind == "ranged" then
+		-- Fireball: wind back, then thrust the weapon arm forward.
+		setAvatarPose({
+			RightShoulder = CFrame.Angles(math.rad(-8), 0, math.rad(6)),
+			LeftShoulder = CFrame.Angles(math.rad(-10), 0, math.rad(-6)),
+			Waist = CFrame.Angles(math.rad(-6), math.rad(8), 0),
+		}, 0.07, revision)
+		task.delay(0.08, function()
+			if poseRevision ~= revision then
+				return
+			end
+			setAvatarPose({
+				RightShoulder = CFrame.Angles(math.rad(-96), 0, math.rad(6)),
+				LeftShoulder = CFrame.Angles(math.rad(-18), 0, math.rad(-8)),
+				Waist = CFrame.Angles(math.rad(6), math.rad(-12), 0),
+			}, 0.12, revision)
+			task.delay(0.16, function()
+				if poseRevision == revision then
+					restoreAvatarPose(0.14)
+				end
+			end)
+		end)
+	elseif kind == "heal" then
+		-- Second Wind: raise both arms and rise up.
+		setAvatarPose({
+			RightShoulder = CFrame.Angles(math.rad(-150), 0, math.rad(18)),
+			LeftShoulder = CFrame.Angles(math.rad(-150), 0, math.rad(-18)),
+			Waist = CFrame.Angles(math.rad(-8), 0, 0),
+			RootJoint = CFrame.new(0, -0.35, 0),
+		}, 0.16, revision)
+		task.delay(0.42, function()
+			if poseRevision == revision then
+				restoreAvatarPose(0.2)
+			end
+		end)
+	else
+		-- Power Strike: heavy overhead wind-up into a slam.
+		setAvatarPose({
+			RightShoulder = CFrame.Angles(math.rad(-140), math.rad(-6), math.rad(18)),
+			LeftShoulder = CFrame.Angles(math.rad(-40), 0, math.rad(-10)),
+			Waist = CFrame.Angles(math.rad(-16), math.rad(-10), 0),
+			RootJoint = CFrame.Angles(math.rad(-8), 0, 0),
+		}, 0.1, revision)
+		task.delay(0.12, function()
+			if poseRevision ~= revision then
+				return
+			end
+			setAvatarPose({
+				RightShoulder = CFrame.Angles(math.rad(60), math.rad(8), math.rad(-24)),
+				LeftShoulder = CFrame.Angles(math.rad(-6), 0, math.rad(8)),
+				Waist = CFrame.Angles(math.rad(22), math.rad(12), 0),
+				RootJoint = CFrame.Angles(math.rad(10), 0, 0),
+			}, 0.12, revision)
+			task.delay(0.14, function()
+				if poseRevision == revision then
+					restoreAvatarPose(0.14)
+				end
+			end)
+		end)
+	end
+end
+
 local function restoreToolGrips()
 	swingRevision += 1
 	for tool, baseGrip in baseToolGrips do
@@ -662,6 +809,146 @@ local function swingEquippedTool()
 			TweenService:Create(equipped, tweenInfo(0.1), { Grip = baseGrip }):Play()
 		end)
 	end)
+end
+
+local function abilityColor(ability: any): Color3
+	local color = if type(ability) == "table" then ability.color else nil
+	if type(color) == "table" and #color == 3 then
+		return Color3.new(color[1], color[2], color[3])
+	end
+	return Color3.fromRGB(120, 170, 255)
+end
+
+-- In-world VFX for an ability: burst the equipped weapon's authored particle
+-- emitter (recolored to the ability tint) and briefly brighten its glow. Both are
+-- pre-authored instances; this only tints, emits, and tweens them.
+local function emitAbilityFx(color: Color3, count: number)
+	local currentCharacter = character
+	if currentCharacter == nil then
+		return
+	end
+	local equipped = currentCharacter:FindFirstChildWhichIsA("Tool")
+	if equipped == nil then
+		return
+	end
+	local emitter = equipped:FindFirstChild("AbilityBurst", true)
+	if emitter ~= nil and emitter:IsA("ParticleEmitter") then
+		emitter.Color = ColorSequence.new(color)
+		emitter:Emit(count)
+	end
+	local handle = equipped:FindFirstChild("Handle")
+	local glow = if handle ~= nil then handle:FindFirstChild("Glow") else nil
+	if glow ~= nil and glow:IsA("PointLight") and not GuiService.ReducedMotionEnabled then
+		local base = baseGlowBrightness[glow]
+		if base == nil then
+			base = glow.Brightness
+			baseGlowBrightness[glow] = base
+		end
+		glow.Brightness = base + 1.4
+		TweenService:Create(glow, tweenInfo(0.32), { Brightness = base }):Play()
+	end
+	-- Weapon swing trail: authored Trail whose attachment refs (which Rojo cannot
+	-- serialize) are wired once here, then tinted and briefly enabled.
+	local trail = if handle ~= nil then handle:FindFirstChild("AbilityTrail") else nil
+	if trail ~= nil and trail:IsA("Trail") and not GuiService.ReducedMotionEnabled then
+		if trail.Attachment0 == nil or trail.Attachment1 == nil then
+			local attach0 = handle:FindFirstChild("TrailAttach0")
+			local attach1 = handle:FindFirstChild("TrailAttach1")
+			if
+				attach0 ~= nil
+				and attach0:IsA("Attachment")
+				and attach1 ~= nil
+				and attach1:IsA("Attachment")
+			then
+				trail.Attachment0 = attach0
+				trail.Attachment1 = attach1
+			end
+		end
+		if trail.Attachment0 ~= nil and trail.Attachment1 ~= nil then
+			trail.Color = ColorSequence.new(color)
+			trailRevision += 1
+			local revision = trailRevision
+			trail.Enabled = true
+			task.delay(0.34, function()
+				if trailRevision == revision and trail.Parent ~= nil then
+					trail.Enabled = false
+				end
+			end)
+		end
+	end
+end
+
+-- Impact burst at the boss core, played when a damage ability actually lands.
+local function emitBossImpact(color: Color3)
+	resolveBossPresentation()
+	local core = bossCore
+	if core == nil or core.Parent == nil then
+		return
+	end
+	local impact = core:FindFirstChild("AbilityImpact")
+	if impact ~= nil and impact:IsA("ParticleEmitter") then
+		impact.Color = ColorSequence.new(color)
+		impact:Emit(20)
+	end
+end
+
+local function stopAbilityTracks()
+	for _, track in abilityTracks do
+		track:Stop(0)
+	end
+	table.clear(abilityTracks)
+end
+
+-- Preloads one AnimationTrack per ability that has a real published animationId.
+-- Abilities left at 0 simply have no track and fall back to the procedural pose.
+local function loadAbilityAnimations()
+	stopAbilityTracks()
+	local currentAnimator = animator
+	local folder = Template:FindFirstChild("DungeonAnimations")
+	if currentAnimator == nil or folder == nil then
+		return
+	end
+	for _, ability in dungeonAbilities do
+		local id = if type(ability) == "table" and type(ability.animationId) == "number"
+			then math.floor(ability.animationId)
+			else 0
+		if id <= 0 then
+			continue
+		end
+		local vessel = folder:FindFirstChild(ability.id)
+		if vessel ~= nil and vessel:IsA("Animation") then
+			vessel.AnimationId = `rbxassetid://{id}`
+			local ok, track = pcall(function()
+				return currentAnimator:LoadAnimation(vessel)
+			end)
+			if ok and track ~= nil then
+				track.Priority = Enum.AnimationPriority.Action
+				abilityTracks[ability.id] = track
+			end
+		end
+	end
+end
+
+-- Plays the real AnimationTrack when one is configured, otherwise the procedural
+-- pose. Reduced motion suppresses both, matching the basic attack/dodge behavior.
+local function playAbilityMotion(ability: any)
+	if GuiService.ReducedMotionEnabled then
+		return
+	end
+	local track = abilityTracks[ability.id]
+	if track ~= nil then
+		track:Stop(0.05)
+		track:Play(0.05)
+		return
+	end
+	playAbilityPose(if type(ability.kind) == "string" then ability.kind else "strike")
+end
+
+local function resetAbilityCooldowns()
+	for _, slot in abilitySlots do
+		slot.lastUseAt = -math.huge
+		slot.cooling = false
+	end
 end
 
 local function showHitMarker(damage: number?)
@@ -719,6 +1006,8 @@ local function disconnectCharacter()
 	restoreToolGrips()
 	restoreAvatarPose(0)
 	table.clear(poseMotors)
+	stopAbilityTracks()
+	animator = nil
 	if healthConnection ~= nil then
 		healthConnection:Disconnect()
 		healthConnection = nil
@@ -766,6 +1055,12 @@ local function bindCharacter(nextCharacter: Model)
 				showStatus("YOU ARE DOWN - SPECTATING", Color3.fromRGB(255, 132, 132), 2.5)
 			end
 		end)
+		local animatorInstance = humanoidCandidate:FindFirstChildOfClass("Animator")
+			or humanoidCandidate:WaitForChild("Animator", 5)
+		if animatorInstance ~= nil and animatorInstance:IsA("Animator") then
+			animator = animatorInstance
+			loadAbilityAnimations()
+		end
 	end
 	local poseMotorKeys = {
 		RightShoulder = "RightShoulder",
@@ -939,6 +1234,11 @@ local function applyDungeonState(data: any)
 		restoreAvatarPose(0.08)
 		restoreToolGrips()
 	end
+	if nextFightActive ~= wasFightActive then
+		-- Entering or leaving combat clears the predicted hotbar cooldowns so a new
+		-- fight always starts with every ability ready.
+		resetAbilityCooldowns()
+	end
 
 	local currentHud = hud
 	if currentHud ~= nil then
@@ -947,6 +1247,7 @@ local function applyDungeonState(data: any)
 	setVisible(bossBar, active and result == nil)
 	setVisible(playerPanel, active)
 	setVisible(controls, combatActive and UserInputService.TouchEnabled)
+	setVisible(abilityBar, combatActive)
 	local inputType = UserInputService:GetLastInputType()
 	if nextFightActive and nextLocalEliminated then
 		setText(controlHint, "SPECTATING - YOU ARE DOWN")
@@ -1148,16 +1449,133 @@ local function tryDodge()
 	end)
 end
 
+local function slotForAbilityId(abilityId: any): AbilitySlot?
+	if type(abilityId) ~= "string" then
+		return nil
+	end
+	for _, slot in abilitySlots do
+		if slot.ability.id == abilityId then
+			return slot
+		end
+	end
+	return nil
+end
+
+-- Fires a hotbar ability. The client predicts the cooldown, plays the pose/VFX,
+-- and sends the id; the server re-validates and applies the authoritative effect.
+local function tryAbility(index: number)
+	if not combatActive or dodgePending or UserInputService:GetFocusedTextBox() ~= nil then
+		return
+	end
+	local slot = abilitySlots[index]
+	if slot == nil then
+		return
+	end
+	local ability = slot.ability
+	local cooldown = if finiteNumber(ability.cooldownSeconds) and ability.cooldownSeconds > 0
+		then ability.cooldownSeconds
+		else 1
+	local now = os.clock()
+	if now - slot.lastUseAt < cooldown then
+		return
+	end
+	slot.lastUseAt = now
+	local color = abilityColor(ability)
+	local scale = slot.scale
+	if scale ~= nil and not GuiService.ReducedMotionEnabled then
+		scale.Scale = 0.86
+		TweenService:Create(scale, tweenInfo(0.16, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	end
+	playAbilityMotion(ability)
+	emitAbilityFx(color, 24)
+	flashAbility(color)
+	pulseCamera(if ability.kind == "heal" then 3 else 4)
+	requestRemote:FireServer({ action = "UseDungeonAbility", payload = { abilityId = ability.id } })
+end
+
+local function applyAbilityResult(data: any)
+	if type(data) ~= "table" then
+		return
+	end
+	local slot = slotForAbilityId(data.abilityId)
+	local ability = if slot ~= nil then slot.ability else nil
+	if data.accepted == true then
+		if ability ~= nil and ability.kind == "heal" then
+			local name = if type(ability.name) == "string" then string.upper(ability.name) else "ABILITY"
+			showStatus(`{name}!`, Color3.fromRGB(120, 240, 150), 0.9)
+		else
+			local damage = if finiteNumber(data.damage) then math.max(0, data.damage) else nil
+			showHitMarker(damage)
+			pulseBossHit()
+			emitBossImpact(abilityColor(ability))
+			pulseCamera(3)
+		end
+		return
+	end
+	-- Rejected: let the player retry immediately unless the server is on cooldown.
+	local reason = if type(data.reason) == "string" then string.lower(data.reason) else ""
+	if slot ~= nil and reason ~= "cooldown" then
+		slot.lastUseAt = -math.huge
+	end
+	if reason == "cooldown" then
+		showStatus("ABILITY RECHARGING", Color3.fromRGB(168, 205, 255), 0.7)
+	elseif string.find(reason, "range", 1, true) ~= nil then
+		showStatus("MOVE CLOSER TO THE BOSS", Color3.fromRGB(255, 207, 112), 0.9)
+	elseif reason == "blocked" then
+		showStatus("LINE OF SIGHT BLOCKED", Color3.fromRGB(255, 180, 132), 0.9)
+	elseif string.find(reason, "arena", 1, true) ~= nil then
+		showStatus("RETURN TO THE ARENA", Color3.fromRGB(255, 180, 132), 0.9)
+	elseif reason == "down" or reason == "eliminated" then
+		showStatus("YOU CANNOT ACT WHILE DOWN", Color3.fromRGB(255, 132, 132), 0.9)
+	elseif reason == "fullhealth" then
+		showStatus("HEALTH ALREADY FULL", Color3.fromRGB(168, 235, 184), 0.9)
+	elseif reason ~= "" and reason ~= "inactive" and reason ~= "notparty" and reason ~= "invalid" then
+		showStatus("ABILITY UNAVAILABLE", Color3.fromRGB(255, 180, 132), 0.9)
+	end
+end
+
+local GAMEPAD_ABILITY_LABELS = { "◀", "▲", "▶", "▼" }
+local ABILITY_INDEX_BY_KEY: { [Enum.KeyCode]: number } = {
+	[Enum.KeyCode.One] = 1,
+	[Enum.KeyCode.Two] = 2,
+	[Enum.KeyCode.Three] = 3,
+	[Enum.KeyCode.Four] = 4,
+	[Enum.KeyCode.DPadLeft] = 1,
+	[Enum.KeyCode.DPadUp] = 2,
+	[Enum.KeyCode.DPadRight] = 3,
+	[Enum.KeyCode.DPadDown] = 4,
+}
+
+local function updateAbilityKeyBadges(inputType: Enum.UserInputType)
+	local usingTouch = inputType == Enum.UserInputType.Touch
+	local usingGamepad = string.find(inputType.Name, "Gamepad", 1, true) ~= nil
+	for index, slot in abilitySlots do
+		local badge = slot.keyBadge
+		if badge ~= nil then
+			badge.Visible = not usingTouch
+			if usingGamepad then
+				badge.Text = GAMEPAD_ABILITY_LABELS[index] or tostring(index)
+			else
+				local keyLabel = slot.ability.keyLabel
+				badge.Text = if type(keyLabel) == "string" and keyLabel ~= ""
+					then keyLabel
+					else tostring(index)
+			end
+		end
+	end
+end
+
 local function updateInputHint(inputType: Enum.UserInputType)
+	updateAbilityKeyBadges(inputType)
 	if inputType == Enum.UserInputType.Touch then
 		setVisible(controlHint, false)
 		return
 	elseif fightActive and localEliminated then
 		setText(controlHint, "SPECTATING - YOU ARE DOWN")
 	elseif string.find(inputType.Name, "Gamepad", 1, true) ~= nil then
-		setText(controlHint, "R2 ATTACK   |   B DODGE")
+		setText(controlHint, "R2 ATTACK   |   B DODGE   |   D-PAD ABILITIES")
 	else
-		setText(controlHint, "LMB / F ATTACK   |   Q DODGE")
+		setText(controlHint, "LMB / F ATTACK   |   Q DODGE   |   1-4 ABILITIES")
 	end
 	setVisible(controlHint, combatActive or (fightActive and localEliminated))
 end
@@ -1199,6 +1617,86 @@ local function clearHudReferences()
 	resultTitle = nil
 	resultDetail = nil
 	rewardText = nil
+	for _, slot in abilitySlots do
+		if slot.connection ~= nil then
+			slot.connection:Disconnect()
+		end
+	end
+	table.clear(abilitySlots)
+	abilityBar = nil
+	abilityFlash = nil
+end
+
+local function firstOfClass(parent: Instance?, className: string): any
+	if parent == nil then
+		return nil
+	end
+	return parent:FindFirstChildOfClass(className)
+end
+
+-- Applies one ability's authored slot: glyph, name, key label, accent, and a
+-- cleared cooldown. Only text/colour/size are set; no instances are created.
+local function applyAbilitySlot(slot: AbilitySlot)
+	local ability = slot.ability
+	local color = abilityColor(ability)
+	if slot.glyph ~= nil then
+		slot.glyph.Text = if type(ability.glyph) == "string" and ability.glyph ~= ""
+			then ability.glyph
+			else "★"
+	end
+	if slot.nameLabel ~= nil then
+		slot.nameLabel.Text = if type(ability.name) == "string" then string.upper(ability.name) else "ABILITY"
+	end
+	if slot.keyBadge ~= nil then
+		slot.keyBadge.Text = if type(ability.keyLabel) == "string" and ability.keyLabel ~= ""
+			then ability.keyLabel
+			else tostring(slot.index)
+	end
+	if slot.stroke ~= nil then
+		slot.stroke.Color = color
+	end
+	if slot.cover ~= nil then
+		slot.cover.Size = UDim2.fromScale(1, 0)
+	end
+	if slot.cooldownText ~= nil then
+		slot.cooldownText.Text = ""
+	end
+end
+
+local function bindAbilityBar(instance: Instance)
+	abilityBar = childOfClass(instance, "AbilityBar", "Frame")
+	abilityFlash = childOfClass(instance, "AbilityFlash", "Frame")
+	table.clear(abilitySlots)
+	local bar = abilityBar
+	if bar == nil then
+		return
+	end
+	for index = 1, math.min(4, #dungeonAbilities) do
+		local ability = dungeonAbilities[index]
+		local button = childOfClass(bar, `Ability{index}`, "TextButton")
+		if type(ability) == "table" and button ~= nil then
+			local slot: AbilitySlot = {
+				index = index,
+				button = button,
+				scale = firstOfClass(button, "UIScale"),
+				stroke = firstOfClass(button, "UIStroke"),
+				glyph = childOfClass(button, "Glyph", "TextLabel"),
+				nameLabel = childOfClass(button, "AbilityName", "TextLabel"),
+				keyBadge = childOfClass(button, "KeyBadge", "TextLabel"),
+				cover = childOfClass(button, "CooldownCover", "Frame"),
+				cooldownText = childOfClass(button, "CooldownText", "TextLabel"),
+				ability = ability,
+				lastUseAt = -math.huge,
+				cooling = false,
+				connection = nil,
+			}
+			slot.connection = button.Activated:Connect(function()
+				tryAbility(index)
+			end)
+			abilitySlots[index] = slot
+			applyAbilitySlot(slot)
+		end
+	end
 end
 
 local function bindHud(instance: Instance)
@@ -1243,6 +1741,7 @@ local function bindHud(instance: Instance)
 		resultDetail = childOfClass(resultPanel, "ResultDetail", "TextLabel")
 		rewardText = childOfClass(resultPanel, "RewardText", "TextLabel")
 	end
+	bindAbilityBar(instance)
 	if attackButton ~= nil then
 		attackButtonConnection = attackButton.Activated:Connect(tryAttack)
 	end
@@ -1268,6 +1767,8 @@ stateRemote.OnClientEvent:Connect(function(packet: any)
 		applyDungeonState(packet.data)
 	elseif packet.kind == "DungeonAttackResult" then
 		applyAttackResult(packet.data)
+	elseif packet.kind == "DungeonAbilityResult" then
+		applyAbilityResult(packet.data)
 	elseif packet.kind == "PortalNotice" then
 		applyPortalNotice(packet.data)
 	end
@@ -1285,6 +1786,11 @@ UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: 
 		tryAttack()
 	elseif input.KeyCode == Enum.KeyCode.Q or input.KeyCode == Enum.KeyCode.ButtonB then
 		tryDodge()
+	else
+		local abilityIndex = ABILITY_INDEX_BY_KEY[input.KeyCode]
+		if abilityIndex ~= nil then
+			tryAbility(abilityIndex)
+		end
 	end
 end)
 
@@ -1395,6 +1901,39 @@ RunService.RenderStepped:Connect(function(deltaTime: number)
 				or dodgeRemaining > 0
 			then Color3.fromRGB(58, 61, 84)
 			else Color3.fromRGB(96, 78, 194)
+	end
+	for _, slot in abilitySlots do
+		local ability = slot.ability
+		local cooldown = if finiteNumber(ability.cooldownSeconds) and ability.cooldownSeconds > 0
+			then ability.cooldownSeconds
+			else 1
+		local remaining = math.max(0, cooldown - (now - slot.lastUseAt))
+		local fraction = math.clamp(remaining / cooldown, 0, 1)
+		if slot.cover ~= nil then
+			slot.cover.Size = UDim2.fromScale(1, fraction)
+		end
+		if slot.cooldownText ~= nil then
+			slot.cooldownText.Text = if remaining > 0 then tostring(math.ceil(remaining)) else ""
+		end
+		local ready = combatActive and not dodgePending and not localEliminated and remaining <= 0
+		slot.button.Active = ready
+		slot.button.BackgroundColor3 = if ready
+			then Color3.fromRGB(16, 21, 33)
+			else Color3.fromRGB(11, 14, 21)
+		if slot.stroke ~= nil then
+			slot.stroke.Transparency = if ready then 0.12 else 0.55
+		end
+		-- Ready pulse: when a cooling ability comes back up mid-fight, pop the slot.
+		if slot.cooling and remaining <= 0 then
+			slot.cooling = false
+			local scale = slot.scale
+			if combatActive and scale ~= nil and not GuiService.ReducedMotionEnabled then
+				scale.Scale = 1.16
+				TweenService:Create(scale, tweenInfo(0.24, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+			end
+		elseif remaining > 0 then
+			slot.cooling = true
+		end
 	end
 end)
 

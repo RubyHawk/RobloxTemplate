@@ -27,6 +27,27 @@ export type Weapon = {
 	cooldownSeconds: number,
 }
 
+-- A hotbar ability triggered by keys 1-4 during the boss fight. `kind` selects the
+-- server-authoritative effect: "strike"/"ranged" need facing + line of sight,
+-- "cleave" only proximity, and "heal" restores the caster's own health. Damage
+-- kinds scale the caster's equipped weapon damage by `damageMultiplier`; "heal"
+-- ignores it and restores `healAmount`. `glyph`/`color`/`keyLabel` drive the
+-- authored board slot and its in-world VFX tint.
+export type Ability = {
+	id: string,
+	name: string,
+	kind: string,
+	keyLabel: string,
+	glyph: string,
+	cooldownSeconds: number,
+	damageMultiplier: number,
+	rangeStuds: number,
+	healAmount: number,
+	color: { number },
+	-- Optional published animation asset id (0 = play the procedural pose instead).
+	animationId: number,
+}
+
 export type Camera = {
 	fieldOfView: number,
 	minZoom: number,
@@ -50,6 +71,7 @@ export type Boss = {
 
 export type Dungeon = {
 	weapons: { [string]: Weapon },
+	abilities: { Ability },
 	equipmentSlot: string,
 	starterWeaponId: string,
 	camera: Camera,
@@ -129,6 +151,77 @@ local DEFAULT_WEAPONS: { [string]: Weapon } = {
 	},
 }
 
+-- Fixed, ordered ability roster. The authored board always has exactly these four
+-- slots (keys 1-4), so a recipe may retune each ability but never add or drop one.
+local ABILITY_IDS = { "power_strike", "whirlwind", "fireball", "second_wind" }
+
+local ABILITY_KINDS: { [string]: boolean } = {
+	strike = true,
+	cleave = true,
+	ranged = true,
+	heal = true,
+}
+
+local DEFAULT_ABILITIES: { [string]: Ability } = {
+	power_strike = {
+		id = "power_strike",
+		name = "Power Strike",
+		kind = "strike",
+		keyLabel = "1",
+		glyph = "⚔",
+		cooldownSeconds = 5,
+		damageMultiplier = 3,
+		rangeStuds = 14,
+		healAmount = 0,
+		color = { 1, 0.55, 0.2 },
+		animationId = 0,
+	},
+	whirlwind = {
+		id = "whirlwind",
+		name = "Whirlwind",
+		kind = "cleave",
+		keyLabel = "2",
+		glyph = "🌀",
+		cooldownSeconds = 9,
+		damageMultiplier = 2.2,
+		rangeStuds = 16,
+		healAmount = 0,
+		color = { 0.62, 0.4, 1 },
+		animationId = 0,
+	},
+	fireball = {
+		id = "fireball",
+		name = "Fireball",
+		kind = "ranged",
+		keyLabel = "3",
+		glyph = "🔥",
+		cooldownSeconds = 7,
+		damageMultiplier = 2,
+		rangeStuds = 90,
+		healAmount = 0,
+		color = { 1, 0.36, 0.2 },
+		animationId = 0,
+	},
+	second_wind = {
+		id = "second_wind",
+		name = "Second Wind",
+		kind = "heal",
+		keyLabel = "4",
+		glyph = "✚",
+		cooldownSeconds = 18,
+		damageMultiplier = 0,
+		rangeStuds = 0,
+		healAmount = 45,
+		color = { 0.32, 0.92, 0.5 },
+		animationId = 0,
+	},
+}
+
+local DEFAULT_ABILITY_LIST: { Ability } = {}
+for _, abilityId in ABILITY_IDS do
+	table.insert(DEFAULT_ABILITY_LIST, DEFAULT_ABILITIES[abilityId])
+end
+
 local DEFAULT_BOSSES: { Boss } = {
 	{
 		id = "forest_warden",
@@ -167,6 +260,7 @@ local DEFAULT_BOSSES: { Boss } = {
 
 local DEFAULTS: Dungeon = {
 	weapons = DEFAULT_WEAPONS,
+	abilities = DEFAULT_ABILITY_LIST,
 	equipmentSlot = "DungeonWeapon",
 	starterWeaponId = "warden_blade",
 	camera = {
@@ -250,6 +344,24 @@ local function vector3(raw: any, key: string, fallback: { number }): { number }
 	return out
 end
 
+-- A three-component color with each channel clamped to 0..1. Any malformed entry
+-- falls back wholesale so a slot/VFX tint is never partially applied.
+local function colorTriplet(raw: any, key: string, fallback: { number }): { number }
+	local value = if type(raw) == "table" then raw[key] else nil
+	if type(value) ~= "table" or #value ~= 3 then
+		return { fallback[1], fallback[2], fallback[3] }
+	end
+	local out: { number } = {}
+	for index = 1, 3 do
+		local component = value[index]
+		if not isFiniteNumber(component) then
+			return { fallback[1], fallback[2], fallback[3] }
+		end
+		out[index] = math.clamp(component, 0, 1)
+	end
+	return out
+end
+
 local function boolean(raw: any, key: string, fallback: boolean): boolean
 	local value = if type(raw) == "table" then raw[key] else nil
 	if type(value) ~= "boolean" then
@@ -317,6 +429,59 @@ local function normalizedWeapons(raw: any): { [string]: Weapon }
 		}
 	end
 	return weapons
+end
+
+local function copyAbility(ability: Ability): Ability
+	return {
+		id = ability.id,
+		name = ability.name,
+		kind = ability.kind,
+		keyLabel = ability.keyLabel,
+		glyph = ability.glyph,
+		cooldownSeconds = ability.cooldownSeconds,
+		damageMultiplier = ability.damageMultiplier,
+		rangeStuds = ability.rangeStuds,
+		healAmount = ability.healAmount,
+		color = { ability.color[1], ability.color[2], ability.color[3] },
+		animationId = ability.animationId,
+	}
+end
+
+-- Rebuilds the fixed four-ability roster in order. Like `normalizedWeapons`, each
+-- ability is validated field by field against its authored default, so a recipe
+-- can retune any tunable while the board always keeps four resolvable slots and a
+-- kind the server knows how to apply.
+local function normalizedAbilities(raw: any): { Ability }
+	local abilities: { Ability } = {}
+	for _, id in ABILITY_IDS do
+		local fallback = DEFAULT_ABILITIES[id]
+		local candidate = if type(raw) == "table" and type(raw[id]) == "table" then raw[id] else nil
+		if candidate == nil then
+			table.insert(abilities, copyAbility(fallback))
+			continue
+		end
+		local kind = if type(candidate.kind) == "string" and ABILITY_KINDS[candidate.kind] == true
+			then candidate.kind
+			else fallback.kind
+		table.insert(abilities, {
+			id = id,
+			name = stringValue(candidate, "name", fallback.name, "^[%w %-]+$", 40),
+			kind = kind,
+			keyLabel = stringValue(candidate, "keyLabel", fallback.keyLabel, "^[%w]+$", 3),
+			glyph = if type(candidate.glyph) == "string"
+					and #candidate.glyph >= 1
+					and #candidate.glyph <= 16
+				then candidate.glyph
+				else fallback.glyph,
+			cooldownSeconds = number(candidate, "cooldownSeconds", fallback.cooldownSeconds, 0.5, 120),
+			damageMultiplier = number(candidate, "damageMultiplier", fallback.damageMultiplier, 0, 50),
+			rangeStuds = number(candidate, "rangeStuds", fallback.rangeStuds, 0, 300),
+			healAmount = number(candidate, "healAmount", fallback.healAmount, 0, 100_000),
+			color = colorTriplet(candidate, "color", fallback.color),
+			animationId = math.floor(number(candidate, "animationId", fallback.animationId, 0, 1e15)),
+		})
+	end
+	return abilities
 end
 
 local function normalizedCamera(raw: any): Camera
@@ -509,6 +674,7 @@ end
 function DungeonConfig.normalize(raw: any): Dungeon
 	local bosses = normalizedBosses(if type(raw) == "table" then raw.bosses else nil)
 	local weapons = normalizedWeapons(if type(raw) == "table" then raw.weapons else nil)
+	local abilities = normalizedAbilities(if type(raw) == "table" then raw.abilities else nil)
 	local requestedStarter = if type(raw) == "table" then raw.starterWeaponId else nil
 	local starterWeaponId = if type(requestedStarter) == "string"
 			and weapons[requestedStarter] ~= nil
@@ -527,6 +693,7 @@ function DungeonConfig.normalize(raw: any): Dungeon
 	local slamTelegraphSeconds = number(raw, "slamTelegraphSeconds", legacySlamTelegraph, 0.1, 10)
 	return {
 		weapons = weapons,
+		abilities = abilities,
 		equipmentSlot = stringValue(raw, "equipmentSlot", DEFAULTS.equipmentSlot, "^[%a][%w_]*$", 32),
 		starterWeaponId = starterWeaponId,
 		camera = normalizedCamera(raw),
@@ -606,6 +773,15 @@ end
 
 function DungeonConfig.weaponById(dungeon: Dungeon, weaponId: string): Weapon?
 	return dungeon.weapons[weaponId]
+end
+
+function DungeonConfig.abilityById(dungeon: Dungeon, abilityId: string): Ability?
+	for _, ability in dungeon.abilities do
+		if ability.id == abilityId then
+			return ability
+		end
+	end
+	return nil
 end
 
 return table.freeze(DungeonConfig)
