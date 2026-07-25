@@ -68,6 +68,7 @@ export type TowerDefenseStageProgress = {
 export type TowerDefenseSaveState = {
 	ownedUnits: { [string]: TowerDefenseUnitEntry },
 	loadout: { string },
+	unlockedLoadoutSlots: number,
 	selectedStageId: string,
 	stageProgress: { [string]: TowerDefenseStageProgress },
 	stats: {
@@ -222,6 +223,8 @@ export type TowerDefenseClientState = {
 	loadout: { string },
 	rollCost: number,
 	loadoutSlots: number,
+	maximumLoadoutSlots: number,
+	nextLoadoutSlotCost: number?,
 	baseHealth: number,
 	maxBaseHealth: number,
 	activeStageId: string,

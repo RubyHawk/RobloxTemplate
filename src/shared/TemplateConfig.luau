@@ -221,9 +221,11 @@ local Config = {
 
 	towerDefense = {
 		unitRollCost = 75,
-		loadoutSlots = 4,
+		startingLoadoutSlots = 2,
+		loadoutSlots = 6,
+		loadoutSlotUnlockCosts = { 250, 1_000, 5_000, 20_000 },
 		baseHealth = 20,
-		autoPlaceMaxUnits = 4,
+		autoPlaceMaxUnits = 6,
 		simulationHz = 20,
 		networkSnapshotHz = 4,
 		maximumEnemiesPerPlayer = 500,

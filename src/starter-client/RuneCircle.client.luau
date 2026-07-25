@@ -300,6 +300,36 @@ local function insideCircle(): boolean
 		and math.abs(offset.Y) <= Config.runes.circleHeightTolerance
 end
 
+local function horizontalDistanceSquared(part: BasePart): number?
+	local character = player.Character
+	if character == nil then
+		return nil
+	end
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if root == nil or not root:IsA("BasePart") then
+		return nil
+	end
+	local offset = root.Position - part.Position
+	return offset.X * offset.X + offset.Z * offset.Z
+end
+
+-- The rune altar and dungeon portal are only 18 studs apart in the lobby.
+-- Show the prompt for whichever station the player is actually closest to so
+-- their large BillboardGui cards cannot stack and bleed text through each other.
+local function runePromptHasPriority(): boolean
+	local runeDistance = horizontalDistanceSquared(platform)
+	if runeDistance == nil then
+		return true
+	end
+	local portalModel = Workspace:FindFirstChild("PortalPad")
+	local portalPlatform = if portalModel then portalModel:FindFirstChild("Platform") else nil
+	if portalPlatform == nil or not portalPlatform:IsA("BasePart") then
+		return true
+	end
+	local portalDistance = horizontalDistanceSquared(portalPlatform)
+	return portalDistance == nil or runeDistance <= portalDistance
+end
+
 local function applyOddsPanel()
 	local runesState = if state then state.runes else nil
 	local owned = if runesState then runesState.owned else nil
@@ -568,6 +598,7 @@ RunService.Heartbeat:Connect(function(deltaTime: number)
 	-- the beat before the first server event).
 	standing = insideCircle()
 	local panelsVisible = channel ~= nil or standing
+	sign.Enabled = panelsVisible or runePromptHasPriority()
 	if oddsPanel.Visible ~= panelsVisible then
 		oddsPanel.Visible = panelsVisible
 	end

@@ -1,5 +1,9 @@
 # Responsive UI / screen orientation review — 2026-07-01
 
+## 2026-07-25 follow-up: edge-anchored HUD clipping
+
+The large-viewport automatic factor previously enlarged the entire `Root` subtree to 1.06. Since the shared `UIScale` is applied after descendant constraints, right- and bottom-anchored controls could render beyond the live viewport even though their authored anchors and margins were correct. RNG Defender exposed this as a cropped currency tray on a wide Studio viewport. Automatic device scaling now only reduces the smallest phone viewports; tablet and desktop views stay at 1.0. The saved player `uiScale` preference remains available and still multiplies the automatic factor.
+
 ## Sources checked
 
 - `Camera.ViewportSize`: <https://raw.githubusercontent.com/Roblox/creator-docs/main/content/en-us/reference/engine/classes/Camera.yaml>

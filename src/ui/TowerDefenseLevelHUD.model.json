@@ -16,6 +16,7 @@
         "BackgroundColor3": [0.035, 0.055, 0.075],
         "BackgroundTransparency": 0.04,
         "BorderSizePixel": 0,
+        "ClipsDescendants": true,
         "Position": { "UDim2": [[1, -14], [1, -14]] },
         "Size": { "UDim2": [[0.94, 0], [0, 344]] }
       },
@@ -56,10 +57,13 @@
             "Size": { "UDim2": [[1, -32], [0, 26]] },
             "Text": "TOWER DEFENSE - LEVEL SELECT",
             "TextColor3": [0.91, 0.97, 0.95],
+            "TextScaled": true,
             "TextSize": 17,
             "TextXAlignment": "Left"
           },
-          "Children": []
+          "Children": [
+            { "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 17, "MinTextSize": 12 }, "Children": [] }
+          ]
         },
         {
           "Name": "Status",
@@ -104,62 +108,62 @@
             {
               "Name": "Level01Button",
               "ClassName": "TextButton",
-              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 1, "Text": "LEVEL 1", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
-              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 1, "Text": "LEVEL 1", "TextColor3": [0.91, 0.95, 0.98], "TextScaled": true, "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }, { "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 11, "MinTextSize": 8 }, "Children": [] }]
             },
             {
               "Name": "Level02Button",
               "ClassName": "TextButton",
-              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 2, "Text": "LEVEL 2", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
-              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 2, "Text": "LEVEL 2", "TextColor3": [0.91, 0.95, 0.98], "TextScaled": true, "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }, { "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 11, "MinTextSize": 8 }, "Children": [] }]
             },
             {
               "Name": "Level03Button",
               "ClassName": "TextButton",
-              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 3, "Text": "LEVEL 3", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
-              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 3, "Text": "LEVEL 3", "TextColor3": [0.91, 0.95, 0.98], "TextScaled": true, "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }, { "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 11, "MinTextSize": 8 }, "Children": [] }]
             },
             {
               "Name": "Level04Button",
               "ClassName": "TextButton",
-              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 4, "Text": "LEVEL 4", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
-              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 4, "Text": "LEVEL 4", "TextColor3": [0.91, 0.95, 0.98], "TextScaled": true, "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }, { "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 11, "MinTextSize": 8 }, "Children": [] }]
             },
             {
               "Name": "Level05Button",
               "ClassName": "TextButton",
-              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 5, "Text": "LEVEL 5", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
-              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 5, "Text": "LEVEL 5", "TextColor3": [0.91, 0.95, 0.98], "TextScaled": true, "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }, { "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 11, "MinTextSize": 8 }, "Children": [] }]
             },
             {
               "Name": "Level06Button",
               "ClassName": "TextButton",
-              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 6, "Text": "LEVEL 6", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
-              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 6, "Text": "LEVEL 6", "TextColor3": [0.91, 0.95, 0.98], "TextScaled": true, "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }, { "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 11, "MinTextSize": 8 }, "Children": [] }]
             },
             {
               "Name": "Level07Button",
               "ClassName": "TextButton",
-              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 7, "Text": "LEVEL 7", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
-              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 7, "Text": "LEVEL 7", "TextColor3": [0.91, 0.95, 0.98], "TextScaled": true, "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }, { "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 11, "MinTextSize": 8 }, "Children": [] }]
             },
             {
               "Name": "Level08Button",
               "ClassName": "TextButton",
-              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 8, "Text": "LEVEL 8", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
-              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 8, "Text": "LEVEL 8", "TextColor3": [0.91, 0.95, 0.98], "TextScaled": true, "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }, { "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 11, "MinTextSize": 8 }, "Children": [] }]
             },
             {
               "Name": "Level09Button",
               "ClassName": "TextButton",
-              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 9, "Text": "LEVEL 9", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
-              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 9, "Text": "LEVEL 9", "TextColor3": [0.91, 0.95, 0.98], "TextScaled": true, "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }, { "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 11, "MinTextSize": 8 }, "Children": [] }]
             },
             {
               "Name": "Level10Button",
               "ClassName": "TextButton",
-              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 10, "Text": "LEVEL 10", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
-              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 10, "Text": "LEVEL 10", "TextColor3": [0.91, 0.95, 0.98], "TextScaled": true, "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }, { "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 11, "MinTextSize": 8 }, "Children": [] }]
             }
           ]
         },
@@ -185,26 +189,26 @@
             {
               "Name": "RollButton",
               "ClassName": "TextButton",
-              "Properties": { "BackgroundColor3": [0.286, 0.455, 0.765], "BorderSizePixel": 0, "LayoutOrder": 1, "Text": "ROLL UNIT", "TextColor3": [0.96, 0.98, 1], "TextSize": 13 },
-              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }]
+              "Properties": { "BackgroundColor3": [0.286, 0.455, 0.765], "BorderSizePixel": 0, "LayoutOrder": 1, "Text": "ROLL UNIT", "TextColor3": [0.96, 0.98, 1], "TextScaled": true, "TextSize": 13, "TextWrapped": true, "Visible": false },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }, { "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 13, "MinTextSize": 9 }, "Children": [] }]
             },
             {
               "Name": "AutoPlaceButton",
               "ClassName": "TextButton",
-              "Properties": { "BackgroundColor3": [0.282, 0.518, 0.769], "BorderSizePixel": 0, "LayoutOrder": 2, "Text": "AUTO-PLACE BEST", "TextColor3": [0.96, 0.98, 1], "TextSize": 13 },
-              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }]
+              "Properties": { "BackgroundColor3": [0.282, 0.518, 0.769], "BorderSizePixel": 0, "LayoutOrder": 2, "Text": "AUTO-PLACE LOADOUT", "TextColor3": [0.96, 0.98, 1], "TextScaled": true, "TextSize": 13, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }, { "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 13, "MinTextSize": 9 }, "Children": [] }]
             },
             {
               "Name": "StartWaveButton",
               "ClassName": "TextButton",
-              "Properties": { "BackgroundColor3": [0.176, 0.733, 0.463], "BorderSizePixel": 0, "LayoutOrder": 3, "Text": "START NEXT WAVE", "TextColor3": [0.03, 0.11, 0.08], "TextSize": 13 },
-              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }]
+              "Properties": { "BackgroundColor3": [0.176, 0.733, 0.463], "BorderSizePixel": 0, "LayoutOrder": 3, "Text": "START NEXT WAVE", "TextColor3": [0.03, 0.11, 0.08], "TextScaled": true, "TextSize": 13, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }, { "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 13, "MinTextSize": 9 }, "Children": [] }]
             },
             {
               "Name": "ResetButton",
               "ClassName": "TextButton",
-              "Properties": { "BackgroundColor3": [0.659, 0.286, 0.318], "BorderSizePixel": 0, "LayoutOrder": 4, "Text": "RESET RUN", "TextColor3": [1, 0.96, 0.96], "TextSize": 13 },
-              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }]
+              "Properties": { "BackgroundColor3": [0.659, 0.286, 0.318], "BorderSizePixel": 0, "LayoutOrder": 4, "Text": "RESET RUN", "TextColor3": [1, 0.96, 0.96], "TextScaled": true, "TextSize": 13, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }, { "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 13, "MinTextSize": 9 }, "Children": [] }]
             }
           ]
         },
@@ -221,7 +225,7 @@
             },
             "Position": { "UDim2": [[0, 14], [1, -48]] },
             "Size": { "UDim2": [[1, -28], [0, 34]] },
-            "Text": "Roll a unit, auto-place, then start the next wave",
+            "Text": "Choose units below, then place manually or auto-place",
             "TextColor3": [0.65, 0.76, 0.82],
             "TextSize": 10,
             "TextTruncate": "AtEnd"

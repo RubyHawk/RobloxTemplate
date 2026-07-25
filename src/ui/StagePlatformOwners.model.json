@@ -8,7 +8,7 @@
         "AlwaysOnTop": true,
         "Enabled": false,
         "LightInfluence": 0,
-        "MaxDistance": 500,
+        "MaxDistance": 160,
         "ResetOnSpawn": false,
         "Size": { "UDim2": [[0, 320], [0, 88]] }
       },
@@ -100,7 +100,7 @@
     {
       "Name": "Slot_02",
       "ClassName": "BillboardGui",
-      "Properties": { "AlwaysOnTop": true, "Enabled": false, "LightInfluence": 0, "MaxDistance": 500, "ResetOnSpawn": false, "Size": { "UDim2": [[0, 320], [0, 88]] } },
+      "Properties": { "AlwaysOnTop": true, "Enabled": false, "LightInfluence": 0, "MaxDistance": 160, "ResetOnSpawn": false, "Size": { "UDim2": [[0, 320], [0, 88]] } },
       "Children": [
         {
           "Name": "Card", "ClassName": "CanvasGroup",
@@ -127,7 +127,7 @@
     },
     {
       "Name": "Slot_03", "ClassName": "BillboardGui",
-      "Properties": { "AlwaysOnTop": true, "Enabled": false, "LightInfluence": 0, "MaxDistance": 500, "ResetOnSpawn": false, "Size": { "UDim2": [[0, 320], [0, 88]] } },
+      "Properties": { "AlwaysOnTop": true, "Enabled": false, "LightInfluence": 0, "MaxDistance": 160, "ResetOnSpawn": false, "Size": { "UDim2": [[0, 320], [0, 88]] } },
       "Children": [
         { "Name": "Card", "ClassName": "CanvasGroup", "Properties": { "BackgroundColor3": [0.025, 0.055, 0.082], "BackgroundTransparency": 0.08, "BorderSizePixel": 0, "Size": { "UDim2": [[1, 0], [1, 0]] } }, "Children": [
           { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 16] } }, "Children": [] },
@@ -149,7 +149,7 @@
     },
     {
       "Name": "Slot_04", "ClassName": "BillboardGui",
-      "Properties": { "AlwaysOnTop": true, "Enabled": false, "LightInfluence": 0, "MaxDistance": 500, "ResetOnSpawn": false, "Size": { "UDim2": [[0, 320], [0, 88]] } },
+      "Properties": { "AlwaysOnTop": true, "Enabled": false, "LightInfluence": 0, "MaxDistance": 160, "ResetOnSpawn": false, "Size": { "UDim2": [[0, 320], [0, 88]] } },
       "Children": [
         { "Name": "Card", "ClassName": "CanvasGroup", "Properties": { "BackgroundColor3": [0.025, 0.055, 0.082], "BackgroundTransparency": 0.08, "BorderSizePixel": 0, "Size": { "UDim2": [[1, 0], [1, 0]] } }, "Children": [
           { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 16] } }, "Children": [] },
@@ -171,7 +171,7 @@
     },
     {
       "Name": "Slot_05", "ClassName": "BillboardGui",
-      "Properties": { "AlwaysOnTop": true, "Enabled": false, "LightInfluence": 0, "MaxDistance": 500, "ResetOnSpawn": false, "Size": { "UDim2": [[0, 320], [0, 88]] } },
+      "Properties": { "AlwaysOnTop": true, "Enabled": false, "LightInfluence": 0, "MaxDistance": 160, "ResetOnSpawn": false, "Size": { "UDim2": [[0, 320], [0, 88]] } },
       "Children": [
         { "Name": "Card", "ClassName": "CanvasGroup", "Properties": { "BackgroundColor3": [0.025, 0.055, 0.082], "BackgroundTransparency": 0.08, "BorderSizePixel": 0, "Size": { "UDim2": [[1, 0], [1, 0]] } }, "Children": [
           { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 16] } }, "Children": [] },
@@ -193,7 +193,7 @@
     },
     {
       "Name": "Slot_06", "ClassName": "BillboardGui",
-      "Properties": { "AlwaysOnTop": true, "Enabled": false, "LightInfluence": 0, "MaxDistance": 500, "ResetOnSpawn": false, "Size": { "UDim2": [[0, 320], [0, 88]] } },
+      "Properties": { "AlwaysOnTop": true, "Enabled": false, "LightInfluence": 0, "MaxDistance": 160, "ResetOnSpawn": false, "Size": { "UDim2": [[0, 320], [0, 88]] } },
       "Children": [
         { "Name": "Card", "ClassName": "CanvasGroup", "Properties": { "BackgroundColor3": [0.025, 0.055, 0.082], "BackgroundTransparency": 0.08, "BorderSizePixel": 0, "Size": { "UDim2": [[1, 0], [1, 0]] } }, "Children": [
           { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 16] } }, "Children": [] },

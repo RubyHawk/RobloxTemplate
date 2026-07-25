@@ -61,6 +61,7 @@ local requestFeatures: { [string]: string } = {
 	SetRuneMode = "runes",
 	RollUnit = "towerDefense",
 	SetTowerLoadout = "towerDefense",
+	UnlockTowerLoadoutSlot = "towerDefense",
 	EquipBestUnits = "towerDefense",
 	PlaceUnit = "towerDefense",
 	AutoPlaceBestUnits = "towerDefense",
@@ -91,6 +92,7 @@ local queryActions: { [string]: boolean } = {
 
 local noPayloadActions: { [string]: boolean } = {
 	RollUnit = true,
+	UnlockTowerLoadoutSlot = true,
 	EquipBestUnits = true,
 	AutoPlaceBestUnits = true,
 	StartTowerWave = true,
@@ -314,6 +316,8 @@ local function handleRequest(player: Player, packet: any)
 			return
 		end
 		result(player, TowerDefenseService.setLoadout(player, loadout.unitIds))
+	elseif action == "UnlockTowerLoadoutSlot" then
+		result(player, TowerDefenseService.unlockLoadoutSlot(player))
 	elseif action == "EquipBestUnits" then
 		result(player, TowerDefenseService.equipBest(player))
 	elseif action == "PlaceUnit" then

@@ -3496,7 +3496,7 @@ expectEqual(futureOk, false, "future profile schemas are refused instead of over
 local migrationsSource = fs.readFile("src/shared/Migrations.luau")
 local profileTemplateSource = fs.readFile("src/shared/ProfileTemplate.luau")
 expectEqual(
-	string.find(migrationsSource, "Migrations.CURRENT_VERSION = 8", 1, true) ~= nil,
+	string.find(migrationsSource, "Migrations.CURRENT_VERSION = 9", 1, true) ~= nil,
 	true,
 	"profile schema version is current"
 )
@@ -3508,10 +3508,18 @@ for _, dungeonMigrationMarker in { "previousVersion < 8", "selectedBossId" } do
 	)
 end
 expectEqual(
-	string.find(profileTemplateSource, "schemaVersion = 8", 1, true) ~= nil
+	string.find(profileTemplateSource, "schemaVersion = 9", 1, true) ~= nil
 		and string.find(profileTemplateSource, "selectedBossId", 1, true) ~= nil,
 	true,
 	"profile template seeds the dungeon boss choice at the current version"
+)
+expectEqual(
+	string.find(migrationsSource, "previousVersion < 9", 1, true) ~= nil
+		and string.find(migrationsSource, "existingLoadoutCount", 1, true) ~= nil
+		and string.find(migrationsSource, "startingLoadoutSlots", 1, true) ~= nil
+		and string.find(profileTemplateSource, "unlockedLoadoutSlots", 1, true) ~= nil,
+	true,
+	"slot-capacity migration preserves existing equipped units and seeds new profiles"
 )
 expectEqual(
 	string.find(migrationsSource, "previousVersion < 6", 1, true) ~= nil,
@@ -6631,6 +6639,12 @@ do
 		`responsive controller clamps overflow/overlap on short viewports: {requiredMarker}`
 	)
 end
+expectEqual(
+	string.find(responsiveController, "WIDE_SCALE", 1, true) == nil
+		and string.find(responsiveController, "return COMPACT_SCALE", 1, true) ~= nil,
+	true,
+	"responsive controller never auto-enlarges edge-anchored HUD beyond the live viewport"
+)
 
 local figmaBridge = fs.readFile("figma/roblox-ui-bridge/code.js")
 expectEqual(
@@ -6712,6 +6726,16 @@ expectEqual(
 	true,
 	"unit rolls pick a catalog entry at the upper bound"
 )
+for _, unit in TowerDefenseCatalog.units do
+	expectEqual(
+		type(unit.backgroundColor) == "table"
+			and type(unit.accentColor) == "table"
+			and type(unit.iconAssetId) == "string"
+			and type(unit.iconGlyph) == "string",
+		true,
+		`tower unit {unit.id} carries editable slot presentation data`
+	)
+end
 local bestTowerLoadout = TowerDefenseLogic.bestLoadout({
 	forest_archer = { count = 1 },
 	mushroom_bomber = { count = 1 },
@@ -8701,6 +8725,18 @@ do
 		true,
 		"the reveal card binds the authored GlyphImage slot optionally"
 	)
+	expectEqual(
+		string.find(runeClientSource, "runePromptHasPriority", 1, true) ~= nil
+			and string.find(
+					runeClientSource,
+					"sign.Enabled = panelsVisible or runePromptHasPriority()",
+					1,
+					true
+				)
+				~= nil,
+		true,
+		"the rune billboard yields to the nearer portal prompt instead of stacking world-space cards"
+	)
 	local incrementalUi = fs.readFile("src/ui/presets/incremental/TemplateUI.model.json")
 	for _, authoredHudObject in { '"Name": "RunesValue"', '"Name": "ChannelValue"' } do
 		expectEqual(
@@ -8716,6 +8752,7 @@ for _, towerDefenseMarker in
 	{
 		"TowerDefenseService.rollUnit",
 		"TowerDefenseService.setLoadout",
+		"TowerDefenseService.unlockLoadoutSlot",
 		"TowerDefenseService.equipBest",
 		"TowerDefenseService.placeUnit",
 		"TowerDefenseService.autoPlaceBest",
@@ -8749,6 +8786,27 @@ do
 		string.find(towerDefenseServiceSource, towerDefenseMarker, 1, true) ~= nil,
 		true,
 		`tower defense service includes {towerDefenseMarker}`
+	)
+end
+do
+	local autoPlaceAt = assert(
+		string.find(towerDefenseServiceSource, "function TowerDefenseService.autoPlaceBest", 1, true),
+		"auto-place service exists"
+	)
+	local nextFunctionAt = assert(
+		string.find(towerDefenseServiceSource, "local function enemyDefinitionFor", autoPlaceAt, true),
+		"auto-place service has a bounded source section"
+	)
+	local autoPlaceSource = string.sub(towerDefenseServiceSource, autoPlaceAt, nextFunctionAt - 1)
+	expectEqual(
+		string.find(autoPlaceSource, "setBestLoadout", 1, true),
+		nil,
+		"auto-place does not overwrite the player's ordered loadout"
+	)
+	expectEqual(
+		string.find(autoPlaceSource, "local unitId = td.loadout[unitIndex]", 1, true) ~= nil,
+		true,
+		"auto-place follows the player's unit-slot order"
 	)
 end
 do
@@ -9353,6 +9411,12 @@ expectEqual(
 	true,
 	"platform owner cards support authored whole-card fading"
 )
+expectEqual(
+	string.find(ownerMarkersModel, '"MaxDistance": 500', 1, true) == nil
+		and string.find(ownerMarkersModel, '"MaxDistance": 160', 1, true) ~= nil,
+	true,
+	"platform owner cards stop cluttering the HUD from across the full lobby"
+)
 for slot = 1, 6 do
 	expectEqual(
 		string.find(ownerMarkersModel, `"Name": "Slot_{string.format("%02d", slot)}"`, 1, true) ~= nil,
@@ -9450,6 +9514,13 @@ do
 			`level selector pre-authors gameplay action {marker}`
 		)
 	end
+	expectEqual(
+		string.find(levelHudModel, '"ClipsDescendants": true', 1, true) ~= nil
+			and string.find(levelHudModel, '"ClassName": "UITextSizeConstraint"', 1, true) ~= nil
+			and string.find(levelHudModel, '"TextScaled": true', 1, true) ~= nil,
+		true,
+		"level selector clips its panel and scales authored labels inside their controls"
+	)
 	for _, marker in
 		{
 			'request("ActivateTowerStage", { stageId = option.id })',
@@ -9473,6 +9544,67 @@ do
 		true,
 		"tower-defense snapshots expose only server-derived level availability"
 	)
+end
+do
+	local loadoutHudModel = fs.readFile("src/ui/TowerDefenseLoadoutHUD.model.json")
+	local loadoutControllerSource = fs.readFile("src/client/Controllers/TowerDefenseLoadoutController.luau")
+	local defaultProjectSource = fs.readFile("default.project.json")
+	expectCompiles(loadoutControllerSource, "tower-defense loadout controller compiles as Luau")
+	expectEqual(
+		string.find(defaultProjectSource, '"TowerDefenseLoadoutHUD"', 1, true) ~= nil
+			and string.find(gridPatchProject, '"TowerDefenseLoadoutHUD"', 1, true) ~= nil
+			and string.find(initClient, "TowerDefenseLoadoutController.initialize(request)", 1, true) ~= nil
+			and string.find(initClient, "TowerDefenseLoadoutController.apply", 1, true) ~= nil,
+		true,
+		"default and RNG Defender builds deliver the dynamic unit loadout"
+	)
+	for index = 1, 6 do
+		expectEqual(
+			string.find(loadoutHudModel, `"Name": "UnitSlot{string.format("%02d", index)}"`, 1, true) ~= nil,
+			true,
+			`loadout HUD pre-authors dynamic slot {index}`
+		)
+	end
+	for _, authoredControl in
+		{
+			'"Name": "InventoryButton"',
+			'"Name": "DiceButton"',
+			'"Name": "UpgradeTreeButton"',
+			'"Name": "TalentPanel"',
+			'"Name": "DynamicWidthConstraint"',
+		}
+	do
+		expectEqual(
+			string.find(loadoutHudModel, authoredControl, 1, true) ~= nil,
+			true,
+			`loadout HUD authors fixed control {authoredControl}`
+		)
+	end
+	for _, inputContract in
+		{
+			"TouchTapInWorld",
+			"ScreenPointToRay",
+			"ViewportPointToRay",
+			'request("UnlockTowerLoadoutSlot", {})',
+			'send("SetTowerLoadout", { unitIds = nextLoadout })',
+			'send("PlaceUnit", { unitId = unitId, column = column, row = row })',
+			"DynamicWidthConstraint",
+			"currentLoadout()[index]",
+		}
+	do
+		expectEqual(
+			string.find(loadoutControllerSource, inputContract, 1, true) ~= nil,
+			true,
+			`loadout controller includes {inputContract}`
+		)
+	end
+	for _, forbiddenRuntimeGuiMutation in { "Instance.new", ":Clone(", ":Destroy(" } do
+		expectEqual(
+			string.find(loadoutControllerSource, forbiddenRuntimeGuiMutation, 1, true),
+			nil,
+			`loadout controller never performs runtime GUI mutation {forbiddenRuntimeGuiMutation}`
+		)
+	end
 end
 do
 	local cleanupSource = fs.readFile("src/plugins/Stagewright/LegacyGalleryCleanup.luau")
@@ -9537,6 +9669,7 @@ for _, towerDefenseRemoteMarker in
 	{
 		"RollUnit",
 		"SetTowerLoadout",
+		"UnlockTowerLoadoutSlot",
 		"EquipBestUnits",
 		"PlaceUnit",
 		"AutoPlaceBestUnits",
@@ -9611,9 +9744,11 @@ expectEqual(
 )
 expectEqual(
 	string.find(runeConfigSource, "unitRollCost = 75", 1, true) ~= nil
-		and string.find(runeConfigSource, "loadoutSlots = 4", 1, true) ~= nil,
+		and string.find(runeConfigSource, "startingLoadoutSlots = 2", 1, true) ~= nil
+		and string.find(runeConfigSource, "loadoutSlots = 6", 1, true) ~= nil
+		and string.find(runeConfigSource, "loadoutSlotUnlockCosts", 1, true) ~= nil,
 	true,
-	"tower defense gameplay loop has configured roll cost and loadout slots"
+	"tower defense gameplay loop configures two starting slots and six progression slots"
 )
 
 do
@@ -9624,6 +9759,18 @@ do
 	local dungeonArenaSource = fs.readFile("src/world/DungeonArena.model.json")
 	local defaultProjectSource = fs.readFile("default.project.json")
 	local rngDefenderProjectSource = fs.readFile("patches/rng-defender-grid-demo.project.json")
+	expectEqual(
+		string.find(portalClientSource, "portalPromptHasPriority", 1, true) ~= nil
+			and string.find(
+					portalClientSource,
+					"currentSign.Enabled = portalPromptHasPriority()",
+					1,
+					true
+				)
+				~= nil,
+		true,
+		"the portal billboard yields to the nearer rune prompt instead of stacking world-space cards"
+	)
 
 	local function authoredDescendant(root: any, name: string): any
 		if type(root) ~= "table" then
