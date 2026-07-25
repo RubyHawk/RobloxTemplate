@@ -6654,7 +6654,6 @@ expectEqual(
 	true,
 	"Figma bridge does not export synthetic image-placeholder fills"
 )
-
 local figmaPatchApplier = fs.readFile("scripts/figma-ui-bridge.mjs")
 expectEqual(
 	string.find(figmaPatchApplier, '!String(node.ClassName).startsWith("Image")', 1, true) ~= nil,

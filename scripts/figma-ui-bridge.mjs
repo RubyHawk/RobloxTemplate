@@ -18,6 +18,7 @@ function readJson(file) {
 }
 
 function writeJson(file, value) {
+  fs.mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
   fs.writeFileSync(file, `${JSON.stringify(value)}\n`, "utf8");
 }
 
@@ -115,7 +116,76 @@ function verifyModel(modelFile) {
   console.log(`Verified ${byPath.size} named UI objects in ${modelFile}`);
 }
 
-if (command === "verify") {
+function bundleWorkspace(workspaceFile, outFile) {
+  const workspace = readJson(workspaceFile);
+  const requiredFields = ["id", "name", "project", "output"];
+  if (
+    workspace.format !== "roblox-ui-workspace-v1"
+    || !Array.isArray(workspace.models)
+    || workspace.models.length === 0
+    || requiredFields.some((field) => !String(workspace[field] || "").trim())
+  ) {
+    fail(`Invalid Figma workspace manifest: ${workspaceFile}`);
+  }
+  const repositoryRoot = fs.realpathSync(path.resolve(path.dirname(process.argv[1]), ".."));
+  const roots = new Set();
+  const models = workspace.models.map((definition) => {
+    if (!definition?.root || !definition?.path) fail("Every workspace model requires root and path.");
+    if (roots.has(definition.root)) fail(`Duplicate workspace root: ${definition.root}`);
+    roots.add(definition.root);
+    if (path.isAbsolute(definition.path)) fail(`Workspace model path must be repository-relative: ${definition.path}`);
+    const unresolvedModelFile = path.resolve(repositoryRoot, definition.path);
+    const unresolvedRelative = path.relative(repositoryRoot, unresolvedModelFile);
+    if (
+      unresolvedRelative === ".."
+      || unresolvedRelative.startsWith(`..${path.sep}`)
+      || path.isAbsolute(unresolvedRelative)
+    ) {
+      fail(`Workspace model path leaves the repository: ${definition.path}`);
+    }
+    if (!fs.existsSync(unresolvedModelFile)) fail(`Workspace model is missing: ${unresolvedModelFile}`);
+    const modelFile = fs.realpathSync(unresolvedModelFile);
+    const relativeModelFile = path.relative(repositoryRoot, modelFile);
+    if (
+      relativeModelFile === ".."
+      || relativeModelFile.startsWith(`..${path.sep}`)
+      || path.isAbsolute(relativeModelFile)
+    ) {
+      fail(`Workspace model path leaves the repository: ${definition.path}`);
+    }
+    const expectedRoot = path.basename(modelFile).replace(/\.model\.json$/i, "").replace(/\.json$/i, "");
+    if (expectedRoot !== definition.root) {
+      fail(`Workspace root ${definition.root} does not match model filename ${expectedRoot}.`);
+    }
+    verifyModel(modelFile);
+    return {
+      name: `${definition.root}.model.json`,
+      sourcePath: relativeModelFile.split(path.sep).join("/"),
+      scope: definition.scope || "production",
+      model: readJson(modelFile)
+    };
+  });
+  writeJson(outFile, {
+    format: "roblox-ui-workspace-v1",
+    id: workspace.id,
+    name: workspace.name,
+    preset: workspace.preset,
+    project: workspace.project,
+    output: workspace.output,
+    generatedAt: new Date().toISOString(),
+    models
+  });
+  console.log(`Bundled ${models.length} authored UI models into ${outFile}`);
+}
+
+if (command === "bundle") {
+  const workspaceFile = option("--workspace");
+  const outFile = option("--out");
+  if (!workspaceFile || !outFile) {
+    fail("Usage: node scripts/figma-ui-bridge.mjs bundle --workspace <workspace.json> --out <workspace-bundle.json>");
+  }
+  bundleWorkspace(workspaceFile, outFile);
+} else if (command === "verify") {
   const modelFile = option("--model");
   if (!modelFile) fail("Usage: node scripts/figma-ui-bridge.mjs verify --model <TemplateUI.model.json>");
   verifyModel(modelFile);
@@ -168,5 +238,5 @@ if (command === "verify") {
   writeJson(outFile, model);
   console.log(`Applied ${applied} Figma visual edits to ${outFile}`);
 } else {
-  fail("Commands: verify, apply");
+  fail("Commands: bundle, verify, apply");
 }

@@ -6,51 +6,64 @@
     :root { font: 13px/1.45 Inter, sans-serif; color: #17152b; }
     body { margin: 0; padding: 18px; background: #f7f5ff; }
     h1 { margin: 0 0 6px; font-size: 20px; }
-    p { margin: 0 0 14px; color: #5e5875; }
+    p { margin: 5px 0 14px; color: #5e5875; }
     .card { padding: 14px; margin: 12px 0; border: 1px solid #d9d3ef; border-radius: 12px; background: white; }
-    button, label.file { display: block; box-sizing: border-box; width: 100%; padding: 11px 12px; border: 0; border-radius: 9px; font-weight: 700; text-align: center; cursor: pointer; }
-    label.file { color: white; background: #7c3aed; }
+    .tag { display: inline-block; margin: 4px 3px 0 0; padding: 3px 7px; border-radius: 999px; color: #5b21b6; background: #ede9fe; font-size: 11px; font-weight: 700; }
+    button { display: block; box-sizing: border-box; width: 100%; padding: 11px 12px; border: 0; border-radius: 9px; font-weight: 700; text-align: center; cursor: pointer; }
     button { color: white; background: #0ea5e9; }
+    button.file { background: #7c3aed; }
     button.secondary { color: #17152b; background: #facc15; }
-    input[type=file] { display: none; }
-    #status { min-height: 38px; margin-top: 12px; padding: 10px; border-radius: 9px; background: #ede9fe; white-space: pre-wrap; }
+    button:focus-visible { outline: 3px solid #17152b; outline-offset: 3px; }
+    input[type=file] { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    #status { min-height: 50px; margin-top: 12px; padding: 10px; border-radius: 9px; background: #ede9fe; white-space: pre-wrap; }
     code { font-size: 11px; }
   </style>
 </head>
 <body>
   <h1>Roblox UI Bridge</h1>
-  <p>Edit real Figma layers, then export a safe patch for the authored StarterGui model.</p>
+  <p>Edit native Roblox UI as real Figma layers, then export a validated visual patch.</p>
+  <span class="tag">ScreenGui / HUD</span>
+  <span class="tag">SurfaceGui</span>
+  <span class="tag">BillboardGui</span>
 
   <div class="card">
-    <strong>1. Bring a preset into Figma</strong>
-    <p>Choose one or more <code>TemplateUI.model.json</code>, <code>TemplateLoading.model.json</code>, or <code>StarterSignUI.model.json</code> files.</p>
-    <label class="file" for="models">Import Rojo UI model</label>
-    <input id="models" type="file" accept=".json" multiple>
+    <strong>1. Import authored UI</strong>
+    <p>Choose one or more Rojo <code>*.model.json</code> files. Nested world UI is found automatically. Everything is placed on the current page, so this works with Figma Starter's three-page limit.</p>
+    <button class="file" id="import" type="button">Import Rojo UI models</button>
+    <input id="models" type="file" accept=".json" multiple tabindex="-1">
   </div>
 
   <div class="card">
-    <strong>2. Send visual edits back</strong>
-    <p>Select imported artboards. If nothing is selected, all imported artboards on the current page are exported.</p>
-    <button id="export">Export selected Roblox patch</button>
+    <strong>2. Export visual edits</strong>
+    <p>Select one or more imported artboards to export only those. Clear the selection to export every mapped UI layer on this page.</p>
+    <button id="export">Export Roblox UI patch</button>
+  </div>
+
+  <div class="card">
+    <strong>Roblox stays authoritative</strong>
+    <p>Container placement, Adornee/Face, scripts, asset IDs, and runtime behavior stay in Roblox. The bridge updates the child Frames, text, images, sizing, colors, corners, and strokes.</p>
   </div>
 
   <button class="secondary" id="close">Close</button>
-  <div id="status">Ready.</div>
+  <div id="status" role="status">Ready.</div>
 
   <script>
     const status = document.getElementById('status');
     const setStatus = (value) => { status.textContent = value; };
 
-    document.getElementById('models').addEventListener('change', async (event) => {
+    const models = document.getElementById('models');
+    document.getElementById('import').onclick = () => models.click();
+    models.addEventListener('change', async (event) => {
       const files = Array.from(event.target.files || []);
       if (!files.length) return;
       setStatus('Reading files...');
       const payload = await Promise.all(files.map(async (file) => ({ name: file.name, text: await file.text() })));
       parent.postMessage({ pluginMessage: { type: 'import-models', files: payload } }, '*');
+      event.target.value = '';
     });
 
     document.getElementById('export').onclick = () => {
-      setStatus('Preparing patch...');
+      setStatus('Preparing validated patch...');
       parent.postMessage({ pluginMessage: { type: 'export-patch' } }, '*');
     };
     document.getElementById('close').onclick = () => parent.postMessage({ pluginMessage: { type: 'close' } }, '*');
@@ -67,7 +80,7 @@
         anchor.download = message.name;
         anchor.click();
         URL.revokeObjectURL(url);
-        setStatus('Patch downloaded. Run FIGMA_UI.cmd to apply it.');
+        setStatus('Patch downloaded. Run FIGMA_UI.cmd to validate, apply, and rebuild it.');
       }
     };
   </script>

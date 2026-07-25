@@ -1,0 +1,8 @@
+{
+  "format": "roblox-ui-bridge-v1",
+  "workspace": "rng-defender",
+  "roots": [
+    "TemplateUI"
+  ],
+  "entries": []
+}

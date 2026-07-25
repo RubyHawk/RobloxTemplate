@@ -1,38 +1,43 @@
-# Figma → Roblox preset handoff
+# Figma to Roblox UI handoff
 
-## What “connected” means
+## What connected means
 
-Figma owns the visual source. Roblox owns the runnable native instances. A finished Figma design must be exported as actual `ScreenGui`, `Frame`, `ImageButton`, `TextLabel`, and layout instances before the existing Luau binders can connect behavior.
+Figma owns visual editing. Roblox owns runnable native instances. The checked-in bridge imports native Rojo models into editable Figma layers, preserves exact Roblox paths as metadata, and exports validated patches back to those models. It is an explicit round trip, not live synchronization.
 
-There is currently no first-party Roblox Figma GUI importer. This repository therefore includes a reviewed local bridge under `figma/roblox-ui-bridge`. It imports native Rojo models into editable Figma layers, preserves Roblox paths as metadata, and exports validated patches back to those models. It is an explicit round trip, not live synchronization. Do not treat a screenshot or one flattened image as a connected UI.
+A screenshot or flattened image is not connected UI. Connected UI remains native `ScreenGui`, `SurfaceGui`, `BillboardGui`, `Frame`, `ImageButton`, `TextLabel`, and layout instances so the existing Luau binders can keep using authored paths.
 
-## One pack, one independent copy
+## RNG Defender
 
-1. Use the local plugin to import one preset's model files into separate Figma pages.
-2. Edit the generated artboards. Original binder paths remain attached even if a Figma layer is renamed.
-3. Export the selected artboards as a `roblox-ui-bridge-v1` patch.
-4. Open `START_HERE.cmd` and use the **Apply a Figma design** card (the newest Downloads export is pre-selected), or run `FIGMA_UI.cmd` from a console. Both update the matching files under `src/ui/presets/<pack>/`:
-   - `TemplateUI.model.json`
-   - `TemplateLoading.model.json`
-   - `StarterSignUI.model.json`
-5. The command rebuilds the selected playable starter without opening Studio.
+1. Run `PREPARE_FIGMA_UI.cmd`.
+2. Import `build/figma/RNGDefender.roblox-ui-workspace.json` with the local Roblox UI Bridge plugin.
+3. Edit mapped layers on the current Figma page.
+4. Export a `roblox-ui-bridge-v1` patch.
+5. Run `FIGMA_UI.cmd`.
+6. Connect Rojo to `patches/rng-defender-grid-demo.project.json` and test in the permanent RNG Defender place.
 
-The Game Designer and `FIGMA_UI.cmd` both discover complete preset folders automatically; adding a pack does not require editing any PowerShell UI.
+The workspace manifest is `figma/workspaces/rng-defender.json`. It maps every exported root to one exact authored model and rebuilds the RNG Defender safe patch. The Figma Starter plan is sufficient because the plugin no longer creates one page per imported model.
 
-Never replace another pack's files. The builder copies only the selected pack into the playable experience.
+## Preset-only workflow
+
+The original independent-preset workflow remains supported. Import and export only:
+
+- `TemplateUI.model.json`
+- `TemplateLoading.model.json`
+- `StarterSignUI.model.json`
+
+Run `FIGMA_UI.cmd -Preset <name> -PatchPath <patch>` to apply those changes to one physically independent preset. Never replace another preset's files.
 
 ## Required binding names
 
-The primary roots are `CurrencyHUD`, `Navigation`, `Screens`, `MoreButton`, and `MoreMenu`. Connected screens and finite data slots must retain the names already present in the authored preset model. Decorative layers can use any names. Interaction code changes values and visibility only; it does not build the visual hierarchy.
+The primary roots are `CurrencyHUD`, `Navigation`, `Screens`, `MoreButton`, and `MoreMenu`. Connected screens and finite data slots must retain the names already present in the authored model. Decorative Figma layer names may change because the original Roblox path remains attached as plugin metadata.
 
-## Bridge setup
+## World-space UI
 
-Follow [`FIGMA_UI.md`](FIGMA_UI.md) once to import the development plugin manifest into Figma. No access token or secret is stored in the repository. The bridge imports no scripts, rejects missing paths and class mismatches, and keeps existing Roblox image asset IDs authoritative.
+`SurfaceGui` and `BillboardGui` use the same editable child GUI objects as a HUD, but their display containers behave differently in Roblox. The bridge visualizes their canvases in Figma and patches their child visuals. Roblox stays authoritative for the target part or attachment, surface face, lighting, distance, occlusion, and input setup.
 
-As of 2026-07-02, Roblox documents building UI with native GUI objects and Studio's Style Editor but does not document an official Figma importer. Community importers exist, but they execute third-party plugin code and have different naming/layout support; the checked-in bridge avoids silently installing one.
+Sources checked 2026-07-25:
 
-Sources checked 2026-07-02:
-
-- [Roblox UI documentation](https://create.roblox.com/docs/ui)
-- [Implement designs in Studio](https://create.roblox.com/docs/tutorials/curriculums/user-interface-design/implement-designs-in-studio)
-- [Roblox Studio interface and Style Editor](https://create.roblox.com/docs/studio/ui-overview)
+- [Roblox in-game UI containers](https://create.roblox.com/docs/ui/in-experience-containers)
+- [SurfaceGui API](https://create.roblox.com/docs/reference/engine/classes/SurfaceGui)
+- [BillboardGui API](https://create.roblox.com/docs/reference/engine/classes/BillboardGui)
+- [ScreenGui API](https://create.roblox.com/docs/reference/engine/classes/ScreenGui)
