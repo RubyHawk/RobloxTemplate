@@ -1,0 +1,236 @@
+{
+  "ClassName": "ScreenGui",
+  "Properties": {
+    "DisplayOrder": 93,
+    "Enabled": false,
+    "IgnoreGuiInset": false,
+    "ResetOnSpawn": false,
+    "ZIndexBehavior": "Sibling"
+  },
+  "Children": [
+    {
+      "Name": "Panel",
+      "ClassName": "Frame",
+      "Properties": {
+        "AnchorPoint": [1, 1],
+        "BackgroundColor3": [0.035, 0.055, 0.075],
+        "BackgroundTransparency": 0.04,
+        "BorderSizePixel": 0,
+        "Position": { "UDim2": [[1, -14], [1, -14]] },
+        "Size": { "UDim2": [[0.94, 0], [0, 344]] }
+      },
+      "Children": [
+        {
+          "ClassName": "UISizeConstraint",
+          "Properties": {
+            "MaxSize": [430, 344],
+            "MinSize": [300, 344]
+          },
+          "Children": []
+        },
+        {
+          "ClassName": "UICorner",
+          "Properties": { "CornerRadius": { "UDim": [0, 14] } },
+          "Children": []
+        },
+        {
+          "ClassName": "UIStroke",
+          "Properties": {
+            "Color": [0.176, 0.733, 0.463],
+            "Thickness": 2,
+            "Transparency": 0.08
+          },
+          "Children": []
+        },
+        {
+          "Name": "Title",
+          "ClassName": "TextLabel",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "FontFace": {
+              "family": "rbxasset://fonts/families/GothamSSm.json",
+              "weight": "Bold",
+              "style": "Normal"
+            },
+            "Position": { "UDim2": [[0, 16], [0, 12]] },
+            "Size": { "UDim2": [[1, -32], [0, 26]] },
+            "Text": "TOWER DEFENSE - LEVEL SELECT",
+            "TextColor3": [0.91, 0.97, 0.95],
+            "TextSize": 17,
+            "TextXAlignment": "Left"
+          },
+          "Children": []
+        },
+        {
+          "Name": "Status",
+          "ClassName": "TextLabel",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "FontFace": {
+              "family": "rbxasset://fonts/families/GothamSSm.json",
+              "weight": "Bold",
+              "style": "Normal"
+            },
+            "Position": { "UDim2": [[0, 16], [0, 40]] },
+            "Size": { "UDim2": [[1, -32], [0, 22]] },
+            "Text": "Loading levels...",
+            "TextColor3": [0.56, 0.84, 0.72],
+            "TextSize": 11,
+            "TextTruncate": "AtEnd",
+            "TextXAlignment": "Left"
+          },
+          "Children": []
+        },
+        {
+          "Name": "Levels",
+          "ClassName": "Frame",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "Position": { "UDim2": [[0, 14], [0, 70]] },
+            "Size": { "UDim2": [[1, -28], [0, 92]] }
+          },
+          "Children": [
+            {
+              "ClassName": "UIGridLayout",
+              "Properties": {
+                "CellPadding": { "UDim2": [[0, 7], [0, 8]] },
+                "CellSize": { "UDim2": [[0.2, -6], [0, 42]] },
+                "FillDirectionMaxCells": 5,
+                "HorizontalAlignment": "Center",
+                "SortOrder": "LayoutOrder"
+              },
+              "Children": []
+            },
+            {
+              "Name": "Level01Button",
+              "ClassName": "TextButton",
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 1, "Text": "LEVEL 1", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+            },
+            {
+              "Name": "Level02Button",
+              "ClassName": "TextButton",
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 2, "Text": "LEVEL 2", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+            },
+            {
+              "Name": "Level03Button",
+              "ClassName": "TextButton",
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 3, "Text": "LEVEL 3", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+            },
+            {
+              "Name": "Level04Button",
+              "ClassName": "TextButton",
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 4, "Text": "LEVEL 4", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+            },
+            {
+              "Name": "Level05Button",
+              "ClassName": "TextButton",
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 5, "Text": "LEVEL 5", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+            },
+            {
+              "Name": "Level06Button",
+              "ClassName": "TextButton",
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 6, "Text": "LEVEL 6", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+            },
+            {
+              "Name": "Level07Button",
+              "ClassName": "TextButton",
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 7, "Text": "LEVEL 7", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+            },
+            {
+              "Name": "Level08Button",
+              "ClassName": "TextButton",
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 8, "Text": "LEVEL 8", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+            },
+            {
+              "Name": "Level09Button",
+              "ClassName": "TextButton",
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 9, "Text": "LEVEL 9", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+            },
+            {
+              "Name": "Level10Button",
+              "ClassName": "TextButton",
+              "Properties": { "BackgroundColor3": [0.145, 0.216, 0.286], "BorderSizePixel": 0, "LayoutOrder": 10, "Text": "LEVEL 10", "TextColor3": [0.91, 0.95, 0.98], "TextSize": 11, "TextWrapped": true },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }]
+            }
+          ]
+        },
+        {
+          "Name": "Actions",
+          "ClassName": "Frame",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "Position": { "UDim2": [[0, 14], [0, 174]] },
+            "Size": { "UDim2": [[1, -28], [0, 104]] }
+          },
+          "Children": [
+            {
+              "ClassName": "UIGridLayout",
+              "Properties": {
+                "CellPadding": { "UDim2": [[0, 8], [0, 8]] },
+                "CellSize": { "UDim2": [[0.5, -4], [0, 48]] },
+                "FillDirectionMaxCells": 2,
+                "SortOrder": "LayoutOrder"
+              },
+              "Children": []
+            },
+            {
+              "Name": "RollButton",
+              "ClassName": "TextButton",
+              "Properties": { "BackgroundColor3": [0.286, 0.455, 0.765], "BorderSizePixel": 0, "LayoutOrder": 1, "Text": "ROLL UNIT", "TextColor3": [0.96, 0.98, 1], "TextSize": 13 },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }]
+            },
+            {
+              "Name": "AutoPlaceButton",
+              "ClassName": "TextButton",
+              "Properties": { "BackgroundColor3": [0.282, 0.518, 0.769], "BorderSizePixel": 0, "LayoutOrder": 2, "Text": "AUTO-PLACE BEST", "TextColor3": [0.96, 0.98, 1], "TextSize": 13 },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }]
+            },
+            {
+              "Name": "StartWaveButton",
+              "ClassName": "TextButton",
+              "Properties": { "BackgroundColor3": [0.176, 0.733, 0.463], "BorderSizePixel": 0, "LayoutOrder": 3, "Text": "START NEXT WAVE", "TextColor3": [0.03, 0.11, 0.08], "TextSize": 13 },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }]
+            },
+            {
+              "Name": "ResetButton",
+              "ClassName": "TextButton",
+              "Properties": { "BackgroundColor3": [0.659, 0.286, 0.318], "BorderSizePixel": 0, "LayoutOrder": 4, "Text": "RESET RUN", "TextColor3": [1, 0.96, 0.96], "TextSize": 13 },
+              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }]
+            }
+          ]
+        },
+        {
+          "Name": "Detail",
+          "ClassName": "TextLabel",
+          "Properties": {
+            "BackgroundColor3": [0.067, 0.102, 0.133],
+            "BorderSizePixel": 0,
+            "FontFace": {
+              "family": "rbxasset://fonts/families/GothamSSm.json",
+              "weight": "Medium",
+              "style": "Normal"
+            },
+            "Position": { "UDim2": [[0, 14], [1, -48]] },
+            "Size": { "UDim2": [[1, -28], [0, 34]] },
+            "Text": "Roll a unit, auto-place, then start the next wave",
+            "TextColor3": [0.65, 0.76, 0.82],
+            "TextSize": 10,
+            "TextTruncate": "AtEnd"
+          },
+          "Children": [
+            { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }
+          ]
+        }
+      ]
+    }
+  ]
+}

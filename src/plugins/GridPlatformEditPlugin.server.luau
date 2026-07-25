@@ -35,6 +35,7 @@ local Factory = require(script.UI.Factory)
 local HeaderController = require(script.UI.HeaderController)
 local HierarchyBrowserView = require(script.UI.HierarchyBrowserView)
 local HierarchyOptions = require(script.HierarchyOptions)
+local LegacyGalleryCleanup = require(script.LegacyGalleryCleanup)
 local MapPropertiesView = require(script.UI.MapPropertiesView)
 local PaintAppearance = require(script.UI.PaintAppearance)
 local PaintCellOverlay = require(script.UI.PaintCellOverlay)
@@ -105,6 +106,7 @@ type PaintRuntime = {
 }
 
 local authoringPlatform = AuthoringArea.ensure() or AuthoringArea.findPlatform()
+LegacyGalleryCleanup.start()
 local project = ProjectStore.load(authoringPlatform)
 local stageIds = ProjectStore.stageIds()
 local selectedStageId = project.startingStageId or stageIds[1]

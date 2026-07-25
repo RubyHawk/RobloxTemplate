@@ -1,5 +1,6 @@
 {
   "name": "RobloxTemplateGallery",
+  "servePlaceIds": [140239777311760],
   "emitLegacyScripts": true,
   "tree": {
     "$className": "DataModel",
@@ -48,6 +49,9 @@
       },
       "TowerDefenseTravelHUD": {
         "$path": "src/ui/TowerDefenseTravelHUD.model.json"
+      },
+      "TowerDefenseLevelHUD": {
+        "$path": "src/ui/TowerDefenseLevelHUD.model.json"
       },
       "PortalSign": {
         "$path": "src/ui/PortalSign.model.json"

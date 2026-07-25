@@ -13,6 +13,29 @@ There is one canonical admin `GamePlatform`, not six raw copies. `StagePlatformS
 
 No workflow below creates a Roblox experience.
 
+## RNG Defender recovery after an incorrect Rojo sync
+
+Do not run bare `rojo serve` from the repository root against RNG Defender. The
+root gallery project is now restricted to the permanent template place, while
+`8_RNG_DEFENDER.cmd` remains the only supported gameplay delivery launcher.
+
+If the gallery project was previously connected, close Studio, run
+`8_RNG_DEFENDER.cmd`, and reopen the existing RNG Defender place. Stagewright
+waits for the exact RNG Defender DesignerConfig and then records one undoable
+edit that removes the known gallery roots (`PlayableStarter`,
+`PlayableStarterClient`, the gallery spawn/floor/earning pads, gallery preview
+GUIs, and the gallery loading script). It never deletes
+`Workspace.FirstPrivateIsland` or unknown Team Create scenery. The useful
+legacy `GamePlatform` is moved to `Workspace.StagewrightAdminArea` first; only
+an exact second demo-shaped copy on the island is removed.
+
+After Rojo connects, press Play. The permanent bottom-right **Tower Defense -
+Level Select** panel lists Levels 1-10 with server-derived lock state. The
+minimal playable loop is **Roll Unit**, **Auto-place Best**, **Start Next
+Wave**, and **Reset Run**. The existing top **Go to My Tower** control moves
+the player to their assigned grid. Level changes, unit rolls, placements, and
+wave starts all continue through the existing server-authoritative remotes.
+
 ## 1. Import the shared place safely
 
 1. Close any Rojo session connected to the shared tower-defense place.

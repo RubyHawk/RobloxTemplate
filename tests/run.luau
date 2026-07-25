@@ -5820,7 +5820,7 @@ do
 		gridPluginLineCount += 1
 	end
 	expectEqual(
-		gridPluginLineCount <= 5025,
+		gridPluginLineCount <= 5030,
 		true,
 		"Stagewright bootstrap does not absorb extracted module code"
 	)
@@ -8978,6 +8978,11 @@ do
 		`six-platform allocator includes {platformMarker}`
 	)
 end
+expectEqual(
+	string.find(stagePlatformSource, "if not RunService:IsStudio() and Players.MaxPlayers ~=", 1, true) ~= nil,
+	true,
+	"Studio test capacity does not produce a false published-place player warning"
+)
 do
 	local authoringAreaSource = fs.readFile("src/plugins/Stagewright/AuthoringArea.luau")
 	local pluginBootstrapSource = fs.readFile("src/plugins/GridPlatformEditPlugin.server.luau")
@@ -9406,6 +9411,112 @@ do
 			`tower-defense platform travel client includes {marker}`
 		)
 	end
+end
+do
+	local levelHudModel = fs.readFile("src/ui/TowerDefenseLevelHUD.model.json")
+	local levelControllerSource = fs.readFile("src/client/Controllers/TowerDefenseLevelController.luau")
+	local defaultProjectSource = fs.readFile("default.project.json")
+	expectCompiles(levelControllerSource, "tower-defense level selector controller compiles as Luau")
+	expectEqual(
+		string.find(defaultProjectSource, '"servePlaceIds": [140239777311760]', 1, true) ~= nil,
+		true,
+		"bare gallery Rojo serve is restricted to the permanent template place"
+	)
+	expectEqual(
+		string.find(defaultProjectSource, '"TowerDefenseLevelHUD"', 1, true) ~= nil
+			and string.find(gridPatchProject, '"TowerDefenseLevelHUD"', 1, true) ~= nil
+			and string.find(initClient, "TowerDefenseLevelController.initialize(request)", 1, true) ~= nil
+			and string.find(initClient, "TowerDefenseLevelController.apply", 1, true) ~= nil,
+		true,
+		"default and RNG Defender builds deliver the permanent level selector"
+	)
+	for index = 1, 10 do
+		expectEqual(
+			string.find(levelHudModel, `"Name": "Level{string.format("%02d", index)}Button"`, 1, true) ~= nil,
+			true,
+			`level selector pre-authors level button {index}`
+		)
+	end
+	for _, marker in
+		{
+			'"Name": "RollButton"',
+			'"Name": "AutoPlaceButton"',
+			'"Name": "StartWaveButton"',
+			'"Name": "ResetButton"',
+		}
+	do
+		expectEqual(
+			string.find(levelHudModel, marker, 1, true) ~= nil,
+			true,
+			`level selector pre-authors gameplay action {marker}`
+		)
+	end
+	for _, marker in
+		{
+			'request("ActivateTowerStage", { stageId = option.id })',
+			'request("RollUnit", {})',
+			'request("AutoPlaceBestUnits", {})',
+			'request("StartTowerWave", {})',
+			'request("ResetTowerDefense", {})',
+			"Config.features.towerDefense ~= true",
+		}
+	do
+		expectEqual(
+			string.find(levelControllerSource, marker, 1, true) ~= nil,
+			true,
+			`level selector controller uses the existing authoritative action: {marker}`
+		)
+	end
+	expectEqual(
+		string.find(towerDefenseServiceSource, "local levelOptions:", 1, true) ~= nil
+			and string.find(towerDefenseServiceSource, "StageRuntimeService.isUnlocked", 1, true) ~= nil
+			and string.find(towerDefenseServiceSource, "levelOptions = levelOptions", 1, true) ~= nil,
+		true,
+		"tower-defense snapshots expose only server-derived level availability"
+	)
+end
+do
+	local cleanupSource = fs.readFile("src/plugins/Stagewright/LegacyGalleryCleanup.luau")
+	local pluginProjectSource = fs.readFile("plugins/grid-platform-editor.project.json")
+	local rngDesignerConfig = fs.readFile("patches/rng-defender/DesignerConfig.luau")
+	expectCompiles(cleanupSource, "RNG Defender gallery cleanup compiles as Luau")
+	expectEqual(
+		string.find(pluginProjectSource, '"LegacyGalleryCleanup"', 1, true) ~= nil
+			and string.find(
+				fs.readFile("src/plugins/GridPlatformEditPlugin.server.luau"),
+				"LegacyGalleryCleanup.start()",
+				1,
+				true
+			) ~= nil
+			and string.find(rngDesignerConfig, "cleanupLegacyGalleryArtifacts = true", 1, true) ~= nil,
+		true,
+		"Stagewright starts the explicit RNG Defender cleanup after authoring-area migration"
+	)
+	for _, marker in
+		{
+			"identity.placeId == game.PlaceId",
+			"config.cleanupLegacyGalleryArtifacts == true",
+			'"PlayableStarter"',
+			'"PlayableStarterClient"',
+			'"GalleryFloor"',
+			'"TemplateSpawn"',
+			'"ExampleEarningPad"',
+			'"BonusEarningPad"',
+			"isGalleryGridPlatform(islandPlatform)",
+			"Workspace:SetAttribute(CLEANUP_ATTRIBUTE, CLEANUP_VERSION)",
+		}
+	do
+		expectEqual(
+			string.find(cleanupSource, marker, 1, true) ~= nil,
+			true,
+			`gallery cleanup includes guarded marker {marker}`
+		)
+	end
+	expectEqual(
+		string.find(cleanupSource, "firstIsland:Destroy()", 1, true),
+		nil,
+		"gallery cleanup never deletes the Team Create island"
+	)
 end
 expectEqual(
 	string.find(stagePlatformSource, "OnServerEvent", 1, true),

@@ -166,6 +166,7 @@ local Config = {
 		dataStoreMode = if DesignerConfig.experienceMode == "template" then "mock" else "live",
 		mockStartingCoins = 100_000_000_000,
 		openComponentGallery = true,
+		cleanupLegacyGalleryArtifacts = (DesignerConfig :: any).cleanupLegacyGalleryArtifacts == true,
 	},
 
 	identity = {
@@ -228,6 +229,7 @@ local Config = {
 		maximumEnemiesPerPlayer = 500,
 		armoredDamageMultiplier = 0.6,
 		starterLevelsPerStage = 10,
+		levelSelectorSlots = 10,
 		requirePlatformOnJoin = designerTowerDefense.requirePlatformOnJoin ~= false,
 		platformSlotCount = 6,
 		platformCenterPosition = optionalFiniteVec3(designerTowerDefense.platformCenterPosition),
