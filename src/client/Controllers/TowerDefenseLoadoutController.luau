@@ -86,6 +86,9 @@ local lastInputWasGamepad = false
 local detailsUnitId: string? = nil
 local detailsSlot: number? = nil
 local detailsPlacementId: string? = nil
+local localPlayer = Players.LocalPlayer
+local DUNGEON_PRESENTATION_ATTRIBUTE = "DungeonPresentationActive"
+local TOWER_PLATFORM_PRESENTATION_ATTRIBUTE = "TowerPlatformPresentationActive"
 
 local EMPTY_COLOR = Color3.fromRGB(23, 33, 43)
 local EMPTY_ACCENT = Color3.fromRGB(54, 72, 86)
@@ -157,6 +160,11 @@ local function setHint(text: string)
 	if placementHint ~= nil then
 		placementHint.Text = text
 	end
+end
+
+local function towerPresentationActive(): boolean
+	return localPlayer:GetAttribute(DUNGEON_PRESENTATION_ATTRIBUTE) ~= true
+		and localPlayer:GetAttribute(TOWER_PLATFORM_PRESENTATION_ATTRIBUTE) == true
 end
 
 local function setImage(icon: ImageLabel, glyph: TextLabel, assetId: any, fallbackGlyph: string)
@@ -284,6 +292,9 @@ local function refreshDetails()
 end
 
 local function showUnitDetails(unitId: string, slotIndex: number?, placementId: string?)
+	if not towerPresentationActive() then
+		return
+	end
 	detailsUnitId = unitId
 	detailsSlot = slotIndex
 	detailsPlacementId = placementId
@@ -308,7 +319,31 @@ end
 
 local function refresh()
 	local state = latestState
-	if screenGui == nil or type(state) ~= "table" then
+	if screenGui == nil then
+		return
+	end
+	if not towerPresentationActive() then
+		selectedSlot = nil
+		detailsUnitId = nil
+		detailsSlot = nil
+		detailsPlacementId = nil
+		if inventoryPanel ~= nil then
+			inventoryPanel.Visible = false
+		end
+		if talentPanel ~= nil then
+			talentPanel.Visible = false
+		end
+		if detailsView ~= nil then
+			detailsView.panel.Visible = false
+		end
+		if aimDot ~= nil then
+			aimDot.Visible = false
+		end
+		StageGridRenderer.setPlacementMode(false, latestState)
+		screenGui.Enabled = false
+		return
+	end
+	if type(state) ~= "table" then
 		return
 	end
 
@@ -590,6 +625,9 @@ local function occupied(column: number, row: number): boolean
 end
 
 local function cellFromScreenPoint(screenPoint: Vector2, viewportPoint: boolean): (number?, number?)
+	if not towerPresentationActive() then
+		return nil, nil
+	end
 	local state = latestState
 	local camera = Workspace.CurrentCamera
 	if
@@ -628,6 +666,9 @@ local function cellFromScreenPoint(screenPoint: Vector2, viewportPoint: boolean)
 end
 
 local function placeAt(screenPoint: Vector2, viewportPoint: boolean)
+	if not towerPresentationActive() then
+		return
+	end
 	local unitId = selectedUnitId()
 	local send = requestServer
 	if unitId == nil or send == nil then
@@ -642,6 +683,9 @@ local function placeAt(screenPoint: Vector2, viewportPoint: boolean)
 end
 
 local function interactAt(screenPoint: Vector2, viewportPoint: boolean)
+	if not towerPresentationActive() then
+		return
+	end
 	local placementId, unitId = StageTowerRenderer.localPlacementAtScreen(screenPoint, viewportPoint)
 	if placementId ~= nil and unitId ~= nil then
 		selectedSlot = nil
@@ -663,6 +707,9 @@ local function closePanels()
 end
 
 local function cycleSelection(direction: number)
+	if not towerPresentationActive() then
+		return
+	end
 	local loadout = currentLoadout()
 	if #loadout == 0 then
 		selectedSlot = nil
@@ -704,9 +751,11 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 	end
 	initialized = true
 	requestServer = request
+	localPlayer:GetAttributeChangedSignal(DUNGEON_PRESENTATION_ATTRIBUTE):Connect(refresh)
+	localPlayer:GetAttributeChangedSignal(TOWER_PLATFORM_PRESENTATION_ATTRIBUTE):Connect(refresh)
 
 	task.spawn(function()
-		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+		local playerGui = localPlayer:WaitForChild("PlayerGui")
 		local candidate = playerGui:WaitForChild("TowerDefenseLoadoutHUD", 15)
 		if candidate == nil or not candidate:IsA("ScreenGui") then
 			warn("TowerDefenseLoadoutHUD is missing from StarterGui")
@@ -881,6 +930,9 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 	end)
 
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
+		if not towerPresentationActive() then
+			return
+		end
 		lastInputWasGamepad = string.find(input.UserInputType.Name, "Gamepad", 1, true) == 1
 		if processed then
 			refresh()
@@ -948,6 +1000,9 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 	end)
 
 	UserInputService.TouchTapInWorld:Connect(function(position: Vector2, processedByUI: boolean)
+		if not towerPresentationActive() then
+			return
+		end
 		lastInputWasGamepad = false
 		if
 			not processedByUI

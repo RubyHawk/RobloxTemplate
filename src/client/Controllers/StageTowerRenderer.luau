@@ -30,6 +30,8 @@ local MAX_GRID_INDEX = 512
 local MAX_ID_LENGTH = 128
 local MAX_SAFE_INTEGER = 9_007_199_254_740_991
 local SCREEN_HIT_RADIUS = 52
+local DUNGEON_PRESENTATION_ATTRIBUTE = "DungeonPresentationActive"
+local TOWER_PLATFORM_PRESENTATION_ATTRIBUTE = "TowerPlatformPresentationActive"
 
 local partsByKey: { [string]: Part } = {}
 local partPool: { Part } = {}
@@ -273,7 +275,12 @@ function StageTowerRenderer.localPlacementAtScreen(
 	viewportPoint: boolean?
 ): (string?, string?)
 	local camera = Workspace.CurrentCamera
-	if not enabled or camera == nil then
+	if
+		not enabled
+		or camera == nil
+		or localPlayer:GetAttribute(DUNGEON_PRESENTATION_ATTRIBUTE) == true
+		or localPlayer:GetAttribute(TOWER_PLATFORM_PRESENTATION_ATTRIBUTE) ~= true
+	then
 		return nil, nil
 	end
 	local closestDistance = SCREEN_HIT_RADIUS

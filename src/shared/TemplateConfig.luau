@@ -247,6 +247,7 @@ local Config = {
 		platformOwnerAnchorsFolderName = "StagewrightOwnerAnchors",
 		platformOwnerMarkerHeight = 16,
 		platformTravelHeight = 7,
+		platformTravelPromptMargin = 12,
 		authoringArea = {
 			enabled = true,
 			areaName = "StagewrightAdminArea",
