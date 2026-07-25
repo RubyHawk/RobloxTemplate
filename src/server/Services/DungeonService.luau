@@ -75,6 +75,8 @@ type Run = {
 	connections: { RBXScriptConnection },
 	lastHitAt: { [Player]: number },
 	lastDodgeAt: { [Player]: number },
+	-- Per-player, per-ability last-use clock (os.clock) for the hotbar cooldowns.
+	lastAbilityAt: { [Player]: { [string]: number } },
 	health: number,
 	maxHealth: number,
 	startClock: number,
@@ -738,6 +740,7 @@ local function runFight(party: { Player }, bossId: string, core: BasePart): (str
 		connections = {},
 		lastHitAt = {},
 		lastDodgeAt = {},
+		lastAbilityAt = {},
 		health = maxHealth,
 		maxHealth = maxHealth,
 		startClock = now,
@@ -1108,6 +1111,99 @@ function DungeonService.registerDodge(player: Player): (boolean, string)
 		end
 	end)
 	return true, "dodged"
+end
+
+-- Hotbar ability (keys 1-4). Reuses the same liveness, arena, and equipped-weapon
+-- authority as a basic strike, then applies the configured per-kind effect under a
+-- per-player, per-ability cooldown. Damage kinds subtract the caster's weapon
+-- damage (scaled) from the shared boss health; "heal" restores only the caster's
+-- own humanoid and never touches the boss. The client supplies only the ability id.
+function DungeonService.useAbility(player: Player, abilityId: string): (boolean, string, number?)
+	local current = run
+	if current == nil or not current.active or current.phase ~= "fight" then
+		return false, "inactive", nil
+	end
+	if table.find(current.party, player) == nil then
+		return false, "notParty", nil
+	end
+	if current.eliminated[player] then
+		return false, "eliminated", nil
+	end
+	local ability = DungeonConfig.abilityById(dungeon, abilityId)
+	if ability == nil then
+		return false, "unknownAbility", nil
+	end
+	local root, humanoid = characterRoot(player)
+	if root == nil or humanoid == nil or humanoid.Health <= 0 then
+		return false, "down", nil
+	end
+	if not isInsideAuthoredArena(current, root) then
+		return false, "outOfArena", nil
+	end
+	local now = os.clock()
+	local cooldowns = current.lastAbilityAt[player]
+	if cooldowns == nil then
+		cooldowns = {}
+		current.lastAbilityAt[player] = cooldowns
+	end
+	if now - (cooldowns[abilityId] or -math.huge) < ability.cooldownSeconds then
+		return false, "cooldown", nil
+	end
+
+	-- Self-heal never needs the boss, a weapon, or a facing check.
+	if ability.kind == "heal" then
+		humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + math.max(0, ability.healAmount))
+		cooldowns[abilityId] = now
+		return true, "healed", 0
+	end
+
+	local core = current.core
+	local weapon = current.weapons[player]
+	if core == nil or weapon == nil then
+		return false, "unavailable", nil
+	end
+	local offset = core.Position - root.Position
+	if ability.kind == "cleave" then
+		-- A spin hits anything inside the radius; no facing requirement.
+		if
+			not DungeonLogic.isWithinCylinder(
+				offset.X,
+				offset.Y,
+				offset.Z,
+				ability.rangeStuds,
+				weapon.verticalToleranceStuds
+			)
+		then
+			return false, "outOfRange", nil
+		end
+	else
+		-- "strike" and "ranged" both need range/facing plus an unobstructed line.
+		local look = root.CFrame.LookVector
+		if
+			not DungeonLogic.canStrike(
+				offset.X,
+				offset.Y,
+				offset.Z,
+				look.X,
+				look.Z,
+				ability.rangeStuds,
+				weapon.verticalToleranceStuds,
+				weapon.facingDot
+			)
+		then
+			return false, "outOfRange", nil
+		end
+		if not strikeHasLineOfSight(current, root, core) then
+			return false, "blocked", nil
+		end
+	end
+	if not ensureMatchingDungeonWeapon(current, player, humanoid, weapon) then
+		return false, "weaponUnavailable", nil
+	end
+	local damage = weapon.damage * math.max(0, ability.damageMultiplier)
+	cooldowns[abilityId] = now
+	current.health = DungeonLogic.applyHit(current.health, damage)
+	return true, "hit", damage
 end
 
 function DungeonService.forget(player: Player)

@@ -1,0 +1,9 @@
+{
+  "ClassName": "Folder",
+  "Children": [
+    { "Name": "power_strike", "ClassName": "Animation", "Children": [] },
+    { "Name": "whirlwind", "ClassName": "Animation", "Children": [] },
+    { "Name": "fireball", "ClassName": "Animation", "Children": [] },
+    { "Name": "second_wind", "ClassName": "Animation", "Children": [] }
+  ]
+}

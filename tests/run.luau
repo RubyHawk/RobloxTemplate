@@ -10174,7 +10174,7 @@ do
 		local attackRateDrop = if rateDenied ~= nil
 			then string.find(
 				remoteServiceSource,
-				'if action == "DungeonAttack" or action == "DungeonDodge" then',
+				'if action == "DungeonAttack" or action == "DungeonDodge" or action == "UseDungeonAbility" then',
 				rateDenied,
 				true
 			)
@@ -10280,6 +10280,211 @@ do
 	expectEqual(defaults.weapons.grove_hammer.cooldownSeconds, 0.8, "hammer trades speed for damage")
 	expectEqual(defaults.bosses[1].rewardItemId, "grove_hammer", "the forest boss unlocks a saved weapon")
 	expectEqual(defaults.bosses[1].rewardItemQuantity, 1, "boss weapon reward is bounded and deterministic")
+
+	-- Nested scope: the ability catalog + wiring assertions declare enough locals to
+	-- exceed Luau's 200-per-function register limit if left in the outer block.
+	do
+		-- Hotbar ability catalog: four fixed, ordered slots the board always resolves.
+		local abilityIds = {}
+		for _, ability in defaults.abilities do
+			table.insert(abilityIds, ability.id)
+		end
+		expectEqual(#defaults.abilities, 4, "dungeon defaults expose the four authored hotbar abilities")
+		expectEqual(
+			table.concat(abilityIds, ","),
+			"power_strike,whirlwind,fireball,second_wind",
+			"dungeon abilities keep their authored order for keys 1-4"
+		)
+		expectEqual(defaults.abilities[1].kind, "strike", "power strike is a melee strike")
+		expectEqual(defaults.abilities[2].kind, "cleave", "whirlwind is a proximity cleave")
+		expectEqual(defaults.abilities[3].kind, "ranged", "fireball is a ranged ability")
+		expectEqual(defaults.abilities[4].kind, "heal", "second wind heals the caster")
+		expectEqual(defaults.abilities[4].healAmount, 45, "second wind restores its authored health")
+		expectEqual(defaults.abilities[1].damageMultiplier, 3, "power strike scales the weapon damage")
+		local abilityFieldsValid = true
+		for index, ability in defaults.abilities do
+			if
+				type(ability.name) ~= "string"
+				or type(ability.glyph) ~= "string"
+				or ability.glyph == ""
+				or ability.keyLabel ~= tostring(index)
+				or type(ability.cooldownSeconds) ~= "number"
+				or ability.cooldownSeconds <= 0
+				or type(ability.color) ~= "table"
+				or #ability.color ~= 3
+			then
+				abilityFieldsValid = false
+			end
+		end
+		expectEqual(
+			abilityFieldsValid,
+			true,
+			"every dungeon ability has a name, glyph, key, cooldown, and color"
+		)
+		local fireball = DungeonConfig.abilityById(defaults, "fireball")
+		expectEqual(
+			fireball ~= nil and fireball.kind == "ranged",
+			true,
+			"abilityById resolves an authored ability"
+		)
+		expectEqual(
+			DungeonConfig.abilityById(defaults, "missing_ability"),
+			nil,
+			"abilityById rejects unknown ids"
+		)
+
+		-- Per-ability overrides apply and clamp; malformed fields fall back in place.
+		local tunedAbilities = DungeonConfig.normalize({
+			abilities = {
+				power_strike = { cooldownSeconds = 999, damageMultiplier = 4, kind = "not_a_kind" },
+				second_wind = { healAmount = 80 },
+			},
+		}).abilities
+		expectEqual(
+			tunedAbilities[1].cooldownSeconds,
+			120,
+			"an out-of-range ability cooldown clamps to the ceiling"
+		)
+		expectEqual(tunedAbilities[1].damageMultiplier, 4, "a valid ability override is applied")
+		expectEqual(
+			tunedAbilities[1].kind,
+			"strike",
+			"an unknown ability kind falls back to the authored kind"
+		)
+		expectEqual(tunedAbilities[4].healAmount, 80, "a valid heal override is applied")
+		expectEqual(#tunedAbilities, 4, "ability overrides never add or drop hotbar slots")
+
+		-- Server + client wiring for the hotbar abilities.
+		local dungeonServiceAbilitySource = fs.readFile("src/server/Services/DungeonService.luau")
+		local remoteAbilitySource = fs.readFile("src/server/Services/RemoteService.luau")
+		local dungeonClientAbilitySource = fs.readFile("src/starter-client/Dungeon.client.luau")
+		local dungeonHudAbilitySource = fs.readFile("src/ui/DungeonHUD.model.json")
+		local dungeonWeaponsAbilitySource = fs.readFile("src/assets/DungeonWeapons.model.json")
+		expectEqual(
+			string.find(dungeonServiceAbilitySource, "function DungeonService.useAbility", 1, true) ~= nil
+				and string.find(
+					dungeonServiceAbilitySource,
+					"DungeonConfig.abilityById(dungeon, abilityId)",
+					1,
+					true
+				) ~= nil
+				and string.find(dungeonServiceAbilitySource, "lastAbilityAt", 1, true) ~= nil
+				and string.find(
+						dungeonServiceAbilitySource,
+						"DungeonLogic.applyHit(current.health, damage)",
+						1,
+						true
+					)
+					~= nil,
+			true,
+			"the server owns ability resolution, per-ability cooldowns, and boss damage"
+		)
+		expectEqual(
+			string.find(remoteAbilitySource, 'UseDungeonAbility = "dungeon"', 1, true) ~= nil
+				and string.find(remoteAbilitySource, 'action == "UseDungeonAbility"', 1, true) ~= nil
+				and string.find(remoteAbilitySource, "DungeonService.useAbility(player, abilityId)", 1, true) ~= nil
+				and string.find(remoteAbilitySource, '"DungeonAbilityResult"', 1, true) ~= nil,
+			true,
+			"the ability request is feature-gated, validated, and answered with a result event"
+		)
+		expectEqual(
+			string.find(dungeonClientAbilitySource, "local function tryAbility", 1, true) ~= nil
+				and string.find(dungeonClientAbilitySource, 'action = "UseDungeonAbility"', 1, true) ~= nil
+				and string.find(dungeonClientAbilitySource, "Enum.KeyCode.One", 1, true) ~= nil
+				and string.find(dungeonClientAbilitySource, "Enum.KeyCode.Four", 1, true) ~= nil
+				and string.find(
+						dungeonClientAbilitySource,
+						'packet.kind == "DungeonAbilityResult"',
+						1,
+						true
+					)
+					~= nil,
+			true,
+			"the dungeon client sends ability intent on keys 1-4 and consumes the result event"
+		)
+		expectEqual(
+			string.find(dungeonClientAbilitySource, "Instance.new", 1, true) == nil
+				and string.find(dungeonClientAbilitySource, ":Clone()", 1, true) == nil
+				and string.find(dungeonClientAbilitySource, ":Destroy()", 1, true) == nil,
+			true,
+			"the ability board binds authored instances without constructing or destroying any"
+		)
+		for _, slotName in { "AbilityBar", "Ability1", "Ability4", "CooldownCover", "AbilityFlash" } do
+			expectEqual(
+				string.find(dungeonHudAbilitySource, `"{slotName}"`, 1, true) ~= nil,
+				true,
+				`the dungeon HUD pre-authors the {slotName} instance`
+			)
+		end
+		local _, burstCount = string.gsub(dungeonWeaponsAbilitySource, "AbilityBurst", "")
+		expectEqual(burstCount, 3, "each authored dungeon weapon carries a burst emitter for ability VFX")
+
+		-- Optional real-animation ids: default off, integer, clamped, with a fallback.
+		local animDefaultsOff = true
+		for _, ability in defaults.abilities do
+			if ability.animationId ~= 0 then
+				animDefaultsOff = false
+			end
+		end
+		expectEqual(animDefaultsOff, true, "abilities default to the procedural pose with no animation id")
+		local tunedAnim = DungeonConfig.normalize({
+			abilities = {
+				power_strike = { animationId = 123456.9 },
+				whirlwind = { animationId = -5 },
+			},
+		}).abilities
+		expectEqual(tunedAnim[1].animationId, 123456, "a configured animation id is floored to an integer")
+		expectEqual(tunedAnim[2].animationId, 0, "a negative animation id falls back to off")
+
+		-- Pre-authored Animation vessels (the client cannot construct them) + wiring.
+		local defaultProjectSource = fs.readFile("default.project.json")
+		expectEqual(
+			string.find(defaultProjectSource, "src/assets/DungeonAnimations.model.json", 1, true) ~= nil,
+			true,
+			"the animation vessels are mounted under ReplicatedStorage/Template"
+		)
+		local dungeonAnimationsSource = fs.readFile("src/assets/DungeonAnimations.model.json")
+		for _, abilityId in { "power_strike", "whirlwind", "fireball", "second_wind" } do
+			expectEqual(
+				string.find(dungeonAnimationsSource, `"{abilityId}"`, 1, true) ~= nil,
+				true,
+				`an authored Animation vessel exists for {abilityId}`
+			)
+		end
+		local _, vesselCount = string.gsub(dungeonAnimationsSource, '"ClassName": "Animation"', "")
+		expectEqual(vesselCount, 4, "exactly four empty animation vessels are pre-authored")
+
+		-- Layered VFX instances: per-weapon swing trail + boss-core impact emitter.
+		local _, trailCount = string.gsub(dungeonWeaponsAbilitySource, '"AbilityTrail"', "")
+		expectEqual(trailCount, 3, "each dungeon weapon carries a swing trail")
+		expectEqual(
+			string.find(dungeonWeaponsAbilitySource, '"TrailAttach0"', 1, true) ~= nil
+				and string.find(dungeonWeaponsAbilitySource, '"TrailAttach1"', 1, true) ~= nil,
+			true,
+			"the swing trail has authored attachment endpoints"
+		)
+		local dungeonArenaAbilitySource = fs.readFile("src/world/DungeonArena.model.json")
+		expectEqual(
+			string.find(dungeonArenaAbilitySource, '"AbilityImpact"', 1, true) ~= nil,
+			true,
+			"the boss core pre-authors an ability impact emitter"
+		)
+		expectEqual(
+			string.find(dungeonClientAbilitySource, ":LoadAnimation(", 1, true) ~= nil
+				and string.find(dungeonClientAbilitySource, "local function playAbilityMotion", 1, true) ~= nil
+				and string.find(dungeonClientAbilitySource, "abilityTracks", 1, true) ~= nil
+				and string.find(dungeonClientAbilitySource, "loadAbilityAnimations", 1, true) ~= nil,
+			true,
+			"the client preloads and plays a real animation track when an id is configured"
+		)
+		expectEqual(
+			string.find(dungeonClientAbilitySource, "emitBossImpact", 1, true) ~= nil
+				and string.find(dungeonClientAbilitySource, '"AbilityTrail"', 1, true) ~= nil
+				and string.find(dungeonClientAbilitySource, "AbilityImpact", 1, true) ~= nil,
+			true,
+			"the client drives the swing trail and boss impact VFX"
+		)
+	end
 	local catalogsSource = fs.readFile("src/shared/Catalogs.luau")
 	local bladeDefinition = string.find(catalogsSource, "warden_blade = {", 1, true)
 	local spearDefinition = string.find(catalogsSource, "thorn_spear = {", 1, true)

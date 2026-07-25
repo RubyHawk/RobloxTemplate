@@ -36,6 +36,57 @@
                 "Shadows": false
               },
               "Children": []
+            },
+            {
+              "Name": "AbilityFxAttachment",
+              "ClassName": "Attachment",
+              "Properties": { "Position": [0, 1.6, 0] },
+              "Children": [
+                {
+                  "Name": "AbilityBurst",
+                  "ClassName": "ParticleEmitter",
+                  "Properties": {
+                    "Color": { "ColorSequence": { "keypoints": [{ "time": 0, "color": [1, 0.85, 0.5] }, { "time": 1, "color": [1, 0.4, 0.2] }] } },
+                    "Enabled": false,
+                    "Lifetime": { "NumberRange": [0.3, 0.55] },
+                    "LightEmission": 0.85,
+                    "Rate": 0,
+                    "Rotation": { "NumberRange": [0, 360] },
+                    "RotSpeed": { "NumberRange": [-160, 160] },
+                    "Size": { "NumberSequence": { "keypoints": [{ "time": 0, "value": 0.9, "envelope": 0 }, { "time": 1, "value": 0, "envelope": 0 }] } },
+                    "Speed": { "NumberRange": [9, 20] },
+                    "SpreadAngle": [55, 55],
+                    "Texture": "rbxasset://textures/particles/sparkles_main.dds",
+                    "Transparency": { "NumberSequence": { "keypoints": [{ "time": 0, "value": 0.1, "envelope": 0 }, { "time": 1, "value": 1, "envelope": 0 }] } }
+                  },
+                  "Children": []
+                }
+              ]
+            },
+            {
+              "Name": "TrailAttach0",
+              "ClassName": "Attachment",
+              "Properties": { "Position": [0, -1.6, 0] },
+              "Children": []
+            },
+            {
+              "Name": "TrailAttach1",
+              "ClassName": "Attachment",
+              "Properties": { "Position": [0, 2, 0] },
+              "Children": []
+            },
+            {
+              "Name": "AbilityTrail",
+              "ClassName": "Trail",
+              "Properties": {
+                "Enabled": false,
+                "FaceCamera": true,
+                "Lifetime": 0.35,
+                "LightEmission": 0.6,
+                "Transparency": { "NumberSequence": { "keypoints": [{ "time": 0, "value": 0.25, "envelope": 0 }, { "time": 1, "value": 1, "envelope": 0 }] } },
+                "WidthScale": { "NumberSequence": { "keypoints": [{ "time": 0, "value": 1, "envelope": 0 }, { "time": 1, "value": 0.2, "envelope": 0 }] } }
+              },
+              "Children": []
             }
           ]
         }
@@ -76,6 +127,57 @@
                 "Shadows": false
               },
               "Children": []
+            },
+            {
+              "Name": "AbilityFxAttachment",
+              "ClassName": "Attachment",
+              "Properties": { "Position": [0, 1.6, 0] },
+              "Children": [
+                {
+                  "Name": "AbilityBurst",
+                  "ClassName": "ParticleEmitter",
+                  "Properties": {
+                    "Color": { "ColorSequence": { "keypoints": [{ "time": 0, "color": [1, 0.85, 0.5] }, { "time": 1, "color": [1, 0.4, 0.2] }] } },
+                    "Enabled": false,
+                    "Lifetime": { "NumberRange": [0.3, 0.55] },
+                    "LightEmission": 0.85,
+                    "Rate": 0,
+                    "Rotation": { "NumberRange": [0, 360] },
+                    "RotSpeed": { "NumberRange": [-160, 160] },
+                    "Size": { "NumberSequence": { "keypoints": [{ "time": 0, "value": 0.9, "envelope": 0 }, { "time": 1, "value": 0, "envelope": 0 }] } },
+                    "Speed": { "NumberRange": [9, 20] },
+                    "SpreadAngle": [55, 55],
+                    "Texture": "rbxasset://textures/particles/sparkles_main.dds",
+                    "Transparency": { "NumberSequence": { "keypoints": [{ "time": 0, "value": 0.1, "envelope": 0 }, { "time": 1, "value": 1, "envelope": 0 }] } }
+                  },
+                  "Children": []
+                }
+              ]
+            },
+            {
+              "Name": "TrailAttach0",
+              "ClassName": "Attachment",
+              "Properties": { "Position": [0, -1.6, 0] },
+              "Children": []
+            },
+            {
+              "Name": "TrailAttach1",
+              "ClassName": "Attachment",
+              "Properties": { "Position": [0, 2, 0] },
+              "Children": []
+            },
+            {
+              "Name": "AbilityTrail",
+              "ClassName": "Trail",
+              "Properties": {
+                "Enabled": false,
+                "FaceCamera": true,
+                "Lifetime": 0.35,
+                "LightEmission": 0.6,
+                "Transparency": { "NumberSequence": { "keypoints": [{ "time": 0, "value": 0.25, "envelope": 0 }, { "time": 1, "value": 1, "envelope": 0 }] } },
+                "WidthScale": { "NumberSequence": { "keypoints": [{ "time": 0, "value": 1, "envelope": 0 }, { "time": 1, "value": 0.2, "envelope": 0 }] } }
+              },
+              "Children": []
             }
           ]
         }
@@ -114,6 +216,57 @@
                 "Color": [1, 0.62, 0.18],
                 "Range": 9,
                 "Shadows": false
+              },
+              "Children": []
+            },
+            {
+              "Name": "AbilityFxAttachment",
+              "ClassName": "Attachment",
+              "Properties": { "Position": [0, 1.6, 0] },
+              "Children": [
+                {
+                  "Name": "AbilityBurst",
+                  "ClassName": "ParticleEmitter",
+                  "Properties": {
+                    "Color": { "ColorSequence": { "keypoints": [{ "time": 0, "color": [1, 0.85, 0.5] }, { "time": 1, "color": [1, 0.4, 0.2] }] } },
+                    "Enabled": false,
+                    "Lifetime": { "NumberRange": [0.3, 0.55] },
+                    "LightEmission": 0.85,
+                    "Rate": 0,
+                    "Rotation": { "NumberRange": [0, 360] },
+                    "RotSpeed": { "NumberRange": [-160, 160] },
+                    "Size": { "NumberSequence": { "keypoints": [{ "time": 0, "value": 0.9, "envelope": 0 }, { "time": 1, "value": 0, "envelope": 0 }] } },
+                    "Speed": { "NumberRange": [9, 20] },
+                    "SpreadAngle": [55, 55],
+                    "Texture": "rbxasset://textures/particles/sparkles_main.dds",
+                    "Transparency": { "NumberSequence": { "keypoints": [{ "time": 0, "value": 0.1, "envelope": 0 }, { "time": 1, "value": 1, "envelope": 0 }] } }
+                  },
+                  "Children": []
+                }
+              ]
+            },
+            {
+              "Name": "TrailAttach0",
+              "ClassName": "Attachment",
+              "Properties": { "Position": [0, -1.6, 0] },
+              "Children": []
+            },
+            {
+              "Name": "TrailAttach1",
+              "ClassName": "Attachment",
+              "Properties": { "Position": [0, 2, 0] },
+              "Children": []
+            },
+            {
+              "Name": "AbilityTrail",
+              "ClassName": "Trail",
+              "Properties": {
+                "Enabled": false,
+                "FaceCamera": true,
+                "Lifetime": 0.35,
+                "LightEmission": 0.6,
+                "Transparency": { "NumberSequence": { "keypoints": [{ "time": 0, "value": 0.25, "envelope": 0 }, { "time": 1, "value": 1, "envelope": 0 }] } },
+                "WidthScale": { "NumberSequence": { "keypoints": [{ "time": 0, "value": 1, "envelope": 0 }, { "time": 1, "value": 0.2, "envelope": 0 }] } }
               },
               "Children": []
             }

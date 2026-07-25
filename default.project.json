@@ -13,6 +13,9 @@
         "DungeonWeapons": {
           "$path": "src/assets/DungeonWeapons.model.json"
         },
+        "DungeonAnimations": {
+          "$path": "src/assets/DungeonAnimations.model.json"
+        },
         "Shared": {
           "$path": "src/shared"
         },
