@@ -229,17 +229,22 @@ local function hasUnit(player: Player, unitId: string): boolean
 	return entry ~= nil and type(entry.count) == "number" and entry.count > 0
 end
 
-local function inLoadout(player: Player, unitId: string): boolean
+local function loadoutCount(player: Player, unitId: string): number
 	local td = profileTowerState(player)
 	if td == nil then
-		return false
+		return 0
 	end
+	local count = 0
 	for _, loadoutUnitId in td.loadout do
 		if loadoutUnitId == unitId then
-			return true
+			count += 1
 		end
 	end
-	return false
+	return count
+end
+
+local function inLoadout(player: Player, unitId: string): boolean
+	return loadoutCount(player, unitId) > 0
 end
 
 local function placementAt(match: MatchState, cell: Cell): Placement?
@@ -295,7 +300,7 @@ function TowerDefenseService.rollUnit(player: Player): (boolean, string)
 	profile.towerDefense.ownedUnits[unit.id] = { count = ownedCount }
 	if
 		#profile.towerDefense.loadout < unlockedLoadoutSlots(profile.towerDefense)
-		and not inLoadout(player, unit.id)
+		and loadoutCount(player, unit.id) < ownedCount
 	then
 		table.insert(profile.towerDefense.loadout, unit.id)
 	end
@@ -313,11 +318,30 @@ function TowerDefenseService.setLoadout(player: Player, unitIds: any): (boolean,
 		return false, "Invalid loadout"
 	end
 	local nextLoadout: { string } = {}
+	local requestedCounts: { [string]: number } = {}
 	for _, unitId in parsedUnitIds do
-		if TowerDefenseCatalog.unit(unitId) == nil or not hasUnit(player, unitId) then
-			return false, "Unit is not owned"
+		if TowerDefenseCatalog.unit(unitId) == nil then
+			return false, "Unknown unit"
 		end
+		local entry = td.ownedUnits[unitId]
+		local ownedCount = if entry ~= nil and type(entry.count) == "number"
+			then math.max(math.floor(entry.count), 0)
+			else 0
+		local requestedCount = (requestedCounts[unitId] or 0) + 1
+		if ownedCount < requestedCount then
+			return false, "Not enough owned copies"
+		end
+		requestedCounts[unitId] = requestedCount
 		table.insert(nextLoadout, unitId)
+	end
+	local placedCounts: { [string]: number } = {}
+	for _, placement in matchFor(player).placements do
+		placedCounts[placement.unitId] = (placedCounts[placement.unitId] or 0) + 1
+	end
+	for unitId, placedCount in placedCounts do
+		if (requestedCounts[unitId] or 0) < placedCount then
+			return false, "A placed copy must stay equipped"
+		end
 	end
 	td.loadout = nextLoadout
 	ProfileService.markDirty(player, "towerDefense:setLoadout")
@@ -378,6 +402,15 @@ local function placeUnitInternal(
 		return false, "That grid cell cannot hold a unit"
 	end
 	local match = matchFor(player)
+	local placedCopies = 0
+	for _, existingPlacement in match.placements do
+		if existingPlacement.unitId == unitId then
+			placedCopies += 1
+		end
+	end
+	if placedCopies >= loadoutCount(player, unitId) then
+		return false, "Every equipped copy of this unit is already placed"
+	end
 	if placementAt(match, cell) ~= nil then
 		return false, "That grid cell is already occupied"
 	end

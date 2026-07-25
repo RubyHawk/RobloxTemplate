@@ -246,7 +246,8 @@
                 { "Name": "Glyph", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 8], [0, 8]] }, "Size": { "UDim2": [[1, -16], [0, 48]] }, "Text": "1", "TextColor3": [1, 1, 1], "TextScaled": true, "TextSize": 22, "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 22, "MinTextSize": 12 }, "Children": [] }] },
                 { "Name": "SlotNumber", "ClassName": "TextLabel", "Properties": { "BackgroundColor3": [0.025, 0.039, 0.055], "BorderSizePixel": 0, "Position": { "UDim2": [[0, 4], [0, 4]] }, "Size": { "UDim2": [[0, 22], [0, 22]] }, "Text": "1", "TextColor3": [1, 1, 1], "TextSize": 11, "ZIndex": 99 }, "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } }, "Children": [] }] },
                 { "Name": "UnitName", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 5], [0, 64]] }, "Size": { "UDim2": [[1, -10], [0, 17]] }, "Text": "EMPTY", "TextColor3": [0.92, 0.96, 0.98], "TextScaled": true, "TextSize": 11, "TextTruncate": "AtEnd", "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 11, "MinTextSize": 7 }, "Children": [] }] },
-                { "Name": "Cost", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 5], [0, 80]] }, "Size": { "UDim2": [[1, -10], [0, 12]] }, "Text": "SELECT UNIT", "TextColor3": [0.62, 0.72, 0.78], "TextScaled": true, "TextSize": 8, "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 8, "MinTextSize": 6 }, "Children": [] }] }
+                { "Name": "Cost", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 5], [0, 80]] }, "Size": { "UDim2": [[1, -10], [0, 12]] }, "Text": "SELECT UNIT", "TextColor3": [0.62, 0.72, 0.78], "TextScaled": true, "TextSize": 8, "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 8, "MinTextSize": 6 }, "Children": [] }] },
+                { "Name": "PlacedBadge", "ClassName": "TextLabel", "Properties": { "BackgroundColor3": [0.07, 0.08, 0.09], "BackgroundTransparency": 0.16, "BorderSizePixel": 0, "Position": { "UDim2": [[0, 5], [0, 36]] }, "Size": { "UDim2": [[1, -10], [0, 25]] }, "Text": "PLACED", "TextColor3": [0.92, 0.95, 0.96], "TextSize": 11, "Visible": false, "ZIndex": 100 }, "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }] }
               ]
             },
             {
@@ -261,7 +262,8 @@
                 { "Name": "Glyph", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 8], [0, 8]] }, "Size": { "UDim2": [[1, -16], [0, 48]] }, "Text": "2", "TextColor3": [1, 1, 1], "TextScaled": true, "TextSize": 22, "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 22, "MinTextSize": 12 }, "Children": [] }] },
                 { "Name": "SlotNumber", "ClassName": "TextLabel", "Properties": { "BackgroundColor3": [0.025, 0.039, 0.055], "BorderSizePixel": 0, "Position": { "UDim2": [[0, 4], [0, 4]] }, "Size": { "UDim2": [[0, 22], [0, 22]] }, "Text": "2", "TextColor3": [1, 1, 1], "TextSize": 11, "ZIndex": 99 }, "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } }, "Children": [] }] },
                 { "Name": "UnitName", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 5], [0, 64]] }, "Size": { "UDim2": [[1, -10], [0, 17]] }, "Text": "EMPTY", "TextColor3": [0.92, 0.96, 0.98], "TextScaled": true, "TextSize": 11, "TextTruncate": "AtEnd", "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 11, "MinTextSize": 7 }, "Children": [] }] },
-                { "Name": "Cost", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 5], [0, 80]] }, "Size": { "UDim2": [[1, -10], [0, 12]] }, "Text": "SELECT UNIT", "TextColor3": [0.62, 0.72, 0.78], "TextScaled": true, "TextSize": 8, "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 8, "MinTextSize": 6 }, "Children": [] }] }
+                { "Name": "Cost", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 5], [0, 80]] }, "Size": { "UDim2": [[1, -10], [0, 12]] }, "Text": "SELECT UNIT", "TextColor3": [0.62, 0.72, 0.78], "TextScaled": true, "TextSize": 8, "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 8, "MinTextSize": 6 }, "Children": [] }] },
+                { "Name": "PlacedBadge", "ClassName": "TextLabel", "Properties": { "BackgroundColor3": [0.07, 0.08, 0.09], "BackgroundTransparency": 0.16, "BorderSizePixel": 0, "Position": { "UDim2": [[0, 5], [0, 36]] }, "Size": { "UDim2": [[1, -10], [0, 25]] }, "Text": "PLACED", "TextColor3": [0.92, 0.95, 0.96], "TextSize": 11, "Visible": false, "ZIndex": 100 }, "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }] }
               ]
             },
             {
@@ -276,7 +278,8 @@
                 { "Name": "Glyph", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 8], [0, 8]] }, "Size": { "UDim2": [[1, -16], [0, 48]] }, "Text": "3", "TextColor3": [1, 1, 1], "TextScaled": true, "TextSize": 22, "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 22, "MinTextSize": 12 }, "Children": [] }] },
                 { "Name": "SlotNumber", "ClassName": "TextLabel", "Properties": { "BackgroundColor3": [0.025, 0.039, 0.055], "BorderSizePixel": 0, "Position": { "UDim2": [[0, 4], [0, 4]] }, "Size": { "UDim2": [[0, 22], [0, 22]] }, "Text": "3", "TextColor3": [1, 1, 1], "TextSize": 11, "ZIndex": 99 }, "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } }, "Children": [] }] },
                 { "Name": "UnitName", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 5], [0, 64]] }, "Size": { "UDim2": [[1, -10], [0, 17]] }, "Text": "EMPTY", "TextColor3": [0.92, 0.96, 0.98], "TextScaled": true, "TextSize": 11, "TextTruncate": "AtEnd", "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 11, "MinTextSize": 7 }, "Children": [] }] },
-                { "Name": "Cost", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 5], [0, 80]] }, "Size": { "UDim2": [[1, -10], [0, 12]] }, "Text": "SELECT UNIT", "TextColor3": [0.62, 0.72, 0.78], "TextScaled": true, "TextSize": 8, "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 8, "MinTextSize": 6 }, "Children": [] }] }
+                { "Name": "Cost", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 5], [0, 80]] }, "Size": { "UDim2": [[1, -10], [0, 12]] }, "Text": "SELECT UNIT", "TextColor3": [0.62, 0.72, 0.78], "TextScaled": true, "TextSize": 8, "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 8, "MinTextSize": 6 }, "Children": [] }] },
+                { "Name": "PlacedBadge", "ClassName": "TextLabel", "Properties": { "BackgroundColor3": [0.07, 0.08, 0.09], "BackgroundTransparency": 0.16, "BorderSizePixel": 0, "Position": { "UDim2": [[0, 5], [0, 36]] }, "Size": { "UDim2": [[1, -10], [0, 25]] }, "Text": "PLACED", "TextColor3": [0.92, 0.95, 0.96], "TextSize": 11, "Visible": false, "ZIndex": 100 }, "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }] }
               ]
             },
             {
@@ -291,7 +294,8 @@
                 { "Name": "Glyph", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 8], [0, 8]] }, "Size": { "UDim2": [[1, -16], [0, 48]] }, "Text": "4", "TextColor3": [1, 1, 1], "TextScaled": true, "TextSize": 22, "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 22, "MinTextSize": 12 }, "Children": [] }] },
                 { "Name": "SlotNumber", "ClassName": "TextLabel", "Properties": { "BackgroundColor3": [0.025, 0.039, 0.055], "BorderSizePixel": 0, "Position": { "UDim2": [[0, 4], [0, 4]] }, "Size": { "UDim2": [[0, 22], [0, 22]] }, "Text": "4", "TextColor3": [1, 1, 1], "TextSize": 11, "ZIndex": 99 }, "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } }, "Children": [] }] },
                 { "Name": "UnitName", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 5], [0, 64]] }, "Size": { "UDim2": [[1, -10], [0, 17]] }, "Text": "EMPTY", "TextColor3": [0.92, 0.96, 0.98], "TextScaled": true, "TextSize": 11, "TextTruncate": "AtEnd", "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 11, "MinTextSize": 7 }, "Children": [] }] },
-                { "Name": "Cost", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 5], [0, 80]] }, "Size": { "UDim2": [[1, -10], [0, 12]] }, "Text": "SELECT UNIT", "TextColor3": [0.62, 0.72, 0.78], "TextScaled": true, "TextSize": 8, "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 8, "MinTextSize": 6 }, "Children": [] }] }
+                { "Name": "Cost", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 5], [0, 80]] }, "Size": { "UDim2": [[1, -10], [0, 12]] }, "Text": "SELECT UNIT", "TextColor3": [0.62, 0.72, 0.78], "TextScaled": true, "TextSize": 8, "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 8, "MinTextSize": 6 }, "Children": [] }] },
+                { "Name": "PlacedBadge", "ClassName": "TextLabel", "Properties": { "BackgroundColor3": [0.07, 0.08, 0.09], "BackgroundTransparency": 0.16, "BorderSizePixel": 0, "Position": { "UDim2": [[0, 5], [0, 36]] }, "Size": { "UDim2": [[1, -10], [0, 25]] }, "Text": "PLACED", "TextColor3": [0.92, 0.95, 0.96], "TextSize": 11, "Visible": false, "ZIndex": 100 }, "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }] }
               ]
             },
             {
@@ -306,7 +310,8 @@
                 { "Name": "Glyph", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 8], [0, 8]] }, "Size": { "UDim2": [[1, -16], [0, 48]] }, "Text": "5", "TextColor3": [1, 1, 1], "TextScaled": true, "TextSize": 22, "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 22, "MinTextSize": 12 }, "Children": [] }] },
                 { "Name": "SlotNumber", "ClassName": "TextLabel", "Properties": { "BackgroundColor3": [0.025, 0.039, 0.055], "BorderSizePixel": 0, "Position": { "UDim2": [[0, 4], [0, 4]] }, "Size": { "UDim2": [[0, 22], [0, 22]] }, "Text": "5", "TextColor3": [1, 1, 1], "TextSize": 11, "ZIndex": 99 }, "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } }, "Children": [] }] },
                 { "Name": "UnitName", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 5], [0, 64]] }, "Size": { "UDim2": [[1, -10], [0, 17]] }, "Text": "EMPTY", "TextColor3": [0.92, 0.96, 0.98], "TextScaled": true, "TextSize": 11, "TextTruncate": "AtEnd", "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 11, "MinTextSize": 7 }, "Children": [] }] },
-                { "Name": "Cost", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 5], [0, 80]] }, "Size": { "UDim2": [[1, -10], [0, 12]] }, "Text": "SELECT UNIT", "TextColor3": [0.62, 0.72, 0.78], "TextScaled": true, "TextSize": 8, "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 8, "MinTextSize": 6 }, "Children": [] }] }
+                { "Name": "Cost", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 5], [0, 80]] }, "Size": { "UDim2": [[1, -10], [0, 12]] }, "Text": "SELECT UNIT", "TextColor3": [0.62, 0.72, 0.78], "TextScaled": true, "TextSize": 8, "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 8, "MinTextSize": 6 }, "Children": [] }] },
+                { "Name": "PlacedBadge", "ClassName": "TextLabel", "Properties": { "BackgroundColor3": [0.07, 0.08, 0.09], "BackgroundTransparency": 0.16, "BorderSizePixel": 0, "Position": { "UDim2": [[0, 5], [0, 36]] }, "Size": { "UDim2": [[1, -10], [0, 25]] }, "Text": "PLACED", "TextColor3": [0.92, 0.95, 0.96], "TextSize": 11, "Visible": false, "ZIndex": 100 }, "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }] }
               ]
             },
             {
@@ -321,7 +326,8 @@
                 { "Name": "Glyph", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 8], [0, 8]] }, "Size": { "UDim2": [[1, -16], [0, 48]] }, "Text": "6", "TextColor3": [1, 1, 1], "TextScaled": true, "TextSize": 22, "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 22, "MinTextSize": 12 }, "Children": [] }] },
                 { "Name": "SlotNumber", "ClassName": "TextLabel", "Properties": { "BackgroundColor3": [0.025, 0.039, 0.055], "BorderSizePixel": 0, "Position": { "UDim2": [[0, 4], [0, 4]] }, "Size": { "UDim2": [[0, 22], [0, 22]] }, "Text": "6", "TextColor3": [1, 1, 1], "TextSize": 11, "ZIndex": 99 }, "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } }, "Children": [] }] },
                 { "Name": "UnitName", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 5], [0, 64]] }, "Size": { "UDim2": [[1, -10], [0, 17]] }, "Text": "EMPTY", "TextColor3": [0.92, 0.96, 0.98], "TextScaled": true, "TextSize": 11, "TextTruncate": "AtEnd", "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 11, "MinTextSize": 7 }, "Children": [] }] },
-                { "Name": "Cost", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 5], [0, 80]] }, "Size": { "UDim2": [[1, -10], [0, 12]] }, "Text": "SELECT UNIT", "TextColor3": [0.62, 0.72, 0.78], "TextScaled": true, "TextSize": 8, "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 8, "MinTextSize": 6 }, "Children": [] }] }
+                { "Name": "Cost", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 5], [0, 80]] }, "Size": { "UDim2": [[1, -10], [0, 12]] }, "Text": "SELECT UNIT", "TextColor3": [0.62, 0.72, 0.78], "TextScaled": true, "TextSize": 8, "ZIndex": 98 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 8, "MinTextSize": 6 }, "Children": [] }] },
+                { "Name": "PlacedBadge", "ClassName": "TextLabel", "Properties": { "BackgroundColor3": [0.07, 0.08, 0.09], "BackgroundTransparency": 0.16, "BorderSizePixel": 0, "Position": { "UDim2": [[0, 5], [0, 36]] }, "Size": { "UDim2": [[1, -10], [0, 25]] }, "Text": "PLACED", "TextColor3": [0.92, 0.95, 0.96], "TextSize": 11, "Visible": false, "ZIndex": 100 }, "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }] }
               ]
             }
           ]
@@ -343,6 +349,83 @@
       "Children": [
         { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [1, 0] } }, "Children": [] },
         { "ClassName": "UIStroke", "Properties": { "Color": [0.02, 0.04, 0.06], "Thickness": 3, "Transparency": 0 }, "Children": [] }
+      ]
+    },
+    {
+      "Name": "UnitDetailsPanel",
+      "ClassName": "Frame",
+      "Properties": {
+        "Active": true,
+        "AnchorPoint": [1, 0.5],
+        "BackgroundColor3": [0.025, 0.039, 0.055],
+        "BackgroundTransparency": 0.02,
+        "BorderSizePixel": 0,
+        "Position": { "UDim2": [[1, -20], [0.46, 0]] },
+        "Size": { "UDim2": [[0.78, 0], [0, 360]] },
+        "Visible": false,
+        "ZIndex": 112
+      },
+      "Children": [
+        { "ClassName": "UISizeConstraint", "Properties": { "MaxSize": [330, 360], "MinSize": [260, 320] }, "Children": [] },
+        { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 18] } }, "Children": [] },
+        { "Name": "PanelStroke", "ClassName": "UIStroke", "Properties": { "Color": [0.176, 0.733, 0.463], "Thickness": 3, "Transparency": 0.04 }, "Children": [] },
+        {
+          "Name": "Accent",
+          "ClassName": "Frame",
+          "Properties": {
+            "BackgroundColor3": [0.176, 0.733, 0.463],
+            "BorderSizePixel": 0,
+            "Position": { "UDim2": [[0, 12], [0, 12]] },
+            "Size": { "UDim2": [[0, 88], [0, 88]] },
+            "ZIndex": 113
+          },
+          "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 14] } }, "Children": [] }]
+        },
+        { "Name": "Icon", "ClassName": "ImageLabel", "Properties": { "BackgroundTransparency": 1, "Image": "", "Position": { "UDim2": [[0, 22], [0, 22]] }, "ScaleType": "Fit", "Size": { "UDim2": [[0, 68], [0, 68]] }, "Visible": false, "ZIndex": 114 }, "Children": [] },
+        { "Name": "Glyph", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 22], [0, 22]] }, "Size": { "UDim2": [[0, 68], [0, 68]] }, "Text": "FA", "TextColor3": [1, 1, 1], "TextScaled": true, "TextSize": 26, "ZIndex": 114 }, "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 26, "MinTextSize": 14 }, "Children": [] }] },
+        {
+          "Name": "UnitName",
+          "ClassName": "TextLabel",
+          "Properties": {
+            "BackgroundTransparency": 1,
+            "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
+            "Position": { "UDim2": [[0, 112], [0, 18]] },
+            "Size": { "UDim2": [[1, -158], [0, 48]] },
+            "Text": "FOREST ARCHER",
+            "TextColor3": [0.96, 0.98, 1],
+            "TextScaled": true,
+            "TextSize": 20,
+            "TextWrapped": true,
+            "TextXAlignment": "Left",
+            "ZIndex": 113
+          },
+          "Children": [{ "ClassName": "UITextSizeConstraint", "Properties": { "MaxTextSize": 20, "MinTextSize": 11 }, "Children": [] }]
+        },
+        { "Name": "Rarity", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 112], [0, 68]] }, "Size": { "UDim2": [[1, -124], [0, 20]] }, "Text": "COMMON", "TextColor3": [0.431, 0.906, 0.718], "TextSize": 12, "TextXAlignment": "Left", "ZIndex": 113 }, "Children": [] },
+        { "Name": "Status", "ClassName": "TextLabel", "Properties": { "BackgroundColor3": [0.1, 0.16, 0.19], "BorderSizePixel": 0, "Position": { "UDim2": [[0, 112], [0, 88]] }, "Size": { "UDim2": [[1, -124], [0, 22]] }, "Text": "READY TO PLACE", "TextColor3": [0.72, 0.9, 0.82], "TextSize": 10, "ZIndex": 113 }, "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 7] } }, "Children": [] }] },
+        { "Name": "DamageValue", "ClassName": "TextLabel", "Properties": { "BackgroundColor3": [0.055, 0.08, 0.105], "BorderSizePixel": 0, "Position": { "UDim2": [[0, 12], [0, 126]] }, "Size": { "UDim2": [[0.5, -18], [0, 42]] }, "Text": "DAMAGE  11", "TextColor3": [0.92, 0.96, 0.98], "TextSize": 13, "ZIndex": 113 }, "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }] },
+        { "Name": "RangeValue", "ClassName": "TextLabel", "Properties": { "AnchorPoint": [1, 0], "BackgroundColor3": [0.055, 0.08, 0.105], "BorderSizePixel": 0, "Position": { "UDim2": [[1, -12], [0, 126]] }, "Size": { "UDim2": [[0.5, -18], [0, 42]] }, "Text": "RANGE  20", "TextColor3": [0.92, 0.96, 0.98], "TextSize": 13, "ZIndex": 113 }, "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }] },
+        { "Name": "FireRateValue", "ClassName": "TextLabel", "Properties": { "BackgroundColor3": [0.055, 0.08, 0.105], "BorderSizePixel": 0, "Position": { "UDim2": [[0, 12], [0, 176]] }, "Size": { "UDim2": [[0.5, -18], [0, 42]] }, "Text": "FIRE RATE  0.85s", "TextColor3": [0.92, 0.96, 0.98], "TextSize": 12, "ZIndex": 113 }, "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }] },
+        { "Name": "CostValue", "ClassName": "TextLabel", "Properties": { "AnchorPoint": [1, 0], "BackgroundColor3": [0.055, 0.08, 0.105], "BorderSizePixel": 0, "Position": { "UDim2": [[1, -12], [0, 176]] }, "Size": { "UDim2": [[0.5, -18], [0, 42]] }, "Text": "COST  45", "TextColor3": [0.976, 0.678, 0.18], "TextSize": 13, "ZIndex": 113 }, "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }] },
+        { "Name": "TargetingValue", "ClassName": "TextLabel", "Properties": { "BackgroundColor3": [0.055, 0.08, 0.105], "BorderSizePixel": 0, "Position": { "UDim2": [[0, 12], [0, 226]] }, "Size": { "UDim2": [[1, -24], [0, 38]] }, "Text": "TARGETING  FIRST", "TextColor3": [0.82, 0.88, 0.94], "TextSize": 13, "ZIndex": 113 }, "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }] },
+        { "Name": "OwnedValue", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 16], [0, 272]] }, "Size": { "UDim2": [[1, -32], [0, 24]] }, "Text": "OWNED x1  |  EQUIPPED x1", "TextColor3": [0.62, 0.72, 0.78], "TextSize": 12, "TextXAlignment": "Left", "ZIndex": 113 }, "Children": [] },
+        { "Name": "PlacementValue", "ClassName": "TextLabel", "Properties": { "BackgroundTransparency": 1, "Position": { "UDim2": [[0, 16], [0, 298]] }, "Size": { "UDim2": [[1, -32], [0, 24]] }, "Text": "SLOT 1  |  NOT PLACED", "TextColor3": [0.62, 0.72, 0.78], "TextSize": 12, "TextXAlignment": "Left", "ZIndex": 113 }, "Children": [] },
+        {
+          "Name": "CloseButton",
+          "ClassName": "TextButton",
+          "Properties": {
+            "AnchorPoint": [1, 0],
+            "BackgroundColor3": [0.659, 0.286, 0.318],
+            "BorderSizePixel": 0,
+            "Position": { "UDim2": [[1, -12], [0, 12]] },
+            "Size": { "UDim2": [[0, 34], [0, 34]] },
+            "Text": "X",
+            "TextColor3": [1, 0.95, 0.95],
+            "TextSize": 13,
+            "ZIndex": 115
+          },
+          "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }]
+        }
       ]
     },
     {
@@ -661,12 +744,12 @@
         "BorderSizePixel": 0,
         "ClipsDescendants": true,
         "Position": { "UDim2": [[0.5, 0], [0.46, 0]] },
-        "Size": { "UDim2": [[0.9, 0], [0.62, 0]] },
+        "Size": { "UDim2": [[0.94, 0], [0.8, 0]] },
         "Visible": false,
         "ZIndex": 120
       },
       "Children": [
-        { "ClassName": "UISizeConstraint", "Properties": { "MaxSize": [500, 340], "MinSize": [300, 300] }, "Children": [] },
+        { "ClassName": "UISizeConstraint", "Properties": { "MaxSize": [680, 500], "MinSize": [320, 390] }, "Children": [] },
         { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 18] } }, "Children": [] },
         { "ClassName": "UIStroke", "Properties": { "Color": [0.471, 0.322, 0.82], "Thickness": 2, "Transparency": 0.04 }, "Children": [] },
         {
@@ -708,7 +791,7 @@
             "BackgroundTransparency": 1,
             "Position": { "UDim2": [[0, 18], [0, 54]] },
             "Size": { "UDim2": [[1, -36], [0, 42]] },
-            "Text": "Unlock more unit slots. The bottom loadout expands from the center while these controls stay fixed.",
+            "Text": "Unlock connected capacity nodes. Each owned node adds one usable unit slot to the centered loadout bar.",
             "TextColor3": [0.66, 0.7, 0.82],
             "TextSize": 12,
             "TextWrapped": true,
@@ -718,46 +801,34 @@
           "Children": []
         },
         {
-          "Name": "SlotUpgradeNode",
+          "Name": "TreeCanvas",
           "ClassName": "Frame",
           "Properties": {
             "AnchorPoint": [0.5, 0],
-            "BackgroundColor3": [0.075, 0.065, 0.13],
+            "BackgroundColor3": [0.012, 0.016, 0.022],
             "BorderSizePixel": 0,
-            "Position": { "UDim2": [[0.5, 0], [0, 112]] },
-            "Size": { "UDim2": [[1, -36], [0, 190]] },
+            "Position": { "UDim2": [[0.5, 0], [0, 104]] },
+            "Size": { "UDim2": [[1, -28], [1, -118]] },
             "ZIndex": 121
           },
           "Children": [
             { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 14] } }, "Children": [] },
-            { "ClassName": "UIStroke", "Properties": { "Color": [0.471, 0.322, 0.82], "Thickness": 2, "Transparency": 0.08 }, "Children": [] },
-            {
-              "Name": "NodeTitle",
-              "ClassName": "TextLabel",
-              "Properties": {
-                "BackgroundTransparency": 1,
-                "Position": { "UDim2": [[0, 16], [0, 14]] },
-                "Size": { "UDim2": [[1, -32], [0, 28]] },
-                "Text": "UNIT SLOT CAPACITY",
-                "TextColor3": [0.96, 0.94, 1],
-                "TextSize": 16,
-                "TextXAlignment": "Left",
-                "ZIndex": 122
-              },
-              "Children": []
-            },
+            { "ClassName": "UIStroke", "Properties": { "Color": [0.25, 0.21, 0.39], "Thickness": 2, "Transparency": 0.18 }, "Children": [] },
+            { "Name": "Connector03To04", "ClassName": "Frame", "Properties": { "AnchorPoint": [0.5, 0.5], "BackgroundColor3": [0.35, 0.31, 0.49], "BorderSizePixel": 0, "Position": { "UDim2": [[0.41, 0], [0.36, 0]] }, "Rotation": -28, "Size": { "UDim2": [[0.25, 0], [0, 5]] }, "ZIndex": 122 }, "Children": [] },
+            { "Name": "Connector04To05", "ClassName": "Frame", "Properties": { "AnchorPoint": [0.5, 0.5], "BackgroundColor3": [0.35, 0.31, 0.49], "BorderSizePixel": 0, "Position": { "UDim2": [[0.5, 0], [0.56, 0]] }, "Size": { "UDim2": [[0.28, 0], [0, 5]] }, "ZIndex": 122 }, "Children": [] },
+            { "Name": "Connector05To06", "ClassName": "Frame", "Properties": { "AnchorPoint": [0.5, 0.5], "BackgroundColor3": [0.35, 0.31, 0.49], "BorderSizePixel": 0, "Position": { "UDim2": [[0.59, 0], [0.76, 0]] }, "Rotation": -28, "Size": { "UDim2": [[0.25, 0], [0, 5]] }, "ZIndex": 122 }, "Children": [] },
             {
               "Name": "CurrentSlots",
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "Position": { "UDim2": [[0, 16], [0, 52]] },
-                "Size": { "UDim2": [[1, -32], [0, 24]] },
+                "Position": { "UDim2": [[0, 14], [0, 10]] },
+                "Size": { "UDim2": [[0.5, -14], [0, 24]] },
                 "Text": "UNLOCKED 2 / 6",
                 "TextColor3": [0.72, 0.8, 0.9],
-                "TextSize": 13,
+                "TextSize": 12,
                 "TextXAlignment": "Left",
-                "ZIndex": 122
+                "ZIndex": 124
               },
               "Children": []
             },
@@ -766,32 +837,100 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "Position": { "UDim2": [[0, 16], [0, 80]] },
-                "Size": { "UDim2": [[1, -32], [0, 24]] },
+                "AnchorPoint": [1, 0],
+                "Position": { "UDim2": [[1, -14], [0, 10]] },
+                "Size": { "UDim2": [[0.5, -14], [0, 24]] },
                 "Text": "NEXT SLOT: 250 COINS",
                 "TextColor3": [0.976, 0.678, 0.18],
-                "TextSize": 13,
-                "TextXAlignment": "Left",
-                "ZIndex": 122
+                "TextSize": 12,
+                "TextXAlignment": "Right",
+                "ZIndex": 124
               },
               "Children": []
             },
             {
-              "Name": "UnlockButton",
+              "Name": "SlotNode03",
               "ClassName": "TextButton",
               "Properties": {
-                "AnchorPoint": [0.5, 1],
-                "AutoButtonColor": true,
-                "BackgroundColor3": [0.471, 0.322, 0.82],
+                "AnchorPoint": [0.5, 0.5],
+                "AutoButtonColor": false,
+                "BackgroundColor3": [0.12, 0.105, 0.18],
                 "BorderSizePixel": 0,
-                "Position": { "UDim2": [[0.5, 0], [1, -14]] },
-                "Size": { "UDim2": [[1, -28], [0, 54]] },
-                "Text": "UNLOCK SLOT",
+                "Position": { "UDim2": [[0.5, 0], [0.25, 0]] },
+                "Size": { "UDim2": [[0, 112], [0, 72]] },
+                "Text": "SLOT 3\n250 COINS",
                 "TextColor3": [0.96, 0.94, 1],
-                "TextSize": 15,
-                "ZIndex": 122
+                "TextSize": 13,
+                "TextWrapped": true,
+                "ZIndex": 123
               },
-              "Children": [{ "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 11] } }, "Children": [] }]
+              "Children": [
+                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 18] } }, "Children": [] },
+                { "Name": "NodeStroke", "ClassName": "UIStroke", "Properties": { "Color": [0.471, 0.322, 0.82], "Thickness": 3, "Transparency": 0.05 }, "Children": [] }
+              ]
+            },
+            {
+              "Name": "SlotNode04",
+              "ClassName": "TextButton",
+              "Properties": {
+                "AnchorPoint": [0.5, 0.5],
+                "AutoButtonColor": false,
+                "BackgroundColor3": [0.12, 0.105, 0.18],
+                "BorderSizePixel": 0,
+                "Position": { "UDim2": [[0.32, 0], [0.56, 0]] },
+                "Size": { "UDim2": [[0, 112], [0, 72]] },
+                "Text": "SLOT 4\n1,000 COINS",
+                "TextColor3": [0.96, 0.94, 1],
+                "TextSize": 13,
+                "TextWrapped": true,
+                "ZIndex": 123
+              },
+              "Children": [
+                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 18] } }, "Children": [] },
+                { "Name": "NodeStroke", "ClassName": "UIStroke", "Properties": { "Color": [0.471, 0.322, 0.82], "Thickness": 3, "Transparency": 0.05 }, "Children": [] }
+              ]
+            },
+            {
+              "Name": "SlotNode05",
+              "ClassName": "TextButton",
+              "Properties": {
+                "AnchorPoint": [0.5, 0.5],
+                "AutoButtonColor": false,
+                "BackgroundColor3": [0.12, 0.105, 0.18],
+                "BorderSizePixel": 0,
+                "Position": { "UDim2": [[0.68, 0], [0.56, 0]] },
+                "Size": { "UDim2": [[0, 112], [0, 72]] },
+                "Text": "SLOT 5\n5,000 COINS",
+                "TextColor3": [0.96, 0.94, 1],
+                "TextSize": 13,
+                "TextWrapped": true,
+                "ZIndex": 123
+              },
+              "Children": [
+                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 18] } }, "Children": [] },
+                { "Name": "NodeStroke", "ClassName": "UIStroke", "Properties": { "Color": [0.471, 0.322, 0.82], "Thickness": 3, "Transparency": 0.05 }, "Children": [] }
+              ]
+            },
+            {
+              "Name": "SlotNode06",
+              "ClassName": "TextButton",
+              "Properties": {
+                "AnchorPoint": [0.5, 0.5],
+                "AutoButtonColor": false,
+                "BackgroundColor3": [0.12, 0.105, 0.18],
+                "BorderSizePixel": 0,
+                "Position": { "UDim2": [[0.5, 0], [0.86, 0]] },
+                "Size": { "UDim2": [[0, 112], [0, 72]] },
+                "Text": "SLOT 6\n20,000 COINS",
+                "TextColor3": [0.96, 0.94, 1],
+                "TextSize": 13,
+                "TextWrapped": true,
+                "ZIndex": 123
+              },
+              "Children": [
+                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 18] } }, "Children": [] },
+                { "Name": "NodeStroke", "ClassName": "UIStroke", "Properties": { "Color": [0.471, 0.322, 0.82], "Thickness": 3, "Transparency": 0.05 }, "Children": [] }
+              ]
             }
           ]
         }

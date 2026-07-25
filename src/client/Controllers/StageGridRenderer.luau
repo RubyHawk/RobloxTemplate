@@ -12,11 +12,15 @@ local StageCell = require(Shared.StageCell)
 local StageLanes = require(Shared.StageLanes)
 local StagePath = require(Shared.StagePath)
 local StagePathAssets = require(Shared.StagePathAssets)
+local StageSchema = require(Shared.StageSchema)
 
 local StageGridRenderer = {}
 
 local localPlayer = Players.LocalPlayer
 local initialized = false
+local placementModeActive = false
+local placementState: any = nil
+local localPlatformModel: Model? = nil
 
 local LEGACY_EDITOR_NAMES: { [string]: boolean } = {
 	grideditor = true,
@@ -400,6 +404,125 @@ local function renderMarkers(model: Model, stage: any, origin: CFrame, fade: num
 	end
 end
 
+local function isBuildable(stage: any, column: number, row: number): boolean
+	local grid = stage.grid
+	if column < 1 or column > grid.columns or row < 1 or row > grid.rows then
+		return false
+	end
+	local key = StageSchema.cellKey(column, row)
+	if type(stage.routeNoBuildMask) == "table" and stage.routeNoBuildMask[key] == true then
+		return false
+	end
+	local cell = StageCell.resolve(grid.defaultCell, grid.cells[key])
+	local roles = cell.roles or {}
+	if roles.EnemySpawn == true or roles.EnemyGoal == true then
+		return false
+	end
+	return cell.buildPolicy == nil or cell.buildPolicy == "Allowed" or cell.buildPolicy == "AutoOnly"
+end
+
+local function isAutoPlaceCell(stage: any, column: number, row: number): boolean
+	local key = StageSchema.cellKey(column, row)
+	local cell = StageCell.resolve(stage.grid.defaultCell, stage.grid.cells[key])
+	return cell.buildPolicy == "AutoOnly" or (cell.roles or {}).AutoPlace == true
+end
+
+local function renderPlacementPreview(model: Model, stage: any, origin: CFrame)
+	local visuals = Config.towerDefense.gridVisuals
+	local grid = stage.grid
+	local width = grid.columns * grid.cellSize
+	local depth = grid.rows * grid.cellSize
+	local folder = Instance.new("Folder")
+	folder.Name = "PlacementPreview"
+	folder.Parent = model
+	for column = 1, grid.columns do
+		for row = 1, grid.rows do
+			local x = -width * 0.5 + (column - 0.5) * grid.cellSize
+			local z = -depth * 0.5 + (row - 0.5) * grid.cellSize
+			local preview = createPart(
+				folder,
+				`Cell_{column}_{row}`,
+				Vector3.new(
+					grid.cellSize * visuals.placementPreviewPadding,
+					visuals.placementPreviewHeight,
+					grid.cellSize * visuals.placementPreviewPadding
+				),
+				origin
+					* CFrame.new(
+						x,
+						visuals.heightOffset
+							+ visuals.lineHeight
+							+ visuals.placementPreviewHeight * 0.5
+							+ 0.02,
+						z
+					),
+				color(visuals.placementForbiddenColor),
+				1,
+				Enum.Material.Neon
+			)
+			preview:SetAttribute("CellColumn", column)
+			preview:SetAttribute("CellRow", row)
+			preview:SetAttribute("Buildable", isBuildable(stage, column, row))
+			preview:SetAttribute("AutoPlace", isAutoPlaceCell(stage, column, row))
+		end
+	end
+end
+
+local function refreshPlacementPreview()
+	local model = localPlatformModel
+	if model == nil or model.Parent == nil then
+		return
+	end
+	local previewFolder = model:FindFirstChild("PlacementPreview")
+	if previewFolder == nil then
+		return
+	end
+	local state = placementState
+	local stageMatches = type(state) == "table"
+		and type(state.activeStageId) == "string"
+		and state.activeStageId == model:GetAttribute("StageId")
+	local visible = placementModeActive and stageMatches
+	local occupied: { [string]: boolean } = {}
+	if visible and type(state.placements) == "table" then
+		for _, placement in state.placements do
+			if type(placement) == "table" and type(placement.cell) == "table" then
+				local column = placement.cell.column
+				local row = placement.cell.row
+				if type(column) == "number" and type(row) == "number" then
+					occupied[StageSchema.cellKey(column, row)] = true
+				end
+			end
+		end
+	end
+	local visuals = Config.towerDefense.gridVisuals
+	for _, child in previewFolder:GetChildren() do
+		if not child:IsA("BasePart") then
+			continue
+		end
+		if not visible then
+			child.Transparency = 1
+			continue
+		end
+		local column = child:GetAttribute("CellColumn")
+		local row = child:GetAttribute("CellRow")
+		local key = if type(column) == "number" and type(row) == "number"
+			then StageSchema.cellKey(column, row)
+			else ""
+		if occupied[key] == true then
+			child.Color = color(visuals.placementOccupiedColor)
+			child.Transparency = visuals.placementOccupiedTransparency
+		elseif child:GetAttribute("Buildable") == true then
+			child.Color = if child:GetAttribute("AutoPlace") == true
+				then color(visuals.autoPlaceColor)
+				else color(visuals.placementAllowedColor)
+			child.Transparency = visuals.placementAllowedTransparency
+		else
+			child.Color = color(visuals.placementForbiddenColor)
+			child.Transparency = visuals.placementForbiddenTransparency
+		end
+	end
+end
+
 local function renderStage(
 	parent: Folder,
 	slot: number,
@@ -420,6 +543,9 @@ local function renderStage(
 	renderGridLines(model, stage, origin, fade)
 	renderRoutes(model, stage, origin, fade)
 	renderMarkers(model, stage, origin, fade)
+	if isLocalOwner then
+		renderPlacementPreview(model, stage, origin)
+	end
 	return model
 end
 
@@ -497,6 +623,10 @@ function StageGridRenderer.initialize()
 					end
 					model =
 						renderStage(renderFolder, slot, stage, value.Value, slot == ownedSlot, ownerUserId)
+					if slot == ownedSlot then
+						localPlatformModel = model
+						refreshPlacementPreview()
+					end
 				end
 				renderActiveLevel()
 				value:GetAttributeChangedSignal("OwnerUserId"):Connect(function()
@@ -511,6 +641,12 @@ function StageGridRenderer.initialize()
 			end
 		end
 	end)
+end
+
+function StageGridRenderer.setPlacementMode(active: boolean, state: any)
+	placementModeActive = active
+	placementState = state
+	refreshPlacementPreview()
 end
 
 return StageGridRenderer
