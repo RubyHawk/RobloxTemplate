@@ -24,6 +24,15 @@ end
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+local DUNGEON_PRESENTATION_ATTRIBUTE = "DungeonPresentationActive"
+
+local function setDungeonPresentationActive(active: boolean)
+	if player:GetAttribute(DUNGEON_PRESENTATION_ATTRIBUTE) ~= active then
+		player:SetAttribute(DUNGEON_PRESENTATION_ATTRIBUTE, active)
+	end
+end
+
+setDungeonPresentationActive(Template:GetAttribute("RuntimeMode") == "dungeon")
 
 local CORE_GUI_TYPES = {
 	Enum.CoreGuiType.Backpack,
@@ -1224,6 +1233,7 @@ local function applyDungeonState(data: any)
 		restoreLobbyGuisIfApplicable()
 		restoreCoreGuiIfApplicable()
 	end
+	setDungeonPresentationActive(active or Template:GetAttribute("RuntimeMode") == "dungeon")
 	if
 		(not active and wasDungeonVisible)
 		or (wasFightActive and not nextFightActive)

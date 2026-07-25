@@ -9249,6 +9249,8 @@ for _, towerRendererMarker in
 		"StageTowerRenderer.localPlacementAtScreen",
 		"WorldToViewportPoint",
 		"WorldToScreenPoint",
+		"DungeonPresentationActive",
+		"TowerPlatformPresentationActive",
 	}
 do
 	expectEqual(
@@ -9501,6 +9503,13 @@ do
 			'request("TravelToTowerPlatform", {})',
 			"Config.features.towerDefense ~= true",
 			"travelButton.Activated:Connect",
+			"DungeonPresentationActive",
+			"TowerPlatformPresentationActive",
+			"isOnOwnPlayableIsland",
+			"platformTravelPromptMargin",
+			"origin.Value:PointToObjectSpace(root.Position)",
+			"setTowerPlatformPresentationActive(player, isOnIsland == true)",
+			"instance.Enabled = isOnIsland == false",
 		}
 	do
 		expectEqual(
@@ -9564,6 +9573,9 @@ do
 			'request("StartTowerWave", {})',
 			'request("ResetTowerDefense", {})',
 			"Config.features.towerDefense ~= true",
+			"DungeonPresentationActive",
+			"TowerPlatformPresentationActive",
+			"screenGui.Enabled = false",
 		}
 	do
 		expectEqual(
@@ -9641,6 +9653,10 @@ do
 			"showUnitDetails",
 			"EQUIPPED x{",
 			'"PLACED ON GRID"',
+			"DungeonPresentationActive",
+			"TowerPlatformPresentationActive",
+			"StageGridRenderer.setPlacementMode(false, latestState)",
+			"screenGui.Enabled = false",
 		}
 	do
 		expectEqual(
@@ -9813,9 +9829,10 @@ expectEqual(
 	string.find(runeConfigSource, "unitRollCost = 75", 1, true) ~= nil
 		and string.find(runeConfigSource, "startingLoadoutSlots = 2", 1, true) ~= nil
 		and string.find(runeConfigSource, "loadoutSlots = 6", 1, true) ~= nil
-		and string.find(runeConfigSource, "loadoutSlotUnlockCosts", 1, true) ~= nil,
+		and string.find(runeConfigSource, "loadoutSlotUnlockCosts", 1, true) ~= nil
+		and string.find(runeConfigSource, "platformTravelPromptMargin = 12", 1, true) ~= nil,
 	true,
-	"tower defense gameplay loop configures two starting slots and six progression slots"
+	"tower defense gameplay loop configures slots and contextual platform travel"
 )
 
 do
@@ -9826,6 +9843,24 @@ do
 	local dungeonArenaSource = fs.readFile("src/world/DungeonArena.model.json")
 	local defaultProjectSource = fs.readFile("default.project.json")
 	local rngDefenderProjectSource = fs.readFile("patches/rng-defender-grid-demo.project.json")
+	expectEqual(
+		string.find(
+			dungeonClientSource,
+			'local DUNGEON_PRESENTATION_ATTRIBUTE = "DungeonPresentationActive"',
+			1,
+			true
+		)
+				~= nil
+			and string.find(
+					dungeonClientSource,
+					"setDungeonPresentationActive(active or Template:GetAttribute",
+					1,
+					true
+				)
+				~= nil,
+		true,
+		"dungeon state publishes the client presentation lock used by contextual lobby HUDs"
+	)
 	expectEqual(
 		string.find(portalClientSource, "portalPromptHasPriority", 1, true) ~= nil
 			and string.find(

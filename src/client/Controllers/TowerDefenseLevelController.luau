@@ -27,12 +27,20 @@ local rollButton: TextButton? = nil
 local autoPlaceButton: TextButton? = nil
 local startWaveButton: TextButton? = nil
 local resetButton: TextButton? = nil
+local localPlayer = Players.LocalPlayer
+local DUNGEON_PRESENTATION_ATTRIBUTE = "DungeonPresentationActive"
+local TOWER_PLATFORM_PRESENTATION_ATTRIBUTE = "TowerPlatformPresentationActive"
 
 local SELECTED_COLOR = Color3.fromRGB(45, 187, 118)
 local AVAILABLE_COLOR = Color3.fromRGB(37, 55, 73)
 local LOCKED_COLOR = Color3.fromRGB(54, 62, 72)
 local DISABLED_ACTION_COLOR = Color3.fromRGB(63, 73, 84)
 local START_COLOR = Color3.fromRGB(45, 187, 118)
+
+local function towerPresentationActive(): boolean
+	return localPlayer:GetAttribute(DUNGEON_PRESENTATION_ATTRIBUTE) ~= true
+		and localPlayer:GetAttribute(TOWER_PLATFORM_PRESENTATION_ATTRIBUTE) == true
+end
 
 local function validLevelOption(value: any): LevelOption?
 	if
@@ -61,7 +69,14 @@ end
 
 local function refresh()
 	local state = latestState
-	if screenGui == nil or statusLabel == nil or detailLabel == nil or type(state) ~= "table" then
+	if screenGui == nil then
+		return
+	end
+	if not towerPresentationActive() then
+		screenGui.Enabled = false
+		return
+	end
+	if statusLabel == nil or detailLabel == nil or type(state) ~= "table" then
 		return
 	end
 
@@ -124,9 +139,11 @@ function TowerDefenseLevelController.initialize(request: Request)
 		return
 	end
 	initialized = true
+	localPlayer:GetAttributeChangedSignal(DUNGEON_PRESENTATION_ATTRIBUTE):Connect(refresh)
+	localPlayer:GetAttributeChangedSignal(TOWER_PLATFORM_PRESENTATION_ATTRIBUTE):Connect(refresh)
 
 	task.spawn(function()
-		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+		local playerGui = localPlayer:WaitForChild("PlayerGui")
 		local candidate = playerGui:WaitForChild("TowerDefenseLevelHUD", 15)
 		if candidate == nil or not candidate:IsA("ScreenGui") then
 			warn("TowerDefenseLevelHUD is missing from StarterGui")
@@ -147,6 +164,9 @@ function TowerDefenseLevelController.initialize(request: Request)
 			local button = levels:WaitForChild(`Level{string.format("%02d", index)}Button`) :: TextButton
 			levelButtons[index] = button
 			button.Activated:Connect(function()
+				if not towerPresentationActive() then
+					return
+				end
 				local option = assignedOptions[index]
 				if option ~= nil and option.unlocked and latestState.waveRunning ~= true then
 					request("ActivateTowerStage", { stageId = option.id })
@@ -155,15 +175,27 @@ function TowerDefenseLevelController.initialize(request: Request)
 		end
 
 		rollButton.Activated:Connect(function()
+			if not towerPresentationActive() then
+				return
+			end
 			request("RollUnit", {})
 		end)
 		autoPlaceButton.Activated:Connect(function()
+			if not towerPresentationActive() then
+				return
+			end
 			request("AutoPlaceBestUnits", {})
 		end)
 		startWaveButton.Activated:Connect(function()
+			if not towerPresentationActive() then
+				return
+			end
 			request("StartTowerWave", {})
 		end)
 		resetButton.Activated:Connect(function()
+			if not towerPresentationActive() then
+				return
+			end
 			request("ResetTowerDefense", {})
 		end)
 		refresh()
