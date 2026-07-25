@@ -192,6 +192,9 @@
       "TowerDefenseTravelHUD": {
         "$path": "../src/ui/TowerDefenseTravelHUD.model.json"
       },
+      "TowerDefenseLevelHUD": {
+        "$path": "../src/ui/TowerDefenseLevelHUD.model.json"
+      },
       "PortalSign": {
         "$path": "../src/ui/PortalSign.model.json"
       },

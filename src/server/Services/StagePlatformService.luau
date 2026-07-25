@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 
@@ -304,7 +305,9 @@ function StagePlatformService.start()
 	started = true
 	publishOrigins()
 	stowAuthoringArea()
-	if Players.MaxPlayers ~= Config.towerDefense.platformSlotCount then
+	-- Studio reports its local test-server capacity here instead of the
+	-- published place's Maximum Players setting.
+	if not RunService:IsStudio() and Players.MaxPlayers ~= Config.towerDefense.platformSlotCount then
 		warn(
 			`This place allows {Players.MaxPlayers} players but has {Config.towerDefense.platformSlotCount} Stagewright platforms. Set Configure Place > Maximum Players to {Config.towerDefense.platformSlotCount}.`
 		)

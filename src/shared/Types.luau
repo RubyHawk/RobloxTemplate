@@ -210,6 +210,13 @@ export type TowerDefenseEnemyState = {
 	serverTime: number?,
 }
 
+export type TowerDefenseLevelOption = {
+	id: string,
+	name: string,
+	levelNumber: number,
+	unlocked: boolean,
+}
+
 export type TowerDefenseClientState = {
 	ownedUnits: { [string]: TowerDefenseUnitEntry },
 	loadout: { string },
@@ -223,6 +230,7 @@ export type TowerDefenseClientState = {
 	waveRunning: boolean,
 	waveIsBoss: boolean?,
 	waveCount: number?,
+	levelOptions: { TowerDefenseLevelOption },
 	placements: { TowerDefensePlacementState },
 	enemies: { TowerDefenseEnemyState },
 	autoPlaceCells: { { column: number, row: number } },

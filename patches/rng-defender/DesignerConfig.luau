@@ -10,6 +10,9 @@ return {
 		universeId = 10479279603,
 		placeId = 128136881672145,
 	},
+	-- Stagewright uses this exact-place opt-in to remove gallery roots left by
+	-- an accidental bare `rojo serve`. It never removes the Team Create island.
+	cleanupLegacyGalleryArtifacts = true,
 	currencies = {
 		{
 			id = "coins",

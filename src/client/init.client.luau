@@ -29,6 +29,8 @@ if Template:GetAttribute("RuntimeMode") == "dungeon" then
 		GalleryBackdrop = true,
 		ZxglyV5Showroom = true,
 		NotificationV2Showroom = true,
+		TowerDefenseTravelHUD = true,
+		TowerDefenseLevelHUD = true,
 	}
 	local function disableLobbyGui(instance: Instance)
 		if lobbyGuiNames[instance.Name] and instance:IsA("ScreenGui") then
@@ -53,6 +55,7 @@ local StagePlatformOwnerController = require(Controllers.StagePlatformOwnerContr
 local StagewrightPlaytestController = require(Controllers.StagewrightPlaytestController)
 local StageTowerRenderer = require(Controllers.StageTowerRenderer)
 local TowerDefenseTravelController = require(Controllers.TowerDefenseTravelController)
+local TowerDefenseLevelController = require(Controllers.TowerDefenseLevelController)
 local UIFactory = require(script.UI.UIFactory)
 local ScreenRegistry = require(script.UI.ScreenRegistry)
 local Screens = require(script.UI.Screens)
@@ -328,6 +331,7 @@ end
 
 StagewrightPlaytestController.initialize(request)
 TowerDefenseTravelController.initialize(request)
+TowerDefenseLevelController.initialize(request)
 
 local function query(action: string, payload: any, audioCue: string?): any
 	AudioController.play(audioCue or "click")
@@ -582,6 +586,7 @@ local function applyState(nextState: any)
 	AfkController.setEnabled(state.profile.settings.afKRollOver)
 	StageEnemyRenderer.apply(state.towerDefense)
 	StagewrightPlaytestController.apply(state.towerDefense)
+	TowerDefenseLevelController.apply(state.towerDefense)
 	binder.apply(state)
 end
 
@@ -594,6 +599,7 @@ stateRemote.OnClientEvent:Connect(function(packet)
 	elseif packet.kind == "TowerEnemies" then
 		StageEnemyRenderer.apply(packet.data)
 		StagewrightPlaytestController.apply(packet.data)
+		TowerDefenseLevelController.apply(packet.data)
 		if state ~= nil then
 			state.towerDefense = packet.data
 			binder.apply(state)

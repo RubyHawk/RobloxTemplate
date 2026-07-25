@@ -23,6 +23,7 @@ type TowerDefenseClientState = Types.TowerDefenseClientState
 type TowerDefenseEnemyState = Types.TowerDefenseEnemyState
 type TowerDefensePlacementState = Types.TowerDefensePlacementState
 type TowerDefensePresentationPlacement = Types.TowerDefensePresentationPlacement
+type TowerDefenseLevelOption = Types.TowerDefenseLevelOption
 
 type Cell = {
 	column: number,
@@ -962,6 +963,28 @@ function TowerDefenseService.snapshotFor(player: Player): TowerDefenseClientStat
 	end
 	local match = matchFor(player)
 	local grid = readGrid(player)
+	local activeStageId = StageRuntimeService.activeStageId(player)
+	local activeWaveSet = StageCatalog.waveSetForStage(activeStageId)
+	local displayedWaveCount = if match.waveCount > 0
+		then match.waveCount
+		elseif activeWaveSet ~= nil then #activeWaveSet.waves
+		else #TowerDefenseCatalog.waves
+	local levelOptions: { TowerDefenseLevelOption } = {}
+	for _, stageId in StageCatalog.levelIds(1) do
+		if #levelOptions >= Config.towerDefense.levelSelectorSlots then
+			break
+		end
+		local stage = StageCatalog.get(stageId)
+		local address = StageCatalog.address(stageId)
+		if stage ~= nil and address ~= nil then
+			table.insert(levelOptions, {
+				id = stageId,
+				name = stage.name,
+				levelNumber = address.levelNumber,
+				unlocked = StageRuntimeService.isUnlocked(player, stageId),
+			})
+		end
+	end
 	local placements: { TowerDefensePlacementState } = {}
 	for _, placementId in match.placementOrder do
 		local placement = match.placements[placementId]
@@ -1003,7 +1026,7 @@ function TowerDefenseService.snapshotFor(player: Player): TowerDefenseClientStat
 		end
 	end
 	return {
-		activeStageId = StageRuntimeService.activeStageId(player),
+		activeStageId = activeStageId,
 		stageOrigin = if grid ~= nil then StageRuntimeService.originFor(player, grid.stage) else CFrame.new(),
 		ownedUnits = profile.towerDefense.ownedUnits,
 		loadout = profile.towerDefense.loadout,
@@ -1014,7 +1037,8 @@ function TowerDefenseService.snapshotFor(player: Player): TowerDefenseClientStat
 		wave = match.wave,
 		waveRunning = match.waveRunning,
 		waveIsBoss = match.waveIsBoss,
-		waveCount = match.waveCount,
+		waveCount = displayedWaveCount,
+		levelOptions = levelOptions,
 		placements = placements,
 		enemies = enemies,
 		autoPlaceCells = if grid ~= nil then grid.autoPlaceCells else {},

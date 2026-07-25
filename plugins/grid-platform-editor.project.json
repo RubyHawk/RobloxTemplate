@@ -11,6 +11,9 @@
     "HierarchyOptions": {
       "$path": "../src/plugins/Stagewright/HierarchyOptions.luau"
     },
+    "LegacyGalleryCleanup": {
+      "$path": "../src/plugins/Stagewright/LegacyGalleryCleanup.luau"
+    },
     "Controllers": {
       "$className": "Folder",
       "GraphToolController": {
