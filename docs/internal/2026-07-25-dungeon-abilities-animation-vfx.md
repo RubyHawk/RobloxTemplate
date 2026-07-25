@@ -48,3 +48,8 @@ layered VFX to the dungeon boss-fight hotbar abilities:
   enabled during a swing; a per-weapon `AbilityBurst` emitter and a boss-core
   `AbilityImpact` emitter are recolored to the ability tint and `Emit`ted. Nothing
   is cloned or destroyed.
+- **The bottom-center HUD is mode-exclusive.** The Figma-mapped `DungeonHUD`
+  authors a responsive four-slot ability bar at the same safe-area anchor as the
+  Figma-mapped `TowerDefenseLoadoutHUD`. Dungeon presentation explicitly
+  suppresses the tower loadout root, so unit slots and inventory/dice/upgrade
+  controls cannot overlap the ability bar during a boss fight.

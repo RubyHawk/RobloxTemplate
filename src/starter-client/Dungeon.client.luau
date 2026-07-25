@@ -273,6 +273,7 @@ local LOBBY_GUI_ROOTS: { [string]: boolean } = {
 	StagePlatformOwners = true,
 	TowerDefenseTravelHUD = true,
 	TowerDefenseLevelHUD = true,
+	TowerDefenseLoadoutHUD = true,
 	StarterSignUI = true,
 	PortalSign = true,
 	GalleryMenu = true,
@@ -1526,21 +1527,55 @@ local function applyAbilityResult(data: any)
 		showStatus("RETURN TO THE ARENA", Color3.fromRGB(255, 180, 132), 0.9)
 	elseif reason == "down" or reason == "eliminated" then
 		showStatus("YOU CANNOT ACT WHILE DOWN", Color3.fromRGB(255, 132, 132), 0.9)
+	elseif reason == "fullhealth" then
+		showStatus("HEALTH ALREADY FULL", Color3.fromRGB(168, 235, 184), 0.9)
 	elseif reason ~= "" and reason ~= "inactive" and reason ~= "notparty" and reason ~= "invalid" then
 		showStatus("ABILITY UNAVAILABLE", Color3.fromRGB(255, 180, 132), 0.9)
 	end
 end
 
+local GAMEPAD_ABILITY_LABELS = { "◀", "▲", "▶", "▼" }
+local ABILITY_INDEX_BY_KEY: { [Enum.KeyCode]: number } = {
+	[Enum.KeyCode.One] = 1,
+	[Enum.KeyCode.Two] = 2,
+	[Enum.KeyCode.Three] = 3,
+	[Enum.KeyCode.Four] = 4,
+	[Enum.KeyCode.DPadLeft] = 1,
+	[Enum.KeyCode.DPadUp] = 2,
+	[Enum.KeyCode.DPadRight] = 3,
+	[Enum.KeyCode.DPadDown] = 4,
+}
+
+local function updateAbilityKeyBadges(inputType: Enum.UserInputType)
+	local usingTouch = inputType == Enum.UserInputType.Touch
+	local usingGamepad = string.find(inputType.Name, "Gamepad", 1, true) ~= nil
+	for index, slot in abilitySlots do
+		local badge = slot.keyBadge
+		if badge ~= nil then
+			badge.Visible = not usingTouch
+			if usingGamepad then
+				badge.Text = GAMEPAD_ABILITY_LABELS[index] or tostring(index)
+			else
+				local keyLabel = slot.ability.keyLabel
+				badge.Text = if type(keyLabel) == "string" and keyLabel ~= ""
+					then keyLabel
+					else tostring(index)
+			end
+		end
+	end
+end
+
 local function updateInputHint(inputType: Enum.UserInputType)
+	updateAbilityKeyBadges(inputType)
 	if inputType == Enum.UserInputType.Touch then
 		setVisible(controlHint, false)
 		return
 	elseif fightActive and localEliminated then
 		setText(controlHint, "SPECTATING - YOU ARE DOWN")
 	elseif string.find(inputType.Name, "Gamepad", 1, true) ~= nil then
-		setText(controlHint, "R2 ATTACK   |   B DODGE")
+		setText(controlHint, "R2 ATTACK   |   B DODGE   |   D-PAD ABILITIES")
 	else
-		setText(controlHint, "LMB / F ATTACK   |   Q DODGE")
+		setText(controlHint, "LMB / F ATTACK   |   Q DODGE   |   1-4 ABILITIES")
 	end
 	setVisible(controlHint, combatActive or (fightActive and localEliminated))
 end
@@ -1751,14 +1786,11 @@ UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: 
 		tryAttack()
 	elseif input.KeyCode == Enum.KeyCode.Q or input.KeyCode == Enum.KeyCode.ButtonB then
 		tryDodge()
-	elseif input.KeyCode == Enum.KeyCode.One then
-		tryAbility(1)
-	elseif input.KeyCode == Enum.KeyCode.Two then
-		tryAbility(2)
-	elseif input.KeyCode == Enum.KeyCode.Three then
-		tryAbility(3)
-	elseif input.KeyCode == Enum.KeyCode.Four then
-		tryAbility(4)
+	else
+		local abilityIndex = ABILITY_INDEX_BY_KEY[input.KeyCode]
+		if abilityIndex ~= nil then
+			tryAbility(abilityIndex)
+		end
 	end
 end)
 

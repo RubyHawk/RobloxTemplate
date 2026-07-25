@@ -1152,9 +1152,14 @@ function DungeonService.useAbility(player: Player, abilityId: string): (boolean,
 
 	-- Self-heal never needs the boss, a weapon, or a facing check.
 	if ability.kind == "heal" then
-		humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + math.max(0, ability.healAmount))
+		local missingHealth = math.max(0, humanoid.MaxHealth - humanoid.Health)
+		local restoredHealth = math.min(missingHealth, math.max(0, ability.healAmount))
+		if restoredHealth <= 0 then
+			return false, "fullHealth", nil
+		end
+		humanoid.Health += restoredHealth
 		cooldowns[abilityId] = now
-		return true, "healed", 0
+		return true, "healed", restoredHealth
 	end
 
 	local core = current.core

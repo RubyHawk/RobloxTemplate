@@ -9944,6 +9944,7 @@ do
 	expectEqual(
 		string.find(dungeonClientSource, "LOBBY_GUI_ROOTS", 1, true) ~= nil
 			and string.find(dungeonClientSource, "suppressLobbyGuis", 1, true) ~= nil
+			and string.find(dungeonClientSource, "TowerDefenseLoadoutHUD = true", 1, true) ~= nil
 			and string.find(
 					dungeonClientSource,
 					'Template:GetAttribute("RuntimeMode") == "dungeon"',
@@ -9952,7 +9953,7 @@ do
 				)
 				~= nil,
 		true,
-		"dungeon controller suppresses unrelated lobby UI in reserved and Studio-simulated runs"
+		"dungeon controller suppresses the tower loadout and unrelated lobby UI in every boss run"
 	)
 	local coreGuiRestoreDefinition =
 		string.find(dungeonClientSource, "local function restoreCoreGuiIfApplicable()", 1, true)
@@ -10056,6 +10057,40 @@ do
 		true,
 		"bottom-anchored mobile player status clears the authored touch controls by at least 18 pixels"
 	)
+	do
+		local abilityBar = authoredDescendant(dungeonHud, "AbilityBar")
+		local hintPanel = authoredDescendant(dungeonHud, "ControlHint")
+		local responsiveLayout = nil
+		local sizeConstraint = nil
+		if abilityBar ~= nil then
+			for _, child in abilityBar.Children do
+				if child.ClassName == "UIGridLayout" then
+					responsiveLayout = child
+				elseif child.ClassName == "UISizeConstraint" then
+					sizeConstraint = child
+				end
+			end
+		end
+		expectEqual(
+			abilityBar ~= nil
+				and abilityBar.Properties.AnchorPoint[1] == 0.5
+				and abilityBar.Properties.AnchorPoint[2] == 1
+				and abilityBar.Properties.Position.UDim2[1][1] == 0.5
+				and abilityBar.Properties.Position.UDim2[2][1] == 1
+				and abilityBar.Properties.Position.UDim2[2][2] == -14
+				and abilityBar.Properties.Size.UDim2[1][1] == 0.96
+				and abilityBar.Properties.Size.UDim2[2][2] == 116
+				and -controlsPanel.Properties.Position.UDim2[2][2] >= 146
+				and -hintPanel.Properties.Position.UDim2[2][2] >= 146
+				and responsiveLayout ~= nil
+				and responsiveLayout.Properties.FillDirectionMaxCells == 4
+				and sizeConstraint ~= nil
+				and sizeConstraint.Properties.MinSize[1] >= 280
+				and sizeConstraint.Properties.MaxSize[1] <= 440,
+			true,
+			"the responsive ability bar occupies the tower loadout slot without covering combat controls"
+		)
+	end
 
 	local dungeonWeapons = serde.decode("json", dungeonWeaponsSource)
 	local DungeonConfig = require("../src/shared/DungeonConfig")
@@ -10370,14 +10405,15 @@ do
 				) ~= nil
 				and string.find(dungeonServiceAbilitySource, "lastAbilityAt", 1, true) ~= nil
 				and string.find(
-						dungeonServiceAbilitySource,
-						"DungeonLogic.applyHit(current.health, damage)",
-						1,
-						true
-					)
+					dungeonServiceAbilitySource,
+					"DungeonLogic.applyHit(current.health, damage)",
+					1,
+					true
+				) ~= nil
+				and string.find(dungeonServiceAbilitySource, 'return false, "fullHealth", nil', 1, true)
 					~= nil,
 			true,
-			"the server owns ability resolution, per-ability cooldowns, and boss damage"
+			"the server owns ability resolution, per-ability cooldowns, boss damage, and useful healing"
 		)
 		expectEqual(
 			string.find(remoteAbilitySource, 'UseDungeonAbility = "dungeon"', 1, true) ~= nil
@@ -10392,6 +10428,8 @@ do
 				and string.find(dungeonClientAbilitySource, 'action = "UseDungeonAbility"', 1, true) ~= nil
 				and string.find(dungeonClientAbilitySource, "Enum.KeyCode.One", 1, true) ~= nil
 				and string.find(dungeonClientAbilitySource, "Enum.KeyCode.Four", 1, true) ~= nil
+				and string.find(dungeonClientAbilitySource, "Enum.KeyCode.DPadLeft", 1, true) ~= nil
+				and string.find(dungeonClientAbilitySource, "Enum.KeyCode.DPadDown", 1, true) ~= nil
 				and string.find(
 						dungeonClientAbilitySource,
 						'packet.kind == "DungeonAbilityResult"',
@@ -10400,7 +10438,7 @@ do
 					)
 					~= nil,
 			true,
-			"the dungeon client sends ability intent on keys 1-4 and consumes the result event"
+			"the dungeon client sends ability intent from keyboard, gamepad, and touch and consumes results"
 		)
 		expectEqual(
 			string.find(dungeonClientAbilitySource, "Instance.new", 1, true) == nil
@@ -10438,10 +10476,26 @@ do
 
 		-- Pre-authored Animation vessels (the client cannot construct them) + wiring.
 		local defaultProjectSource = fs.readFile("default.project.json")
+		local rngDefenderProjectSource = fs.readFile("patches/rng-defender-grid-demo.project.json")
+		local figmaWorkspaceSource = fs.readFile("figma/workspaces/rng-defender.json")
 		expectEqual(
-			string.find(defaultProjectSource, "src/assets/DungeonAnimations.model.json", 1, true) ~= nil,
+			string.find(defaultProjectSource, "src/assets/DungeonAnimations.model.json", 1, true) ~= nil
+				and string.find(
+						rngDefenderProjectSource,
+						"../src/assets/DungeonAnimations.model.json",
+						1,
+						true
+					)
+					~= nil,
 			true,
-			"the animation vessels are mounted under ReplicatedStorage/Template"
+			"both template and RNG Defender builds mount animation vessels under ReplicatedStorage/Template"
+		)
+		expectEqual(
+			string.find(figmaWorkspaceSource, '"root": "DungeonHUD"', 1, true) ~= nil
+				and string.find(figmaWorkspaceSource, '"path": "src/ui/DungeonHUD.model.json"', 1, true)
+					~= nil,
+			true,
+			"the authored responsive ability bar stays available through the RNG Defender Figma workspace"
 		)
 		local dungeonAnimationsSource = fs.readFile("src/assets/DungeonAnimations.model.json")
 		for _, abilityId in { "power_strike", "whirlwind", "fireball", "second_wind" } do

@@ -31,6 +31,8 @@ The current editable design target is [Roblox UI Preset Library v2](https://www.
 
 The RNG Defender bundle contains all 12 authored `StarterGui` roots: the main preset, loading UI, signs, rune UI, stage-owner billboards, tower-defense travel, level, and dynamic loadout HUDs, dungeon HUD, and the Studio-only Stagewright playtest HUD.
 
+`DungeonHUD` includes the four-slot authored ability bar. It shares the same safe-area bottom-center anchor as `TowerDefenseLoadoutHUD`'s dynamic unit bar: lobby/tower-defense play shows the unit bar and its inventory/dice/upgrade controls, while an active boss fight suppresses those surfaces and shows the ability bar instead. Both roots stay separately editable in Figma; the runtime only switches their authored visibility.
+
 The plugin places every artboard on the current Figma page. It does not create a page per model, so the workflow stays within Figma Starter's three-page limit. No Figma upgrade is required for the local import/export bridge.
 
 The exported patch carries the RNG Defender workspace identity even when only one preset artboard is selected. `FIGMA_UI.cmd` therefore applies partial exports to the correct authored model, validates every layer path and class, rebuilds `build/RNGDefenderSafePatch.rbxlx`, and runs the permanent-place delivery guard.

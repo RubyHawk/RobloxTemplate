@@ -197,7 +197,7 @@
         "BackgroundColor3": [0.025, 0.035, 0.065],
         "BackgroundTransparency": 0.1,
         "BorderSizePixel": 0,
-        "Position": { "UDim2": [[0, 18], [1, -222]] },
+        "Position": { "UDim2": [[0, 18], [1, -256]] },
         "Size": { "UDim2": [[0, 272], [0, 110]] },
         "Visible": false,
         "ZIndex": 10
@@ -306,7 +306,7 @@
       "Properties": {
         "AnchorPoint": [1, 1],
         "BackgroundTransparency": 1,
-        "Position": { "UDim2": [[1, -18], [1, -112]] },
+        "Position": { "UDim2": [[1, -18], [1, -146]] },
         "Size": { "UDim2": [[0, 218], [0, 92]] },
         "Visible": false,
         "ZIndex": 15
@@ -371,7 +371,7 @@
         "BackgroundTransparency": 0.18,
         "BorderSizePixel": 0,
         "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
-        "Position": { "UDim2": [[0.5, 0], [1, -24]] },
+        "Position": { "UDim2": [[0.5, 0], [1, -146]] },
         "Size": { "UDim2": [[0.48, 0], [0, 38]] },
         "Text": "LMB / F ATTACK   |   Q DODGE",
         "TextColor3": [0.88, 0.92, 1],
@@ -565,21 +565,50 @@
       "ClassName": "Frame",
       "Properties": {
         "AnchorPoint": [0.5, 1],
-        "BackgroundTransparency": 1,
-        "Position": { "UDim2": [[0.5, 0], [1, -92]] },
-        "Size": { "UDim2": [[0, 276], [0, 74]] },
+        "BackgroundColor3": [0.025, 0.039, 0.055],
+        "BackgroundTransparency": 0.03,
+        "BorderSizePixel": 0,
+        "ClipsDescendants": true,
+        "Position": { "UDim2": [[0.5, 0], [1, -14]] },
+        "Size": { "UDim2": [[0.96, 0], [0, 116]] },
         "Visible": false,
         "ZIndex": 15
       },
       "Children": [
         {
-          "ClassName": "UIListLayout",
+          "ClassName": "UISizeConstraint",
           "Properties": {
+            "MaxSize": [392, 116],
+            "MinSize": [280, 96]
+          },
+          "Children": []
+        },
+        {
+          "ClassName": "UICorner",
+          "Properties": {
+            "CornerRadius": { "UDim": [0, 18] }
+          },
+          "Children": []
+        },
+        {
+          "ClassName": "UIStroke",
+          "Properties": {
+            "Color": [0.176, 0.733, 0.463],
+            "Thickness": 2,
+            "Transparency": 0.08
+          },
+          "Children": []
+        },
+        {
+          "ClassName": "UIGridLayout",
+          "Properties": {
+            "CellPadding": { "UDim2": [[0, 8], [0, 0]] },
+            "CellSize": { "UDim2": [[0.25, -10], [1, -20]] },
             "FillDirection": "Horizontal",
+            "FillDirectionMaxCells": 4,
             "HorizontalAlignment": "Center",
-            "Padding": { "UDim": [0, 8] },
             "SortOrder": "LayoutOrder",
-            "VerticalAlignment": "Bottom"
+            "VerticalAlignment": "Center"
           },
           "Children": []
         },
