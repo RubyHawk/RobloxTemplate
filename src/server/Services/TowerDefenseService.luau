@@ -206,6 +206,23 @@ local function profileTowerState(player: Player): Types.TowerDefenseSaveState?
 	return if profile then profile.towerDefense else nil
 end
 
+local function unlockedLoadoutSlots(td: Types.TowerDefenseSaveState): number
+	return math.clamp(
+		math.floor(td.unlockedLoadoutSlots),
+		Config.towerDefense.startingLoadoutSlots,
+		Config.towerDefense.loadoutSlots
+	)
+end
+
+local function nextLoadoutSlotCost(td: Types.TowerDefenseSaveState): number?
+	local unlocked = unlockedLoadoutSlots(td)
+	if unlocked >= Config.towerDefense.loadoutSlots then
+		return nil
+	end
+	local costIndex = unlocked - Config.towerDefense.startingLoadoutSlots + 1
+	return Config.towerDefense.loadoutSlotUnlockCosts[costIndex]
+end
+
 local function hasUnit(player: Player, unitId: string): boolean
 	local td = profileTowerState(player)
 	local entry = if td ~= nil then td.ownedUnits[unitId] else nil
@@ -240,11 +257,8 @@ local function setBestLoadout(player: Player): (boolean, string)
 	if td == nil then
 		return false, "Profile is not loaded"
 	end
-	td.loadout = TowerDefenseLogic.bestLoadout(
-		td.ownedUnits,
-		TowerDefenseCatalog.units,
-		Config.towerDefense.loadoutSlots
-	)
+	td.loadout =
+		TowerDefenseLogic.bestLoadout(td.ownedUnits, TowerDefenseCatalog.units, unlockedLoadoutSlots(td))
 	ProfileService.markDirty(player, "towerDefense:loadoutBest")
 	return true, `Equipped {#td.loadout} unit(s)`
 end
@@ -280,7 +294,8 @@ function TowerDefenseService.rollUnit(player: Player): (boolean, string)
 	local ownedCount = if entry == nil then 1 else math.min(entry.count + 1, 1e9)
 	profile.towerDefense.ownedUnits[unit.id] = { count = ownedCount }
 	if
-		#profile.towerDefense.loadout < Config.towerDefense.loadoutSlots and not inLoadout(player, unit.id)
+		#profile.towerDefense.loadout < unlockedLoadoutSlots(profile.towerDefense)
+		and not inLoadout(player, unit.id)
 	then
 		table.insert(profile.towerDefense.loadout, unit.id)
 	end
@@ -293,7 +308,7 @@ function TowerDefenseService.setLoadout(player: Player, unitIds: any): (boolean,
 	if td == nil then
 		return false, "Profile is not loaded"
 	end
-	local parsedUnitIds = TowerDefenseRequest.parseUnitIds(unitIds, Config.towerDefense.loadoutSlots)
+	local parsedUnitIds = TowerDefenseRequest.parseUnitIds(unitIds, unlockedLoadoutSlots(td))
 	if parsedUnitIds == nil then
 		return false, "Invalid loadout"
 	end
@@ -311,6 +326,34 @@ end
 
 function TowerDefenseService.equipBest(player: Player): (boolean, string)
 	return setBestLoadout(player)
+end
+
+function TowerDefenseService.unlockLoadoutSlot(player: Player): (boolean, string)
+	local td = profileTowerState(player)
+	if td == nil then
+		return false, "Profile is not loaded"
+	end
+	local unlocked = unlockedLoadoutSlots(td)
+	if unlocked >= Config.towerDefense.loadoutSlots then
+		return false, "All unit slots are already unlocked"
+	end
+	local cost = nextLoadoutSlotCost(td)
+	if type(cost) ~= "number" or cost ~= cost or cost <= 0 or cost == math.huge or cost == -math.huge then
+		return false, "The next unit slot is not configured"
+	end
+	if
+		not EconomyService.spendCurrency(
+			player,
+			Config.economy.primaryCurrencyId,
+			cost,
+			"towerDefense:unlockLoadoutSlot"
+		)
+	then
+		return false, "Not enough currency"
+	end
+	td.unlockedLoadoutSlots = unlocked + 1
+	ProfileService.markDirty(player, "towerDefense:unlockLoadoutSlot")
+	return true, `Unlocked unit slot {td.unlockedLoadoutSlots}`
 end
 
 local function placeUnitInternal(
@@ -384,14 +427,13 @@ function TowerDefenseService.placeUnit(player: Player, unitId: any, column: any,
 end
 
 function TowerDefenseService.autoPlaceBest(player: Player): (boolean, string)
-	local ok, message = setBestLoadout(player)
-	if not ok then
-		return false, message
-	end
 	local td = profileTowerState(player)
 	local grid = readGrid(player)
 	if td == nil or grid == nil then
 		return false, "Grid is unavailable"
+	end
+	if #td.loadout == 0 then
+		return false, "Select units for your loadout first"
 	end
 	local placed = 0
 	local unitIndex = 1
@@ -1031,7 +1073,9 @@ function TowerDefenseService.snapshotFor(player: Player): TowerDefenseClientStat
 		ownedUnits = profile.towerDefense.ownedUnits,
 		loadout = profile.towerDefense.loadout,
 		rollCost = Config.towerDefense.unitRollCost,
-		loadoutSlots = Config.towerDefense.loadoutSlots,
+		loadoutSlots = unlockedLoadoutSlots(profile.towerDefense),
+		maximumLoadoutSlots = Config.towerDefense.loadoutSlots,
+		nextLoadoutSlotCost = nextLoadoutSlotCost(profile.towerDefense),
 		baseHealth = match.baseHealth,
 		maxBaseHealth = Config.towerDefense.baseHealth,
 		wave = match.wave,

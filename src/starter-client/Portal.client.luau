@@ -18,7 +18,8 @@ if Config.features.dungeon ~= true then
 	return
 end
 
-local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
 -- Reserved dungeon servers never need lobby portal remotes or world visuals.
 -- Disable the authored sign whether it has replicated yet or arrives later,
@@ -60,6 +61,39 @@ local latestPortalNotice: string? = nil
 local portalNoticeRevision = 0
 local padChildAddedConnection: RBXScriptConnection? = nil
 local padChildRemovedConnection: RBXScriptConnection? = nil
+
+local function horizontalDistanceSquared(part: BasePart): number?
+	local character = player.Character
+	if character == nil then
+		return nil
+	end
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if root == nil or not root:IsA("BasePart") then
+		return nil
+	end
+	local offset = root.Position - part.Position
+	return offset.X * offset.X + offset.Z * offset.Z
+end
+
+-- The portal and rune altar sit beside each other. Prefer the portal card only
+-- while this is the closer station; the rune binder uses the inverse tie break.
+local function portalPromptHasPriority(): boolean
+	local currentPlatform = platform
+	if currentPlatform == nil then
+		return false
+	end
+	local portalDistance = horizontalDistanceSquared(currentPlatform)
+	if portalDistance == nil then
+		return true
+	end
+	local runeModel = Workspace:FindFirstChild("RuneCircle")
+	local runePlatform = if runeModel then runeModel:FindFirstChild("Platform") else nil
+	if runePlatform == nil or not runePlatform:IsA("BasePart") then
+		return true
+	end
+	local runeDistance = horizontalDistanceSquared(runePlatform)
+	return runeDistance == nil or portalDistance < runeDistance
+end
 
 local function textChild(parent: Instance?, name: string): TextLabel?
 	if parent == nil then
@@ -450,6 +484,10 @@ end)
 local clock = 0
 RunService.Heartbeat:Connect(function(deltaTime: number)
 	clock += deltaTime
+	local currentSign = sign
+	if currentSign ~= nil and currentSign.Parent ~= nil and currentSign.Adornee ~= nil then
+		currentSign.Enabled = portalPromptHasPriority()
+	end
 	local pulse = 0.5 + 0.5 * math.sin(clock * 2.2)
 	local currentGlow = glowRing
 	if currentGlow ~= nil and currentGlow.Parent ~= nil then

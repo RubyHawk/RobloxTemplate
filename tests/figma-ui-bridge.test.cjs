@@ -12,8 +12,8 @@ const readJson = (relativePath) => JSON.parse(fs.readFileSync(path.join(repo, re
 
 assert.deepEqual(
   bridge.displayCanvasSize({ ClassName: "ScreenGui", Properties: {} }),
-  { width: 1440, height: 900 },
-  "ScreenGui uses the editable HUD viewport"
+  { width: 1600, height: 900 },
+  "ScreenGui uses the 16:9 editable HUD viewport"
 );
 
 assert.deepEqual(
@@ -114,7 +114,7 @@ assert.throws(
 );
 
 const workspace = readJson("figma/workspaces/rng-defender.json");
-assert.equal(workspace.models.length, 11, "RNG Defender workspace includes every authored StarterGui root");
+assert.equal(workspace.models.length, 12, "RNG Defender workspace includes every authored StarterGui root");
 for (const definition of workspace.models) {
   const modelPath = path.join(repo, definition.path);
   assert.ok(fs.existsSync(modelPath), `workspace model exists: ${definition.path}`);
@@ -150,7 +150,7 @@ try {
   assert.equal(bundle.project, "patches/rng-defender-grid-demo.project.json");
   assert.equal(bundle.output, "build/RNGDefenderSafePatch.rbxlx");
   const expandedBundle = bridge.expandImportFiles([{ name: "workspace.json", text: JSON.stringify(bundle) }]);
-  assert.equal(expandedBundle.length, 11);
+  assert.equal(expandedBundle.length, 12);
   assert.ok(expandedBundle.every((item) => item.workspaceId === "rng-defender"));
 
   const duplicateWorkspacePath = path.join(temporary, "duplicate-workspace.json");

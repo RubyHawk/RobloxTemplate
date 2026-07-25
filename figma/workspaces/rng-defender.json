@@ -47,6 +47,11 @@
       "scope": "production"
     },
     {
+      "root": "TowerDefenseLoadoutHUD",
+      "path": "src/ui/TowerDefenseLoadoutHUD.model.json",
+      "scope": "production"
+    },
+    {
       "root": "PortalSign",
       "path": "src/ui/PortalSign.model.json",
       "scope": "production"

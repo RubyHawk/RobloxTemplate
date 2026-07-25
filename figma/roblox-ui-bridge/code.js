@@ -3,7 +3,7 @@ if (typeof figma !== "undefined") {
 }
 
 const NAMESPACE = "roblox_ui_bridge";
-const DEFAULT_VIEWPORT = { width: 1440, height: 900 };
+const DEFAULT_VIEWPORT = { width: 1600, height: 900 };
 const DEFAULT_SURFACE_CANVAS = { width: 800, height: 600 };
 const DEFAULT_BILLBOARD_PIXELS_PER_STUD = 100;
 const DISPLAY_CLASSES = new Set(["ScreenGui", "SurfaceGui", "BillboardGui"]);

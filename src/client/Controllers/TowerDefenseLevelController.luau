@@ -110,7 +110,7 @@ local function refresh()
 	statusLabel.Text = `{activeName}  |  WAVE {wave}/{waveCount}  |  BASE {baseHealth}/{maxBaseHealth}`
 	detailLabel.Text = if waveRunning
 		then `{enemyCount} enemies alive - clear the wave or reset to change levels`
-		else "Roll a unit, auto-place, then start the next wave"
+		else "Choose units below, then place manually or auto-place"
 
 	setActionEnabled(rollButton, not waveRunning, Color3.fromRGB(73, 116, 195))
 	setActionEnabled(autoPlaceButton, not waveRunning, Color3.fromRGB(72, 132, 196))

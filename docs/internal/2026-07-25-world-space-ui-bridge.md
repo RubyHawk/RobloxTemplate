@@ -6,7 +6,7 @@ Checked: 2026-07-25
 
 The local Figma bridge treats `ScreenGui`, `SurfaceGui`, and `BillboardGui` as display containers. It maps their authored child GUI objects into editable Figma artboards, but it does not patch display-container placement or runtime behavior.
 
-- `ScreenGui` uses the standard 1440x900 editing viewport.
+- `ScreenGui` uses the standard 1600x900 (16:9) editing viewport.
 - A fixed-size `SurfaceGui` uses `CanvasSize`.
 - A `PixelsPerStud` surface derives its editing canvas from the nearest authored part size and the selected face when that part is present in the imported model.
 - A `BillboardGui` uses authored pixel offsets, or a stable nominal pixel scale for studs-only sizing.

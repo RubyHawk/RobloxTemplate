@@ -7,7 +7,7 @@ local Config = require(script.Parent.TemplateConfig)
 local StageCatalog = require(script.Parent.StageCatalog)
 
 local Migrations = {}
-Migrations.CURRENT_VERSION = 8
+Migrations.CURRENT_VERSION = 9
 
 function Migrations.migrate(raw: any, now: number): any
 	local startingStageId = StageCatalog.defaultStageId()
@@ -72,6 +72,17 @@ function Migrations.migrate(raw: any, now: number): any
 	end
 	if previousVersion < 8 and type(profile.dungeon) ~= "table" then
 		profile.dungeon = { selectedBossId = "" }
+	end
+	if previousVersion < 9 then
+		local towerDefense = profile.towerDefense
+		local existingLoadoutCount = if type(towerDefense.loadout) == "table"
+			then #towerDefense.loadout
+			else 0
+		towerDefense.unlockedLoadoutSlots = math.clamp(
+			math.max(Config.towerDefense.startingLoadoutSlots, existingLoadoutCount),
+			Config.towerDefense.startingLoadoutSlots,
+			Config.towerDefense.loadoutSlots
+		)
 	end
 	return profile
 end

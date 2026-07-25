@@ -29,7 +29,7 @@ The current editable design target is [Roblox UI Preset Library v2](https://www.
 6. Click **Export Roblox UI patch**.
 7. Run `FIGMA_UI.cmd` and accept the newest downloaded patch.
 
-The RNG Defender bundle contains all 11 authored `StarterGui` roots: the main preset, loading UI, signs, rune UI, stage-owner billboards, tower-defense travel and level HUDs, dungeon HUD, and the Studio-only Stagewright playtest HUD.
+The RNG Defender bundle contains all 12 authored `StarterGui` roots: the main preset, loading UI, signs, rune UI, stage-owner billboards, tower-defense travel, level, and dynamic loadout HUDs, dungeon HUD, and the Studio-only Stagewright playtest HUD.
 
 The plugin places every artboard on the current Figma page. It does not create a page per model, so the workflow stays within Figma Starter's three-page limit. No Figma upgrade is required for the local import/export bridge.
 
@@ -37,6 +37,7 @@ The exported patch carries the RNG Defender workspace identity even when only on
 
 ## Surface and billboard sizing
 
+- A `ScreenGui` uses a 1600x900 (16:9) editing canvas. Roblox still lays it out against the live viewport at runtime.
 - A fixed-size `SurfaceGui` uses its authored `CanvasSize`.
 - A `SurfaceGui` using `PixelsPerStud` derives its Figma canvas from the nearest authored part size and selected face.
 - If the part or Adornee is outside the imported model, the bridge uses an 800x600 editing canvas. Roblox sizing remains unchanged until a mapped child is edited.

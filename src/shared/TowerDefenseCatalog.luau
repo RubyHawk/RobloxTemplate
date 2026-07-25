@@ -7,6 +7,7 @@ export type RarityDefinition = {
 	name: string,
 	weight: number,
 	sortOrder: number,
+	color: { number },
 }
 
 export type UnitDefinition = {
@@ -19,6 +20,10 @@ export type UnitDefinition = {
 	deployCost: number,
 	targeting: "First" | "Nearest",
 	rollWeight: number,
+	backgroundColor: { number },
+	accentColor: { number },
+	iconAssetId: string,
+	iconGlyph: string,
 }
 
 export type EnemyDefinition = {
@@ -40,10 +45,10 @@ export type WaveDefinition = {
 }
 
 local rarities: { RarityDefinition } = {
-	{ id = "common", name = "Common", weight = 7000, sortOrder = 1 },
-	{ id = "uncommon", name = "Uncommon", weight = 2200, sortOrder = 2 },
-	{ id = "rare", name = "Rare", weight = 700, sortOrder = 3 },
-	{ id = "epic", name = "Epic", weight = 100, sortOrder = 4 },
+	{ id = "common", name = "Common", weight = 7000, sortOrder = 1, color = { 110, 231, 183 } },
+	{ id = "uncommon", name = "Uncommon", weight = 2200, sortOrder = 2, color = { 96, 165, 250 } },
+	{ id = "rare", name = "Rare", weight = 700, sortOrder = 3, color = { 248, 113, 113 } },
+	{ id = "epic", name = "Epic", weight = 100, sortOrder = 4, color = { 216, 180, 254 } },
 }
 
 local units: { UnitDefinition } = {
@@ -57,6 +62,10 @@ local units: { UnitDefinition } = {
 		deployCost = 45,
 		targeting = "First",
 		rollWeight = 55,
+		backgroundColor = { 24, 82, 67 },
+		accentColor = { 52, 211, 153 },
+		iconAssetId = "",
+		iconGlyph = "FA",
 	},
 	{
 		id = "moss_guard",
@@ -68,6 +77,10 @@ local units: { UnitDefinition } = {
 		deployCost = 55,
 		targeting = "Nearest",
 		rollWeight = 45,
+		backgroundColor = { 35, 76, 72 },
+		accentColor = { 45, 212, 191 },
+		iconAssetId = "",
+		iconGlyph = "MG",
 	},
 	{
 		id = "vine_sniper",
@@ -79,6 +92,10 @@ local units: { UnitDefinition } = {
 		deployCost = 85,
 		targeting = "First",
 		rollWeight = 32,
+		backgroundColor = { 30, 64, 106 },
+		accentColor = { 96, 165, 250 },
+		iconAssetId = "",
+		iconGlyph = "VS",
 	},
 	{
 		id = "mushroom_bomber",
@@ -90,6 +107,10 @@ local units: { UnitDefinition } = {
 		deployCost = 120,
 		targeting = "Nearest",
 		rollWeight = 12,
+		backgroundColor = { 98, 38, 48 },
+		accentColor = { 248, 113, 113 },
+		iconAssetId = "",
+		iconGlyph = "MB",
 	},
 	{
 		id = "ancient_treant",
@@ -101,6 +122,10 @@ local units: { UnitDefinition } = {
 		deployCost = 180,
 		targeting = "First",
 		rollWeight = 3,
+		backgroundColor = { 76, 42, 105 },
+		accentColor = { 216, 180, 254 },
+		iconAssetId = "",
+		iconGlyph = "AT",
 	},
 }
 

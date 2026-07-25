@@ -10,9 +10,7 @@ local ResponsiveController = {}
 -- shorter side so a landscape phone is still treated as a small screen.
 local LANDSCAPE_ASPECT_RATIO = 1.1
 local COMPACT_SHORT_SIDE = 380
-local WIDE_SHORT_SIDE = 700
 local COMPACT_SCALE = 0.94
-local WIDE_SCALE = 1.06
 
 -- Clearance margins in the same offset units as the authored layout (see
 -- docs/internal/2026-07-01-responsive-orientation.md for how these were
@@ -48,8 +46,6 @@ local function deviceScaleFor(shortSide: number): number
 		return 1
 	elseif shortSide < COMPACT_SHORT_SIDE then
 		return COMPACT_SCALE
-	elseif shortSide > WIDE_SHORT_SIDE then
-		return WIDE_SCALE
 	end
 	return 1
 end
