@@ -3815,6 +3815,16 @@ expectEqual(
 	true,
 	"Figma apply path discovers authored preset folders"
 )
+expectEqual(
+	string.find(figmaUiSource, "figma-patch(?:", 1, true) ~= nil,
+	true,
+	"Figma apply path accepts both exported patch filename extensions"
+)
+expectEqual(
+	string.find(figmaUiSource, 'Write-Host ("Workspace: {0}"', 1, true) ~= nil,
+	true,
+	"Figma apply path prints the selected workspace before changing authored models"
+)
 
 local dataStoreRuntimeSource = fs.readFile("src/server/Util/DataStoreRuntime.luau")
 expectEqual(
@@ -4237,6 +4247,11 @@ expectEqual(
 	string.find(gridPatchProject, '"$ignoreUnknownInstances": true', 1, true) ~= nil,
 	true,
 	"RNG Defender patch preserves unknown Team Create instances"
+)
+expectEqual(
+	serde.decode("json", gridPatchProject).tree.StarterGui["$ignoreUnknownInstances"],
+	false,
+	"RNG Defender patch removes stale StarterGui roots while preserving the Team Create world"
 )
 expectEqual(
 	string.find(gridPatchProject, '"GridNpcDemo"', 1, true),
@@ -6643,6 +6658,8 @@ for _, requiredMarker in
 		"updateHudVisibility",
 		"modalNeedsHudHidden",
 		"safeWidthRaw",
+		"applyLeftIconRailLayout",
+		"hudRequiresModalClearance",
 	}
 do
 	expectEqual(
@@ -6685,6 +6702,12 @@ expectEqual(
 	string.find(figmaPatchApplier, '!String(node.ClassName).startsWith("Image")', 1, true) ~= nil,
 	true,
 	"Figma patch applier rejects image-placeholder fills from older patches"
+)
+expectEqual(
+	string.find(figmaPatchApplier, "reconcileSourceOnlyLayout", 1, true) ~= nil
+		and string.find(figmaPatchApplier, 'layoutNode.ClassName = "UIListLayout"', 1, true) ~= nil,
+	true,
+	"Figma patch applier keeps Roblox-only constraints and layouts aligned with imported visuals"
 )
 
 -- StoreScreen's header was 60 tall while its own Body label already
@@ -8764,7 +8787,7 @@ do
 		"the rune billboard yields to the nearer portal prompt instead of stacking world-space cards"
 	)
 	local incrementalUi = fs.readFile("src/ui/presets/incremental/TemplateUI.model.json")
-	for _, authoredHudObject in { '"Name": "RunesValue"', '"Name": "ChannelValue"' } do
+	for _, authoredHudObject in { '"RunesValue"', '"ChannelValue"' } do
 		expectEqual(
 			string.find(incrementalUi, authoredHudObject, 1, true) ~= nil,
 			true,
@@ -9576,6 +9599,10 @@ do
 			"DungeonPresentationActive",
 			"TowerPlatformPresentationActive",
 			"screenGui.Enabled = false",
+			"applyResponsiveLayout",
+			"shortLandscape",
+			"panelConstraint",
+			"FillDirectionMaxCells = 10",
 		}
 	do
 		expectEqual(
@@ -9657,6 +9684,12 @@ do
 			"TowerPlatformPresentationActive",
 			"StageGridRenderer.setPlacementMode(false, latestState)",
 			"screenGui.Enabled = false",
+			"templateNavigation.Visible = not presentationActive",
+			"templateNavigation = navigation",
+			"controlRowLayout",
+			"shortLandscape",
+			"SLOT_WIDTH = 96",
+			"SLOT_GAP = 12",
 		}
 	do
 		expectEqual(

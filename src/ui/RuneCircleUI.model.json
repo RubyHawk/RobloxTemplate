@@ -12,68 +12,26 @@
       "Name": "RevealCard",
       "ClassName": "Frame",
       "Properties": {
-        "AnchorPoint": [
-          0.5,
-          0.5
-        ],
-        "BackgroundColor3": [
-          0.018,
-          0.045,
-          0.028
-        ],
+        "AnchorPoint": [0.5, 0.5],
+        "BackgroundColor3": [0.06666667014360428, 0.07450980693101883, 0.0941176488995552],
         "BorderSizePixel": 0,
-        "Position": {
-          "UDim2": [
-            [
-              0.5,
-              0
-            ],
-            [
-              0.42,
-              0
-            ]
-          ]
-        },
-        "Size": {
-          "UDim2": [
-            [
-              0,
-              336
-            ],
-            [
-              0,
-              412
-            ]
-          ]
-        },
+        "Position": {"UDim2": [[0.5, 0], [0.5, -72]]},
+        "Size": {"UDim2": [[0, 336], [0, 412]]},
         "Visible": false,
         "ZIndex": 20,
-        "BackgroundTransparency": 0.2
+        "BackgroundTransparency": 0.029999971389770508
       },
       "Children": [
         {
           "ClassName": "UICorner",
           "Properties": {
-            "CornerRadius": {
-              "UDim": [
-                0,
-                16
-              ]
-            }
+            "CornerRadius": {"UDim": [0, 8]}
           },
           "Children": []
         },
         {
           "ClassName": "UIStroke",
-          "Properties": {
-            "Color": [
-              0.58,
-              0.95,
-              0.56
-            ],
-            "Thickness": 2,
-            "Transparency": 0.24
-          },
+          "Properties": {"Color": [0.16470588743686676, 0.1882352977991104, 0.21960784494876862], "Thickness": 2, "Transparency": 0.24},
           "Children": []
         },
         {
@@ -85,37 +43,20 @@
           "Name": "RarityBanner",
           "ClassName": "Frame",
           "Properties": {
-            "BackgroundColor3": [
-              0.035,
-              0.11,
-              0.052
-            ],
+            "BackgroundColor3": [0.4745098054409027, 0.32549020648002625, 0.7803921699523926],
             "BorderSizePixel": 0,
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  0
-                ],
-                [
-                  0,
-                  62
-                ]
-              ]
-            },
+            "Size": {"UDim2": [[1, 0], [0, 62]]},
             "ZIndex": 22,
-            "BackgroundTransparency": 0.16
+            "BackgroundTransparency": 0,
+            "AnchorPoint": [0, 0],
+            "Position": {"UDim2": [[0, 0], [0, 0]]},
+            "Visible": true
           },
           "Children": [
             {
               "ClassName": "UICorner",
               "Properties": {
-                "CornerRadius": {
-                  "UDim": [
-                    0,
-                    18
-                  ]
-                }
+                "CornerRadius": {"UDim": [0, 6]}
               },
               "Children": []
             },
@@ -124,37 +65,18 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/LuckiestGuy.json", "weight": "Regular", "style": "Normal"},
                 "Text": "RUNE",
                 "ZIndex": 23,
-                "Size": {
-                  "UDim2": [
-                    [
-                      1,
-                      0
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.86,
-                  1,
-                  0.78
-                ],
-                "TextSize": 22,
-                "TextStrokeColor3": [
-                  0.018,
-                  0.045,
-                  0.028
-                ],
-                "TextStrokeTransparency": 0.72
+                "Size": {"UDim2": [[1, 0], [1, 0]]},
+                "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
+                "TextSize": 30,
+                "TextStrokeColor3": [0.018, 0.045, 0.028],
+                "TextStrokeTransparency": 0.72,
+                "AnchorPoint": [0, 0],
+                "Position": {"UDim2": [[0, 0], [0, 0]]},
+                "Visible": true,
+                "TextXAlignment": "Center"
               },
               "Children": []
             },
@@ -162,34 +84,7 @@
               "ClassName": "UIGradient",
               "Properties": {
                 "Color": {
-                  "ColorSequence": {
-                    "keypoints": [
-                      {
-                        "time": 0,
-                        "color": [
-                          0.16,
-                          0.58,
-                          0.22
-                        ]
-                      },
-                      {
-                        "time": 0.45,
-                        "color": [
-                          0.16,
-                          0.58,
-                          0.22
-                        ]
-                      },
-                      {
-                        "time": 1,
-                        "color": [
-                          1,
-                          0.76,
-                          0.24
-                        ]
-                      }
-                    ]
-                  }
+                  "ColorSequence": {"keypoints": [{"time": 0, "color": [0.16, 0.58, 0.22]}, {"time": 0.45, "color": [0.16, 0.58, 0.22]}, {"time": 1, "color": [1, 0.76, 0.24]}]}
                 },
                 "Rotation": 0
               },
@@ -201,65 +96,27 @@
           "Name": "NewTag",
           "ClassName": "Frame",
           "Properties": {
-            "BackgroundColor3": [
-              1,
-              0.76,
-              0.24
-            ],
+            "BackgroundColor3": [0.9529411792755127, 0.7019608020782471, 0.19607843458652496],
             "BorderSizePixel": 0,
-            "Position": {
-              "UDim2": [
-                [
-                  1,
-                  -84
-                ],
-                [
-                  0,
-                  -14
-                ]
-              ]
-            },
+            "Position": {"UDim2": [[1, -8], [0, -14]]},
             "Rotation": 12,
-            "Size": {
-              "UDim2": [
-                [
-                  0,
-                  76
-                ],
-                [
-                  0,
-                  34
-                ]
-              ]
-            },
+            "Size": {"UDim2": [[0, 76], [0, 34]]},
             "Visible": false,
             "ZIndex": 25,
-            "BackgroundTransparency": 0.08
+            "BackgroundTransparency": 0,
+            "AnchorPoint": [1, 0]
           },
           "Children": [
             {
               "ClassName": "UICorner",
               "Properties": {
-                "CornerRadius": {
-                  "UDim": [
-                    1,
-                    0
-                  ]
-                }
+                "CornerRadius": {"UDim": [0, 5]}
               },
               "Children": []
             },
             {
               "ClassName": "UIStroke",
-              "Properties": {
-                "Color": [
-                  0.018,
-                  0.045,
-                  0.028
-                ],
-                "Thickness": 3,
-                "Transparency": 0
-              },
+              "Properties": {"Color": [0.5411764979362488, 0.3294117748737335, 0.10980392247438431], "Thickness": 1, "Transparency": 0},
               "Children": []
             },
             {
@@ -267,31 +124,16 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
                 "Text": "NEW!",
                 "ZIndex": 26,
-                "Size": {
-                  "UDim2": [
-                    [
-                      1,
-                      0
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.11,
-                  0.07,
-                  0.2
-                ],
-                "TextSize": 15
+                "Size": {"UDim2": [[1, 0], [1, 0]]},
+                "TextColor3": [0.1411764770746231, 0.08235294371843338, 0.019607843831181526],
+                "TextSize": 14,
+                "AnchorPoint": [0, 0],
+                "Position": {"UDim2": [[0, 0], [0, 0]]},
+                "Visible": true,
+                "TextXAlignment": "Center"
               },
               "Children": []
             }
@@ -301,65 +143,27 @@
           "Name": "PityTag",
           "ClassName": "Frame",
           "Properties": {
-            "BackgroundColor3": [
-              1,
-              0.76,
-              0.24
-            ],
+            "BackgroundColor3": [0.125490203499794, 0.1411764770746231, 0.16470588743686676],
             "BorderSizePixel": 0,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  8
-                ],
-                [
-                  0,
-                  -14
-                ]
-              ]
-            },
+            "Position": {"UDim2": [[0, 8], [0, -14]]},
             "Rotation": -8,
-            "Size": {
-              "UDim2": [
-                [
-                  0,
-                  124
-                ],
-                [
-                  0,
-                  30
-                ]
-              ]
-            },
+            "Size": {"UDim2": [[0, 124], [0, 30]]},
             "Visible": false,
             "ZIndex": 25,
-            "BackgroundTransparency": 0.08
+            "BackgroundTransparency": 0,
+            "AnchorPoint": [0, 0]
           },
           "Children": [
             {
               "ClassName": "UICorner",
               "Properties": {
-                "CornerRadius": {
-                  "UDim": [
-                    1,
-                    0
-                  ]
-                }
+                "CornerRadius": {"UDim": [0, 5]}
               },
               "Children": []
             },
             {
               "ClassName": "UIStroke",
-              "Properties": {
-                "Color": [
-                  0.018,
-                  0.045,
-                  0.028
-                ],
-                "Thickness": 3,
-                "Transparency": 0
-              },
+              "Properties": {"Color": [0.22745098173618317, 0.2549019753932953, 0.29019609093666077], "Thickness": 1, "Transparency": 0},
               "Children": []
             },
             {
@@ -367,31 +171,16 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
                 "Text": "GUARANTEED!",
                 "ZIndex": 26,
-                "Size": {
-                  "UDim2": [
-                    [
-                      1,
-                      0
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.86,
-                  1,
-                  0.78
-                ],
-                "TextSize": 15
+                "Size": {"UDim2": [[1, 0], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 14,
+                "AnchorPoint": [0, 0],
+                "Position": {"UDim2": [[0, 0], [0, 0]]},
+                "Visible": true,
+                "TextXAlignment": "Center"
               },
               "Children": []
             }
@@ -402,44 +191,17 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/FredokaOne.json",
-              "weight": "Regular",
-              "style": "Normal"
-            },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
             "Text": "?",
             "ZIndex": 21,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0,
-                  82
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  0
-                ],
-                [
-                  0,
-                  86
-                ]
-              ]
-            },
-            "TextColor3": [
-              1,
-              0.76,
-              0.24
-            ],
+            "Position": {"UDim2": [[0, 0], [0, 82]]},
+            "Size": {"UDim2": [[1, 0], [0, 86]]},
+            "TextColor3": [1, 0.7599999904632568, 0.23999999463558197],
             "TextSize": 72,
-            "TextStrokeTransparency": 0.45
+            "TextStrokeTransparency": 0.45,
+            "AnchorPoint": [0, 0],
+            "Visible": true,
+            "TextXAlignment": "Center"
           },
           "Children": []
         },
@@ -453,30 +215,9 @@
             "ScaleType": "Fit",
             "Visible": false,
             "ZIndex": 21,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0,
-                  86
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  0
-                ],
-                [
-                  0,
-                  78
-                ]
-              ]
-            }
+            "Position": {"UDim2": [[0, 0], [0, 86]]},
+            "Size": {"UDim2": [[1, 0], [0, 78]]},
+            "AnchorPoint": [0, 0]
           },
           "Children": []
         },
@@ -485,44 +226,17 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/FredokaOne.json",
-              "weight": "Regular",
-              "style": "Normal"
-            },
+            "FontFace": {"family": "rbxasset://fonts/families/LuckiestGuy.json", "weight": "Regular", "style": "Normal"},
             "Text": "RUNE",
             "ZIndex": 21,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  18
-                ],
-                [
-                  0,
-                  178
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -36
-                ],
-                [
-                  0,
-                  38
-                ]
-              ]
-            },
-            "TextColor3": [
-              0.86,
-              1,
-              0.78
-            ],
-            "TextSize": 22,
-            "TextStrokeTransparency": 0.72
+            "Position": {"UDim2": [[0, 18], [0.5, -9]]},
+            "Size": {"UDim2": [[1, -36], [0, 38]]},
+            "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
+            "TextSize": 28,
+            "TextStrokeTransparency": 0.72,
+            "AnchorPoint": [0, 0.5],
+            "Visible": true,
+            "TextXAlignment": "Center"
           },
           "Children": []
         },
@@ -531,44 +245,17 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/FredokaOne.json",
-              "weight": "Regular",
-              "style": "Normal"
-            },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
             "Text": "+0% GENERATION",
             "ZIndex": 21,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  18
-                ],
-                [
-                  0,
-                  218
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -36
-                ],
-                [
-                  0,
-                  30
-                ]
-              ]
-            },
-            "TextColor3": [
-              0.58,
-              0.95,
-              0.56
-            ],
-            "TextSize": 21,
-            "TextStrokeTransparency": 0.72
+            "Position": {"UDim2": [[0, 18], [0.5, 27]]},
+            "Size": {"UDim2": [[1, -36], [0, 30]]},
+            "TextColor3": [0.843137264251709, 0.7647058963775635, 1],
+            "TextSize": 18,
+            "TextStrokeTransparency": 0.72,
+            "AnchorPoint": [0, 0.5],
+            "Visible": true,
+            "TextXAlignment": "Center"
           },
           "Children": []
         },
@@ -577,44 +264,17 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/FredokaOne.json",
-              "weight": "Regular",
-              "style": "Normal"
-            },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
             "Text": "OWNED x1",
             "ZIndex": 21,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  18
-                ],
-                [
-                  0,
-                  252
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -24
-                ],
-                [
-                  0,
-                  26
-                ]
-              ]
-            },
-            "TextColor3": [
-              0.58,
-              0.95,
-              0.56
-            ],
-            "TextSize": 18,
-            "TextStrokeTransparency": 0.72
+            "Position": {"UDim2": [[0, 18], [0, 252]]},
+            "Size": {"UDim2": [[1, -24], [0, 26]]},
+            "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+            "TextSize": 15,
+            "TextStrokeTransparency": 0.72,
+            "AnchorPoint": [0, 0],
+            "Visible": true,
+            "TextXAlignment": "Center"
           },
           "Children": []
         },
@@ -623,45 +283,17 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/FredokaOne.json",
-              "weight": "Regular",
-              "style": "Normal"
-            },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
             "Text": "NEXT BONUS AT x5",
             "ZIndex": 21,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  18
-                ],
-                [
-                  0,
-                  280
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -24
-                ],
-                [
-                  0,
-                  24
-                ]
-              ]
-            },
-            "TextColor3": [
-              1,
-              0.76,
-              0.24
-            ],
-            "TextSize": 16,
+            "Position": {"UDim2": [[0, 18], [0, 280]]},
+            "Size": {"UDim2": [[1, -24], [0, 24]]},
+            "TextColor3": [0.9529411792755127, 0.7019608020782471, 0.19607843458652496],
+            "TextSize": 14,
             "TextStrokeTransparency": 0.72,
-            "Visible": false
+            "Visible": false,
+            "AnchorPoint": [0, 0],
+            "TextXAlignment": "Center"
           },
           "Children": []
         },
@@ -670,44 +302,17 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/FredokaOne.json",
-              "weight": "Regular",
-              "style": "Normal"
-            },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
             "Text": "RUNE BOOST x1.00",
             "ZIndex": 21,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  18
-                ],
-                [
-                  0,
-                  308
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -24
-                ],
-                [
-                  0,
-                  28
-                ]
-              ]
-            },
-            "TextColor3": [
-              0.58,
-              0.95,
-              0.56
-            ],
-            "TextSize": 19,
-            "TextStrokeTransparency": 0.72
+            "Position": {"UDim2": [[0, 18], [0, 308]]},
+            "Size": {"UDim2": [[1, -24], [0, 28]]},
+            "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+            "TextSize": 16,
+            "TextStrokeTransparency": 0.72,
+            "AnchorPoint": [0, 0],
+            "Visible": true,
+            "TextXAlignment": "Center"
           },
           "Children": []
         },
@@ -716,44 +321,17 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/FredokaOne.json",
-              "weight": "Regular",
-              "style": "Normal"
-            },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
             "Text": "NEXT RUNE: --",
             "ZIndex": 21,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  18
-                ],
-                [
-                  0,
-                  342
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -24
-                ],
-                [
-                  0,
-                  28
-                ]
-              ]
-            },
-            "TextColor3": [
-              1,
-              0.76,
-              0.24
-            ],
-            "TextSize": 18,
-            "TextStrokeTransparency": 0.72
+            "Position": {"UDim2": [[0, 18], [0, 342]]},
+            "Size": {"UDim2": [[1, -24], [0, 28]]},
+            "TextColor3": [0.9607843160629272, 0.7647058963775635, 0.2823529541492462],
+            "TextSize": 16,
+            "TextStrokeTransparency": 0.72,
+            "AnchorPoint": [0, 0],
+            "Visible": true,
+            "TextXAlignment": "Center"
           },
           "Children": []
         },
@@ -763,38 +341,14 @@
           "Properties": {
             "BackgroundTransparency": 1,
             "Image": "rbxassetid://125907024425133",
-            "ImageColor3": [
-              0.16,
-              0.58,
-              0.22
-            ],
+            "ImageColor3": [0.16, 0.58, 0.22],
             "ImageTransparency": 0.82,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  18
-                ],
-                [
-                  0,
-                  74
-                ]
-              ]
-            },
+            "Position": {"UDim2": [[0, 18], [0, 74]]},
             "ScaleType": "Fit",
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -36
-                ],
-                [
-                  0,
-                  170
-                ]
-              ]
-            },
-            "ZIndex": 20
+            "Size": {"UDim2": [[1, -36], [0, 170]]},
+            "ZIndex": 20,
+            "AnchorPoint": [0, 0],
+            "Visible": true
           },
           "Children": []
         },
@@ -802,44 +356,16 @@
           "Name": "RuneHalo",
           "ClassName": "ImageLabel",
           "Properties": {
-            "AnchorPoint": [
-              0.5,
-              0.5
-            ],
+            "AnchorPoint": [0.5, 0.5],
             "BackgroundTransparency": 1,
             "Image": "rbxassetid://111977708425543",
-            "ImageColor3": [
-              0.58,
-              0.95,
-              0.56
-            ],
+            "ImageColor3": [0.58, 0.95, 0.56],
             "ImageTransparency": 0.7,
-            "Position": {
-              "UDim2": [
-                [
-                  0.5,
-                  0
-                ],
-                [
-                  0,
-                  140
-                ]
-              ]
-            },
+            "Position": {"UDim2": [[0.5, 0], [0, 140]]},
             "ScaleType": "Fit",
-            "Size": {
-              "UDim2": [
-                [
-                  0,
-                  118
-                ],
-                [
-                  0,
-                  118
-                ]
-              ]
-            },
-            "ZIndex": 20
+            "Size": {"UDim2": [[0, 118], [0, 118]]},
+            "ZIndex": 20,
+            "Visible": true
           },
           "Children": []
         },
@@ -849,38 +375,14 @@
           "Properties": {
             "BackgroundTransparency": 1,
             "Image": "rbxassetid://125907024425133",
-            "ImageColor3": [
-              1,
-              0.76,
-              0.24
-            ],
+            "ImageColor3": [1, 0.76, 0.24],
             "ImageTransparency": 0.18,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  -12
-                ],
-                [
-                  0,
-                  -20
-                ]
-              ]
-            },
+            "Position": {"UDim2": [[0, -12], [0, -20]]},
             "ScaleType": "Fit",
-            "Size": {
-              "UDim2": [
-                [
-                  0,
-                  64
-                ],
-                [
-                  0,
-                  64
-                ]
-              ]
-            },
-            "ZIndex": 26
+            "Size": {"UDim2": [[0, 64], [0, 64]]},
+            "ZIndex": 26,
+            "AnchorPoint": [0, 0],
+            "Visible": true
           },
           "Children": []
         },
@@ -888,49 +390,20 @@
           "Name": "BottomGlow",
           "ClassName": "Frame",
           "Properties": {
-            "BackgroundColor3": [
-              0.16,
-              0.58,
-              0.22
-            ],
-            "BackgroundTransparency": 0.62,
+            "BackgroundColor3": [0.1599999964237213, 0.5799999833106995, 0.2199999988079071],
+            "BackgroundTransparency": 0.6200000047683716,
             "BorderSizePixel": 0,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  24
-                ],
-                [
-                  1,
-                  -34
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -48
-                ],
-                [
-                  0,
-                  5
-                ]
-              ]
-            },
-            "ZIndex": 21
+            "Position": {"UDim2": [[0, 24], [1, -29]]},
+            "Size": {"UDim2": [[1, -48], [0, 5]]},
+            "ZIndex": 21,
+            "AnchorPoint": [0, 1],
+            "Visible": false
           },
           "Children": [
             {
               "ClassName": "UICorner",
               "Properties": {
-                "CornerRadius": {
-                  "UDim": [
-                    0,
-                    8
-                  ]
-                }
+                "CornerRadius": {"UDim": [0, 8]}
               },
               "Children": []
             }
@@ -942,68 +415,26 @@
       "Name": "OddsPanel",
       "ClassName": "Frame",
       "Properties": {
-        "AnchorPoint": [
-          1,
-          0.5
-        ],
-        "BackgroundColor3": [
-          0.018,
-          0.045,
-          0.028
-        ],
+        "AnchorPoint": [1, 0.5],
+        "BackgroundColor3": [0.06666667014360428, 0.07450980693101883, 0.0941176488995552],
         "BorderSizePixel": 0,
-        "Position": {
-          "UDim2": [
-            [
-              1,
-              -18
-            ],
-            [
-              0.5,
-              0
-            ]
-          ]
-        },
-        "Size": {
-          "UDim2": [
-            [
-              0,
-              286
-            ],
-            [
-              0,
-              352
-            ]
-          ]
-        },
+        "Position": {"UDim2": [[1, -18], [0.5, 0]]},
+        "Size": {"UDim2": [[0, 286], [0, 352]]},
         "Visible": false,
         "ZIndex": 10,
-        "BackgroundTransparency": 0.18
+        "BackgroundTransparency": 0.029999971389770508
       },
       "Children": [
         {
           "ClassName": "UICorner",
           "Properties": {
-            "CornerRadius": {
-              "UDim": [
-                0,
-                14
-              ]
-            }
+            "CornerRadius": {"UDim": [0, 8]}
           },
           "Children": []
         },
         {
           "ClassName": "UIStroke",
-          "Properties": {
-            "Color": [
-              0.58,
-              0.95,
-              0.56
-            ],
-            "Thickness": 1.5,
-            "Transparency": 0.36
-          },
+          "Properties": {"Color": [0.16470588743686676, 0.1882352977991104, 0.21960784494876862], "Thickness": 2, "Transparency": 0.36},
           "Children": []
         },
         {
@@ -1011,45 +442,17 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/FredokaOne.json",
-              "weight": "Regular",
-              "style": "Normal"
-            },
+            "FontFace": {"family": "rbxasset://fonts/families/LuckiestGuy.json", "weight": "Regular", "style": "Normal"},
             "Text": "RUNE ODDS",
             "ZIndex": 11,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  22
-                ],
-                [
-                  0,
-                  10
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -44
-                ],
-                [
-                  0,
-                  28
-                ]
-              ]
-            },
-            "TextColor3": [
-              0.86,
-              1,
-              0.78
-            ],
-            "TextSize": 18,
+            "Position": {"UDim2": [[0, 22], [0, 10]]},
+            "Size": {"UDim2": [[1, -44], [0, 28]]},
+            "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
+            "TextSize": 24,
             "TextStrokeTransparency": 0.72,
-            "TextXAlignment": "Left"
+            "TextXAlignment": "Left",
+            "AnchorPoint": [0, 0],
+            "Visible": true
           },
           "Children": []
         },
@@ -1057,90 +460,34 @@
           "Name": "RarityRow1",
           "ClassName": "Frame",
           "Properties": {
-            "BackgroundTransparency": 0.88,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  22
-                ],
-                [
-                  0,
-                  48
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -34
-                ],
-                [
-                  0,
-                  34
-                ]
-              ]
-            },
+            "BackgroundTransparency": 0,
+            "Position": {"UDim2": [[0, 22], [0, 48]]},
+            "Size": {"UDim2": [[1, -34], [0, 34]]},
             "ZIndex": 11,
-            "BackgroundColor3": [
-              0.86,
-              1,
-              0.78
-            ],
-            "BorderSizePixel": 0
+            "BackgroundColor3": [0.10196078568696976, 0.11372549086809158, 0.13333334028720856],
+            "BorderSizePixel": 0,
+            "AnchorPoint": [0, 0],
+            "Visible": true
           },
           "Children": [
             {
               "Name": "Swatch",
               "ClassName": "Frame",
               "Properties": {
-                "AnchorPoint": [
-                  0,
-                  0.5
-                ],
-                "BackgroundColor3": [
-                  0.611764,
-                  0.639215,
-                  0.686274
-                ],
+                "AnchorPoint": [0, 0.5],
+                "BackgroundColor3": [0.6117640137672424, 0.6392149925231934, 0.686273992061615],
                 "BorderSizePixel": 0,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      8
-                    ],
-                    [
-                      0.5,
-                      -8
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      16
-                    ],
-                    [
-                      0,
-                      16
-                    ]
-                  ]
-                },
-                "ZIndex": 12
+                "Position": {"UDim2": [[0, 8], [0.5, -8]]},
+                "Size": {"UDim2": [[0, 16], [0, 16]]},
+                "ZIndex": 12,
+                "Visible": true,
+                "BackgroundTransparency": 0
               },
               "Children": [
                 {
                   "ClassName": "UICorner",
                   "Properties": {
-                    "CornerRadius": {
-                      "UDim": [
-                        1,
-                        0
-                      ]
-                    }
+                    "CornerRadius": {"UDim": [0, 16]}
                   },
                   "Children": []
                 }
@@ -1151,44 +498,16 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "COMMON",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      32
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      94
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.86,
-                  1,
-                  0.78
-                ],
-                "TextSize": 15,
-                "TextXAlignment": "Left"
+                "Position": {"UDim2": [[0, 32], [0, 0]]},
+                "Size": {"UDim2": [[0, 94], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 13,
+                "TextXAlignment": "Left",
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": []
             },
@@ -1197,44 +516,16 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "54%",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      128
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      58
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.58,
-                  0.95,
-                  0.56
-                ],
-                "TextSize": 15,
-                "TextXAlignment": "Right"
+                "Position": {"UDim2": [[0, 128], [0, 0]]},
+                "Size": {"UDim2": [[0, 58], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 13,
+                "TextXAlignment": "Right",
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": []
             },
@@ -1243,56 +534,23 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "x0",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      190
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      1,
-                      -190
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.58,
-                  0.95,
-                  0.56
-                ],
-                "TextSize": 15,
-                "TextXAlignment": "Right"
+                "Position": {"UDim2": [[1, 0], [0, 0]]},
+                "Size": {"UDim2": [[0, 62], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 13,
+                "TextXAlignment": "Right",
+                "AnchorPoint": [1, 0],
+                "Visible": true
               },
               "Children": []
             },
             {
               "ClassName": "UICorner",
               "Properties": {
-                "CornerRadius": {
-                  "UDim": [
-                    0,
-                    9
-                  ]
-                }
+                "CornerRadius": {"UDim": [0, 4]}
               },
               "Children": []
             }
@@ -1302,90 +560,34 @@
           "Name": "RarityRow2",
           "ClassName": "Frame",
           "Properties": {
-            "BackgroundTransparency": 0.88,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  22
-                ],
-                [
-                  0,
-                  88
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -34
-                ],
-                [
-                  0,
-                  34
-                ]
-              ]
-            },
+            "BackgroundTransparency": 0,
+            "Position": {"UDim2": [[0, 22], [0, 88]]},
+            "Size": {"UDim2": [[1, -34], [0, 34]]},
             "ZIndex": 11,
-            "BackgroundColor3": [
-              0.86,
-              1,
-              0.78
-            ],
-            "BorderSizePixel": 0
+            "BackgroundColor3": [0.08235294371843338, 0.0941176488995552, 0.11372549086809158],
+            "BorderSizePixel": 0,
+            "AnchorPoint": [0, 0],
+            "Visible": true
           },
           "Children": [
             {
               "Name": "Swatch",
               "ClassName": "Frame",
               "Properties": {
-                "AnchorPoint": [
-                  0,
-                  0.5
-                ],
-                "BackgroundColor3": [
-                  0.58,
-                  0.95,
-                  0.56
-                ],
+                "AnchorPoint": [0, 0.5],
+                "BackgroundColor3": [0.5799999833106995, 0.949999988079071, 0.5600000023841858],
                 "BorderSizePixel": 0,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      8
-                    ],
-                    [
-                      0.5,
-                      -8
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      16
-                    ],
-                    [
-                      0,
-                      16
-                    ]
-                  ]
-                },
-                "ZIndex": 12
+                "Position": {"UDim2": [[0, 8], [0.5, -8]]},
+                "Size": {"UDim2": [[0, 16], [0, 16]]},
+                "ZIndex": 12,
+                "Visible": true,
+                "BackgroundTransparency": 0
               },
               "Children": [
                 {
                   "ClassName": "UICorner",
                   "Properties": {
-                    "CornerRadius": {
-                      "UDim": [
-                        1,
-                        0
-                      ]
-                    }
+                    "CornerRadius": {"UDim": [0, 16]}
                   },
                   "Children": []
                 }
@@ -1396,44 +598,16 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "UNCOMMON",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      32
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      94
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.86,
-                  1,
-                  0.78
-                ],
-                "TextSize": 15,
-                "TextXAlignment": "Left"
+                "Position": {"UDim2": [[0, 32], [0, 0]]},
+                "Size": {"UDim2": [[0, 94], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 13,
+                "TextXAlignment": "Left",
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": []
             },
@@ -1442,44 +616,16 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "26%",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      128
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      58
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.58,
-                  0.95,
-                  0.56
-                ],
-                "TextSize": 15,
-                "TextXAlignment": "Right"
+                "Position": {"UDim2": [[0, 128], [0, 0]]},
+                "Size": {"UDim2": [[0, 58], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 13,
+                "TextXAlignment": "Right",
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": []
             },
@@ -1488,56 +634,23 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "x0",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      190
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      1,
-                      -190
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.58,
-                  0.95,
-                  0.56
-                ],
-                "TextSize": 15,
-                "TextXAlignment": "Right"
+                "Position": {"UDim2": [[1, 0], [0, 0]]},
+                "Size": {"UDim2": [[0, 62], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 13,
+                "TextXAlignment": "Right",
+                "AnchorPoint": [1, 0],
+                "Visible": true
               },
               "Children": []
             },
             {
               "ClassName": "UICorner",
               "Properties": {
-                "CornerRadius": {
-                  "UDim": [
-                    0,
-                    9
-                  ]
-                }
+                "CornerRadius": {"UDim": [0, 4]}
               },
               "Children": []
             }
@@ -1547,90 +660,34 @@
           "Name": "RarityRow3",
           "ClassName": "Frame",
           "Properties": {
-            "BackgroundTransparency": 0.88,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  22
-                ],
-                [
-                  0,
-                  128
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -34
-                ],
-                [
-                  0,
-                  34
-                ]
-              ]
-            },
+            "BackgroundTransparency": 0,
+            "Position": {"UDim2": [[0, 22], [0, 128]]},
+            "Size": {"UDim2": [[1, -34], [0, 34]]},
             "ZIndex": 11,
-            "BackgroundColor3": [
-              0.86,
-              1,
-              0.78
-            ],
-            "BorderSizePixel": 0
+            "BackgroundColor3": [0.10196078568696976, 0.11372549086809158, 0.13333334028720856],
+            "BorderSizePixel": 0,
+            "AnchorPoint": [0, 0],
+            "Visible": true
           },
           "Children": [
             {
               "Name": "Swatch",
               "ClassName": "Frame",
               "Properties": {
-                "AnchorPoint": [
-                  0,
-                  0.5
-                ],
-                "BackgroundColor3": [
-                  0.37647,
-                  0.647058,
-                  0.980392
-                ],
+                "AnchorPoint": [0, 0.5],
+                "BackgroundColor3": [0.37646999955177307, 0.6470580101013184, 0.9803919792175293],
                 "BorderSizePixel": 0,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      8
-                    ],
-                    [
-                      0.5,
-                      -8
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      16
-                    ],
-                    [
-                      0,
-                      16
-                    ]
-                  ]
-                },
-                "ZIndex": 12
+                "Position": {"UDim2": [[0, 8], [0.5, -8]]},
+                "Size": {"UDim2": [[0, 16], [0, 16]]},
+                "ZIndex": 12,
+                "Visible": true,
+                "BackgroundTransparency": 0
               },
               "Children": [
                 {
                   "ClassName": "UICorner",
                   "Properties": {
-                    "CornerRadius": {
-                      "UDim": [
-                        1,
-                        0
-                      ]
-                    }
+                    "CornerRadius": {"UDim": [0, 16]}
                   },
                   "Children": []
                 }
@@ -1641,44 +698,16 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "RARE",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      32
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      94
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.86,
-                  1,
-                  0.78
-                ],
-                "TextSize": 15,
-                "TextXAlignment": "Left"
+                "Position": {"UDim2": [[0, 32], [0, 0]]},
+                "Size": {"UDim2": [[0, 94], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 13,
+                "TextXAlignment": "Left",
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": []
             },
@@ -1687,44 +716,16 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "12.5%",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      128
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      58
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.58,
-                  0.95,
-                  0.56
-                ],
-                "TextSize": 15,
-                "TextXAlignment": "Right"
+                "Position": {"UDim2": [[0, 128], [0, 0]]},
+                "Size": {"UDim2": [[0, 58], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 13,
+                "TextXAlignment": "Right",
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": []
             },
@@ -1733,56 +734,23 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "x0",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      190
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      1,
-                      -190
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.58,
-                  0.95,
-                  0.56
-                ],
-                "TextSize": 15,
-                "TextXAlignment": "Right"
+                "Position": {"UDim2": [[1, 0], [0, 0]]},
+                "Size": {"UDim2": [[0, 62], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 13,
+                "TextXAlignment": "Right",
+                "AnchorPoint": [1, 0],
+                "Visible": true
               },
               "Children": []
             },
             {
               "ClassName": "UICorner",
               "Properties": {
-                "CornerRadius": {
-                  "UDim": [
-                    0,
-                    9
-                  ]
-                }
+                "CornerRadius": {"UDim": [0, 4]}
               },
               "Children": []
             }
@@ -1792,90 +760,34 @@
           "Name": "RarityRow4",
           "ClassName": "Frame",
           "Properties": {
-            "BackgroundTransparency": 0.88,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  22
-                ],
-                [
-                  0,
-                  168
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -34
-                ],
-                [
-                  0,
-                  34
-                ]
-              ]
-            },
+            "BackgroundTransparency": 0,
+            "Position": {"UDim2": [[0, 22], [0.5, 9]]},
+            "Size": {"UDim2": [[1, -34], [0, 34]]},
             "ZIndex": 11,
-            "BackgroundColor3": [
-              0.86,
-              1,
-              0.78
-            ],
-            "BorderSizePixel": 0
+            "BackgroundColor3": [0.08235294371843338, 0.0941176488995552, 0.11372549086809158],
+            "BorderSizePixel": 0,
+            "AnchorPoint": [0, 0.5],
+            "Visible": true
           },
           "Children": [
             {
               "Name": "Swatch",
               "ClassName": "Frame",
               "Properties": {
-                "AnchorPoint": [
-                  0,
-                  0.5
-                ],
-                "BackgroundColor3": [
-                  0.16,
-                  0.58,
-                  0.22
-                ],
+                "AnchorPoint": [0, 0.5],
+                "BackgroundColor3": [0.1599999964237213, 0.5799999833106995, 0.2199999988079071],
                 "BorderSizePixel": 0,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      8
-                    ],
-                    [
-                      0.5,
-                      -8
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      16
-                    ],
-                    [
-                      0,
-                      16
-                    ]
-                  ]
-                },
-                "ZIndex": 12
+                "Position": {"UDim2": [[0, 8], [0.5, -8]]},
+                "Size": {"UDim2": [[0, 16], [0, 16]]},
+                "ZIndex": 12,
+                "Visible": true,
+                "BackgroundTransparency": 0
               },
               "Children": [
                 {
                   "ClassName": "UICorner",
                   "Properties": {
-                    "CornerRadius": {
-                      "UDim": [
-                        1,
-                        0
-                      ]
-                    }
+                    "CornerRadius": {"UDim": [0, 16]}
                   },
                   "Children": []
                 }
@@ -1886,44 +798,16 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "EPIC",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      32
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      94
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.86,
-                  1,
-                  0.78
-                ],
-                "TextSize": 15,
-                "TextXAlignment": "Left"
+                "Position": {"UDim2": [[0, 32], [0, 0]]},
+                "Size": {"UDim2": [[0, 94], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 13,
+                "TextXAlignment": "Left",
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": []
             },
@@ -1932,44 +816,16 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "5.5%",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      128
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      58
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.58,
-                  0.95,
-                  0.56
-                ],
-                "TextSize": 15,
-                "TextXAlignment": "Right"
+                "Position": {"UDim2": [[0, 128], [0, 0]]},
+                "Size": {"UDim2": [[0, 58], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 13,
+                "TextXAlignment": "Right",
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": []
             },
@@ -1978,56 +834,23 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "x0",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      190
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      1,
-                      -190
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.58,
-                  0.95,
-                  0.56
-                ],
-                "TextSize": 15,
-                "TextXAlignment": "Right"
+                "Position": {"UDim2": [[1, 0], [0, 0]]},
+                "Size": {"UDim2": [[0, 62], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 13,
+                "TextXAlignment": "Right",
+                "AnchorPoint": [1, 0],
+                "Visible": true
               },
               "Children": []
             },
             {
               "ClassName": "UICorner",
               "Properties": {
-                "CornerRadius": {
-                  "UDim": [
-                    0,
-                    9
-                  ]
-                }
+                "CornerRadius": {"UDim": [0, 4]}
               },
               "Children": []
             }
@@ -2037,90 +860,34 @@
           "Name": "RarityRow5",
           "ClassName": "Frame",
           "Properties": {
-            "BackgroundTransparency": 0.88,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  22
-                ],
-                [
-                  0,
-                  208
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -34
-                ],
-                [
-                  0,
-                  34
-                ]
-              ]
-            },
+            "BackgroundTransparency": 0,
+            "Position": {"UDim2": [[0, 22], [0, 208]]},
+            "Size": {"UDim2": [[1, -34], [0, 34]]},
             "ZIndex": 11,
-            "BackgroundColor3": [
-              0.86,
-              1,
-              0.78
-            ],
-            "BorderSizePixel": 0
+            "BackgroundColor3": [0.10196078568696976, 0.11372549086809158, 0.13333334028720856],
+            "BorderSizePixel": 0,
+            "AnchorPoint": [0, 0],
+            "Visible": true
           },
           "Children": [
             {
               "Name": "Swatch",
               "ClassName": "Frame",
               "Properties": {
-                "AnchorPoint": [
-                  0,
-                  0.5
-                ],
-                "BackgroundColor3": [
-                  1,
-                  0.76,
-                  0.24
-                ],
+                "AnchorPoint": [0, 0.5],
+                "BackgroundColor3": [1, 0.7599999904632568, 0.23999999463558197],
                 "BorderSizePixel": 0,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      8
-                    ],
-                    [
-                      0.5,
-                      -8
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      16
-                    ],
-                    [
-                      0,
-                      16
-                    ]
-                  ]
-                },
-                "ZIndex": 12
+                "Position": {"UDim2": [[0, 8], [0.5, -8]]},
+                "Size": {"UDim2": [[0, 16], [0, 16]]},
+                "ZIndex": 12,
+                "Visible": true,
+                "BackgroundTransparency": 0
               },
               "Children": [
                 {
                   "ClassName": "UICorner",
                   "Properties": {
-                    "CornerRadius": {
-                      "UDim": [
-                        1,
-                        0
-                      ]
-                    }
+                    "CornerRadius": {"UDim": [0, 16]}
                   },
                   "Children": []
                 }
@@ -2131,44 +898,16 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "LEGENDARY",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      32
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      94
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.86,
-                  1,
-                  0.78
-                ],
-                "TextSize": 15,
-                "TextXAlignment": "Left"
+                "Position": {"UDim2": [[0, 32], [0, 0]]},
+                "Size": {"UDim2": [[0, 94], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 13,
+                "TextXAlignment": "Left",
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": []
             },
@@ -2177,44 +916,16 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "1.7%",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      128
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      58
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.58,
-                  0.95,
-                  0.56
-                ],
-                "TextSize": 15,
-                "TextXAlignment": "Right"
+                "Position": {"UDim2": [[0, 128], [0, 0]]},
+                "Size": {"UDim2": [[0, 58], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 13,
+                "TextXAlignment": "Right",
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": []
             },
@@ -2223,56 +934,23 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "x0",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      190
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      1,
-                      -190
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.58,
-                  0.95,
-                  0.56
-                ],
-                "TextSize": 15,
-                "TextXAlignment": "Right"
+                "Position": {"UDim2": [[1, 0], [0, 0]]},
+                "Size": {"UDim2": [[0, 62], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 13,
+                "TextXAlignment": "Right",
+                "AnchorPoint": [1, 0],
+                "Visible": true
               },
               "Children": []
             },
             {
               "ClassName": "UICorner",
               "Properties": {
-                "CornerRadius": {
-                  "UDim": [
-                    0,
-                    9
-                  ]
-                }
+                "CornerRadius": {"UDim": [0, 4]}
               },
               "Children": []
             }
@@ -2282,90 +960,34 @@
           "Name": "RarityRow6",
           "ClassName": "Frame",
           "Properties": {
-            "BackgroundTransparency": 0.88,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  22
-                ],
-                [
-                  0,
-                  248
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -34
-                ],
-                [
-                  0,
-                  34
-                ]
-              ]
-            },
+            "BackgroundTransparency": 0,
+            "Position": {"UDim2": [[0, 22], [0, 248]]},
+            "Size": {"UDim2": [[1, -34], [0, 34]]},
             "ZIndex": 11,
-            "BackgroundColor3": [
-              0.86,
-              1,
-              0.78
-            ],
-            "BorderSizePixel": 0
+            "BackgroundColor3": [0.08235294371843338, 0.0941176488995552, 0.11372549086809158],
+            "BorderSizePixel": 0,
+            "AnchorPoint": [0, 0],
+            "Visible": true
           },
           "Children": [
             {
               "Name": "Swatch",
               "ClassName": "Frame",
               "Properties": {
-                "AnchorPoint": [
-                  0,
-                  0.5
-                ],
-                "BackgroundColor3": [
-                  1,
-                  0.76,
-                  0.24
-                ],
+                "AnchorPoint": [0, 0.5],
+                "BackgroundColor3": [1, 0.7599999904632568, 0.23999999463558197],
                 "BorderSizePixel": 0,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      8
-                    ],
-                    [
-                      0.5,
-                      -8
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      16
-                    ],
-                    [
-                      0,
-                      16
-                    ]
-                  ]
-                },
-                "ZIndex": 12
+                "Position": {"UDim2": [[0, 8], [0.5, -8]]},
+                "Size": {"UDim2": [[0, 16], [0, 16]]},
+                "ZIndex": 12,
+                "Visible": true,
+                "BackgroundTransparency": 0
               },
               "Children": [
                 {
                   "ClassName": "UICorner",
                   "Properties": {
-                    "CornerRadius": {
-                      "UDim": [
-                        1,
-                        0
-                      ]
-                    }
+                    "CornerRadius": {"UDim": [0, 16]}
                   },
                   "Children": []
                 }
@@ -2376,44 +998,16 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "MYTHIC",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      32
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      94
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.86,
-                  1,
-                  0.78
-                ],
-                "TextSize": 15,
-                "TextXAlignment": "Left"
+                "Position": {"UDim2": [[0, 32], [0, 0]]},
+                "Size": {"UDim2": [[0, 94], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 13,
+                "TextXAlignment": "Left",
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": []
             },
@@ -2422,44 +1016,16 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "0.3%",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      128
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      58
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.58,
-                  0.95,
-                  0.56
-                ],
-                "TextSize": 15,
-                "TextXAlignment": "Right"
+                "Position": {"UDim2": [[0, 128], [0, 0]]},
+                "Size": {"UDim2": [[0, 58], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 13,
+                "TextXAlignment": "Right",
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": []
             },
@@ -2468,56 +1034,23 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "x0",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      190
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      1,
-                      -190
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.58,
-                  0.95,
-                  0.56
-                ],
-                "TextSize": 15,
-                "TextXAlignment": "Right"
+                "Position": {"UDim2": [[1, 0], [0, 0]]},
+                "Size": {"UDim2": [[0, 62], [1, 0]]},
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 13,
+                "TextXAlignment": "Right",
+                "AnchorPoint": [1, 0],
+                "Visible": true
               },
               "Children": []
             },
             {
               "ClassName": "UICorner",
               "Properties": {
-                "CornerRadius": {
-                  "UDim": [
-                    0,
-                    9
-                  ]
-                }
+                "CornerRadius": {"UDim": [0, 4]}
               },
               "Children": []
             }
@@ -2528,43 +1061,16 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/FredokaOne.json",
-              "weight": "Regular",
-              "style": "Normal"
-            },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
             "Text": "RUNE BOOST x1.00",
             "ZIndex": 11,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  22
-                ],
-                [
-                  1,
-                  -38
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -44
-                ],
-                [
-                  0,
-                  28
-                ]
-              ]
-            },
-            "TextColor3": [
-              0.58,
-              0.95,
-              0.56
-            ],
-            "TextSize": 17
+            "Position": {"UDim2": [[0, 22], [1, -10]]},
+            "Size": {"UDim2": [[1, -44], [0, 28]]},
+            "TextColor3": [0.5799999833106995, 0.949999988079071, 0.5600000023841858],
+            "TextSize": 17,
+            "AnchorPoint": [0, 1],
+            "Visible": true,
+            "TextXAlignment": "Center"
           },
           "Children": []
         },
@@ -2572,52 +1078,20 @@
           "Name": "RestrictedNote",
           "ClassName": "TextLabel",
           "Properties": {
-            "BackgroundColor3": [
-              0.035,
-              0.11,
-              0.052
-            ],
+            "BackgroundColor3": [0.035, 0.11, 0.052],
             "BackgroundTransparency": 0.2,
             "BorderSizePixel": 0,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/FredokaOne.json",
-              "weight": "Regular",
-              "style": "Normal"
-            },
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  10
-                ],
-                [
-                  0,
-                  44
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -20
-                ],
-                [
-                  0,
-                  240
-                ]
-              ]
-            },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
+            "Position": {"UDim2": [[0, 10], [0.5, -12]]},
+            "Size": {"UDim2": [[1, -20], [0, 240]]},
             "Text": "RUNE ROLLS ARE UNAVAILABLE FOR THIS ACCOUNT",
-            "TextColor3": [
-              1,
-              0.76,
-              0.24
-            ],
+            "TextColor3": [1, 0.7599999904632568, 0.23999999463558197],
             "TextSize": 20,
             "TextWrapped": true,
             "Visible": false,
-            "ZIndex": 14
+            "ZIndex": 14,
+            "AnchorPoint": [0, 0.5],
+            "TextXAlignment": "Center"
           },
           "Children": []
         },
@@ -2627,38 +1101,14 @@
           "Properties": {
             "BackgroundTransparency": 1,
             "Image": "rbxassetid://125907024425133",
-            "ImageColor3": [
-              0.16,
-              0.58,
-              0.22
-            ],
+            "ImageColor3": [0.16, 0.58, 0.22],
             "ImageTransparency": 0.88,
-            "Position": {
-              "UDim2": [
-                [
-                  1,
-                  -94
-                ],
-                [
-                  0,
-                  12
-                ]
-              ]
-            },
+            "Position": {"UDim2": [[1, -12], [0, 12]]},
             "ScaleType": "Fit",
-            "Size": {
-              "UDim2": [
-                [
-                  0,
-                  82
-                ],
-                [
-                  0,
-                  82
-                ]
-              ]
-            },
-            "ZIndex": 10
+            "Size": {"UDim2": [[0, 82], [0, 82]]},
+            "ZIndex": 10,
+            "AnchorPoint": [1, 0],
+            "Visible": true
           },
           "Children": []
         },
@@ -2666,49 +1116,20 @@
           "Name": "OddsRail",
           "ClassName": "Frame",
           "Properties": {
-            "BackgroundColor3": [
-              0.16,
-              0.58,
-              0.22
-            ],
-            "BackgroundTransparency": 0.58,
+            "BackgroundColor3": [0.1599999964237213, 0.5799999833106995, 0.2199999988079071],
+            "BackgroundTransparency": 0.5800000131130219,
             "BorderSizePixel": 0,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  14
-                ],
-                [
-                  0,
-                  42
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  0,
-                  4
-                ],
-                [
-                  1,
-                  -92
-                ]
-              ]
-            },
-            "ZIndex": 11
+            "Position": {"UDim2": [[0, 14], [0, 42]]},
+            "Size": {"UDim2": [[0, 4], [1, -92]]},
+            "ZIndex": 11,
+            "AnchorPoint": [0, 0],
+            "Visible": false
           },
           "Children": [
             {
               "ClassName": "UICorner",
               "Properties": {
-                "CornerRadius": {
-                  "UDim": [
-                    0,
-                    6
-                  ]
-                }
+                "CornerRadius": {"UDim": [0, 6]}
               },
               "Children": []
             }
@@ -2719,46 +1140,17 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/FredokaOne.json",
-              "weight": "Regular",
-              "style": "Normal"
-            },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
             "Text": "",
             "ZIndex": 11,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  22
-                ],
-                [
-                  1,
-                  -70
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -44
-                ],
-                [
-                  0,
-                  24
-                ]
-              ]
-            },
-            "TextColor3": [
-              1,
-              0.76,
-              0.24
-            ],
+            "Position": {"UDim2": [[0, 22], [1, -70]]},
+            "Size": {"UDim2": [[1, -44], [0, 24]]},
+            "TextColor3": [1, 0.7599999904632568, 0.23999999463558197],
             "TextSize": 14,
             "TextStrokeTransparency": 0.72,
             "TextXAlignment": "Left",
-            "Visible": false
+            "Visible": false,
+            "AnchorPoint": [0, 0]
           },
           "Children": []
         }
@@ -2768,68 +1160,26 @@
       "Name": "TotalChip",
       "ClassName": "Frame",
       "Properties": {
-        "AnchorPoint": [
-          1,
-          0
-        ],
-        "BackgroundColor3": [
-          0.035,
-          0.11,
-          0.052
-        ],
+        "AnchorPoint": [1, 0],
+        "BackgroundColor3": [0.125490203499794, 0.1411764770746231, 0.16470588743686676],
         "BorderSizePixel": 0,
-        "Position": {
-          "UDim2": [
-            [
-              1,
-              -18
-            ],
-            [
-              0,
-              18
-            ]
-          ]
-        },
-        "Size": {
-          "UDim2": [
-            [
-              0,
-              212
-            ],
-            [
-              0,
-              44
-            ]
-          ]
-        },
+        "Position": {"UDim2": [[1, -18], [0, 18]]},
+        "Size": {"UDim2": [[0, 212], [0, 44]]},
         "Visible": false,
         "ZIndex": 6,
-        "BackgroundTransparency": 0.18
+        "BackgroundTransparency": 0
       },
       "Children": [
         {
           "ClassName": "UICorner",
           "Properties": {
-            "CornerRadius": {
-              "UDim": [
-                1,
-                0
-              ]
-            }
+            "CornerRadius": {"UDim": [0, 6]}
           },
           "Children": []
         },
         {
           "ClassName": "UIStroke",
-          "Properties": {
-            "Color": [
-              0.58,
-              0.95,
-              0.56
-            ],
-            "Thickness": 3,
-            "Transparency": 0.3
-          },
+          "Properties": {"Color": [0.22745098173618317, 0.2549019753932953, 0.29019609093666077], "Thickness": 1, "Transparency": 0.3},
           "Children": []
         },
         {
@@ -2837,32 +1187,17 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/FredokaOne.json",
-              "weight": "Regular",
-              "style": "Normal"
-            },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
             "Text": "RUNE BOOST x1.00",
             "ZIndex": 7,
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  0
-                ],
-                [
-                  1,
-                  0
-                ]
-              ]
-            },
-            "TextColor3": [
-              0.86,
-              1,
-              0.78
-            ],
+            "Size": {"UDim2": [[1, 0], [1, 0]]},
+            "TextColor3": [0.8600000143051147, 1, 0.7799999713897705],
             "TextSize": 14,
-            "TextStrokeTransparency": 0.72
+            "TextStrokeTransparency": 0.72,
+            "AnchorPoint": [0, 0],
+            "Position": {"UDim2": [[0, 0], [0, 0]]},
+            "Visible": true,
+            "TextXAlignment": "Center"
           },
           "Children": []
         }
@@ -2872,41 +1207,12 @@
       "Name": "ModePanel",
       "ClassName": "Frame",
       "Properties": {
-        "AnchorPoint": [
-          1,
-          0
-        ],
-        "BackgroundColor3": [
-          0.018,
-          0.045,
-          0.028
-        ],
-        "BackgroundTransparency": 0.18,
+        "AnchorPoint": [1, 1],
+        "BackgroundColor3": [0.06666667014360428, 0.07450980693101883, 0.0941176488995552],
+        "BackgroundTransparency": 0.029999971389770508,
         "BorderSizePixel": 0,
-        "Position": {
-          "UDim2": [
-            [
-              1,
-              -18
-            ],
-            [
-              0.5,
-              186
-            ]
-          ]
-        },
-        "Size": {
-          "UDim2": [
-            [
-              0,
-              286
-            ],
-            [
-              0,
-              176
-            ]
-          ]
-        },
+        "Position": {"UDim2": [[1, -18], [1, -88]]},
+        "Size": {"UDim2": [[0, 286], [0, 176]]},
         "Visible": false,
         "ZIndex": 10
       },
@@ -2914,26 +1220,13 @@
         {
           "ClassName": "UICorner",
           "Properties": {
-            "CornerRadius": {
-              "UDim": [
-                0,
-                16
-              ]
-            }
+            "CornerRadius": {"UDim": [0, 8]}
           },
           "Children": []
         },
         {
           "ClassName": "UIStroke",
-          "Properties": {
-            "Color": [
-              0.58,
-              0.95,
-              0.56
-            ],
-            "Thickness": 2,
-            "Transparency": 0.24
-          },
+          "Properties": {"Color": [0.16470588743686676, 0.1882352977991104, 0.21960784494876862], "Thickness": 2, "Transparency": 0.24},
           "Children": []
         },
         {
@@ -2941,45 +1234,17 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/FredokaOne.json",
-              "weight": "Regular",
-              "style": "Normal"
-            },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
             "Text": "CHANNEL MODE",
             "ZIndex": 11,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  14
-                ],
-                [
-                  0,
-                  8
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -28
-                ],
-                [
-                  0,
-                  20
-                ]
-              ]
-            },
-            "TextColor3": [
-              0.86,
-              1,
-              0.78
-            ],
-            "TextSize": 16,
+            "Position": {"UDim2": [[0, 14], [0, 8]]},
+            "Size": {"UDim2": [[1, -28], [0, 20]]},
+            "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
+            "TextSize": 17,
             "TextStrokeTransparency": 0.72,
-            "TextXAlignment": "Left"
+            "TextXAlignment": "Left",
+            "AnchorPoint": [0, 0],
+            "Visible": true
           },
           "Children": []
         },
@@ -2988,51 +1253,25 @@
           "ClassName": "TextButton",
           "Properties": {
             "AutoButtonColor": true,
-            "BackgroundColor3": [
-              0.86,
-              1,
-              0.78
-            ],
+            "BackgroundColor3": [0.86, 1, 0.78],
             "BackgroundTransparency": 0.88,
             "BorderSizePixel": 0,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  14
-                ],
-                [
-                  0,
-                  32
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -28
-                ],
-                [
-                  0,
-                  22
-                ]
-              ]
-            },
+            "Position": {"UDim2": [[0, 14], [0, 32]]},
+            "Size": {"UDim2": [[1, -28], [0, 22]]},
             "Text": "",
             "Visible": false,
-            "ZIndex": 11
+            "ZIndex": 11,
+            "AnchorPoint": [0, 0],
+            "TextSize": 16,
+            "TextColor3": [0.05999999865889549, 0.05000000074505806, 0.11999999731779099],
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
+            "TextXAlignment": "Center"
           },
           "Children": [
             {
               "ClassName": "UICorner",
               "Properties": {
-                "CornerRadius": {
-                  "UDim": [
-                    0,
-                    8
-                  ]
-                }
+                "CornerRadius": {"UDim": [0, 8]}
               },
               "Children": []
             },
@@ -3040,49 +1279,20 @@
               "Name": "ActiveBar",
               "ClassName": "Frame",
               "Properties": {
-                "BackgroundColor3": [
-                  1,
-                  0.76,
-                  0.24
-                ],
+                "BackgroundColor3": [1, 0.7599999904632568, 0.23999999463558197],
                 "BorderSizePixel": 0,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      0
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      4
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
+                "Position": {"UDim2": [[0, 0], [0, 0]]},
+                "Size": {"UDim2": [[0, 4], [1, 0]]},
                 "Visible": false,
-                "ZIndex": 12
+                "ZIndex": 12,
+                "AnchorPoint": [0, 0],
+                "BackgroundTransparency": 0
               },
               "Children": [
                 {
                   "ClassName": "UICorner",
                   "Properties": {
-                    "CornerRadius": {
-                      "UDim": [
-                        0,
-                        2
-                      ]
-                    }
+                    "CornerRadius": {"UDim": [0, 2]}
                   },
                   "Children": []
                 }
@@ -3093,45 +1303,17 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "MODE",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      12
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      1,
-                      -70
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.86,
-                  1,
-                  0.78
-                ],
+                "Position": {"UDim2": [[0, 12], [0, 0]]},
+                "Size": {"UDim2": [[1, -70], [1, 0]]},
+                "TextColor3": [0.8600000143051147, 1, 0.7799999713897705],
                 "TextSize": 15,
                 "TextStrokeTransparency": 0.72,
-                "TextXAlignment": "Left"
+                "TextXAlignment": "Left",
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": []
             },
@@ -3140,46 +1322,17 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "LOCKED",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      1,
-                      -58
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      50
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.58,
-                  0.95,
-                  0.56
-                ],
+                "Position": {"UDim2": [[1, -8], [0, 0]]},
+                "Size": {"UDim2": [[0, 50], [1, 0]]},
+                "TextColor3": [0.5799999833106995, 0.949999988079071, 0.5600000023841858],
                 "TextSize": 13,
                 "TextStrokeTransparency": 0.72,
                 "TextXAlignment": "Right",
-                "Visible": false
+                "Visible": false,
+                "AnchorPoint": [1, 0]
               },
               "Children": []
             }
@@ -3190,51 +1343,25 @@
           "ClassName": "TextButton",
           "Properties": {
             "AutoButtonColor": true,
-            "BackgroundColor3": [
-              0.86,
-              1,
-              0.78
-            ],
+            "BackgroundColor3": [0.86, 1, 0.78],
             "BackgroundTransparency": 0.88,
             "BorderSizePixel": 0,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  14
-                ],
-                [
-                  0,
-                  58
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -28
-                ],
-                [
-                  0,
-                  22
-                ]
-              ]
-            },
+            "Position": {"UDim2": [[0, 14], [0.5, -19]]},
+            "Size": {"UDim2": [[1, -28], [0, 22]]},
             "Text": "",
             "Visible": false,
-            "ZIndex": 11
+            "ZIndex": 11,
+            "AnchorPoint": [0, 0.5],
+            "TextSize": 16,
+            "TextColor3": [0.05999999865889549, 0.05000000074505806, 0.11999999731779099],
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
+            "TextXAlignment": "Center"
           },
           "Children": [
             {
               "ClassName": "UICorner",
               "Properties": {
-                "CornerRadius": {
-                  "UDim": [
-                    0,
-                    8
-                  ]
-                }
+                "CornerRadius": {"UDim": [0, 8]}
               },
               "Children": []
             },
@@ -3242,49 +1369,20 @@
               "Name": "ActiveBar",
               "ClassName": "Frame",
               "Properties": {
-                "BackgroundColor3": [
-                  1,
-                  0.76,
-                  0.24
-                ],
+                "BackgroundColor3": [1, 0.7599999904632568, 0.23999999463558197],
                 "BorderSizePixel": 0,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      0
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      4
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
+                "Position": {"UDim2": [[0, 0], [0, 0]]},
+                "Size": {"UDim2": [[0, 4], [1, 0]]},
                 "Visible": false,
-                "ZIndex": 12
+                "ZIndex": 12,
+                "AnchorPoint": [0, 0],
+                "BackgroundTransparency": 0
               },
               "Children": [
                 {
                   "ClassName": "UICorner",
                   "Properties": {
-                    "CornerRadius": {
-                      "UDim": [
-                        0,
-                        2
-                      ]
-                    }
+                    "CornerRadius": {"UDim": [0, 2]}
                   },
                   "Children": []
                 }
@@ -3295,45 +1393,17 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "MODE",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      12
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      1,
-                      -70
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.86,
-                  1,
-                  0.78
-                ],
+                "Position": {"UDim2": [[0, 12], [0, 0]]},
+                "Size": {"UDim2": [[1, -70], [1, 0]]},
+                "TextColor3": [0.8600000143051147, 1, 0.7799999713897705],
                 "TextSize": 15,
                 "TextStrokeTransparency": 0.72,
-                "TextXAlignment": "Left"
+                "TextXAlignment": "Left",
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": []
             },
@@ -3342,46 +1412,17 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "LOCKED",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      1,
-                      -58
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      50
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.58,
-                  0.95,
-                  0.56
-                ],
+                "Position": {"UDim2": [[1, -8], [0, 0]]},
+                "Size": {"UDim2": [[0, 50], [1, 0]]},
+                "TextColor3": [0.5799999833106995, 0.949999988079071, 0.5600000023841858],
                 "TextSize": 13,
                 "TextStrokeTransparency": 0.72,
                 "TextXAlignment": "Right",
-                "Visible": false
+                "Visible": false,
+                "AnchorPoint": [1, 0]
               },
               "Children": []
             }
@@ -3392,51 +1433,25 @@
           "ClassName": "TextButton",
           "Properties": {
             "AutoButtonColor": true,
-            "BackgroundColor3": [
-              0.86,
-              1,
-              0.78
-            ],
+            "BackgroundColor3": [0.86, 1, 0.78],
             "BackgroundTransparency": 0.88,
             "BorderSizePixel": 0,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  14
-                ],
-                [
-                  0,
-                  84
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -28
-                ],
-                [
-                  0,
-                  22
-                ]
-              ]
-            },
+            "Position": {"UDim2": [[0, 14], [0.5, 7]]},
+            "Size": {"UDim2": [[1, -28], [0, 22]]},
             "Text": "",
             "Visible": false,
-            "ZIndex": 11
+            "ZIndex": 11,
+            "AnchorPoint": [0, 0.5],
+            "TextSize": 16,
+            "TextColor3": [0.05999999865889549, 0.05000000074505806, 0.11999999731779099],
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
+            "TextXAlignment": "Center"
           },
           "Children": [
             {
               "ClassName": "UICorner",
               "Properties": {
-                "CornerRadius": {
-                  "UDim": [
-                    0,
-                    8
-                  ]
-                }
+                "CornerRadius": {"UDim": [0, 8]}
               },
               "Children": []
             },
@@ -3444,49 +1459,20 @@
               "Name": "ActiveBar",
               "ClassName": "Frame",
               "Properties": {
-                "BackgroundColor3": [
-                  1,
-                  0.76,
-                  0.24
-                ],
+                "BackgroundColor3": [1, 0.7599999904632568, 0.23999999463558197],
                 "BorderSizePixel": 0,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      0
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      4
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
+                "Position": {"UDim2": [[0, 0], [0, 0]]},
+                "Size": {"UDim2": [[0, 4], [1, 0]]},
                 "Visible": false,
-                "ZIndex": 12
+                "ZIndex": 12,
+                "AnchorPoint": [0, 0],
+                "BackgroundTransparency": 0
               },
               "Children": [
                 {
                   "ClassName": "UICorner",
                   "Properties": {
-                    "CornerRadius": {
-                      "UDim": [
-                        0,
-                        2
-                      ]
-                    }
+                    "CornerRadius": {"UDim": [0, 2]}
                   },
                   "Children": []
                 }
@@ -3497,45 +1483,17 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "MODE",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      12
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      1,
-                      -70
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.86,
-                  1,
-                  0.78
-                ],
+                "Position": {"UDim2": [[0, 12], [0, 0]]},
+                "Size": {"UDim2": [[1, -70], [1, 0]]},
+                "TextColor3": [0.8600000143051147, 1, 0.7799999713897705],
                 "TextSize": 15,
                 "TextStrokeTransparency": 0.72,
-                "TextXAlignment": "Left"
+                "TextXAlignment": "Left",
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": []
             },
@@ -3544,46 +1502,17 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "LOCKED",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      1,
-                      -58
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      50
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.58,
-                  0.95,
-                  0.56
-                ],
+                "Position": {"UDim2": [[1, -8], [0, 0]]},
+                "Size": {"UDim2": [[0, 50], [1, 0]]},
+                "TextColor3": [0.5799999833106995, 0.949999988079071, 0.5600000023841858],
                 "TextSize": 13,
                 "TextStrokeTransparency": 0.72,
                 "TextXAlignment": "Right",
-                "Visible": false
+                "Visible": false,
+                "AnchorPoint": [1, 0]
               },
               "Children": []
             }
@@ -3594,51 +1523,25 @@
           "ClassName": "TextButton",
           "Properties": {
             "AutoButtonColor": true,
-            "BackgroundColor3": [
-              0.86,
-              1,
-              0.78
-            ],
+            "BackgroundColor3": [0.86, 1, 0.78],
             "BackgroundTransparency": 0.88,
             "BorderSizePixel": 0,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  14
-                ],
-                [
-                  0,
-                  110
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -28
-                ],
-                [
-                  0,
-                  22
-                ]
-              ]
-            },
+            "Position": {"UDim2": [[0, 14], [0, 110]]},
+            "Size": {"UDim2": [[1, -28], [0, 22]]},
             "Text": "",
             "Visible": false,
-            "ZIndex": 11
+            "ZIndex": 11,
+            "AnchorPoint": [0, 0],
+            "TextSize": 16,
+            "TextColor3": [0.05999999865889549, 0.05000000074505806, 0.11999999731779099],
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
+            "TextXAlignment": "Center"
           },
           "Children": [
             {
               "ClassName": "UICorner",
               "Properties": {
-                "CornerRadius": {
-                  "UDim": [
-                    0,
-                    8
-                  ]
-                }
+                "CornerRadius": {"UDim": [0, 8]}
               },
               "Children": []
             },
@@ -3646,49 +1549,20 @@
               "Name": "ActiveBar",
               "ClassName": "Frame",
               "Properties": {
-                "BackgroundColor3": [
-                  1,
-                  0.76,
-                  0.24
-                ],
+                "BackgroundColor3": [1, 0.7599999904632568, 0.23999999463558197],
                 "BorderSizePixel": 0,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      0
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      4
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
+                "Position": {"UDim2": [[0, 0], [0, 0]]},
+                "Size": {"UDim2": [[0, 4], [1, 0]]},
                 "Visible": false,
-                "ZIndex": 12
+                "ZIndex": 12,
+                "AnchorPoint": [0, 0],
+                "BackgroundTransparency": 0
               },
               "Children": [
                 {
                   "ClassName": "UICorner",
                   "Properties": {
-                    "CornerRadius": {
-                      "UDim": [
-                        0,
-                        2
-                      ]
-                    }
+                    "CornerRadius": {"UDim": [0, 2]}
                   },
                   "Children": []
                 }
@@ -3699,45 +1573,17 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "MODE",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      12
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      1,
-                      -70
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.86,
-                  1,
-                  0.78
-                ],
+                "Position": {"UDim2": [[0, 12], [0, 0]]},
+                "Size": {"UDim2": [[1, -70], [1, 0]]},
+                "TextColor3": [0.8600000143051147, 1, 0.7799999713897705],
                 "TextSize": 15,
                 "TextStrokeTransparency": 0.72,
-                "TextXAlignment": "Left"
+                "TextXAlignment": "Left",
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": []
             },
@@ -3746,46 +1592,17 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "LOCKED",
                 "ZIndex": 12,
-                "Position": {
-                  "UDim2": [
-                    [
-                      1,
-                      -58
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      50
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.58,
-                  0.95,
-                  0.56
-                ],
+                "Position": {"UDim2": [[1, -8], [0, 0]]},
+                "Size": {"UDim2": [[0, 50], [1, 0]]},
+                "TextColor3": [0.5799999833106995, 0.949999988079071, 0.5600000023841858],
                 "TextSize": 13,
                 "TextStrokeTransparency": 0.72,
                 "TextXAlignment": "Right",
-                "Visible": false
+                "Visible": false,
+                "AnchorPoint": [1, 0]
               },
               "Children": []
             }
@@ -3795,49 +1612,20 @@
           "Name": "MomentumMeter",
           "ClassName": "Frame",
           "Properties": {
-            "BackgroundColor3": [
-              0.035,
-              0.11,
-              0.052
-            ],
-            "BackgroundTransparency": 0.16,
+            "BackgroundColor3": [0.03500000014901161, 0.10999999940395355, 0.052000001072883606],
+            "BackgroundTransparency": 0.1600000262260437,
             "BorderSizePixel": 0,
-            "Position": {
-              "UDim2": [
-                [
-                  0,
-                  14
-                ],
-                [
-                  0,
-                  142
-                ]
-              ]
-            },
-            "Size": {
-              "UDim2": [
-                [
-                  1,
-                  -28
-                ],
-                [
-                  0,
-                  24
-                ]
-              ]
-            },
-            "ZIndex": 11
+            "Position": {"UDim2": [[0, 14], [1, -10]]},
+            "Size": {"UDim2": [[1, -28], [0, 24]]},
+            "ZIndex": 11,
+            "AnchorPoint": [0, 1],
+            "Visible": true
           },
           "Children": [
             {
               "ClassName": "UICorner",
               "Properties": {
-                "CornerRadius": {
-                  "UDim": [
-                    0,
-                    8
-                  ]
-                }
+                "CornerRadius": {"UDim": [0, 8]}
               },
               "Children": []
             },
@@ -3845,49 +1633,20 @@
               "Name": "Fill",
               "ClassName": "Frame",
               "Properties": {
-                "BackgroundColor3": [
-                  0.58,
-                  0.95,
-                  0.56
-                ],
-                "BackgroundTransparency": 0.35,
+                "BackgroundColor3": [0.5799999833106995, 0.949999988079071, 0.5600000023841858],
+                "BackgroundTransparency": 0.3500000238418579,
                 "BorderSizePixel": 0,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      0
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0,
-                      0
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "ZIndex": 12
+                "Position": {"UDim2": [[0, 0], [0, 0]]},
+                "Size": {"UDim2": [[0, 1], [1, 0]]},
+                "ZIndex": 12,
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": [
                 {
                   "ClassName": "UICorner",
                   "Properties": {
-                    "CornerRadius": {
-                      "UDim": [
-                        0,
-                        8
-                      ]
-                    }
+                    "CornerRadius": {"UDim": [0, 8]}
                   },
                   "Children": []
                 }
@@ -3898,45 +1657,17 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "TIER 0",
                 "ZIndex": 13,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0,
-                      10
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0.5,
-                      -10
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.86,
-                  1,
-                  0.78
-                ],
+                "Position": {"UDim2": [[0, 10], [0, 0]]},
+                "Size": {"UDim2": [[0.5, -10], [1, 0]]},
+                "TextColor3": [0.8600000143051147, 1, 0.7799999713897705],
                 "TextSize": 13,
                 "TextStrokeTransparency": 0.72,
-                "TextXAlignment": "Left"
+                "TextXAlignment": "Left",
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": []
             },
@@ -3945,45 +1676,17 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
                 "Text": "",
                 "ZIndex": 13,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0.5,
-                      0
-                    ],
-                    [
-                      0,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0.5,
-                      -10
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "TextColor3": [
-                  0.86,
-                  1,
-                  0.78
-                ],
+                "Position": {"UDim2": [[0.5, 0], [0, 0]]},
+                "Size": {"UDim2": [[0.5, -10], [1, 0]]},
+                "TextColor3": [0.8600000143051147, 1, 0.7799999713897705],
                 "TextSize": 13,
                 "TextStrokeTransparency": 0.72,
-                "TextXAlignment": "Right"
+                "TextXAlignment": "Right",
+                "AnchorPoint": [0, 0],
+                "Visible": true
               },
               "Children": []
             }
@@ -3999,25 +1702,19 @@
         {
           "Name": "RollPlayer",
           "ClassName": "AudioPlayer",
-          "Properties": {
-            "Volume": 0.6
-          },
+          "Properties": {"Volume": 0.6},
           "Children": []
         },
         {
           "Name": "RevealPlayer",
           "ClassName": "AudioPlayer",
-          "Properties": {
-            "Volume": 0.7
-          },
+          "Properties": {"Volume": 0.7},
           "Children": []
         },
         {
           "Name": "RarePlayer",
           "ClassName": "AudioPlayer",
-          "Properties": {
-            "Volume": 0.8
-          },
+          "Properties": {"Volume": 0.8},
           "Children": []
         },
         {

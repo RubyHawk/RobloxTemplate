@@ -13,31 +13,30 @@
       "ClassName": "Frame",
       "Properties": {
         "AnchorPoint": [1, 0],
-        "BackgroundColor3": [0.035, 0.055, 0.075],
-        "BackgroundTransparency": 0.04,
+        "BackgroundColor3": [0.06666667014360428, 0.07450980693101883, 0.0941176488995552],
+        "BackgroundTransparency": 0.029999971389770508,
         "BorderSizePixel": 0,
-        "Position": { "UDim2": [[1, -18], [0, 18]] },
-        "Size": { "UDim2": [[0, 400], [0, 326]] }
+        "Position": {"UDim2": [[1, -18], [0, 18]]},
+        "Size": {"UDim2": [[0, 400], [0, 326]]},
+        "Visible": true
       },
       "Children": [
         {
           "Name": "InterfaceScale",
           "ClassName": "UIScale",
-          "Properties": { "Scale": 1 },
+          "Properties": {"Scale": 1},
           "Children": []
         },
         {
           "ClassName": "UICorner",
-          "Properties": { "CornerRadius": { "UDim": [0, 14] } },
+          "Properties": {
+            "CornerRadius": {"UDim": [0, 8]}
+          },
           "Children": []
         },
         {
           "ClassName": "UIStroke",
-          "Properties": {
-            "Color": [0.176, 0.733, 0.463],
-            "Thickness": 2,
-            "Transparency": 0.08
-          },
+          "Properties": {"Color": [0.16470588743686676, 0.1882352977991104, 0.21960784494876862], "Thickness": 2, "Transparency": 0.08},
           "Children": []
         },
         {
@@ -45,13 +44,15 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
-            "Position": { "UDim2": [[0, 16], [0, 12]] },
-            "Size": { "UDim2": [[1, -32], [0, 27]] },
+            "FontFace": {"family": "rbxasset://fonts/families/LuckiestGuy.json", "weight": "Regular", "style": "Normal"},
+            "Position": {"UDim2": [[0, 0], [0, 0]]},
+            "Size": {"UDim2": [[1, 0], [0, 50]]},
             "Text": "STAGEWRIGHT  •  MOB PLAYTEST",
-            "TextColor3": [0.91, 0.97, 0.95],
-            "TextSize": 18,
-            "TextXAlignment": "Left"
+            "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
+            "TextSize": 22,
+            "TextXAlignment": "Left",
+            "AnchorPoint": [0, 0],
+            "Visible": true
           },
           "Children": []
         },
@@ -60,14 +61,16 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Medium", "style": "Normal" },
-            "Position": { "UDim2": [[0, 16], [0, 40]] },
-            "Size": { "UDim2": [[1, -32], [0, 20]] },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "SemiBold", "style": "Normal"},
+            "Position": {"UDim2": [[0, 16], [0, 58]]},
+            "Size": {"UDim2": [[1, -32], [0, 20]]},
             "Text": "NO PREPARED SNAPSHOT",
-            "TextColor3": [0.42, 0.86, 0.65],
-            "TextSize": 11,
+            "TextColor3": [0.6666666865348816, 0.6941176652908325, 0.7372549176216125],
+            "TextSize": 13,
             "TextTruncate": "AtEnd",
-            "TextXAlignment": "Left"
+            "TextXAlignment": "Left",
+            "AnchorPoint": [0, 0],
+            "Visible": true
           },
           "Children": []
         },
@@ -76,8 +79,10 @@
           "ClassName": "Frame",
           "Properties": {
             "BackgroundTransparency": 1,
-            "Position": { "UDim2": [[0, 14], [0, 68]] },
-            "Size": { "UDim2": [[1, -28], [0, 42]] }
+            "Position": {"UDim2": [[0, 16], [0, 86]]},
+            "Size": {"UDim2": [[1, -32], [0, 42]]},
+            "AnchorPoint": [0, 0],
+            "Visible": true
           },
           "Children": [
             {
@@ -85,8 +90,9 @@
               "Properties": {
                 "FillDirection": "Horizontal",
                 "HorizontalAlignment": "Center",
-                "Padding": { "UDim": [0, 7] },
-                "SortOrder": "LayoutOrder"
+                "Padding": {"UDim": [0, 7]},
+                "SortOrder": "LayoutOrder",
+                "VerticalAlignment": "Center"
               },
               "Children": []
             },
@@ -98,13 +104,23 @@
                 "BackgroundColor3": [0.176, 0.733, 0.463],
                 "BorderSizePixel": 0,
                 "LayoutOrder": 1,
-                "Size": { "UDim2": [[0, 119], [1, 0]] },
+                "Size": {"UDim2": [[0, 119], [1, 0]]},
                 "Text": "Level 1",
-                "TextColor3": [0.03, 0.11, 0.08],
-                "TextSize": 13
+                "TextColor3": [0.1411764770746231, 0.08235294371843338, 0.019607843831181526],
+                "TextSize": 14,
+                "AnchorPoint": [0, 0],
+                "Visible": true,
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
+                "TextXAlignment": "Center"
               },
               "Children": [
-                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 5]}
+                  },
+                  "Children": []
+                }
               ]
             },
             {
@@ -115,13 +131,23 @@
                 "BackgroundColor3": [0.145, 0.216, 0.286],
                 "BorderSizePixel": 0,
                 "LayoutOrder": 2,
-                "Size": { "UDim2": [[0, 119], [1, 0]] },
+                "Size": {"UDim2": [[0, 119], [1, 0]]},
                 "Text": "Level 2",
-                "TextColor3": [0.88, 0.93, 0.97],
-                "TextSize": 13
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 14,
+                "AnchorPoint": [0.5, 0],
+                "Visible": true,
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
+                "TextXAlignment": "Center"
               },
               "Children": [
-                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 5]}
+                  },
+                  "Children": []
+                }
               ]
             },
             {
@@ -132,13 +158,23 @@
                 "BackgroundColor3": [0.145, 0.216, 0.286],
                 "BorderSizePixel": 0,
                 "LayoutOrder": 3,
-                "Size": { "UDim2": [[0, 119], [1, 0]] },
+                "Size": {"UDim2": [[0, 119], [1, 0]]},
                 "Text": "Level 3",
-                "TextColor3": [0.88, 0.93, 0.97],
-                "TextSize": 13
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 14,
+                "AnchorPoint": [1, 0],
+                "Visible": true,
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
+                "TextXAlignment": "Center"
               },
               "Children": [
-                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 5]}
+                  },
+                  "Children": []
+                }
               ]
             }
           ]
@@ -147,9 +183,12 @@
           "Name": "WaveRow",
           "ClassName": "Frame",
           "Properties": {
-            "BackgroundTransparency": 1,
-            "Position": { "UDim2": [[0, 14], [0, 121]] },
-            "Size": { "UDim2": [[1, -28], [0, 44]] }
+            "BackgroundTransparency": 0,
+            "Position": {"UDim2": [[0, 14], [0.5, -5]]},
+            "Size": {"UDim2": [[1, -28], [0, 44]]},
+            "AnchorPoint": [0, 0.5],
+            "Visible": true,
+            "BackgroundColor3": [0.10196078568696976, 0.11372549086809158, 0.13725490868091583]
           },
           "Children": [
             {
@@ -158,14 +197,24 @@
               "Properties": {
                 "BackgroundColor3": [0.145, 0.216, 0.286],
                 "BorderSizePixel": 0,
-                "Position": { "UDim2": [[0, 0], [0, 0]] },
-                "Size": { "UDim2": [[0, 48], [1, 0]] },
+                "Position": {"UDim2": [[0, 0], [0, 0]]},
+                "Size": {"UDim2": [[0, 48], [1, 0]]},
                 "Text": "−",
-                "TextColor3": [0.91, 0.96, 1],
-                "TextSize": 24
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 14,
+                "AnchorPoint": [0, 0],
+                "Visible": true,
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
+                "TextXAlignment": "Center"
               },
               "Children": [
-                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 9]}
+                  },
+                  "Children": []
+                }
               ]
             },
             {
@@ -174,15 +223,24 @@
               "Properties": {
                 "BackgroundColor3": [0.067, 0.102, 0.133],
                 "BorderSizePixel": 0,
-                "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
-                "Position": { "UDim2": [[0, 57], [0, 0]] },
-                "Size": { "UDim2": [[1, -114], [1, 0]] },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
+                "Position": {"UDim2": [[0, 57], [0, 0]]},
+                "Size": {"UDim2": [[1, -114], [1, 0]]},
                 "Text": "Wave 1 / 3",
-                "TextColor3": [0.91, 0.96, 1],
-                "TextSize": 15
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 14,
+                "AnchorPoint": [0, 0],
+                "Visible": true,
+                "TextXAlignment": "Center"
               },
               "Children": [
-                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 9]}
+                  },
+                  "Children": []
+                }
               ]
             },
             {
@@ -191,14 +249,24 @@
               "Properties": {
                 "BackgroundColor3": [0.145, 0.216, 0.286],
                 "BorderSizePixel": 0,
-                "Position": { "UDim2": [[1, -48], [0, 0]] },
-                "Size": { "UDim2": [[0, 48], [1, 0]] },
+                "Position": {"UDim2": [[1, 0], [0, 0]]},
+                "Size": {"UDim2": [[0, 48], [1, 0]]},
                 "Text": "+",
-                "TextColor3": [0.91, 0.96, 1],
-                "TextSize": 22
+                "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+                "TextSize": 14,
+                "AnchorPoint": [1, 0],
+                "Visible": true,
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
+                "TextXAlignment": "Center"
               },
               "Children": [
-                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 9]}
+                  },
+                  "Children": []
+                }
               ]
             }
           ]
@@ -209,15 +277,24 @@
           "Properties": {
             "BackgroundColor3": [0.176, 0.733, 0.463],
             "BorderSizePixel": 0,
-            "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
-            "Position": { "UDim2": [[0, 14], [0, 178]] },
-            "Size": { "UDim2": [[0.66, -18], [0, 46]] },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
+            "Position": {"UDim2": [[0, 14], [0, 190]]},
+            "Size": {"UDim2": [[0.66, -18], [0, 46]]},
             "Text": "RUN WAVE",
-            "TextColor3": [0.03, 0.11, 0.08],
-            "TextSize": 15
+            "TextColor3": [0.027450980618596077, 0.08235294371843338, 0.054901961237192154],
+            "TextSize": 15,
+            "AnchorPoint": [0, 0],
+            "Visible": true,
+            "TextXAlignment": "Center"
           },
           "Children": [
-            { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 6]}
+              },
+              "Children": []
+            }
           ]
         },
         {
@@ -226,15 +303,24 @@
           "Properties": {
             "BackgroundColor3": [0.55, 0.18, 0.2],
             "BorderSizePixel": 0,
-            "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
-            "Position": { "UDim2": [[0.66, 3], [0, 178]] },
-            "Size": { "UDim2": [[0.34, -17], [0, 46]] },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
+            "Position": {"UDim2": [[0.66, 3], [0, 190]]},
+            "Size": {"UDim2": [[0.34, -17], [0, 46]]},
             "Text": "RESET",
-            "TextColor3": [1, 0.93, 0.93],
-            "TextSize": 14
+            "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
+            "TextSize": 15,
+            "AnchorPoint": [0, 0],
+            "Visible": true,
+            "TextXAlignment": "Center"
           },
           "Children": [
-            { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 9] } }, "Children": [] }
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 6]}
+              },
+              "Children": []
+            }
           ]
         },
         {
@@ -242,13 +328,15 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Bold", "style": "Normal" },
-            "Position": { "UDim2": [[0, 16], [0, 236]] },
-            "Size": { "UDim2": [[1, -32], [0, 25]] },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
+            "Position": {"UDim2": [[0, 16], [0, 250]]},
+            "Size": {"UDim2": [[1, -32], [0, 25]]},
             "Text": "ACTIVE WAVE  0     MOBS  0     BASE  —",
-            "TextColor3": [0.77, 0.86, 0.92],
-            "TextSize": 12,
-            "TextXAlignment": "Left"
+            "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
+            "TextSize": 14,
+            "TextXAlignment": "Left",
+            "AnchorPoint": [0, 0],
+            "Visible": true
           },
           "Children": []
         },
@@ -258,16 +346,25 @@
           "Properties": {
             "BackgroundColor3": [0.055, 0.082, 0.106],
             "BorderSizePixel": 0,
-            "FontFace": { "family": "rbxasset://fonts/families/GothamSSm.json", "weight": "Medium", "style": "Normal" },
-            "Position": { "UDim2": [[0, 14], [0, 271]] },
-            "Size": { "UDim2": [[1, -28], [0, 40]] },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "SemiBold", "style": "Normal"},
+            "Position": {"UDim2": [[0, 16], [1, -10]]},
+            "Size": {"UDim2": [[1, -32], [0, 36]]},
             "Text": "Ready — choose a level and wave",
-            "TextColor3": [0.67, 0.82, 0.88],
-            "TextSize": 12,
-            "TextWrapped": true
+            "TextColor3": [0.6666666865348816, 0.6941176652908325, 0.7372549176216125],
+            "TextSize": 13,
+            "TextWrapped": true,
+            "AnchorPoint": [0, 1],
+            "Visible": true,
+            "TextXAlignment": "Center"
           },
           "Children": [
-            { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 5]}
+              },
+              "Children": []
+            }
           ]
         }
       ]

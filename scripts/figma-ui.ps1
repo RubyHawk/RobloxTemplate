@@ -89,17 +89,18 @@ if (-not $PatchPath) {
     $downloadsFolder = Get-DownloadsFolder
     $newestPatch = $null
     if ($downloadsFolder) {
-        $newestPatch = Get-ChildItem -LiteralPath $downloadsFolder -Filter "*.figma-patch.json" -File -ErrorAction SilentlyContinue |
+        $newestPatch = Get-ChildItem -LiteralPath $downloadsFolder -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '\.figma-patch(?:\.json)?$' } |
             Sort-Object LastWriteTime -Descending |
             Select-Object -First 1
     }
     if ($newestPatch) {
         Write-Host "Newest Figma export in Downloads: $($newestPatch.Name)"
-        $answer = Read-Host "Press Enter to use it, or drag a different *.figma-patch.json here"
+        $answer = Read-Host "Press Enter to use it, or drag a different *.figma-patch(.json) here"
         $PatchPath = if ([string]::IsNullOrWhiteSpace($answer)) { $newestPatch.FullName } else { $answer }
     }
     else {
-        $PatchPath = Read-Host "Drag the downloaded *.figma-patch.json here, then press Enter"
+        $PatchPath = Read-Host "Drag the downloaded *.figma-patch(.json) here, then press Enter"
     }
 }
 $PatchPath = $PatchPath.Trim().Trim('"')
@@ -115,6 +116,22 @@ $roots = @($patch.roots | ForEach-Object { [string]$_ } | Select-Object -Unique)
 if ($roots.Count -eq 0) {
     throw "The Figma patch contains no model roots."
 }
+Write-Host ("Patch: {0}" -f (Split-Path -Leaf $PatchPath)) -ForegroundColor Cyan
+$exportedAt = if ($patch.PSObject.Properties.Name -contains "exportedAt") {
+    [string]$patch.exportedAt
+}
+else {
+    "not recorded"
+}
+$patchWorkspace = if ($patch.PSObject.Properties.Name -contains "workspace") {
+    [string]$patch.workspace
+}
+else {
+    "auto-detect"
+}
+Write-Host ("Exported: {0}" -f $exportedAt) -ForegroundColor Cyan
+Write-Host ("Workspace: {0}" -f $patchWorkspace) -ForegroundColor Cyan
+Write-Host ("Roots ({0}): {1}" -f $roots.Count, ($roots -join ", ")) -ForegroundColor Cyan
 
 $presetRoots = @("TemplateUI", "TemplateLoading", "StarterSignUI")
 if (-not $Workspace -and $patch.PSObject.Properties.Name -contains "workspace") {
@@ -184,6 +201,10 @@ if ($SmokeTest) {
             throw "Figma mapping validation failed for $rootName."
         }
     }
+    node (Join-Path $repo "tests/figma-ui-bridge.test.cjs")
+    if ($LASTEXITCODE -ne 0) {
+        throw "Figma-to-Roblox UI contract tests failed."
+    }
     $targetName = if ($workspaceData) { [string]$workspaceData.name } else { [string]$Preset }
     Write-Host "Figma UI apply route verified for $targetName ($($roots.Count) roots)." -ForegroundColor Green
     exit 0
@@ -201,6 +222,15 @@ foreach ($rootName in $roots) {
     if ($LASTEXITCODE -ne 0) {
         throw "Figma patch failed validation for $rootName."
     }
+    node (Join-Path $repo "scripts/figma-ui-bridge.mjs") verify --model $model
+    if ($LASTEXITCODE -ne 0) {
+        throw "Imported Figma model failed structural validation for $rootName."
+    }
+}
+
+node (Join-Path $repo "tests/figma-ui-bridge.test.cjs")
+if ($LASTEXITCODE -ne 0) {
+    throw "Figma-to-Roblox UI contract tests failed."
 }
 
 if ($workspaceData) {

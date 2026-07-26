@@ -13,35 +13,29 @@
       "ClassName": "Frame",
       "Properties": {
         "AnchorPoint": [0.5, 0],
-        "BackgroundColor3": [0.035, 0.055, 0.075],
-        "BackgroundTransparency": 0.04,
+        "BackgroundColor3": [0.06666667014360428, 0.07450980693101883, 0.0941176488995552],
+        "BackgroundTransparency": 0.06000000238418579,
         "BorderSizePixel": 0,
-        "Position": { "UDim2": [[0.5, 0], [0, 14]] },
-        "Size": { "UDim2": [[0.92, 0], [0, 82]] }
+        "Position": {"UDim2": [[0.5, 0], [0, 14]]},
+        "Size": {"UDim2": [[0.92, 0], [0, 82]]},
+        "Visible": true
       },
       "Children": [
         {
           "ClassName": "UISizeConstraint",
-          "Properties": {
-            "MaxSize": [420, 82],
-            "MinSize": [286, 82]
-          },
+          "Properties": {"MaxSize": [420, 82], "MinSize": [286, 82]},
           "Children": []
         },
         {
           "ClassName": "UICorner",
           "Properties": {
-            "CornerRadius": { "UDim": [0, 14] }
+            "CornerRadius": {"UDim": [0, 7]}
           },
           "Children": []
         },
         {
           "ClassName": "UIStroke",
-          "Properties": {
-            "Color": [0.176, 0.733, 0.463],
-            "Thickness": 2,
-            "Transparency": 0.08
-          },
+          "Properties": {"Color": [0.176, 0.733, 0.463], "Thickness": 2, "Transparency": 0.08},
           "Children": []
         },
         {
@@ -49,18 +43,16 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/GothamSSm.json",
-              "weight": "Bold",
-              "style": "Normal"
-            },
-            "Position": { "UDim2": [[0, 14], [0, 12]] },
-            "Size": { "UDim2": [[1, -184], [0, 24]] },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
+            "Position": {"UDim2": [[0, 14], [0, 12]]},
+            "Size": {"UDim2": [[1, -184], [0, 24]]},
             "Text": "TOWER DEFENSE",
-            "TextColor3": [0.91, 0.97, 0.95],
-            "TextSize": 15,
+            "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
+            "TextSize": 19,
             "TextTruncate": "AtEnd",
-            "TextXAlignment": "Left"
+            "TextXAlignment": "Left",
+            "AnchorPoint": [0, 0],
+            "Visible": true
           },
           "Children": []
         },
@@ -69,18 +61,16 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/GothamSSm.json",
-              "weight": "Medium",
-              "style": "Normal"
-            },
-            "Position": { "UDim2": [[0, 14], [0, 39]] },
-            "Size": { "UDim2": [[1, -184], [0, 26]] },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "SemiBold", "style": "Normal"},
+            "Position": {"UDim2": [[0, 14], [0.5, 11]]},
+            "Size": {"UDim2": [[1, -184], [0, 26]]},
             "Text": "Finding your playable platform...",
-            "TextColor3": [0.56, 0.73, 0.78],
-            "TextSize": 11,
+            "TextColor3": [0.6666666865348816, 0.6941176652908325, 0.7372549176216125],
+            "TextSize": 15,
             "TextTruncate": "AtEnd",
-            "TextXAlignment": "Left"
+            "TextXAlignment": "Left",
+            "AnchorPoint": [0, 0.5],
+            "Visible": true
           },
           "Children": []
         },
@@ -91,23 +81,22 @@
             "AutoButtonColor": false,
             "BackgroundColor3": [0.306, 0.357, 0.408],
             "BorderSizePixel": 0,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/GothamSSm.json",
-              "weight": "Bold",
-              "style": "Normal"
-            },
-            "Position": { "UDim2": [[1, -168], [0, 14]] },
-            "Size": { "UDim2": [[0, 154], [0, 54]] },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
+            "Position": {"UDim2": [[1, -14], [0.5, 0]]},
+            "Size": {"UDim2": [[0, 154], [0, 54]]},
             "Text": "FINDING PLATFORM",
-            "TextColor3": [0.96, 1, 0.98],
-            "TextSize": 12,
-            "TextWrapped": true
+            "TextColor3": [0.027450980618596077, 0.08235294371843338, 0.054901961237192154],
+            "TextSize": 18,
+            "TextWrapped": true,
+            "AnchorPoint": [1, 0.5],
+            "Visible": true,
+            "TextXAlignment": "Center"
           },
           "Children": [
             {
               "ClassName": "UICorner",
               "Properties": {
-                "CornerRadius": { "UDim": [0, 10] }
+                "CornerRadius": {"UDim": [0, 6]}
               },
               "Children": []
             }
