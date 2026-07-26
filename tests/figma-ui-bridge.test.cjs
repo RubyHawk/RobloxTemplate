@@ -202,7 +202,56 @@ try {
         Position: { UDim2: [[0, 0], [0, 0]] },
         BackgroundColor3: [1, 1, 1]
       },
-      Children: []
+      Children: [{
+        Name: "Label",
+        ClassName: "TextLabel",
+        Properties: {
+          AnchorPoint: [0, 0],
+          Position: { UDim2: [[0, 0], [0, 0]] },
+          Size: { UDim2: [[0, 120], [0, 32]] },
+          Text: "0",
+          TextXAlignment: "Left"
+        },
+        Children: []
+      }, {
+        Name: "CompactTab",
+        ClassName: "Frame",
+        Properties: {
+          Position: { UDim2: [[0, 18], [0, 12]] },
+          Size: { UDim2: [[1, 0], [0, 48]] }
+        },
+        Children: [{
+          ClassName: "UISizeConstraint",
+          Properties: {
+            MinSize: [200, 60],
+            MaxSize: [200, 60]
+          }
+        }]
+      }, {
+        Name: "Row",
+        ClassName: "Frame",
+        Properties: {
+          Position: { UDim2: [[0, 20], [0, 80]] },
+          Size: { UDim2: [[0, 300], [0, 80]] }
+        },
+        Children: [{
+          ClassName: "UIGridLayout",
+          Properties: {
+            CellSize: { UDim2: [[0, 40], [0, 40]] },
+            CellPadding: { UDim2: [[0, 4], [0, 0]] }
+          }
+        }, {
+          Name: "Primary",
+          ClassName: "TextButton",
+          Properties: { Size: { UDim2: [[0, 40], [0, 40]] } },
+          Children: []
+        }, {
+          Name: "Secondary",
+          ClassName: "TextButton",
+          Properties: { Size: { UDim2: [[0, 40], [0, 40]] } },
+          Children: []
+        }]
+      }]
     }]
   }));
   fs.writeFileSync(patchPath, JSON.stringify({
@@ -225,6 +274,90 @@ try {
         parentHeight: 300,
         managedByLayout: false
       }
+    }, {
+      path: "SurfaceTest/Panel/Label",
+      className: "TextLabel",
+      visible: true,
+      x: 450,
+      y: 240,
+      width: 120,
+      height: 32,
+      text: "12.4K",
+      textAlignHorizontal: "Right",
+      fontFamily: "Luckiest Guy",
+      fontStyle: "Regular",
+      layout: {
+        size: { sx: 0, ox: 120, sy: 0, oy: 32 },
+        pos: { sx: 1, ox: -30, sy: 1, oy: -28 },
+        anchor: { x: 1, y: 1 },
+        parentWidth: 600,
+        parentHeight: 300,
+        managedByLayout: false
+      }
+    }, {
+      path: "SurfaceTest/Panel/CompactTab",
+      className: "Frame",
+      visible: true,
+      x: 18,
+      y: 12,
+      width: 140,
+      height: 48,
+      layout: {
+        size: { sx: 1, ox: 0, sy: 0, oy: 48 },
+        pos: { sx: 0, ox: 18, sy: 0, oy: 12 },
+        anchor: { x: 0, y: 0 },
+        parentWidth: 600,
+        parentHeight: 300,
+        managedByLayout: false
+      }
+    }, {
+      path: "SurfaceTest/Panel/Row",
+      className: "Frame",
+      visible: true,
+      x: 20,
+      y: 80,
+      width: 300,
+      height: 80,
+      layout: {
+        size: { sx: 0, ox: 300, sy: 0, oy: 80 },
+        pos: { sx: 0, ox: 20, sy: 0, oy: 80 },
+        anchor: { x: 0, y: 0 },
+        parentWidth: 560,
+        parentHeight: 280,
+        managedByLayout: false
+      }
+    }, {
+      path: "SurfaceTest/Panel/Row/Primary",
+      className: "TextButton",
+      visible: true,
+      x: 20,
+      y: 10,
+      width: 80,
+      height: 60,
+      layout: {
+        size: { sx: 0, ox: 40, sy: 0, oy: 40 },
+        pos: { sx: 0, ox: 0, sy: 0, oy: 0 },
+        anchor: { x: 0, y: 0 },
+        parentWidth: 300,
+        parentHeight: 80,
+        managedByLayout: true
+      }
+    }, {
+      path: "SurfaceTest/Panel/Row/Secondary",
+      className: "TextButton",
+      visible: true,
+      x: 112,
+      y: 0,
+      width: 120,
+      height: 80,
+      layout: {
+        size: { sx: 0, ox: 40, sy: 0, oy: 40 },
+        pos: { sx: 0, ox: 0, sy: 0, oy: 0 },
+        anchor: { x: 0, y: 0 },
+        parentWidth: 300,
+        parentHeight: 80,
+        managedByLayout: true
+      }
     }]
   }));
   const applyResult = spawnSync(process.execPath, [
@@ -241,6 +374,27 @@ try {
   assert.equal(applied.Children[0].Properties.BackgroundTransparency, 0.25);
   assert.deepEqual(applied.Children[0].Properties.Size, { UDim2: [[1, -40], [1, -20]] });
   assert.deepEqual(applied.Children[0].Properties.Position, { UDim2: [[0, 20], [0, 10]] });
+  assert.deepEqual(applied.Children[0].Children[0].Properties.AnchorPoint, [1, 1]);
+  assert.deepEqual(applied.Children[0].Children[0].Properties.Position, { UDim2: [[1, 10], [1, -8]] });
+  assert.equal(applied.Children[0].Children[0].Properties.Text, "12.4K");
+  assert.equal(applied.Children[0].Children[0].Properties.TextXAlignment, "Right");
+  assert.deepEqual(applied.Children[0].Children[0].Properties.FontFace, {
+    family: "rbxasset://fonts/families/LuckiestGuy.json",
+    weight: "Regular",
+    style: "Normal"
+  });
+  assert.deepEqual(
+    applied.Children[0].Children[1].Properties.Size,
+    { UDim2: [[0, 140], [0, 48]] },
+    "a substantially resized stretch node becomes a responsive fixed-size tab"
+  );
+  assert.deepEqual(applied.Children[0].Children[1].Children[0].Properties.MinSize, [140, 48]);
+  const importedRow = applied.Children[0].Children[2];
+  assert.equal(importedRow.Children[0].ClassName, "UIListLayout");
+  assert.deepEqual(importedRow.Children[0].Properties.Padding, { UDim: [0, 12] });
+  assert.equal(importedRow.Children[0].Properties.HorizontalAlignment, "Left");
+  assert.equal(applied.Properties.Enabled, false);
+  assert.equal(applied.Properties.ResetOnSpawn, false);
 } finally {
   fs.rmSync(temporary, { recursive: true, force: true });
 }
@@ -250,5 +404,72 @@ assert.match(pluginUi, /<button class="file" id="import" type="button">/);
 assert.match(pluginUi, /<input id="models"[^>]*tabindex="-1">/);
 assert.match(pluginUi, /<div id="status" role="status">/);
 assert.doesNotMatch(pluginUi, /input\[type=file\]\s*\{\s*display:\s*none/);
+const pluginSource = fs.readFileSync(path.join(repo, "figma/roblox-ui-bridge/code.js"), "utf8");
+assert.match(pluginSource, /entry\.fontFamily = textNode\.fontName\.family/);
+assert.match(pluginSource, /entry\.textAlignHorizontal/);
+assert.match(pluginSource, /layout\.parentWidth = node\.parent\.width/);
+
+const templateUi = readJson("src/ui/presets/incremental/TemplateUI.model.json");
+const childNamed = (node, name) =>
+  (node.Children || []).find((child) => child.Name === name);
+const findNamed = (node, name) => {
+  if (node.Name === name) {
+    return node;
+  }
+  for (const child of node.Children || []) {
+    const match = findNamed(child, name);
+    if (match) {
+      return match;
+    }
+  }
+  return undefined;
+};
+const navigation = findNamed(templateUi, "Navigation");
+assert.ok(navigation, "TemplateUI keeps the authored lobby navigation");
+assert.equal(templateUi.Properties.Enabled, false, "TemplateUI starts disabled until its binder is ready");
+assert.equal(
+  findNamed(templateUi, "ShowcaseCanvas").Properties.Visible,
+  false,
+  "the editable Figma showroom cannot flash during gameplay startup"
+);
+for (const screen of findNamed(templateUi, "Screens").Children) {
+  assert.equal(screen.Properties.Visible, false, `${screen.Name} starts closed`);
+}
+const navigationButtons = childNamed(navigation, "Buttons");
+assert.ok(navigationButtons, "TemplateUI keeps the navigation button container");
+assert.equal(navigation.Properties.BackgroundTransparency, 1);
+assert.equal(navigation.Properties.ClipsDescendants, false);
+assert.equal(navigationButtons.Properties.AutomaticCanvasSize, "None");
+assert.equal(navigationButtons.Properties.ClipsDescendants, false);
+assert.equal(
+  navigation.Children.some((child) => child.ClassName === "UISizeConstraint"),
+  false,
+  "obsolete horizontal-rail constraint cannot flatten the 3+2 navigation"
+);
+assert.equal(
+  navigationButtons.Children.some(
+    (child) => child.ClassName === "UIGridLayout" || child.ClassName === "UIListLayout"
+  ),
+  false,
+  "explicit staggered button positions are not overridden by a layout helper"
+);
+for (const [name, expected] of Object.entries({
+  BagButton: [0, 0],
+  ShopButton: [0, 118],
+  GiftButton: [0, 236],
+  ProfileButton: [108, 59],
+  MoreButton: [108, 177]
+})) {
+  const button = childNamed(navigationButtons, name);
+  assert.ok(button, `${name} remains authored`);
+  assert.deepEqual(
+    button.Properties.Position,
+    { UDim2: [[0, expected[0]], [0, expected[1]]] },
+    `${name} preserves the intended staggered position`
+  );
+  assert.equal(button.Properties.BackgroundTransparency, 1);
+  assert.equal(button.Properties.ClipsDescendants, false);
+  assert.equal(childNamed(button, "IconBubble").Properties.BackgroundTransparency, 1);
+}
 
 console.log("Figma UI bridge world-space tests passed.");

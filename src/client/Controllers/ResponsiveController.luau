@@ -25,6 +25,8 @@ local settingsScale = 1
 local navigation: Frame? = nil
 local hud: Frame? = nil
 local modernBottomDock = false
+local leftIconRail = false
+local hudRequiresModalClearance = false
 local currencySlots: ScrollingFrame? = nil
 local currencyLayout: UIListLayout? = nil
 local boostPanel: Frame? = nil
@@ -141,7 +143,7 @@ end
 -- hides the HUD only while one of those is actually the open screen,
 -- rather than accepting a permanent partial overlap.
 local function clampModalsAgainstHud()
-	if modernBottomDock then
+	if modernBottomDock or not hudRequiresModalClearance then
 		return
 	end
 	local hudFrame = hud
@@ -178,7 +180,7 @@ local function updateHudVisibility()
 	if not hudFrame then
 		return
 	end
-	if modernBottomDock then
+	if modernBottomDock or not hudRequiresModalClearance then
 		hudFrame.Visible = true
 		return
 	end
@@ -190,6 +192,18 @@ local function updateHudVisibility()
 		end
 	end
 	hudFrame.Visible = not shouldHide
+end
+
+local function applyLeftIconRailLayout()
+	if not leftIconRail then
+		return
+	end
+	local nav = navigation
+	if not nav then
+		return
+	end
+	nav.AnchorPoint = Vector2.new(0, 0.5)
+	nav.Position = UDim2.new(0, 24, 0.5, 0)
 end
 
 local function applyModernHudLayout(viewportSize: Vector2)
@@ -254,6 +268,7 @@ local function apply()
 
 	currentUiScale.Scale = math.clamp(settingsScale * deviceScale, 0.6, 1.5)
 
+	applyLeftIconRailLayout()
 	applyModernHudLayout(size)
 	clampNavigation(size)
 	clampModalsAgainstHud()
@@ -266,6 +281,8 @@ function ResponsiveController.initialize(rootFrame: Frame, scale: UIScale)
 	navigation = rootFrame:FindFirstChild("Navigation") :: Frame?
 	hud = (rootFrame:FindFirstChild("CurrencyTray") or rootFrame:FindFirstChild("CurrencyHUD")) :: Frame?
 	modernBottomDock = navigation ~= nil and navigation.AnchorPoint.Y > 0.9
+	leftIconRail = navigation ~= nil and navigation.AnchorPoint.X < 0.1
+	hudRequiresModalClearance = hud ~= nil and hud.AnchorPoint.Y < 0.5 and hud.Position.Y.Scale < 0.25
 	local slotsInstance = if hud then hud:FindFirstChild("Slots") else nil
 	if slotsInstance and slotsInstance:IsA("ScrollingFrame") then
 		currencySlots = slotsInstance

@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local Template = ReplicatedStorage:WaitForChild("Template")
 local Config = require(Template:WaitForChild("Shared"):WaitForChild("TemplateConfig"))
@@ -21,8 +22,15 @@ local latestState: any = nil
 local levelButtons: { TextButton } = {}
 local assignedOptions: { LevelOption? } = {}
 local screenGui: ScreenGui? = nil
+local panelRoot: Frame? = nil
+local panelConstraint: UISizeConstraint? = nil
+local titleLabel: TextLabel? = nil
 local statusLabel: TextLabel? = nil
 local detailLabel: TextLabel? = nil
+local levelsRoot: Frame? = nil
+local levelsLayout: UIGridLayout? = nil
+local actionsRoot: Frame? = nil
+local actionsLayout: UIGridLayout? = nil
 local rollButton: TextButton? = nil
 local autoPlaceButton: TextButton? = nil
 local startWaveButton: TextButton? = nil
@@ -36,6 +44,117 @@ local AVAILABLE_COLOR = Color3.fromRGB(37, 55, 73)
 local LOCKED_COLOR = Color3.fromRGB(54, 62, 72)
 local DISABLED_ACTION_COLOR = Color3.fromRGB(63, 73, 84)
 local START_COLOR = Color3.fromRGB(45, 187, 118)
+
+local function applyResponsiveLayout()
+	local camera = Workspace.CurrentCamera
+	local panel = panelRoot
+	local constraint = panelConstraint
+	local title = titleLabel
+	local status = statusLabel
+	local detail = detailLabel
+	local levels = levelsRoot
+	local levelGrid = levelsLayout
+	local actions = actionsRoot
+	local actionGrid = actionsLayout
+	if
+		camera == nil
+		or panel == nil
+		or constraint == nil
+		or title == nil
+		or status == nil
+		or detail == nil
+		or levels == nil
+		or levelGrid == nil
+		or actions == nil
+		or actionGrid == nil
+	then
+		return
+	end
+
+	local viewport = camera.ViewportSize
+	local panelWidth = math.floor(viewport.X * 0.94)
+	local shortLandscape = viewport.X > viewport.Y and viewport.Y < 650
+	local compactPortrait = viewport.X < 700
+
+	panel.AnchorPoint = Vector2.new(0.5, 0)
+	panel.Position = UDim2.new(0.5, 0, 0, 12)
+	title.Position = UDim2.fromOffset(18, 10)
+	title.Size = UDim2.new(1, -36, 0, if shortLandscape then 24 else 32)
+	status.Position = UDim2.fromOffset(20, if shortLandscape then 36 else 44)
+	status.Size = UDim2.new(1, -40, 0, 20)
+
+	if shortLandscape then
+		constraint.MinSize = Vector2.new(300, 136)
+		constraint.MaxSize = Vector2.new(1504, 136)
+		panel.Size = UDim2.new(0.94, 0, 0, 136)
+		levels.Position = UDim2.fromOffset(12, 58)
+		levels.AnchorPoint = Vector2.zero
+		levels.Size = UDim2.new(1, -24, 0, 34)
+		local cellWidth = math.max(28, math.floor((panelWidth - 60) / 10))
+		levelGrid.CellSize = UDim2.fromOffset(cellWidth, 34)
+		levelGrid.CellPadding = UDim2.fromOffset(4, 0)
+		levelGrid.FillDirectionMaxCells = 10
+		actions.Position = UDim2.new(0.5, 0, 1, -8)
+		actions.AnchorPoint = Vector2.new(0.5, 1)
+		actions.Size = UDim2.new(0.72, 0, 0, 32)
+		actionGrid.CellSize = UDim2.new(1 / 3, -6, 0, 32)
+		actionGrid.CellPadding = UDim2.fromOffset(8, 0)
+		actionGrid.FillDirectionMaxCells = 3
+		detail.Visible = false
+	elseif compactPortrait then
+		constraint.MinSize = Vector2.new(300, 216)
+		constraint.MaxSize = Vector2.new(1504, 216)
+		panel.Size = UDim2.new(0.94, 0, 0, 216)
+		levels.Position = UDim2.fromOffset(12, 70)
+		levels.AnchorPoint = Vector2.zero
+		levels.Size = UDim2.new(1, -24, 0, 88)
+		local cellWidth = math.max(42, math.floor((panelWidth - 56) / 5))
+		levelGrid.CellSize = UDim2.fromOffset(cellWidth, 40)
+		levelGrid.CellPadding = UDim2.fromOffset(8, 8)
+		levelGrid.FillDirectionMaxCells = 5
+		actions.Position = UDim2.new(0.5, 0, 1, -10)
+		actions.AnchorPoint = Vector2.new(0.5, 1)
+		actions.Size = UDim2.new(1, -24, 0, 40)
+		actionGrid.CellSize = UDim2.new(1 / 3, -6, 0, 40)
+		actionGrid.CellPadding = UDim2.fromOffset(8, 0)
+		actionGrid.FillDirectionMaxCells = 3
+		detail.Visible = false
+	else
+		constraint.MinSize = Vector2.new(300, 276)
+		constraint.MaxSize = Vector2.new(1504, 276)
+		panel.Size = UDim2.new(0.94, 0, 0, 276)
+		levels.Position = UDim2.new(0, 152, 0.5, -4)
+		levels.AnchorPoint = Vector2.new(0, 0.5)
+		levels.Size = UDim2.new(1, -304, 0, 84)
+		levelGrid.CellSize = UDim2.fromOffset(72, 72)
+		levelGrid.CellPadding = UDim2.fromOffset(28, 0)
+		levelGrid.FillDirectionMaxCells = 10
+		actions.Position = UDim2.new(1, -48, 1, -28)
+		actions.AnchorPoint = Vector2.one
+		actions.Size = UDim2.fromOffset(420, 58)
+		actionGrid.CellSize = UDim2.fromOffset(132, 58)
+		actionGrid.CellPadding = UDim2.fromOffset(12, 0)
+		actionGrid.FillDirectionMaxCells = 3
+		detail.Position = UDim2.new(0, 24, 1, -28)
+		detail.Size = UDim2.new(1, -524, 0, 58)
+		detail.AnchorPoint = Vector2.new(0, 1)
+		detail.Visible = true
+	end
+end
+
+local function bindViewportResize()
+	local function bindCamera(camera: Camera?)
+		if camera == nil then
+			return
+		end
+		camera:GetPropertyChangedSignal("ViewportSize"):Connect(applyResponsiveLayout)
+		applyResponsiveLayout()
+	end
+	bindCamera(Workspace.CurrentCamera)
+	Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+		bindCamera(Workspace.CurrentCamera)
+	end)
+end
 
 local function towerPresentationActive(): boolean
 	return localPlayer:GetAttribute(DUNGEON_PRESENTATION_ATTRIBUTE) ~= true
@@ -150,9 +269,16 @@ function TowerDefenseLevelController.initialize(request: Request)
 			return
 		end
 		screenGui = candidate
-		local panel = candidate:WaitForChild("Panel")
-		local levels = panel:WaitForChild("Levels")
-		local actions = panel:WaitForChild("Actions")
+		local panel = candidate:WaitForChild("Panel") :: Frame
+		local levels = panel:WaitForChild("Levels") :: Frame
+		local actions = panel:WaitForChild("Actions") :: Frame
+		panelRoot = panel
+		panelConstraint = panel:FindFirstChildOfClass("UISizeConstraint") :: UISizeConstraint?
+		titleLabel = panel:WaitForChild("Title") :: TextLabel
+		levelsRoot = levels
+		levelsLayout = levels:FindFirstChildOfClass("UIGridLayout")
+		actionsRoot = actions
+		actionsLayout = actions:FindFirstChildOfClass("UIGridLayout")
 		statusLabel = panel:WaitForChild("Status") :: TextLabel
 		detailLabel = panel:WaitForChild("Detail") :: TextLabel
 		rollButton = actions:WaitForChild("RollButton") :: TextButton
@@ -198,6 +324,7 @@ function TowerDefenseLevelController.initialize(request: Request)
 			end
 			request("ResetTowerDefense", {})
 		end)
+		bindViewportResize()
 		refresh()
 	end)
 end

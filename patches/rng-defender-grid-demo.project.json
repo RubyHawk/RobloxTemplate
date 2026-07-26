@@ -170,7 +170,7 @@
       }
     },
     "StarterGui": {
-      "$ignoreUnknownInstances": true,
+      "$ignoreUnknownInstances": false,
       "TemplateUI": {
         "$path": "../src/ui/presets/incremental/TemplateUI.model.json"
       },

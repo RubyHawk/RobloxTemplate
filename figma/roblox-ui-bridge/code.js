@@ -439,6 +439,10 @@ function collectPatch(nodes) {
     if (path) {
       const rawLayout = node.getSharedPluginData(NAMESPACE, "layout");
       const layout = rawLayout ? JSON.parse(rawLayout) : null;
+      if (layout && node.parent && "width" in node.parent && "height" in node.parent) {
+        layout.parentWidth = node.parent.width;
+        layout.parentHeight = node.parent.height;
+      }
       const className = node.getSharedPluginData(NAMESPACE, "className");
       const entry = {
         path,
@@ -458,6 +462,13 @@ function collectPatch(nodes) {
         const textNode = node.children.find((child) => child.type === "TEXT" && child.name === "$Text");
         entry.text = textNode ? textNode.characters : "";
         entry.fontSize = textNode && typeof textNode.fontSize === "number" ? textNode.fontSize : null;
+        if (textNode && typeof textNode.fontName !== "symbol") {
+          entry.fontFamily = textNode.fontName.family;
+          entry.fontStyle = textNode.fontName.style;
+          entry.textAlignHorizontal = String(textNode.textAlignHorizontal || "CENTER")
+            .toLowerCase()
+            .replace(/^./, (value) => value.toUpperCase());
+        }
         const textPaint = textNode ? solidPaint(textNode) : null;
         entry.textColor = textPaint ? textPaint.color : null;
       }

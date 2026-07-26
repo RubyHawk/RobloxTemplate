@@ -7,7 +7,7 @@
     "LightInfluence": 0,
     "MaxDistance": 110,
     "ResetOnSpawn": false,
-    "Size": { "UDim2": [[0, 340], [0, 276]] },
+    "Size": {"UDim2": [[0, 340], [0, 276]]},
     "StudsOffsetWorldSpace": [0, 9, 0]
   },
   "Children": [
@@ -15,17 +15,26 @@
       "Name": "Card",
       "ClassName": "Frame",
       "Properties": {
-        "BackgroundColor3": [0.03, 0.024, 0.06],
-        "BackgroundTransparency": 0.16,
+        "BackgroundColor3": [0.06666667014360428, 0.07450980693101883, 0.0941176488995552],
+        "BackgroundTransparency": 0.050000011920928955,
         "BorderSizePixel": 0,
-        "Size": { "UDim2": [[1, 0], [1, 0]] },
-        "ZIndex": 2
+        "Size": {"UDim2": [[1, -8], [1, -8]]},
+        "ZIndex": 2,
+        "AnchorPoint": [0, 0],
+        "Position": {"UDim2": [[0, 4], [0, 4]]},
+        "Visible": true
       },
       "Children": [
-        { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 20] } }, "Children": [] },
+        {
+          "ClassName": "UICorner",
+          "Properties": {
+            "CornerRadius": {"UDim": [0, 8]}
+          },
+          "Children": []
+        },
         {
           "ClassName": "UIStroke",
-          "Properties": { "Color": [0.55, 0.44, 1], "Thickness": 1.5, "Transparency": 0.3 },
+          "Properties": {"Color": [0.16470588743686676, 0.1882352977991104, 0.21960784494876862], "Thickness": 1, "Transparency": 0.3},
           "Children": []
         },
         {
@@ -33,20 +42,18 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/FredokaOne.json",
-              "weight": "Regular",
-              "style": "Normal"
-            },
-            "Position": { "UDim2": [[0, 16], [0, 12]] },
-            "Size": { "UDim2": [[1, -32], [0, 34]] },
+            "FontFace": {"family": "rbxasset://fonts/families/LuckiestGuy.json", "weight": "Regular", "style": "Normal"},
+            "Position": {"UDim2": [[0, 12], [0, 8]]},
+            "Size": {"UDim2": [[1, -86], [0, 38]]},
             "Text": "DUNGEON PORTAL",
-            "TextColor3": [0.83, 0.78, 1],
-            "TextSize": 24,
+            "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
+            "TextSize": 27,
             "TextStrokeColor3": [0.03, 0.024, 0.06],
             "TextStrokeTransparency": 0,
             "TextXAlignment": "Left",
-            "ZIndex": 3
+            "ZIndex": 3,
+            "AnchorPoint": [0, 0],
+            "Visible": true
           },
           "Children": []
         },
@@ -55,21 +62,18 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/FredokaOne.json",
-              "weight": "Regular",
-              "style": "Normal"
-            },
-            "Position": { "UDim2": [[1, -70], [0, 8]] },
-            "Size": { "UDim2": [[0, 56], [0, 42]] },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
+            "Position": {"UDim2": [[1, -6], [0, 8]]},
+            "Size": {"UDim2": [[0, 56], [0, 38]]},
             "Text": "",
-            "TextColor3": [1, 0.86, 0.36],
-            "TextSize": 34,
+            "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
+            "TextSize": 19,
             "TextStrokeColor3": [0.03, 0.024, 0.06],
             "TextStrokeTransparency": 0,
-            "TextXAlignment": "Right",
+            "TextXAlignment": "Center",
             "Visible": false,
-            "ZIndex": 3
+            "ZIndex": 3,
+            "AnchorPoint": [1, 0]
           },
           "Children": []
         },
@@ -79,9 +83,11 @@
           "Properties": {
             "BackgroundTransparency": 1,
             "BorderSizePixel": 0,
-            "Position": { "UDim2": [[0, 12], [0, 54]] },
-            "Size": { "UDim2": [[1, -24], [0, 120]] },
-            "ZIndex": 3
+            "Position": {"UDim2": [[0, 10], [0.5, -22]]},
+            "Size": {"UDim2": [[1, -20], [0, 120]]},
+            "ZIndex": 3,
+            "AnchorPoint": [0, 0.5],
+            "Visible": true
           },
           "Children": [
             {
@@ -90,7 +96,7 @@
                 "FillDirection": "Horizontal",
                 "HorizontalAlignment": "Center",
                 "VerticalAlignment": "Center",
-                "Padding": { "UDim": [0, 8] },
+                "Padding": {"UDim": [0, 8]},
                 "SortOrder": "LayoutOrder"
               },
               "Children": []
@@ -99,16 +105,23 @@
               "Name": "Slot1",
               "ClassName": "Frame",
               "Properties": {
-                "BackgroundColor3": [0.09, 0.07, 0.16],
-                "BackgroundTransparency": 0.2,
+                "BackgroundColor3": [0.10196078568696976, 0.11372549086809158, 0.13725490868091583],
+                "BackgroundTransparency": 0,
                 "BorderSizePixel": 0,
                 "LayoutOrder": 1,
-                "Size": { "UDim2": [[0, 72], [0, 108]] },
+                "Size": {"UDim2": [[0, 72], [0, 108]]},
                 "Visible": false,
-                "ZIndex": 3
+                "ZIndex": 3,
+                "AnchorPoint": [0, 0.5]
               },
               "Children": [
-                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 12] } }, "Children": [] },
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 6]}
+                  },
+                  "Children": []
+                },
                 {
                   "Name": "Portrait",
                   "ClassName": "ImageLabel",
@@ -117,13 +130,21 @@
                     "BackgroundTransparency": 0.1,
                     "BorderSizePixel": 0,
                     "Image": "",
-                    "Position": { "UDim2": [[0.5, -30], [0, 8]] },
+                    "Position": {"UDim2": [[0.5, 0], [0, 8]]},
                     "ScaleType": "Fit",
-                    "Size": { "UDim2": [[0, 60], [0, 60]] },
-                    "ZIndex": 4
+                    "Size": {"UDim2": [[0, 60], [0, 60]]},
+                    "ZIndex": 4,
+                    "AnchorPoint": [0.5, 0],
+                    "Visible": true
                   },
                   "Children": [
-                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 10] } }, "Children": [] }
+                    {
+                      "ClassName": "UICorner",
+                      "Properties": {
+                        "CornerRadius": {"UDim": [0, 5]}
+                      },
+                      "Children": []
+                    }
                   ]
                 },
                 {
@@ -131,24 +152,24 @@
                   "ClassName": "TextLabel",
                   "Properties": {
                     "BackgroundTransparency": 1,
-                    "FontFace": {
-                      "family": "rbxasset://fonts/families/GothamSSm.json",
-                      "weight": "Medium",
-                      "style": "Normal"
-                    },
-                    "Position": { "UDim2": [[0, 2], [0, 72]] },
-                    "Size": { "UDim2": [[1, -4], [0, 30]] },
+                    "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
+                    "Position": {"UDim2": [[0, 2], [1, -6]]},
+                    "Size": {"UDim2": [[1, -4], [0, 30]]},
                     "Text": "",
-                    "TextColor3": [0.86, 0.83, 1],
+                    "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
                     "TextScaled": true,
                     "TextStrokeColor3": [0.03, 0.024, 0.06],
                     "TextStrokeTransparency": 0.2,
-                    "ZIndex": 4
+                    "ZIndex": 4,
+                    "AnchorPoint": [0, 1],
+                    "Visible": true,
+                    "TextSize": 12,
+                    "TextXAlignment": "Center"
                   },
                   "Children": [
                     {
                       "ClassName": "UITextSizeConstraint",
-                      "Properties": { "MaxTextSize": 15 },
+                      "Properties": {"MaxTextSize": 15},
                       "Children": []
                     }
                   ]
@@ -159,16 +180,23 @@
               "Name": "Slot2",
               "ClassName": "Frame",
               "Properties": {
-                "BackgroundColor3": [0.09, 0.07, 0.16],
-                "BackgroundTransparency": 0.2,
+                "BackgroundColor3": [0.10196078568696976, 0.11372549086809158, 0.13725490868091583],
+                "BackgroundTransparency": 0,
                 "BorderSizePixel": 0,
                 "LayoutOrder": 2,
-                "Size": { "UDim2": [[0, 72], [0, 108]] },
+                "Size": {"UDim2": [[0, 72], [0, 108]]},
                 "Visible": false,
-                "ZIndex": 3
+                "ZIndex": 3,
+                "AnchorPoint": [0, 0.5]
               },
               "Children": [
-                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 12] } }, "Children": [] },
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 6]}
+                  },
+                  "Children": []
+                },
                 {
                   "Name": "Portrait",
                   "ClassName": "ImageLabel",
@@ -177,13 +205,21 @@
                     "BackgroundTransparency": 0.1,
                     "BorderSizePixel": 0,
                     "Image": "",
-                    "Position": { "UDim2": [[0.5, -30], [0, 8]] },
+                    "Position": {"UDim2": [[0.5, 0], [0, 8]]},
                     "ScaleType": "Fit",
-                    "Size": { "UDim2": [[0, 60], [0, 60]] },
-                    "ZIndex": 4
+                    "Size": {"UDim2": [[0, 60], [0, 60]]},
+                    "ZIndex": 4,
+                    "AnchorPoint": [0.5, 0],
+                    "Visible": true
                   },
                   "Children": [
-                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 10] } }, "Children": [] }
+                    {
+                      "ClassName": "UICorner",
+                      "Properties": {
+                        "CornerRadius": {"UDim": [0, 5]}
+                      },
+                      "Children": []
+                    }
                   ]
                 },
                 {
@@ -191,24 +227,24 @@
                   "ClassName": "TextLabel",
                   "Properties": {
                     "BackgroundTransparency": 1,
-                    "FontFace": {
-                      "family": "rbxasset://fonts/families/GothamSSm.json",
-                      "weight": "Medium",
-                      "style": "Normal"
-                    },
-                    "Position": { "UDim2": [[0, 2], [0, 72]] },
-                    "Size": { "UDim2": [[1, -4], [0, 30]] },
+                    "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
+                    "Position": {"UDim2": [[0, 2], [1, -6]]},
+                    "Size": {"UDim2": [[1, -4], [0, 30]]},
                     "Text": "",
-                    "TextColor3": [0.86, 0.83, 1],
+                    "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
                     "TextScaled": true,
                     "TextStrokeColor3": [0.03, 0.024, 0.06],
                     "TextStrokeTransparency": 0.2,
-                    "ZIndex": 4
+                    "ZIndex": 4,
+                    "AnchorPoint": [0, 1],
+                    "Visible": true,
+                    "TextSize": 12,
+                    "TextXAlignment": "Center"
                   },
                   "Children": [
                     {
                       "ClassName": "UITextSizeConstraint",
-                      "Properties": { "MaxTextSize": 15 },
+                      "Properties": {"MaxTextSize": 15},
                       "Children": []
                     }
                   ]
@@ -219,16 +255,23 @@
               "Name": "Slot3",
               "ClassName": "Frame",
               "Properties": {
-                "BackgroundColor3": [0.09, 0.07, 0.16],
-                "BackgroundTransparency": 0.2,
+                "BackgroundColor3": [0.10196078568696976, 0.11372549086809158, 0.13725490868091583],
+                "BackgroundTransparency": 0,
                 "BorderSizePixel": 0,
                 "LayoutOrder": 3,
-                "Size": { "UDim2": [[0, 72], [0, 108]] },
+                "Size": {"UDim2": [[0, 72], [0, 108]]},
                 "Visible": false,
-                "ZIndex": 3
+                "ZIndex": 3,
+                "AnchorPoint": [0, 0.5]
               },
               "Children": [
-                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 12] } }, "Children": [] },
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 6]}
+                  },
+                  "Children": []
+                },
                 {
                   "Name": "Portrait",
                   "ClassName": "ImageLabel",
@@ -237,13 +280,21 @@
                     "BackgroundTransparency": 0.1,
                     "BorderSizePixel": 0,
                     "Image": "",
-                    "Position": { "UDim2": [[0.5, -30], [0, 8]] },
+                    "Position": {"UDim2": [[0.5, 0], [0, 8]]},
                     "ScaleType": "Fit",
-                    "Size": { "UDim2": [[0, 60], [0, 60]] },
-                    "ZIndex": 4
+                    "Size": {"UDim2": [[0, 60], [0, 60]]},
+                    "ZIndex": 4,
+                    "AnchorPoint": [0.5, 0],
+                    "Visible": true
                   },
                   "Children": [
-                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 10] } }, "Children": [] }
+                    {
+                      "ClassName": "UICorner",
+                      "Properties": {
+                        "CornerRadius": {"UDim": [0, 5]}
+                      },
+                      "Children": []
+                    }
                   ]
                 },
                 {
@@ -251,24 +302,24 @@
                   "ClassName": "TextLabel",
                   "Properties": {
                     "BackgroundTransparency": 1,
-                    "FontFace": {
-                      "family": "rbxasset://fonts/families/GothamSSm.json",
-                      "weight": "Medium",
-                      "style": "Normal"
-                    },
-                    "Position": { "UDim2": [[0, 2], [0, 72]] },
-                    "Size": { "UDim2": [[1, -4], [0, 30]] },
+                    "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
+                    "Position": {"UDim2": [[0, 2], [1, -6]]},
+                    "Size": {"UDim2": [[1, -4], [0, 30]]},
                     "Text": "",
-                    "TextColor3": [0.86, 0.83, 1],
+                    "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
                     "TextScaled": true,
                     "TextStrokeColor3": [0.03, 0.024, 0.06],
                     "TextStrokeTransparency": 0.2,
-                    "ZIndex": 4
+                    "ZIndex": 4,
+                    "AnchorPoint": [0, 1],
+                    "Visible": true,
+                    "TextSize": 12,
+                    "TextXAlignment": "Center"
                   },
                   "Children": [
                     {
                       "ClassName": "UITextSizeConstraint",
-                      "Properties": { "MaxTextSize": 15 },
+                      "Properties": {"MaxTextSize": 15},
                       "Children": []
                     }
                   ]
@@ -279,16 +330,23 @@
               "Name": "Slot4",
               "ClassName": "Frame",
               "Properties": {
-                "BackgroundColor3": [0.09, 0.07, 0.16],
-                "BackgroundTransparency": 0.2,
+                "BackgroundColor3": [0.10196078568696976, 0.11372549086809158, 0.13725490868091583],
+                "BackgroundTransparency": 0,
                 "BorderSizePixel": 0,
                 "LayoutOrder": 4,
-                "Size": { "UDim2": [[0, 72], [0, 108]] },
+                "Size": {"UDim2": [[0, 72], [0, 108]]},
                 "Visible": false,
-                "ZIndex": 3
+                "ZIndex": 3,
+                "AnchorPoint": [0, 0.5]
               },
               "Children": [
-                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 12] } }, "Children": [] },
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 6]}
+                  },
+                  "Children": []
+                },
                 {
                   "Name": "Portrait",
                   "ClassName": "ImageLabel",
@@ -297,13 +355,21 @@
                     "BackgroundTransparency": 0.1,
                     "BorderSizePixel": 0,
                     "Image": "",
-                    "Position": { "UDim2": [[0.5, -30], [0, 8]] },
+                    "Position": {"UDim2": [[0.5, 0], [0, 8]]},
                     "ScaleType": "Fit",
-                    "Size": { "UDim2": [[0, 60], [0, 60]] },
-                    "ZIndex": 4
+                    "Size": {"UDim2": [[0, 60], [0, 60]]},
+                    "ZIndex": 4,
+                    "AnchorPoint": [0.5, 0],
+                    "Visible": true
                   },
                   "Children": [
-                    { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 10] } }, "Children": [] }
+                    {
+                      "ClassName": "UICorner",
+                      "Properties": {
+                        "CornerRadius": {"UDim": [0, 5]}
+                      },
+                      "Children": []
+                    }
                   ]
                 },
                 {
@@ -311,24 +377,24 @@
                   "ClassName": "TextLabel",
                   "Properties": {
                     "BackgroundTransparency": 1,
-                    "FontFace": {
-                      "family": "rbxasset://fonts/families/GothamSSm.json",
-                      "weight": "Medium",
-                      "style": "Normal"
-                    },
-                    "Position": { "UDim2": [[0, 2], [0, 72]] },
-                    "Size": { "UDim2": [[1, -4], [0, 30]] },
+                    "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
+                    "Position": {"UDim2": [[0, 2], [1, -6]]},
+                    "Size": {"UDim2": [[1, -4], [0, 30]]},
                     "Text": "",
-                    "TextColor3": [0.86, 0.83, 1],
+                    "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
                     "TextScaled": true,
                     "TextStrokeColor3": [0.03, 0.024, 0.06],
                     "TextStrokeTransparency": 0.2,
-                    "ZIndex": 4
+                    "ZIndex": 4,
+                    "AnchorPoint": [0, 1],
+                    "Visible": true,
+                    "TextSize": 12,
+                    "TextXAlignment": "Center"
                   },
                   "Children": [
                     {
                       "ClassName": "UITextSizeConstraint",
-                      "Properties": { "MaxTextSize": 15 },
+                      "Properties": {"MaxTextSize": 15},
                       "Children": []
                     }
                   ]
@@ -341,11 +407,14 @@
           "Name": "BossSelector",
           "ClassName": "Frame",
           "Properties": {
-            "BackgroundTransparency": 1,
+            "BackgroundTransparency": 0,
             "BorderSizePixel": 0,
-            "Position": { "UDim2": [[0, 12], [0, 178]] },
-            "Size": { "UDim2": [[1, -24], [0, 44]] },
-            "ZIndex": 3
+            "Position": {"UDim2": [[0, 10], [0, 178]]},
+            "Size": {"UDim2": [[1, -20], [0, 42]]},
+            "ZIndex": 3,
+            "AnchorPoint": [0, 0],
+            "Visible": true,
+            "BackgroundColor3": [0.04313725605607033, 0.05098039284348488, 0.062745101749897]
           },
           "Children": [
             {
@@ -358,20 +427,24 @@
                 "BackgroundColor3": [0.16, 0.13, 0.26],
                 "BackgroundTransparency": 0.1,
                 "BorderSizePixel": 0,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
-                "Position": { "UDim2": [[0, 0], [0.5, 0]] },
-                "Size": { "UDim2": [[0, 44], [0, 44]] },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
+                "Position": {"UDim2": [[0, 0], [0.5, 0]]},
+                "Size": {"UDim2": [[0, 42], [0, 42]]},
                 "Text": "<",
-                "TextColor3": [0.86, 0.83, 1],
+                "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
                 "TextSize": 22,
-                "ZIndex": 4
+                "ZIndex": 4,
+                "Visible": true,
+                "TextXAlignment": "Center"
               },
               "Children": [
-                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 5]}
+                  },
+                  "Children": []
+                }
               ]
             },
             {
@@ -379,24 +452,24 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
-                "Position": { "UDim2": [[0, 50], [0, 0]] },
-                "Size": { "UDim2": [[1, -100], [1, 0]] },
-                "Text": "",
-                "TextColor3": [1, 0.86, 0.36],
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
+                "Position": {"UDim2": [[0, 48], [0, 0]]},
+                "Size": {"UDim2": [[1, -96], [1, 0]]},
+                "Text": "FOREST WARDEN",
+                "TextColor3": [0.9607843160629272, 0.7647058963775635, 0.2823529541492462],
                 "TextScaled": true,
                 "TextStrokeColor3": [0.03, 0.024, 0.06],
                 "TextStrokeTransparency": 0.2,
-                "ZIndex": 4
+                "ZIndex": 4,
+                "AnchorPoint": [0, 0],
+                "Visible": true,
+                "TextSize": 16,
+                "TextXAlignment": "Center"
               },
               "Children": [
                 {
                   "ClassName": "UITextSizeConstraint",
-                  "Properties": { "MaxTextSize": 20 },
+                  "Properties": {"MaxTextSize": 20},
                   "Children": []
                 }
               ]
@@ -411,20 +484,24 @@
                 "BackgroundColor3": [0.16, 0.13, 0.26],
                 "BackgroundTransparency": 0.1,
                 "BorderSizePixel": 0,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
-                "Position": { "UDim2": [[1, 0], [0.5, 0]] },
-                "Size": { "UDim2": [[0, 44], [0, 44]] },
+                "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
+                "Position": {"UDim2": [[1, 0], [0.5, 0]]},
+                "Size": {"UDim2": [[0, 42], [0, 42]]},
                 "Text": ">",
-                "TextColor3": [0.86, 0.83, 1],
+                "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
                 "TextSize": 22,
-                "ZIndex": 4
+                "ZIndex": 4,
+                "Visible": true,
+                "TextXAlignment": "Center"
               },
               "Children": [
-                { "ClassName": "UICorner", "Properties": { "CornerRadius": { "UDim": [0, 8] } }, "Children": [] }
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 5]}
+                  },
+                  "Children": []
+                }
               ]
             }
           ]
@@ -434,19 +511,17 @@
           "ClassName": "TextLabel",
           "Properties": {
             "BackgroundTransparency": 1,
-            "FontFace": {
-              "family": "rbxasset://fonts/families/GothamSSm.json",
-              "weight": "Medium",
-              "style": "Normal"
-            },
-            "Position": { "UDim2": [[0, 14], [1, -44]] },
-            "Size": { "UDim2": [[1, -28], [0, 34]] },
+            "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "SemiBold", "style": "Normal"},
+            "Position": {"UDim2": [[0, 12], [1, -6]]},
+            "Size": {"UDim2": [[1, -24], [0, 32]]},
             "Text": "STAND ON THE PORTAL TO ENTER THE DUNGEON",
-            "TextColor3": [0.66, 0.62, 0.86],
-            "TextSize": 15,
+            "TextColor3": [0.6666666865348816, 0.6941176652908325, 0.7372549176216125],
+            "TextSize": 14,
             "TextWrapped": true,
-            "TextXAlignment": "Left",
-            "ZIndex": 3
+            "TextXAlignment": "Center",
+            "ZIndex": 3,
+            "AnchorPoint": [0, 1],
+            "Visible": true
           },
           "Children": []
         }

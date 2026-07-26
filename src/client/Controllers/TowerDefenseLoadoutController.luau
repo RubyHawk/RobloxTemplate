@@ -70,7 +70,13 @@ local requestServer: Request? = nil
 local latestState: any = nil
 local selectedSlot: number? = nil
 local screenGui: ScreenGui? = nil
+local templateNavigation: GuiObject? = nil
 local placementHint: TextLabel? = nil
+local controlRowRoot: Frame? = nil
+local controlRowLayout: UIListLayout? = nil
+local inventoryControl: TextButton? = nil
+local diceControl: TextButton? = nil
+local upgradeControl: TextButton? = nil
 local loadoutBar: Frame? = nil
 local dynamicWidthConstraint: UISizeConstraint? = nil
 local aimDot: Frame? = nil
@@ -98,9 +104,9 @@ local PLACED_ACCENT = Color3.fromRGB(76, 82, 88)
 local TALENT_UNLOCKED_COLOR = Color3.fromRGB(34, 128, 91)
 local TALENT_AVAILABLE_COLOR = Color3.fromRGB(120, 82, 209)
 local TALENT_LOCKED_COLOR = Color3.fromRGB(38, 42, 48)
-local BAR_HORIZONTAL_PADDING = 24
-local SLOT_WIDTH = 84
-local SLOT_GAP = 8
+local BAR_HORIZONTAL_PADDING = 0
+local SLOT_WIDTH = 96
+local SLOT_GAP = 12
 local BAR_HEIGHT = 116
 
 local function catalogColor(value: any, fallback: Color3): Color3
@@ -315,6 +321,38 @@ local function refreshBarWidth()
 	local width = math.floor(math.min(desiredWidth, availableWidth))
 	dynamicWidthConstraint.MinSize = Vector2.new(width, BAR_HEIGHT)
 	dynamicWidthConstraint.MaxSize = Vector2.new(width, BAR_HEIGHT)
+
+	local row = controlRowRoot
+	local layout = controlRowLayout
+	local inventoryButton = inventoryControl
+	local diceButton = diceControl
+	local upgradeButton = upgradeControl
+	if
+		camera == nil
+		or row == nil
+		or layout == nil
+		or inventoryButton == nil
+		or diceButton == nil
+		or upgradeButton == nil
+	then
+		return
+	end
+	local shortLandscape = camera.ViewportSize.X > camera.ViewportSize.Y and camera.ViewportSize.Y < 520
+	if shortLandscape then
+		row.Position = UDim2.new(0.5, 0, 1, -136)
+		row.Size = UDim2.fromOffset(300, 90)
+		layout.Padding = UDim.new(0, 14)
+		inventoryButton.Size = UDim2.fromOffset(72, 72)
+		diceButton.Size = UDim2.fromOffset(88, 88)
+		upgradeButton.Size = UDim2.fromOffset(72, 72)
+	else
+		row.Position = UDim2.new(0.5, 0, 1, -152)
+		row.Size = UDim2.fromOffset(396, 174)
+		layout.Padding = UDim.new(0, 14)
+		inventoryButton.Size = UDim2.fromOffset(112, 112)
+		diceButton.Size = UDim2.fromOffset(144, 144)
+		upgradeButton.Size = UDim2.fromOffset(112, 112)
+	end
 end
 
 local function refresh()
@@ -322,7 +360,12 @@ local function refresh()
 	if screenGui == nil then
 		return
 	end
-	if not towerPresentationActive() then
+	local presentationActive = towerPresentationActive()
+	if templateNavigation ~= nil then
+		templateNavigation.Visible = not presentationActive
+			and localPlayer:GetAttribute(DUNGEON_PRESENTATION_ATTRIBUTE) ~= true
+	end
+	if not presentationActive then
 		selectedSlot = nil
 		detailsUnitId = nil
 		detailsSlot = nil
@@ -798,6 +841,11 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 		local inventoryButton = controlRow:WaitForChild("InventoryButton") :: TextButton
 		local diceButton = controlRow:WaitForChild("DiceButton") :: TextButton
 		local upgradeTreeButton = controlRow:WaitForChild("UpgradeTreeButton") :: TextButton
+		controlRowRoot = controlRow :: Frame
+		controlRowLayout = controlRow:FindFirstChildOfClass("UIListLayout") :: UIListLayout?
+		inventoryControl = inventoryButton
+		diceControl = diceButton
+		upgradeControl = upgradeTreeButton
 		local slotsRoot = loadoutBar:WaitForChild("Slots")
 		for index = 1, Config.towerDefense.loadoutSlots do
 			local button = slotsRoot:WaitForChild(`UnitSlot{string.format("%02d", index)}`) :: TextButton
@@ -922,7 +970,7 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 			else nil
 		local navigation = if templateRoot then templateRoot:FindFirstChild("Navigation") else nil
 		if navigation and navigation:IsA("GuiObject") then
-			navigation.Visible = false
+			templateNavigation = navigation
 		end
 
 		bindViewportResize()
