@@ -89,35 +89,18 @@ assert(screenGui:IsA("ScreenGui"), "StarterGui.TemplateUI must be a ScreenGui")
 screenGui.Enabled = true
 
 local root = screenGui:WaitForChild("Root") :: Frame
-local showcaseCanvas = root:FindFirstChild("ShowcaseCanvas")
-if showcaseCanvas and showcaseCanvas:IsA("GuiObject") then
-	-- The source model is an editable WYSIWYG showroom. Gameplay only hides it;
-	-- every connected screen and data slot remains a permanent StarterGui instance.
-	showcaseCanvas.Visible = false
-end
 local uiScale = root:WaitForChild("InterfaceScale") :: UIScale
 ResponsiveController.initialize(root, uiScale)
-local hud = root:WaitForChild("CurrencyHUD") :: Frame
-local currencyTray = root:WaitForChild("CurrencyTray", 10) :: Frame?
+local currencyTray = root:WaitForChild("CurrencyTray") :: Frame
 local currencySlots: { Frame } = {}
-if currencyTray then
-	hud.Visible = false
-	local currencySlotsRoot = currencyTray:WaitForChild("Slots") :: ScrollingFrame
-	for index = 1, 5 do
-		table.insert(
-			currencySlots,
-			currencySlotsRoot:WaitForChild(`CurrencySlot{string.format("%02d", index)}`) :: Frame
-		)
-	end
-else
-	warn(
-		"TemplateUI is missing CurrencyTray; rebuild the place from bootstrap.project.json to show all configured currencies"
+local currencySlotsRoot = currencyTray:WaitForChild("Slots") :: ScrollingFrame
+for index = 1, 5 do
+	table.insert(
+		currencySlots,
+		currencySlotsRoot:WaitForChild(`CurrencySlot{string.format("%02d", index)}`) :: Frame
 	)
 end
-local boostLabel = (
-	if currencyTray then currencyTray:WaitForChild("BoostLabel") else hud:WaitForChild("BoostLabel")
-) :: TextLabel
-local addCoinsButton = hud:WaitForChild("AddCoinsButton") :: TextButton
+local boostLabel = currencyTray:WaitForChild("BoostLabel") :: TextLabel
 local nav = root:WaitForChild("Navigation") :: Frame
 local navScroll = nav:WaitForChild("Buttons") :: ScrollingFrame
 local moreMenu = root:WaitForChild("MoreMenu") :: Frame
@@ -161,7 +144,6 @@ local function applyIcon(container: Instance, name: IconName, imageName: string,
 	end
 end
 
-applyIcon(hud:WaitForChild("CoinBadge"), "coin", "Icon", "Symbol")
 applyIcon(toast:WaitForChild("IconBadge"), "notifications", "Icon", "Symbol")
 applyIcon(moreCloseButton, "close", "Icon", nil)
 if boostSummaryButton then
@@ -250,11 +232,8 @@ local function setupGalleryMenu()
 	local buttons: { [string]: TextButton } = {}
 	local function setMode(modeName: string)
 		screenGui.Enabled = modeName == "Connected" or modeName == "Pack"
-		if showcaseCanvas and showcaseCanvas:IsA("GuiObject") then
-			showcaseCanvas.Visible = modeName == "Pack"
-		end
 		if packShowroom then
-			packShowroom.Enabled = false
+			packShowroom.Enabled = modeName == "Pack"
 		end
 		if notificationShowroom then
 			notificationShowroom.Enabled = modeName == "Notification"
@@ -449,16 +428,6 @@ moreCloseButton.Activated:Connect(function()
 	moreMenu.Visible = false
 end)
 
-addCoinsButton.Activated:Connect(function()
-	AudioController.play("click")
-	moreMenu.Visible = false
-	if registry.current == "Store" then
-		registry:close()
-	else
-		registry:open("Store")
-	end
-end)
-
 local moreItems = {
 	{ "CodesButton", "Codes", "codes" },
 	{ "BoardsButton", "Boards", "leaderboard" },
@@ -513,28 +482,30 @@ local function applyState(nextState: any)
 		slot.Visible = definition ~= nil
 		if definition then
 			local amount = slot:WaitForChild("AmountLabel") :: TextLabel
-			local caption = slot:WaitForChild("Caption") :: TextLabel
-			local symbol = slot:WaitForChild("Symbol") :: TextLabel
 			local icon = slot:WaitForChild("Icon") :: ImageLabel
-			local accent = slot:WaitForChild("Accent") :: Frame
+			local caption = slot:FindFirstChild("Caption")
+			local symbol = slot:FindFirstChild("Symbol")
+			local accent = slot:FindFirstChild("Accent")
 			amount.Text = UIFactory.formatNumber(balances[definition.id] or 0)
-			caption.Text = string.upper(definition.name)
-			symbol.Text = definition.symbol
+			if caption and caption:IsA("TextLabel") then
+				caption.Text = string.upper(definition.name)
+			end
+			if symbol and symbol:IsA("TextLabel") then
+				symbol.Text = definition.symbol
+			end
 			local hasIcon = definition.iconAssetId ~= ""
-			symbol.Visible = not hasIcon
+			if symbol and symbol:IsA("TextLabel") then
+				symbol.Visible = not hasIcon
+			end
 			icon.Image = if hasIcon
 				then `rbxthumb://type=Asset&id={definition.iconAssetId}&w=150&h=150`
 				else ""
 			icon.Visible = hasIcon
 			local color = definition.color
-			if type(color) == "table" then
+			if accent and accent:IsA("Frame") and type(color) == "table" then
 				accent.BackgroundColor3 = Color3.fromRGB(color[1] or 255, color[2] or 202, color[3] or 10)
 			end
 		end
-	end
-	local legacyCoinLabel = hud:FindFirstChild("CoinLabel")
-	if legacyCoinLabel and legacyCoinLabel:IsA("TextLabel") then
-		legacyCoinLabel.Text = UIFactory.formatNumber(balances[primaryId] or state.profile.coins or 0)
 	end
 	local runeMultiplier = if type(state.runeMultiplier) == "number" then state.runeMultiplier else 1
 	local channelMultiplier = if type(state.channelMultiplier) == "number" then state.channelMultiplier else 1

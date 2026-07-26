@@ -1,8 +1,22 @@
 {
   "format": "roblox-ui-bridge-v1",
+  "mode": "authoritative",
   "workspace": "rng-defender",
   "roots": [
-    "TemplateUI"
+    "TemplateUI",
+    "TemplateLoading",
+    "StarterSignUI",
+    "RuneCircleSign",
+    "RuneCircleUI",
+    "StagePlatformOwners",
+    "TowerDefenseTravelHUD",
+    "TowerDefenseLevelHUD",
+    "TowerDefenseLoadoutHUD",
+    "PortalSign",
+    "DungeonHUD",
+    "StagewrightPlaytestHUD",
+    "RuneCircle",
+    "EnemyRigs"
   ],
   "entries": []
 }

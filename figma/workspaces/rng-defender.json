@@ -65,6 +65,16 @@
       "root": "StagewrightPlaytestHUD",
       "path": "src/ui/StagewrightPlaytestHUD.model.json",
       "scope": "studio-only"
+    },
+    {
+      "root": "RuneCircle",
+      "path": "src/world/RuneCircle.model.json",
+      "scope": "production"
+    },
+    {
+      "root": "EnemyRigs",
+      "path": "src/world/EnemyRigs.model.json",
+      "scope": "production"
     }
   ]
 }

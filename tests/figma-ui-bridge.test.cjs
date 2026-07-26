@@ -114,7 +114,25 @@ assert.throws(
 );
 
 const workspace = readJson("figma/workspaces/rng-defender.json");
-assert.equal(workspace.models.length, 12, "RNG Defender workspace includes every authored StarterGui root");
+assert.equal(
+  workspace.models.length,
+  14,
+  "RNG Defender workspace includes every StarterGui root plus world-space rune and enemy UI"
+);
+const rngProject = readJson("patches/rng-defender-grid-demo.project.json");
+const workspaceRoots = new Set(workspace.models.map((definition) => definition.root));
+const starterGuiRoots = Object.keys(rngProject.tree.StarterGui)
+  .filter((name) => !name.startsWith("$"));
+for (const rootName of starterGuiRoots) {
+  assert.ok(workspaceRoots.has(rootName), `Figma workspace owns StarterGui.${rootName}`);
+}
+assert.ok(workspaceRoots.has("RuneCircle"), "Figma workspace owns both rune SurfaceGuis");
+assert.ok(workspaceRoots.has("EnemyRigs"), "Figma workspace owns every enemy health-bar BillboardGui");
+assert.deepEqual(
+  [...workspaceRoots].sort(),
+  [...new Set([...starterGuiRoots, "RuneCircle", "EnemyRigs"])].sort(),
+  "the authoritative workspace has no missing or unrelated RNG Defender UI roots"
+);
 for (const definition of workspace.models) {
   const modelPath = path.join(repo, definition.path);
   assert.ok(fs.existsSync(modelPath), `workspace model exists: ${definition.path}`);
@@ -150,7 +168,7 @@ try {
   assert.equal(bundle.project, "patches/rng-defender-grid-demo.project.json");
   assert.equal(bundle.output, "build/RNGDefenderSafePatch.rbxlx");
   const expandedBundle = bridge.expandImportFiles([{ name: "workspace.json", text: JSON.stringify(bundle) }]);
-  assert.equal(expandedBundle.length, 12);
+  assert.equal(expandedBundle.length, 14);
   assert.ok(expandedBundle.every((item) => item.workspaceId === "rng-defender"));
 
   const duplicateWorkspacePath = path.join(temporary, "duplicate-workspace.json");
@@ -251,6 +269,42 @@ try {
           Properties: { Size: { UDim2: [[0, 40], [0, 40]] } },
           Children: []
         }]
+      }, {
+        Name: "Freeform",
+        ClassName: "Frame",
+        Properties: {
+          Position: { UDim2: [[0, 340], [0, 80]] },
+          Size: { UDim2: [[0, 160], [0, 100]] }
+        },
+        Children: [{
+          ClassName: "UIListLayout",
+          Properties: { FillDirection: "Horizontal" }
+        }, {
+          Name: "Top",
+          ClassName: "TextButton",
+          Properties: { Size: { UDim2: [[0, 100], [0, 30]] } },
+          Children: []
+        }, {
+          Name: "Bottom",
+          ClassName: "TextButton",
+          Properties: { Size: { UDim2: [[0, 100], [0, 30]] } },
+          Children: []
+        }]
+      }, {
+        Name: "LegacyOverlay",
+        ClassName: "Frame",
+        Properties: { Visible: true },
+        Children: []
+      }, {
+        Name: "LegacyExcluded",
+        ClassName: "Frame",
+        Properties: { Visible: true },
+        Children: []
+      }, {
+        Name: "Reclassed",
+        ClassName: "Frame",
+        Properties: { Visible: true },
+        Children: []
       }]
     }]
   }));
@@ -358,6 +412,106 @@ try {
         parentHeight: 80,
         managedByLayout: true
       }
+    }, {
+      path: "SurfaceTest/Panel/Freeform",
+      className: "Frame",
+      visible: true,
+      x: 340,
+      y: 80,
+      width: 160,
+      height: 100,
+      layout: {
+        size: { sx: 0, ox: 160, sy: 0, oy: 100 },
+        pos: { sx: 0, ox: 340, sy: 0, oy: 80 },
+        anchor: { x: 0, y: 0 },
+        parentWidth: 560,
+        parentHeight: 280,
+        managedByLayout: false
+      }
+    }, {
+      path: "SurfaceTest/Panel/Freeform/Top",
+      className: "TextButton",
+      visible: true,
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 30,
+      layout: {
+        size: { sx: 0, ox: 100, sy: 0, oy: 30 },
+        pos: { sx: 0, ox: 0, sy: 0, oy: 0 },
+        anchor: { x: 0, y: 0 },
+        parentWidth: 160,
+        parentHeight: 100,
+        managedByLayout: true
+      }
+    }, {
+      path: "SurfaceTest/Panel/Freeform/Bottom",
+      className: "TextButton",
+      visible: true,
+      x: 40,
+      y: 50,
+      width: 100,
+      height: 30,
+      layout: {
+        size: { sx: 0, ox: 100, sy: 0, oy: 30 },
+        pos: { sx: 0, ox: 40, sy: 0, oy: 50 },
+        anchor: { x: 0, y: 0 },
+        parentWidth: 160,
+        parentHeight: 100,
+        managedByLayout: true
+      }
+    }, {
+      path: "SurfaceTest/Panel/LegacyExcluded",
+      className: "Frame",
+      visible: true,
+      x: 0,
+      y: 0,
+      width: 10,
+      height: 10,
+      layout: {
+        size: { sx: 0, ox: 10, sy: 0, oy: 10 },
+        pos: { sx: 0, ox: 0, sy: 0, oy: 0 },
+        anchor: { x: 0, y: 0 },
+        parentWidth: 560,
+        parentHeight: 280,
+        managedByLayout: false
+      }
+    }, {
+      path: "SurfaceTest/Panel/NewFromFigma",
+      className: "TextLabel",
+      visible: true,
+      x: 400,
+      y: 220,
+      width: 120,
+      height: 30,
+      text: "NEW",
+      cornerRadius: 8,
+      stroke: { color: [1, 0.8, 0.1], thickness: 2 },
+      layout: {
+        size: { sx: 0, ox: 120, sy: 0, oy: 30 },
+        pos: { sx: 0, ox: 400, sy: 0, oy: 220 },
+        anchor: { x: 0, y: 0 },
+        parentWidth: 560,
+        parentHeight: 280,
+        managedByLayout: false
+      }
+    }, {
+      path: "SurfaceTest/Panel/Reclassed",
+      className: "TextLabel",
+      visible: true,
+      x: 10,
+      y: 200,
+      width: 100,
+      height: 30,
+      text: "RECLASSED",
+      layout: {
+        size: { sx: 0, ox: 100, sy: 0, oy: 30 },
+        pos: { sx: 0, ox: 10, sy: 0, oy: 200 },
+        anchor: { x: 0, y: 0 },
+        parentWidth: 560,
+        parentHeight: 280,
+        managedByLayout: false
+      }
     }]
   }));
   const applyResult = spawnSync(process.execPath, [
@@ -366,7 +520,9 @@ try {
     "--model",
     modelPath,
     "--patch",
-    patchPath
+    patchPath,
+    "--exclude-path",
+    "SurfaceTest/Panel/LegacyExcluded"
   ], { cwd: repo, encoding: "utf8" });
   assert.equal(applyResult.status, 0, applyResult.stderr || applyResult.stdout);
   const applied = JSON.parse(fs.readFileSync(modelPath, "utf8"));
@@ -393,6 +549,43 @@ try {
   assert.equal(importedRow.Children[0].ClassName, "UIListLayout");
   assert.deepEqual(importedRow.Children[0].Properties.Padding, { UDim: [0, 12] });
   assert.equal(importedRow.Children[0].Properties.HorizontalAlignment, "Left");
+  const importedFreeform = applied.Children[0].Children.find((child) => child.Name === "Freeform");
+  assert.ok(importedFreeform, "multi-row Figma composition remains authored");
+  assert.equal(
+    importedFreeform.Children.some((child) => child.ClassName === "UIListLayout"),
+    false,
+    "legacy list layout cannot rearrange a freeform multi-row Figma composition"
+  );
+  assert.notDeepEqual(
+    importedFreeform.Children.find((child) => child.Name === "Bottom").Properties.Position,
+    { UDim2: [[0, 0], [0, 0]] },
+    "freeform child receives its Figma-authored position after the legacy layout is removed"
+  );
+  assert.equal(
+    applied.Children[0].Children.some((child) => child.Name === "LegacyOverlay"),
+    false,
+    "unmapped legacy visuals are pruned by an authoritative import"
+  );
+  assert.equal(
+    applied.Children[0].Children.some((child) => child.Name === "LegacyExcluded"),
+    false,
+    "explicitly excluded obsolete source paths are pruned instead of reimported"
+  );
+  const createdFromFigma = applied.Children[0].Children.find((child) => child.Name === "NewFromFigma");
+  assert.ok(createdFromFigma, "a new mapped Figma visual is created at its authoritative path");
+  assert.equal(createdFromFigma.ClassName, "TextLabel");
+  assert.equal(createdFromFigma.Properties.Text, "NEW");
+  assert.equal(
+    createdFromFigma.Children.find((child) => child.ClassName === "UICorner").Properties.CornerRadius.UDim[1],
+    8
+  );
+  assert.equal(
+    createdFromFigma.Children.find((child) => child.ClassName === "UIStroke").Properties.Thickness,
+    2
+  );
+  const reclassed = applied.Children[0].Children.find((child) => child.Name === "Reclassed");
+  assert.equal(reclassed.ClassName, "TextLabel", "a stable path can change Roblox visual class");
+  assert.equal(reclassed.Properties.Text, "RECLASSED");
   assert.equal(applied.Properties.Enabled, false);
   assert.equal(applied.Properties.ResetOnSpawn, false);
 } finally {
@@ -408,6 +601,23 @@ const pluginSource = fs.readFileSync(path.join(repo, "figma/roblox-ui-bridge/cod
 assert.match(pluginSource, /entry\.fontFamily = textNode\.fontName\.family/);
 assert.match(pluginSource, /entry\.textAlignHorizontal/);
 assert.match(pluginSource, /layout\.parentWidth = node\.parent\.width/);
+assert.match(pluginSource, /mode: "authoritative"/);
+assert.match(pluginSource, /Duplicate Roblox paths found in Figma/);
+assert.doesNotMatch(
+  pluginSource,
+  /new Set\(\["ComponentTemplates", "ShowcaseCanvas", "ScreenTemplate", "Screens"\]\)/,
+  "workspace import does not silently omit visual branches"
+);
+assert.deepEqual(
+  bridge.inferredBinding({
+    name: "ClaimButton",
+    type: "FRAME",
+    children: [{ name: "Label", type: "TEXT" }],
+    fills: []
+  }),
+  { name: "ClaimButton", className: "TextButton" },
+  "new named Figma controls receive a stable Roblox class and path"
+);
 
 const templateUi = readJson("src/ui/presets/incremental/TemplateUI.model.json");
 const childNamed = (node, name) =>
@@ -427,14 +637,23 @@ const findNamed = (node, name) => {
 const navigation = findNamed(templateUi, "Navigation");
 assert.ok(navigation, "TemplateUI keeps the authored lobby navigation");
 assert.equal(templateUi.Properties.Enabled, false, "TemplateUI starts disabled until its binder is ready");
-assert.equal(
-  findNamed(templateUi, "ShowcaseCanvas").Properties.Visible,
-  false,
-  "the editable Figma showroom cannot flash during gameplay startup"
-);
+for (const legacyName of ["CurrencyHUD", "ShowcaseCanvas", "ScreenTemplate", "ComponentTemplates"]) {
+  assert.equal(
+    findNamed(templateUi, legacyName),
+    undefined,
+    `${legacyName} is absent when it is absent from the authoritative Figma workspace`
+  );
+}
 for (const screen of findNamed(templateUi, "Screens").Children) {
   assert.equal(screen.Properties.Visible, false, `${screen.Name} starts closed`);
 }
+const rewardsContent = findNamed(findNamed(templateUi, "RewardsScreen"), "Content");
+assert.ok(rewardsContent, "Rewards content remains authored");
+assert.equal(
+  rewardsContent.Children.some((child) => child.ClassName === "UIListLayout"),
+  false,
+  "an obsolete list layout cannot rearrange Figma's multi-row Rewards composition"
+);
 const navigationButtons = childNamed(navigation, "Buttons");
 assert.ok(navigationButtons, "TemplateUI keeps the navigation button container");
 assert.equal(navigation.Properties.BackgroundTransparency, 1);

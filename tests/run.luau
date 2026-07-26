@@ -6709,6 +6709,13 @@ expectEqual(
 	true,
 	"Figma patch applier keeps Roblox-only constraints and layouts aligned with imported visuals"
 )
+expectEqual(
+	string.find(figmaPatchApplier, "pruneToAuthoritativeEntries", 1, true) ~= nil
+		and string.find(figmaPatchApplier, "parent.Children.push(node)", 1, true) ~= nil
+		and string.find(figmaPatchApplier, "node.ClassName = entry.className", 1, true) ~= nil,
+	true,
+	"Figma patch application is an authoritative create/update/delete upsert"
+)
 
 -- StoreScreen's header was 60 tall while its own Body label already
 -- reserved 92px (Title + wrapped 2-line Body); found via mechanical
@@ -10576,10 +10583,11 @@ do
 		)
 		expectEqual(
 			string.find(figmaWorkspaceSource, '"root": "DungeonHUD"', 1, true) ~= nil
-				and string.find(figmaWorkspaceSource, '"path": "src/ui/DungeonHUD.model.json"', 1, true)
-					~= nil,
+				and string.find(figmaWorkspaceSource, '"path": "src/ui/DungeonHUD.model.json"', 1, true) ~= nil
+				and string.find(figmaWorkspaceSource, '"root": "RuneCircle"', 1, true) ~= nil
+				and string.find(figmaWorkspaceSource, '"root": "EnemyRigs"', 1, true) ~= nil,
 			true,
-			"the authored responsive ability bar stays available through the RNG Defender Figma workspace"
+			"the RNG Defender Figma workspace owns HUD, SurfaceGui, and BillboardGui presentation roots"
 		)
 		local dungeonAnimationsSource = fs.readFile("src/assets/DungeonAnimations.model.json")
 		for _, abilityId in { "power_strike", "whirlwind", "fireball", "second_wind" } do

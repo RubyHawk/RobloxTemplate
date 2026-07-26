@@ -2,7 +2,17 @@
 
 ## What connected means
 
-Figma owns visual editing. Roblox owns runnable native instances. The checked-in bridge imports native Rojo models into editable Figma layers, preserves exact Roblox paths as metadata, and exports validated patches back to those models. It is an explicit round trip, not live synchronization.
+Figma owns every visual instance in the selected workspace. Roblox owns runnable native instances and nonvisual behavior. The checked-in bridge imports native Rojo models into editable Figma layers, preserves exact Roblox paths as metadata, and exports an authoritative patch back to those models. It is an explicit round trip, not live synchronization.
+
+Workspace import is a path-based create/update/delete sync:
+
+- a matching path updates the existing Roblox visual;
+- a new mapped Figma layer creates a native Roblox visual;
+- a visual removed from Figma is removed from the authored model;
+- duplicate paths stop the import instead of creating overlapping UI;
+- nonvisual Luau, audio, parts, attachments, and runtime objects are preserved.
+
+Reapplying the same export is idempotent. It never appends a second copy of the UI.
 
 A screenshot or flattened image is not connected UI. Connected UI remains native `ScreenGui`, `SurfaceGui`, `BillboardGui`, `Frame`, `ImageButton`, `TextLabel`, and layout instances so the existing Luau binders can keep using authored paths.
 
@@ -15,7 +25,7 @@ A screenshot or flattened image is not connected UI. Connected UI remains native
 5. Run `FIGMA_UI.cmd`.
 6. Connect Rojo to `patches/rng-defender-grid-demo.project.json` and test in the permanent RNG Defender place.
 
-The workspace manifest is `figma/workspaces/rng-defender.json`. It maps every exported root to one exact authored model and rebuilds the RNG Defender safe patch. The Figma Starter plan is sufficient because the plugin no longer creates one page per imported model.
+The workspace manifest is `figma/workspaces/rng-defender.json`. It maps all 14 presentation roots to exact authored models: every StarterGui root, both rune-circle `SurfaceGui`s, and all six enemy health-bar `BillboardGui`s. Exporting any selected RNG Defender board exports the entire workspace, then rebuilds the safe patch. An incomplete or older non-authoritative export is rejected before it can delete or mix UI.
 
 ## Preset-only workflow
 
@@ -27,9 +37,11 @@ The original independent-preset workflow remains supported. Import and export on
 
 Run `FIGMA_UI.cmd -Preset <name> -PatchPath <patch>` to apply those changes to one physically independent preset. Never replace another preset's files.
 
-## Required binding names
+## Stable binding names
 
-The primary roots are `CurrencyHUD`, `Navigation`, `Screens`, `MoreButton`, and `MoreMenu`. Connected screens and finite data slots must retain the names already present in the authored model. Decorative Figma layer names may change because the original Roblox path remains attached as plugin metadata.
+The primary paths are `CurrencyTray`, `Navigation`, `Screens`, `MoreButton`, and `MoreMenu`. Connected screens and finite data slots retain the names used by their Luau binders.
+
+Imported layers already carry their exact class and path. For a genuinely new Figma layer, use a unique Roblox-safe name. The bridge infers `TextButton` for names ending in `Button`, `Tab`, or `Toggle`, `TextLabel` for other frames with direct text, `ImageLabel` for image-filled layers, and `Frame` otherwise. An explicit class tag such as `Confirm [TextButton]` overrides inference while the Roblox instance name remains `Confirm`.
 
 ## World-space UI
 

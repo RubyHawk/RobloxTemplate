@@ -343,7 +343,7 @@ function placeBoard(board, cursor) {
   cursor.rowHeight = Math.max(cursor.rowHeight, board.height);
 }
 
-function createBoard(rootName, label, size, containerPath, containerClass, cursor) {
+function createBoard(rootName, label, size, containerPath, containerClass, cursor, contentPath = containerPath) {
   const board = figma.createFrame();
   board.name = `${rootName} - ${label}`;
   board.resize(size.width, size.height);
@@ -355,6 +355,7 @@ function createBoard(rootName, label, size, containerPath, containerClass, curso
   board.setSharedPluginData(NAMESPACE, "modelRoot", rootName);
   board.setSharedPluginData(NAMESPACE, "containerPath", containerPath);
   board.setSharedPluginData(NAMESPACE, "containerClass", containerClass);
+  board.setSharedPluginData(NAMESPACE, "contentPath", contentPath);
   placeBoard(board, cursor);
   return board;
 }
@@ -367,8 +368,16 @@ async function importModel(file, cursor) {
   const artboards = [];
 
   if (screens) {
-    const hud = createBoard(rootName, "HUD", DEFAULT_VIEWPORT, rootName, "ScreenGui", cursor);
-    const excluded = new Set(["ComponentTemplates", "ShowcaseCanvas", "ScreenTemplate", "Screens"]);
+    const hud = createBoard(
+      rootName,
+      "HUD",
+      DEFAULT_VIEWPORT,
+      rootName,
+      "ScreenGui",
+      cursor,
+      `${rootName}/Root`
+    );
+    const excluded = new Set(["Screens"]);
     for (const child of namedChildren(modelRoot)) {
       if (!excluded.has(child.Name)) {
         await createVisualTree(child, hud, `${rootName}/Root/${child.Name}`, DEFAULT_VIEWPORT, false);
@@ -432,18 +441,148 @@ function solidPaint(node) {
   return paint ? { color: [paint.color.r, paint.color.g, paint.color.b], opacity: paint.opacity === undefined ? 1 : paint.opacity } : null;
 }
 
+function directTextNode(node) {
+  if (!("children" in node)) return null;
+  return node.children.find((child) => child.type === "TEXT" && child.name === "$Text")
+    || node.children.find((child) => child.type === "TEXT")
+    || null;
+}
+
+function imagePaint(node) {
+  if (!("fills" in node) || !Array.isArray(node.fills)) return null;
+  return node.fills.find((fill) => fill.type === "IMAGE") || null;
+}
+
+function inferredBinding(node) {
+  const tagged = String(node.name || "").match(
+    /^(.*?)\s*\[(CanvasGroup|Frame|ImageButton|ImageLabel|ScrollingFrame|TextBox|TextButton|TextLabel|VideoFrame|ViewportFrame)\]\s*$/
+  );
+  const name = String(tagged ? tagged[1] : node.name || "").trim();
+  if (!name || name === "$Text" || name.includes("/")) return null;
+  if (tagged) return { name, className: tagged[2] };
+
+  const interactive = /(Button|Tab|Toggle)$/i.test(name);
+  if (directTextNode(node)) {
+    return { name, className: interactive ? "TextButton" : "TextLabel" };
+  }
+  if (imagePaint(node)) {
+    return { name, className: interactive ? "ImageButton" : "ImageLabel" };
+  }
+  return { name, className: "Frame" };
+}
+
+function axisLayout(constraintValue, start, size, parentSize) {
+  if (constraintValue === "STRETCH") {
+    return { sizeScale: 1, sizeOffset: size - parentSize, posScale: 0, posOffset: start, anchor: 0 };
+  }
+  if (constraintValue === "CENTER") {
+    return {
+      sizeScale: 0,
+      sizeOffset: size,
+      posScale: 0.5,
+      posOffset: start + size / 2 - parentSize / 2,
+      anchor: 0.5
+    };
+  }
+  if (constraintValue === "MAX") {
+    return {
+      sizeScale: 0,
+      sizeOffset: size,
+      posScale: 1,
+      posOffset: start + size - parentSize,
+      anchor: 1
+    };
+  }
+  return { sizeScale: 0, sizeOffset: size, posScale: 0, posOffset: start, anchor: 0 };
+}
+
+function inferredLayout(node) {
+  const parentWidth = Number(node.parent && "width" in node.parent ? node.parent.width : 0);
+  const parentHeight = Number(node.parent && "height" in node.parent ? node.parent.height : 0);
+  const constraints = node.constraints || { horizontal: "MIN", vertical: "MIN" };
+  const horizontal = axisLayout(
+    constraints.horizontal,
+    Number(node.x) || 0,
+    Number(node.width) || 1,
+    parentWidth
+  );
+  const vertical = axisLayout(
+    constraints.vertical,
+    Number(node.y) || 0,
+    Number(node.height) || 1,
+    parentHeight
+  );
+  return {
+    size: {
+      sx: horizontal.sizeScale,
+      ox: horizontal.sizeOffset,
+      sy: vertical.sizeScale,
+      oy: vertical.sizeOffset
+    },
+    pos: {
+      sx: horizontal.posScale,
+      ox: horizontal.posOffset,
+      sy: vertical.posScale,
+      oy: vertical.posOffset
+    },
+    anchor: { x: horizontal.anchor, y: vertical.anchor },
+    parentWidth,
+    parentHeight,
+    managedByLayout: Boolean(
+      node.parent
+      && "layoutMode" in node.parent
+      && node.parent.layoutMode
+      && node.parent.layoutMode !== "NONE"
+    )
+  };
+}
+
+function boardContentPath(board) {
+  const explicit = board.getSharedPluginData(NAMESPACE, "contentPath");
+  if (explicit) return explicit;
+  const containerPath = board.getSharedPluginData(NAMESPACE, "containerPath");
+  const modelRoot = board.getSharedPluginData(NAMESPACE, "modelRoot");
+  if (containerPath === modelRoot && modelRoot) return `${modelRoot}/Root`;
+  return containerPath || modelRoot || "";
+}
+
 function collectPatch(nodes) {
   const entries = [];
-  const visit = (node) => {
-    const path = node.getSharedPluginData ? node.getSharedPluginData(NAMESPACE, "path") : "";
+  const visit = (node, parentPath = "") => {
+    const isBoard = Boolean(
+      node.getSharedPluginData
+      && node.getSharedPluginData(NAMESPACE, "modelRoot")
+      && node.getSharedPluginData(NAMESPACE, "containerPath")
+    );
+    if (isBoard) {
+      const contentPath = boardContentPath(node);
+      if ("children" in node) node.children.forEach((child) => visit(child, contentPath));
+      return;
+    }
+
+    let path = node.getSharedPluginData ? node.getSharedPluginData(NAMESPACE, "path") : "";
+    let className = node.getSharedPluginData
+      ? node.getSharedPluginData(NAMESPACE, "className")
+      : "";
+    if (!path && parentPath && node.type !== "TEXT") {
+      const binding = inferredBinding(node);
+      if (binding) {
+        path = `${parentPath}/${binding.name}`;
+        className = binding.className;
+        storeMetadata(node, {
+          path,
+          className,
+          layout: inferredLayout(node)
+        });
+      }
+    }
     if (path) {
       const rawLayout = node.getSharedPluginData(NAMESPACE, "layout");
-      const layout = rawLayout ? JSON.parse(rawLayout) : null;
+      const layout = rawLayout ? JSON.parse(rawLayout) : inferredLayout(node);
       if (layout && node.parent && "width" in node.parent && "height" in node.parent) {
         layout.parentWidth = node.parent.width;
         layout.parentHeight = node.parent.height;
       }
-      const className = node.getSharedPluginData(NAMESPACE, "className");
       const entry = {
         path,
         className,
@@ -459,7 +598,7 @@ function collectPatch(nodes) {
         layout
       };
       if (String(entry.className).startsWith("Text") && "children" in node) {
-        const textNode = node.children.find((child) => child.type === "TEXT" && child.name === "$Text");
+        const textNode = directTextNode(node);
         entry.text = textNode ? textNode.characters : "";
         entry.fontSize = textNode && typeof textNode.fontSize === "number" ? textNode.fontSize : null;
         if (textNode && typeof textNode.fontName !== "symbol") {
@@ -479,9 +618,9 @@ function collectPatch(nodes) {
       }
       entries.push(entry);
     }
-    if ("children" in node) node.children.forEach(visit);
+    if ("children" in node) node.children.forEach((child) => visit(child, path || parentPath));
   };
-  nodes.forEach(visit);
+  nodes.forEach((node) => visit(node, ""));
   return entries;
 }
 
@@ -533,13 +672,38 @@ if (typeof figma !== "undefined") {
       }
       if (message.type === "export-patch") {
         const selectedEntries = collectPatch(figma.currentPage.selection);
-        const sourceNodes = selectedEntries.length ? figma.currentPage.selection : figma.currentPage.children;
-        const entries = selectedEntries.length ? selectedEntries : collectPatch(sourceNodes);
+        const selectedNodes = selectedEntries.length ? figma.currentPage.selection : figma.currentPage.children;
+        const selectedWorkspaceId = singleWorkspaceId(selectedNodes);
+        const sourceNodes = selectedWorkspaceId
+          ? figma.currentPage.children.filter(
+            (node) => node.getSharedPluginData
+              && node.getSharedPluginData(NAMESPACE, "workspaceId") === selectedWorkspaceId
+          )
+          : selectedNodes;
+        const entries = collectPatch(sourceNodes);
         if (!entries.length) throw new Error("Import a Roblox UI model on this page first.");
-        const roots = [...new Set(entries.map((entry) => entry.path.split("/")[0]))];
+        const duplicatePaths = entries
+          .map((entry) => entry.path)
+          .filter((entryPath, index, paths) => paths.indexOf(entryPath) !== index);
+        if (duplicatePaths.length) {
+          throw new Error(
+            `Duplicate Roblox paths found in Figma: ${[...new Set(duplicatePaths)].join(", ")}. `
+            + "Rename or remove the duplicate layers before export."
+          );
+        }
+        const declaredRoots = sourceNodes
+          .map((node) => node.getSharedPluginData
+            ? node.getSharedPluginData(NAMESPACE, "modelRoot")
+            : "")
+          .filter(Boolean);
+        const roots = [...new Set([
+          ...declaredRoots,
+          ...entries.map((entry) => entry.path.split("/")[0])
+        ])];
         const workspaceId = singleWorkspaceId(sourceNodes);
         const patch = {
           format: "roblox-ui-bridge-v1",
+          mode: "authoritative",
           exportedAt: new Date().toISOString(),
           workspace: workspaceId || undefined,
           roots,
@@ -567,6 +731,8 @@ if (typeof module !== "undefined" && module.exports) {
     collectVisualPaths,
     displayCanvasSize,
     expandImportFiles,
+    inferredBinding,
+    inferredLayout,
     singleWorkspaceId,
     surfacePixelsFromPart,
     udim2,
