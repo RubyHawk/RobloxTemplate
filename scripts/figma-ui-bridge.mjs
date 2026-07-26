@@ -8,6 +8,14 @@ function option(name) {
   return index >= 0 ? args[index + 1] : undefined;
 }
 
+function options(name) {
+  const values = [];
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] === name && args[index + 1]) values.push(args[index + 1]);
+  }
+  return values;
+}
+
 function fail(message) {
   console.error(message);
   process.exit(1);
@@ -83,6 +91,30 @@ function childrenOf(node) {
   return Array.isArray(node?.Children) ? node.Children : [];
 }
 
+const SOURCE_ONLY_UI_CLASSES = new Set([
+  "UIAspectRatioConstraint",
+  "UICorner",
+  "UIGridLayout",
+  "UIListLayout",
+  "UIPadding",
+  "UIScale",
+  "UISizeConstraint",
+  "UIStroke"
+]);
+
+const FIGMA_VISUAL_CLASSES = new Set([
+  "Frame",
+  "CanvasGroup",
+  "ImageButton",
+  "ImageLabel",
+  "ScrollingFrame",
+  "TextBox",
+  "TextButton",
+  "TextLabel",
+  "VideoFrame",
+  "ViewportFrame"
+]);
+
 function indexNamedNodes(model, rootName) {
   const byPath = new Map();
   const duplicates = new Set();
@@ -104,6 +136,59 @@ function indexNamedNodes(model, rootName) {
   return { byPath, duplicates };
 }
 
+function pruneToAuthoritativeEntries(model, rootName, entriesByPath) {
+  const authoritativePaths = new Set(
+    [...entriesByPath.keys()].filter((entryPath) => entryPath.startsWith(`${rootName}/`))
+  );
+
+  const hasAuthoritativeDescendant = (candidatePath) => {
+    const prefix = `${candidatePath}/`;
+    for (const entryPath of authoritativePaths) {
+      if (entryPath.startsWith(prefix)) return true;
+    }
+    return false;
+  };
+
+  const removedPaths = [];
+  const containsFigmaVisual = (node) =>
+    FIGMA_VISUAL_CLASSES.has(node?.ClassName)
+    || childrenOf(node).some((child) => containsFigmaVisual(child));
+  const pruneChildren = (node, nodePath) => {
+    const keptChildren = [];
+    for (const child of childrenOf(node)) {
+      const childName = typeof child?.Name === "string" && child.Name.trim()
+        ? child.Name
+        : "";
+      const childPath = childName ? `${nodePath}/${childName}` : nodePath;
+      const isMapped = childName && authoritativePaths.has(childPath);
+      const isMappedAncestor = childName && hasAuthoritativeDescendant(childPath);
+      const isSourceOnlyImplementation = SOURCE_ONLY_UI_CLASSES.has(child?.ClassName)
+        || (
+          child?.ClassName !== "UIGradient"
+          && !FIGMA_VISUAL_CLASSES.has(child?.ClassName)
+          && !containsFigmaVisual(child)
+        );
+      const keep = !childName || isMapped || isMappedAncestor || isSourceOnlyImplementation;
+
+      if (!keep) {
+        removedPaths.push(childPath);
+        continue;
+      }
+      pruneChildren(child, childPath);
+      keptChildren.push(child);
+    }
+    node.Children = keptChildren;
+  };
+
+  const root = childrenOf(model).find((child) => child.Name === "Root");
+  if (root) {
+    pruneChildren(root, `${rootName}/Root`);
+  } else {
+    pruneChildren(model, rootName);
+  }
+  return removedPaths;
+}
+
 function ensureProperties(node) {
   node.Properties ||= {};
   return node.Properties;
@@ -111,6 +196,15 @@ function ensureProperties(node) {
 
 function effectChild(node, className) {
   return childrenOf(node).find((child) => child.ClassName === className);
+}
+
+function ensureEffectChild(node, className) {
+  const existing = effectChild(node, className);
+  if (existing) return existing;
+  const created = { ClassName: className, Properties: {}, Children: [] };
+  node.Children ||= [];
+  node.Children.push(created);
+  return created;
 }
 
 function setUdim2(props, key, sx, ox, sy, oy) {
@@ -289,6 +383,22 @@ function reconcileSourceOnlyLayout(node, entry, entriesByPath) {
   const singleTrack = Math.max(...orthogonalCenters) - Math.min(...orthogonalCenters)
     <= Math.max(2, median(orthogonalSizes) * 0.25);
 
+  if (layoutNode.ClassName === "UIListLayout" && !singleTrack) {
+    node.Children = childrenOf(node).filter((child) => child !== layoutNode);
+    for (const item of managed) {
+      const childNode = childrenOf(node).find((child) => child?.Name === item.entry.path.split("/").at(-1));
+      if (!childNode) continue;
+      applyEntry(childNode, {
+        ...item.entry,
+        layout: {
+          ...item.entry.layout,
+          managedByLayout: false
+        }
+      }, entriesByPath);
+    }
+    return;
+  }
+
   if (layoutNode.ClassName === "UIGridLayout" && variableMainSize && singleTrack) {
     layoutNode.ClassName = "UIListLayout";
     layoutNode.Properties = {};
@@ -426,16 +536,14 @@ function applyEntry(node, entry, entriesByPath) {
   }
 
   if (Number.isFinite(entry.cornerRadius)) {
-    const corner = effectChild(node, "UICorner");
-    if (corner) ensureProperties(corner).CornerRadius = { UDim: [0, Math.round(entry.cornerRadius)] };
+    const corner = ensureEffectChild(node, "UICorner");
+    ensureProperties(corner).CornerRadius = { UDim: [0, Math.round(entry.cornerRadius)] };
   }
   if (entry.stroke?.color) {
-    const stroke = effectChild(node, "UIStroke");
-    if (stroke) {
-      const strokeProps = ensureProperties(stroke);
-      strokeProps.Color = entry.stroke.color.map(Number);
-      if (Number.isFinite(entry.stroke.thickness)) strokeProps.Thickness = Number(entry.stroke.thickness);
-    }
+    const stroke = ensureEffectChild(node, "UIStroke");
+    const strokeProps = ensureProperties(stroke);
+    strokeProps.Color = entry.stroke.color.map(Number);
+    if (Number.isFinite(entry.stroke.thickness)) strokeProps.Thickness = Number(entry.stroke.thickness);
   }
 }
 
@@ -462,8 +570,6 @@ function enforceRuntimeDefaults(model, rootName) {
   if (rootName !== "TemplateUI") return;
   const root = childrenOf(model).find((child) => child.Name === "Root");
   if (!root) return;
-  const showcase = childrenOf(root).find((child) => child.Name === "ShowcaseCanvas");
-  if (showcase) ensureProperties(showcase).Visible = false;
   const screens = childrenOf(root).find((child) => child.Name === "Screens");
   if (screens) {
     for (const screen of childrenOf(screens)) {
@@ -567,17 +673,33 @@ if (command === "bundle") {
   const modelFile = option("--model");
   const patchFile = option("--patch");
   const outFile = option("--out") || modelFile;
-  if (!modelFile || !patchFile) fail("Usage: node scripts/figma-ui-bridge.mjs apply --model <model> --patch <patch> [--out <model>]");
+  if (!modelFile || !patchFile) {
+    fail(
+      "Usage: node scripts/figma-ui-bridge.mjs apply --model <model> --patch <patch> "
+      + "[--out <model>] [--exclude-path <root/path>]"
+    );
+  }
 
   const preservePrettyFormatting = fs.readFileSync(modelFile, "utf8").trim().includes("\n");
   const model = readJson(modelFile);
   const patch = readJson(patchFile);
   if (patch.format !== "roblox-ui-bridge-v1" || !Array.isArray(patch.entries)) fail("Unsupported or invalid Figma patch.");
+  const patchRoots = new Set(Array.isArray(patch.roots) ? patch.roots.map(String) : []);
+  const excludedPaths = options("--exclude-path")
+    .map((entryPath) => entryPath.replace(/\/+$/, ""))
+    .filter(Boolean);
+  const isExcluded = (entryPath) => excludedPaths.some(
+    (excludedPath) => entryPath === excludedPath || entryPath.startsWith(`${excludedPath}/`)
+  );
+  const effectiveEntries = patch.entries.filter(
+    (entry) => typeof entry?.path !== "string" || !isExcluded(entry.path)
+  );
   const rootName = path.basename(modelFile).replace(/\.model\.json$/i, "").replace(/\.json$/i, "");
+  if (!patchRoots.has(rootName)) fail(`Patch does not declare authoritative root ${rootName}.`);
   const { byPath, duplicates } = indexNamedNodes(model, rootName);
   if (duplicates.size) fail(`Model contains duplicate bridge paths: ${[...duplicates].join(", ")}`);
   const entriesByPath = new Map();
-  for (const entry of patch.entries) {
+  for (const entry of effectiveEntries) {
     if (!entry?.path || entriesByPath.has(entry.path)) {
       fail(`Patch contains a missing or duplicate entry path: ${entry?.path || "<missing>"}`);
     }
@@ -585,28 +707,74 @@ if (command === "bundle") {
   }
 
   let applied = 0;
-  const missing = [];
-  for (const entry of patch.entries) {
-    if (!entry?.path?.startsWith(`${rootName}/`)) continue;
-    const node = byPath.get(entry.path);
-    if (!node) {
-      missing.push(entry.path);
-      continue;
+  let created = 0;
+  let retyped = 0;
+  const rootEntries = effectiveEntries
+    .filter((entry) => entry?.path?.startsWith(`${rootName}/`))
+    .sort((left, right) => left.path.split("/").length - right.path.split("/").length);
+  for (const entry of rootEntries) {
+    const segments = entry.path.split("/");
+    if (
+      segments.some((segment) => !segment || segment === "." || segment === "..")
+      || segments[0] !== rootName
+    ) {
+      fail(`Patch contains an invalid authoritative path: ${entry.path}`);
     }
-    if (entry.className && entry.className !== node.ClassName) fail(`Class mismatch at ${entry.path}: patch ${entry.className}, model ${node.ClassName}`);
+    let node = byPath.get(entry.path);
+    if (!node) {
+      if (!FIGMA_VISUAL_CLASSES.has(entry.className)) {
+        fail(`Cannot create unsupported Figma class ${entry.className || "<missing>"} at ${entry.path}.`);
+      }
+      const parentPath = segments.slice(0, -1).join("/");
+      const parent = parentPath === rootName ? model : byPath.get(parentPath);
+      if (!parent) {
+        fail(`Cannot create ${entry.path}; authoritative parent ${parentPath} is missing.`);
+      }
+      node = {
+        Name: segments.at(-1),
+        ClassName: entry.className,
+        Properties: {},
+        Children: []
+      };
+      parent.Children ||= [];
+      parent.Children.push(node);
+      byPath.set(entry.path, node);
+      created += 1;
+    }
+    if (entry.className && entry.className !== node.ClassName) {
+      if (
+        !FIGMA_VISUAL_CLASSES.has(entry.className)
+        || !FIGMA_VISUAL_CLASSES.has(node.ClassName)
+      ) {
+        fail(`Class mismatch at ${entry.path}: patch ${entry.className}, model ${node.ClassName}`);
+      }
+      node.ClassName = entry.className;
+      node.Properties = {};
+      retyped += 1;
+    }
     applyEntry(node, entry, entriesByPath);
     applied += 1;
   }
-  if (!applied) fail(`Patch contained no entries for ${rootName}.`);
-  if (missing.length) fail(`Patch refers to missing model paths:\n${missing.join("\n")}`);
-  for (const entry of patch.entries) {
-    if (!entry?.path?.startsWith(`${rootName}/`)) continue;
+  for (const entry of rootEntries) {
     const node = byPath.get(entry.path);
     if (node) reconcileSourceOnlyLayout(node, entry, entriesByPath);
   }
+  const removedPaths = pruneToAuthoritativeEntries(model, rootName, entriesByPath);
+  const authoritativeIndex = indexNamedNodes(model, rootName);
+  const missingAfterPrune = [...entriesByPath.keys()]
+    .filter((entryPath) => entryPath.startsWith(`${rootName}/`))
+    .filter((entryPath) => !authoritativeIndex.byPath.has(entryPath));
+  if (missingAfterPrune.length) {
+    fail(`Authoritative import removed required Figma paths:\n${missingAfterPrune.join("\n")}`);
+  }
   enforceRuntimeDefaults(model, rootName);
   writeJson(outFile, model, preservePrettyFormatting);
-  console.log(`Applied ${applied} Figma visual edits to ${outFile}`);
+  console.log(
+    `Applied ${applied} authoritative Figma visual upserts `
+    + `(${created} created, ${retyped} retyped) to ${outFile}; `
+    + `removed ${removedPaths.length} legacy visual branches`
+    + (excludedPaths.length ? ` and excluded ${excludedPaths.length} obsolete Figma paths.` : ".")
+  );
 } else {
   fail("Commands: bundle, verify, apply");
 }

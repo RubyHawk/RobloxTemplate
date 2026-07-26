@@ -187,6 +187,31 @@ else {
     }
 }
 
+if ($workspaceData) {
+    $patchMode = if ($patch.PSObject.Properties.Name -contains "mode") {
+        [string]$patch.mode
+    }
+    else {
+        ""
+    }
+    if ($patchMode -ne "authoritative") {
+        throw "This workspace requires an authoritative Figma export. Update the local Roblox UI Bridge plugin and export the whole workspace again."
+    }
+    $expectedRoots = @($workspaceData.models | ForEach-Object { [string]$_.root } | Select-Object -Unique)
+    $missingRoots = @($expectedRoots | Where-Object { $roots -notcontains $_ })
+    $unexpectedRoots = @($roots | Where-Object { $expectedRoots -notcontains $_ })
+    if ($missingRoots.Count -gt 0 -or $unexpectedRoots.Count -gt 0) {
+        $details = @()
+        if ($missingRoots.Count -gt 0) {
+            $details += "missing: $($missingRoots -join ', ')"
+        }
+        if ($unexpectedRoots.Count -gt 0) {
+            $details += "unexpected: $($unexpectedRoots -join ', ')"
+        }
+        throw "The Figma workspace export is incomplete ($($details -join '; ')). Export any selected RNG Defender board; the bridge will include the entire workspace."
+    }
+}
+
 if ($SmokeTest) {
     foreach ($rootName in $roots) {
         if (-not $modelMap.ContainsKey($rootName)) {

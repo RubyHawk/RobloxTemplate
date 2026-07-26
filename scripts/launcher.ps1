@@ -258,7 +258,7 @@ catch {
                             <TextBlock Foreground="#8FA1BF" FontSize="13" Margin="0,8,0,0" TextWrapping="Wrap"
                                        Text="1.  In Figma, run the Roblox UI Bridge plugin and import a pack's model files."/>
                             <TextBlock Foreground="#8FA1BF" FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
-                                       Text="2.  Edit layers freely, then click 'Export selected Roblox patch'."/>
+                                       Text="2.  Edit layers freely, then click 'Export authoritative workspace'."/>
                             <TextBlock Foreground="#8FA1BF" FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
                                        Text="3.  Come back here - the newest export is already selected. One-time plugin setup is described in docs/FIGMA_UI.md."/>
                         </StackPanel>
@@ -753,7 +753,7 @@ function Update-PatchSelection {
     }
     elseif ($figmaPresetBox.Items.Count -gt 0) {
         $patchBox.Text = ""
-        $patchHint.Text = "No *.figma-patch.json found in Downloads yet. In Figma, run the Roblox UI Bridge plugin and click 'Export selected Roblox patch'."
+        $patchHint.Text = "No *.figma-patch.json found in Downloads yet. In Figma, run the Roblox UI Bridge plugin and click 'Export authoritative workspace'."
     }
 }
 

@@ -71,7 +71,7 @@ local function collectModalRoots(rootFrame: Frame)
 			end
 		end
 	end
-	for _, name in { "MoreMenu", "ScreenTemplate" } do
+	for _, name in { "MoreMenu" } do
 		local inst = rootFrame:FindFirstChild(name)
 		if inst and inst:IsA("GuiObject") and findSizeConstraint(inst) then
 			table.insert(modalRoots, inst)
@@ -126,11 +126,9 @@ local function clampNavigation(viewportSize: Vector2)
 	)
 end
 
--- CurrencyHUD is fixed near the top of the screen and stays visible while a
--- screen is open (Screens has ZIndex 40 vs CurrencyHUD's 5, so it paints on
--- top wherever they overlap). Every modal screen is vertically centered via
--- a Scale-based Position, so on short-enough viewports its clamped height
--- puts its top edge above the HUD's bottom edge, covering the coin balance.
+-- The authored CurrencyTray can stay visible while a screen is open. Every
+-- modal screen is vertically centered via a Scale-based Position, so on
+-- short-enough viewports its clamped height can cover the tray.
 -- AnchorPoint math ties AbsolutePosition + AnchorPoint*AbsoluteSize back to
 -- the size-invariant center point, so this is stable across repeated calls
 -- instead of ratcheting the constraint down permanently.
@@ -279,7 +277,7 @@ function ResponsiveController.initialize(rootFrame: Frame, scale: UIScale)
 	root = rootFrame
 	uiScale = scale
 	navigation = rootFrame:FindFirstChild("Navigation") :: Frame?
-	hud = (rootFrame:FindFirstChild("CurrencyTray") or rootFrame:FindFirstChild("CurrencyHUD")) :: Frame?
+	hud = rootFrame:FindFirstChild("CurrencyTray") :: Frame?
 	modernBottomDock = navigation ~= nil and navigation.AnchorPoint.Y > 0.9
 	leftIconRail = navigation ~= nil and navigation.AnchorPoint.X < 0.1
 	hudRequiresModalClearance = hud ~= nil and hud.AnchorPoint.Y < 0.5 and hud.Position.Y.Scale < 0.25

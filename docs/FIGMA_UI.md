@@ -1,6 +1,6 @@
 # Edit Roblox UI in Figma
 
-The repository includes a local Figma development plugin that converts authored Rojo UI models into editable Figma layers and exports validated visual patches back to those same models. Runtime Luau remains behavior-only.
+The repository includes a local Figma development plugin that converts authored Rojo UI models into editable Figma layers and exports one authoritative create/update/delete patch back to those same models. Runtime Luau remains behavior-only.
 
 The bridge supports all three Roblox display containers:
 
@@ -16,7 +16,7 @@ Their child `Frame`, text, image, button, canvas, and layout objects use the sam
 2. Open **Plugins -> Development -> Import plugin from manifest**.
 3. Select `figma/roblox-ui-bridge/manifest.json` from this repository.
 
-The current editable design target is [Roblox UI Preset Library v2](https://www.figma.com/design/f5CVGUAVDYZ4rZEjgFdkar).
+The current editable design target is [Roblox Template — RNG Defender workspace](https://www.figma.com/design/Mam5nvta1VxGfxxuplaHYM/Roblox-Template?node-id=3329-2).
 
 ## RNG Defender workspace
 
@@ -25,17 +25,17 @@ The current editable design target is [Roblox UI Preset Library v2](https://www.
 3. Click **Import Rojo UI models** and choose:
    `build/figma/RNGDefender.roblox-ui-workspace.json`.
 4. Edit the generated artboards.
-5. Select only the artboards you want to export, or clear the selection to export all mapped artboards on the current page.
-6. Click **Export Roblox UI patch**.
+5. Select any RNG Defender artboard. The plugin resolves its workspace and exports every mapped artboard.
+6. Click **Export authoritative workspace**.
 7. Run `FIGMA_UI.cmd` and accept the newest downloaded patch.
 
-The RNG Defender bundle contains all 12 authored `StarterGui` roots: the main preset, loading UI, signs, rune UI, stage-owner billboards, tower-defense travel, level, and dynamic loadout HUDs, dungeon HUD, and the Studio-only Stagewright playtest HUD.
+The RNG Defender bundle contains 14 authored roots: all 12 `StarterGui` roots, both world rune-circle `SurfaceGui`s, and all six enemy health-bar `BillboardGui`s.
 
 `DungeonHUD` includes the four-slot authored ability bar. It shares the same safe-area bottom-center anchor as `TowerDefenseLoadoutHUD`'s dynamic unit bar: lobby/tower-defense play shows the unit bar and its inventory/dice/upgrade controls, while an active boss fight suppresses those surfaces and shows the ability bar instead. Both roots stay separately editable in Figma; the runtime only switches their authored visibility.
 
 The plugin places every artboard on the current Figma page. It does not create a page per model, so the workflow stays within Figma Starter's three-page limit. No Figma upgrade is required for the local import/export bridge.
 
-The exported patch carries the RNG Defender workspace identity even when only one preset artboard is selected. `FIGMA_UI.cmd` therefore applies partial exports to the correct authored model, validates every layer path and class, rebuilds `build/RNGDefenderSafePatch.rbxlx`, and runs the permanent-place delivery guard.
+The exported patch carries the RNG Defender workspace identity even when only one artboard is selected, then includes the complete workspace. `FIGMA_UI.cmd` rejects partial or older exports, upserts every path, removes visual paths deleted in Figma, rebuilds `build/RNGDefenderSafePatch.rbxlx`, and runs the permanent-place delivery guard.
 
 ## Surface and billboard sizing
 
@@ -50,5 +50,6 @@ The exported patch carries the RNG Defender workspace identity even when only on
 - Figma edits supported visual properties only. Roblox owns behavior, responsive constraints, asset permissions, display-container placement, and live data.
 - Existing Roblox image asset IDs are preserved as metadata. Figma shows a visible placeholder for an unavailable Roblox image; placeholder fills are never exported as Roblox backgrounds.
 - Renaming mapped Figma layers is safe because the original Roblox path is stored as plugin metadata. Renaming objects in a Rojo model after importing requires a fresh import.
-- The bridge rejects missing paths and class mismatches.
+- New Figma layers get stable paths and inferred Roblox visual classes; explicit `[TextButton]`-style tags are available when inference is insufficient.
+- Duplicate or invalid paths are rejected before they can create overlapping UI.
 - The bridge never creates, clones, or destroys GUI objects at runtime. It updates authored model JSON before Rojo builds the place.
