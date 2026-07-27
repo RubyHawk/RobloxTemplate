@@ -9,9 +9,9 @@ local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local Selection = game:GetService("Selection")
 
-local Validator = require(script.Parent.FigmaUiBridge.Validator)
-local Manifest = require(script.Parent.FigmaUiBridge.Manifest)
-local Runtime = require(script.Parent.FigmaUiBridge.Runtime)
+local Validator = require(script.FigmaUiBridge.Validator)
+local Manifest = require(script.FigmaUiBridge.Manifest)
+local Runtime = require(script.FigmaUiBridge.Runtime)
 
 local PLUGIN_NAME = "Figma UI"
 local PLUGIN_WIDGET_ID = "RNGDefenderFigmaUiDelivery"
