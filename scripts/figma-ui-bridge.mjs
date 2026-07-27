@@ -94,6 +94,7 @@ function childrenOf(node) {
 const SOURCE_ONLY_UI_CLASSES = new Set([
   "UIAspectRatioConstraint",
   "UICorner",
+  "UIGradient",
   "UIGridLayout",
   "UIListLayout",
   "UIPadding",
@@ -164,8 +165,7 @@ function pruneToAuthoritativeEntries(model, rootName, entriesByPath) {
       const isMappedAncestor = childName && hasAuthoritativeDescendant(childPath);
       const isSourceOnlyImplementation = SOURCE_ONLY_UI_CLASSES.has(child?.ClassName)
         || (
-          child?.ClassName !== "UIGradient"
-          && !FIGMA_VISUAL_CLASSES.has(child?.ClassName)
+          !FIGMA_VISUAL_CLASSES.has(child?.ClassName)
           && !containsFigmaVisual(child)
         );
       const keep = !childName || isMapped || isMappedAncestor || isSourceOnlyImplementation;
@@ -205,6 +205,135 @@ function ensureEffectChild(node, className) {
   node.Children ||= [];
   node.Children.push(created);
   return created;
+}
+
+function removeEffectChildren(node, className, predicate = () => true) {
+  node.Children = childrenOf(node).filter(
+    (child) => child.ClassName !== className || !predicate(child)
+  );
+}
+
+function strokeMode(stroke) {
+  return String(stroke?.Properties?.ApplyStrokeMode || "");
+}
+
+function ensureStrokeChild(node, mode) {
+  const existing = childrenOf(node).find(
+    (child) => child.ClassName === "UIStroke"
+      && (
+        strokeMode(child) === mode
+        || (mode === "Border" && strokeMode(child) === "")
+      )
+  );
+  if (existing) return existing;
+  const created = {
+    ClassName: "UIStroke",
+    Properties: mode ? { ApplyStrokeMode: mode } : {},
+    Children: []
+  };
+  node.Children ||= [];
+  node.Children.push(created);
+  return created;
+}
+
+function sequenceKeypoints(keypoints, type) {
+  if (!Array.isArray(keypoints) || keypoints.length === 0) return null;
+  const normalized = keypoints
+    .map((keypoint) => {
+      const time = Math.max(0, Math.min(1, Number(keypoint?.time) || 0));
+      if (type === "color") {
+        if (!Array.isArray(keypoint?.color) || keypoint.color.length < 3) return null;
+        return { time, color: keypoint.color.slice(0, 3).map((channel) => Math.max(0, Math.min(1, Number(channel) || 0))) };
+      }
+      return { time, value: Math.max(0, Math.min(1, Number(keypoint?.value) || 0)), envelope: 0 };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.time - right.time);
+  if (!normalized.length) return null;
+  if (normalized.length === 1) {
+    const only = normalized[0];
+    normalized.unshift({ ...only, time: 0 });
+    normalized.push({ ...only, time: 1 });
+  } else {
+    if (normalized[0].time > 0) normalized.unshift({ ...normalized[0], time: 0 });
+    if (normalized.at(-1).time < 1) normalized.push({ ...normalized.at(-1), time: 1 });
+  }
+  return normalized;
+}
+
+function applyGradient(node, entry) {
+  if (!Object.prototype.hasOwnProperty.call(entry, "gradient")) return;
+  if (!entry.gradient) {
+    removeEffectChildren(node, "UIGradient");
+    return;
+  }
+  if (entry.gradient.type !== "linear") {
+    fail(`Unsupported Figma gradient type at ${entry.path}: ${entry.gradient.type || "<missing>"}`);
+  }
+  const colorPoints = sequenceKeypoints(entry.gradient.colorKeypoints, "color");
+  const transparencyPoints = sequenceKeypoints(entry.gradient.transparencyKeypoints, "number");
+  if (!colorPoints || !transparencyPoints) {
+    fail(`Incomplete linear gradient at ${entry.path}.`);
+  }
+  const gradient = ensureEffectChild(node, "UIGradient");
+  const props = ensureProperties(gradient);
+  props.Color = { ColorSequence: { keypoints: colorPoints } };
+  props.Transparency = { NumberSequence: { keypoints: transparencyPoints } };
+  props.Rotation = Number.isFinite(Number(entry.gradient.rotation))
+    ? Number(entry.gradient.rotation)
+    : 0;
+  props.Enabled = true;
+
+  if (String(node.ClassName).startsWith("Text")) {
+    const nodeProps = ensureProperties(node);
+    nodeProps.TextColor3 = [1, 1, 1];
+    nodeProps.TextTransparency = 0;
+  } else if (String(node.ClassName).startsWith("Image")) {
+    const nodeProps = ensureProperties(node);
+    nodeProps.ImageColor3 = [1, 1, 1];
+    nodeProps.ImageTransparency = 0;
+  } else {
+    const nodeProps = ensureProperties(node);
+    nodeProps.BackgroundColor3 = [1, 1, 1];
+    nodeProps.BackgroundTransparency = 0;
+  }
+}
+
+function applyStroke(node, entry) {
+  const isText = String(node.ClassName).startsWith("Text");
+  const ownsBorderStroke = Object.prototype.hasOwnProperty.call(entry, "stroke");
+  if (ownsBorderStroke && entry.stroke?.color) {
+    const mode = isText ? "Border" : "";
+    const stroke = ensureStrokeChild(node, mode);
+    const strokeProps = ensureProperties(stroke);
+    if (mode) strokeProps.ApplyStrokeMode = mode;
+    strokeProps.Color = entry.stroke.color.map(Number);
+    strokeProps.Transparency = 1 - Math.max(0, Math.min(1, Number(entry.stroke.opacity ?? 1)));
+    if (Number.isFinite(entry.stroke.thickness)) strokeProps.Thickness = Number(entry.stroke.thickness);
+  } else if (ownsBorderStroke) {
+    removeEffectChildren(node, "UIStroke", (stroke) =>
+      !isText || strokeMode(stroke) !== "Contextual"
+    );
+  }
+
+  if (!isText) return;
+  const props = ensureProperties(node);
+  const ownsTextStroke = Object.prototype.hasOwnProperty.call(entry, "textStroke");
+  if (ownsTextStroke && entry.textStroke?.color) {
+    const stroke = ensureStrokeChild(node, "Contextual");
+    const strokeProps = ensureProperties(stroke);
+    strokeProps.ApplyStrokeMode = "Contextual";
+    strokeProps.Color = entry.textStroke.color.map(Number);
+    strokeProps.Transparency = 1 - Math.max(0, Math.min(1, Number(entry.textStroke.opacity ?? 1)));
+    if (Number.isFinite(entry.textStroke.thickness)) {
+      strokeProps.Thickness = Number(entry.textStroke.thickness);
+    }
+    props.TextStrokeColor3 = entry.textStroke.color.map(Number);
+    props.TextStrokeTransparency = 1;
+  } else if (ownsTextStroke) {
+    removeEffectChildren(node, "UIStroke", (stroke) => strokeMode(stroke) === "Contextual");
+    props.TextStrokeTransparency = 1;
+  }
 }
 
 function setUdim2(props, key, sx, ox, sy, oy) {
@@ -342,6 +471,12 @@ function reconcileSourceOnlyLayout(node, entry, entriesByPath) {
     .map((child) => entriesByPath.get(`${entry.path}/${child.Name}`))
     .filter((childEntry) => childEntry?.layout?.managedByLayout && childEntry.visible !== false)
     .map((childEntry) => ({ entry: childEntry, geometry: entryGeometry(childEntry, entriesByPath) }));
+  if (managed.length === 0) {
+    // The Figma parent is now a freeform frame. Keeping a source-only Roblox
+    // layout helper would rearrange every explicitly positioned child.
+    node.Children = childrenOf(node).filter((child) => child !== layoutNode);
+    return;
+  }
   if (managed.length < 2) return;
 
   const xRange = Math.max(...managed.map((item) => item.geometry.x))
@@ -379,9 +514,8 @@ function reconcileSourceOnlyLayout(node, entry, entriesByPath) {
       ? item.geometry.y + item.geometry.height / 2
       : item.geometry.x + item.geometry.width / 2
   );
-  const orthogonalSizes = horizontal ? heights : widths;
   const singleTrack = Math.max(...orthogonalCenters) - Math.min(...orthogonalCenters)
-    <= Math.max(2, median(orthogonalSizes) * 0.25);
+    <= 2;
 
   if (layoutNode.ClassName === "UIListLayout" && !singleTrack) {
     node.Children = childrenOf(node).filter((child) => child !== layoutNode);
@@ -515,6 +649,20 @@ function applyEntry(node, entry, entriesByPath) {
   }
 
   if (typeof entry.visible === "boolean") props.Visible = entry.visible;
+  if (Number.isFinite(entry.rotation)) props.Rotation = Number(entry.rotation);
+  if (typeof entry.clipsDescendants === "boolean") {
+    props.ClipsDescendants = entry.clipsDescendants;
+  }
+  if (Number.isFinite(entry.zIndex)) props.ZIndex = Math.round(Number(entry.zIndex));
+  if (Number.isFinite(entry.layoutOrder)) props.LayoutOrder = Math.round(Number(entry.layoutOrder));
+  if (
+    ["None", "X", "Y", "XY"].includes(entry.automaticSize)
+  ) {
+    props.AutomaticSize = entry.automaticSize;
+  }
+  if (node.ClassName === "CanvasGroup" && Number.isFinite(entry.opacity)) {
+    props.GroupTransparency = 1 - Math.max(0, Math.min(1, Number(entry.opacity)));
+  }
   if (
     entry.fill?.color
     && !String(node.ClassName).startsWith("Text")
@@ -523,6 +671,7 @@ function applyEntry(node, entry, entriesByPath) {
     props.BackgroundColor3 = entry.fill.color.map(Number);
     props.BackgroundTransparency = 1 - Number(entry.fill.opacity ?? 1);
   }
+  applyGradient(node, entry);
   if (entry.text !== undefined && String(node.ClassName).startsWith("Text")) props.Text = String(entry.text);
   if (Number.isFinite(entry.fontSize) && String(node.ClassName).startsWith("Text")) props.TextSize = Number(entry.fontSize);
   if (entry.textColor && String(node.ClassName).startsWith("Text")) props.TextColor3 = entry.textColor.map(Number);
@@ -534,17 +683,21 @@ function applyEntry(node, entry, entriesByPath) {
   ) {
     props.TextXAlignment = entry.textAlignHorizontal;
   }
+  if (
+    ["Top", "Center", "Bottom"].includes(entry.textAlignVertical)
+    && String(node.ClassName).startsWith("Text")
+  ) {
+    props.TextYAlignment = entry.textAlignVertical;
+  }
+  if (typeof entry.textWrapped === "boolean" && String(node.ClassName).startsWith("Text")) {
+    props.TextWrapped = entry.textWrapped;
+  }
 
   if (Number.isFinite(entry.cornerRadius)) {
     const corner = ensureEffectChild(node, "UICorner");
     ensureProperties(corner).CornerRadius = { UDim: [0, Math.round(entry.cornerRadius)] };
   }
-  if (entry.stroke?.color) {
-    const stroke = ensureEffectChild(node, "UIStroke");
-    const strokeProps = ensureProperties(stroke);
-    strokeProps.Color = entry.stroke.color.map(Number);
-    if (Number.isFinite(entry.stroke.thickness)) strokeProps.Thickness = Number(entry.stroke.thickness);
-  }
+  applyStroke(node, entry);
 }
 
 function verifyModel(modelFile) {

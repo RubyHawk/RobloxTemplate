@@ -17,8 +17,8 @@
         "BackgroundTransparency": 0.08,
         "BorderSizePixel": 0,
         "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "SemiBold", "style": "Normal"},
-        "Position": {"UDim2": [[0.5, 0], [1, -316]]},
-        "Size": {"UDim2": [[0, 600], [0, 36]]},
+        "Position": {"UDim2": [[0.5, 0], [1, -318]]},
+        "Size": {"UDim2": [[0.92, 0], [0, 34]]},
         "Text": "SELECT A UNIT SLOT TO PLACE",
         "TextColor3": [0.8980392217636108, 0.9137254953384399, 0.9372549057006836],
         "TextScaled": true,
@@ -30,7 +30,7 @@
       "Children": [
         {
           "ClassName": "UISizeConstraint",
-          "Properties": {"MaxSize": [600, 36], "MinSize": [260, 34]},
+          "Properties": {"MaxSize": [600, 34], "MinSize": [260, 34]},
           "Children": []
         },
         {
@@ -58,57 +58,62 @@
       "Properties": {
         "AnchorPoint": [0.5, 1],
         "BackgroundTransparency": 1,
-        "Position": {"UDim2": [[0.5, 0], [1, -152]]},
-        "Size": {"UDim2": [[0, 396], [0, 174]]},
+        "Position": {"UDim2": [[0.5, 0], [1, -164]]},
+        "Size": {"UDim2": [[0, 356], [0, 152]]},
         "ZIndex": 96,
         "Visible": true
       },
       "Children": [
         {
           "ClassName": "UISizeConstraint",
-          "Properties": {"MaxSize": [440, 174], "MinSize": [300, 48]},
-          "Children": []
-        },
-        {
-          "ClassName": "UIListLayout",
-          "Properties": {
-            "FillDirection": "Horizontal",
-            "Padding": {"UDim": [0, 14]},
-            "HorizontalAlignment": "Center",
-            "VerticalAlignment": "Center"
-          },
+          "Properties": {"MaxSize": [356, 152], "MinSize": [280, 48]},
           "Children": []
         },
         {
           "Name": "InventoryButton",
           "ClassName": "TextButton",
           "Properties": {
-            "AutoButtonColor": true,
-            "BackgroundColor3": [0.176, 0.733, 0.463],
+            "AutoButtonColor": false,
+            "BackgroundTransparency": 1,
             "BorderSizePixel": 0,
-            "FontFace": {"family": "rbxasset://fonts/families/LuckiestGuy.json", "weight": "Regular", "style": "Normal"},
             "LayoutOrder": 1,
-            "Text": "INVENTORY",
-            "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
-            "TextScaled": true,
-            "TextSize": 20,
+            "Position": {"UDim2": [[0, 0], [0, 22]]},
+            "Size": {"UDim2": [[0, 96], [0, 96]]},
+            "Text": "",
             "ZIndex": 97,
-            "AnchorPoint": [0, 0.5],
-            "Size": {"UDim2": [[0, 112], [0, 112]]},
-            "Visible": true,
-            "TextXAlignment": "Center"
+            "Visible": true
           },
           "Children": [
             {
-              "ClassName": "UICorner",
+              "Name": "Icon",
+              "ClassName": "ImageLabel",
               "Properties": {
-                "CornerRadius": {"UDim": [0, 0]}
+                "BackgroundTransparency": 1,
+                "BorderSizePixel": 0,
+                "Image": "",
+                "ScaleType": "Fit",
+                "Size": {"UDim2": [[1, 0], [1, 0]]},
+                "ZIndex": 97
               },
               "Children": []
             },
             {
-              "ClassName": "UITextSizeConstraint",
-              "Properties": {"MaxTextSize": 13, "MinTextSize": 8},
+              "Name": "Label",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "BorderSizePixel": 0,
+                "FontFace": {"family": "rbxasset://fonts/families/LuckiestGuy.json", "weight": "Regular", "style": "Normal"},
+                "Position": {"UDim2": [[0, -8], [0, 72]]},
+                "Size": {"UDim2": [[0, 112], [0, 34]]},
+                "Text": "INVENTORY",
+                "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
+                "TextScaled": true,
+                "TextSize": 20,
+                "TextStrokeColor3": [0.025, 0.035, 0.09],
+                "TextStrokeTransparency": 0,
+                "ZIndex": 98
+              },
               "Children": []
             }
           ]
@@ -117,32 +122,47 @@
           "Name": "DiceButton",
           "ClassName": "TextButton",
           "Properties": {
-            "AutoButtonColor": true,
-            "BackgroundColor3": [0.976, 0.678, 0.18],
+            "AutoButtonColor": false,
+            "BackgroundTransparency": 1,
             "BorderSizePixel": 0,
-            "FontFace": {"family": "rbxasset://fonts/families/LuckiestGuy.json", "weight": "Regular", "style": "Normal"},
             "LayoutOrder": 2,
-            "Text": "ROLL",
-            "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
-            "TextScaled": true,
-            "TextSize": 25,
+            "Position": {"UDim2": [[0, 116], [0, 0]]},
+            "Size": {"UDim2": [[0, 124], [0, 124]]},
+            "Text": "",
             "ZIndex": 97,
-            "AnchorPoint": [0.5, 0],
-            "Size": {"UDim2": [[0, 144], [0, 144]]},
-            "Visible": true,
-            "TextXAlignment": "Center"
+            "Visible": true
           },
           "Children": [
             {
-              "ClassName": "UICorner",
+              "Name": "Icon",
+              "ClassName": "ImageLabel",
               "Properties": {
-                "CornerRadius": {"UDim": [0, 0]}
+                "BackgroundTransparency": 1,
+                "BorderSizePixel": 0,
+                "Image": "",
+                "ScaleType": "Fit",
+                "Size": {"UDim2": [[1, 0], [1, 0]]},
+                "ZIndex": 97
               },
               "Children": []
             },
             {
-              "ClassName": "UITextSizeConstraint",
-              "Properties": {"MaxTextSize": 13, "MinTextSize": 8},
+              "Name": "Label",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "BorderSizePixel": 0,
+                "FontFace": {"family": "rbxasset://fonts/families/LuckiestGuy.json", "weight": "Regular", "style": "Normal"},
+                "Position": {"UDim2": [[0, -8], [0, 92]]},
+                "Size": {"UDim2": [[0, 140], [0, 42]]},
+                "Text": "ROLL",
+                "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
+                "TextScaled": true,
+                "TextSize": 25,
+                "TextStrokeColor3": [0.025, 0.035, 0.09],
+                "TextStrokeTransparency": 0,
+                "ZIndex": 98
+              },
               "Children": []
             }
           ]
@@ -151,32 +171,47 @@
           "Name": "UpgradeTreeButton",
           "ClassName": "TextButton",
           "Properties": {
-            "AutoButtonColor": true,
-            "BackgroundColor3": [0.471, 0.322, 0.82],
+            "AutoButtonColor": false,
+            "BackgroundTransparency": 1,
             "BorderSizePixel": 0,
-            "FontFace": {"family": "rbxasset://fonts/families/LuckiestGuy.json", "weight": "Regular", "style": "Normal"},
             "LayoutOrder": 3,
-            "Text": "UPGRADES",
-            "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
-            "TextScaled": true,
-            "TextSize": 20,
+            "Position": {"UDim2": [[0, 260], [0, 22]]},
+            "Size": {"UDim2": [[0, 96], [0, 96]]},
+            "Text": "",
             "ZIndex": 97,
-            "AnchorPoint": [1, 0.5],
-            "Size": {"UDim2": [[0, 112], [0, 112]]},
-            "Visible": true,
-            "TextXAlignment": "Center"
+            "Visible": true
           },
           "Children": [
             {
-              "ClassName": "UICorner",
+              "Name": "Icon",
+              "ClassName": "ImageLabel",
               "Properties": {
-                "CornerRadius": {"UDim": [0, 0]}
+                "BackgroundTransparency": 1,
+                "BorderSizePixel": 0,
+                "Image": "",
+                "ScaleType": "Fit",
+                "Size": {"UDim2": [[1, 0], [1, 0]]},
+                "ZIndex": 97
               },
               "Children": []
             },
             {
-              "ClassName": "UITextSizeConstraint",
-              "Properties": {"MaxTextSize": 13, "MinTextSize": 8},
+              "Name": "Label",
+              "ClassName": "TextLabel",
+              "Properties": {
+                "BackgroundTransparency": 1,
+                "BorderSizePixel": 0,
+                "FontFace": {"family": "rbxasset://fonts/families/LuckiestGuy.json", "weight": "Regular", "style": "Normal"},
+                "Position": {"UDim2": [[0, -8], [0, 72]]},
+                "Size": {"UDim2": [[0, 112], [0, 34]]},
+                "Text": "UPGRADES",
+                "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
+                "TextScaled": true,
+                "TextSize": 20,
+                "TextStrokeColor3": [0.025, 0.035, 0.09],
+                "TextStrokeTransparency": 0,
+                "ZIndex": 98
+              },
               "Children": []
             }
           ]

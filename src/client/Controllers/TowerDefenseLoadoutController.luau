@@ -8,6 +8,7 @@ local Workspace = game:GetService("Workspace")
 local Template = ReplicatedStorage:WaitForChild("Template")
 local Shared = Template:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("TemplateConfig"))
+local IconCatalog = require(Shared:WaitForChild("IconCatalog"))
 local StageCatalog = require(Shared:WaitForChild("StageCatalog"))
 local StageCell = require(Shared:WaitForChild("StageCell"))
 local StageSchema = require(Shared:WaitForChild("StageSchema"))
@@ -72,11 +73,6 @@ local selectedSlot: number? = nil
 local screenGui: ScreenGui? = nil
 local templateNavigation: GuiObject? = nil
 local placementHint: TextLabel? = nil
-local controlRowRoot: Frame? = nil
-local controlRowLayout: UIListLayout? = nil
-local inventoryControl: TextButton? = nil
-local diceControl: TextButton? = nil
-local upgradeControl: TextButton? = nil
 local loadoutBar: Frame? = nil
 local dynamicWidthConstraint: UISizeConstraint? = nil
 local aimDot: Frame? = nil
@@ -168,8 +164,12 @@ local function setHint(text: string)
 	end
 end
 
-local function towerPresentationActive(): boolean
-	return localPlayer:GetAttribute(DUNGEON_PRESENTATION_ATTRIBUTE) ~= true
+local function dungeonPresentationActive(): boolean
+	return localPlayer:GetAttribute(DUNGEON_PRESENTATION_ATTRIBUTE) == true
+end
+
+local function towerPlacementActive(): boolean
+	return not dungeonPresentationActive()
 		and localPlayer:GetAttribute(TOWER_PLATFORM_PRESENTATION_ATTRIBUTE) == true
 end
 
@@ -298,7 +298,7 @@ local function refreshDetails()
 end
 
 local function showUnitDetails(unitId: string, slotIndex: number?, placementId: string?)
-	if not towerPresentationActive() then
+	if dungeonPresentationActive() then
 		return
 	end
 	detailsUnitId = unitId
@@ -321,38 +321,6 @@ local function refreshBarWidth()
 	local width = math.floor(math.min(desiredWidth, availableWidth))
 	dynamicWidthConstraint.MinSize = Vector2.new(width, BAR_HEIGHT)
 	dynamicWidthConstraint.MaxSize = Vector2.new(width, BAR_HEIGHT)
-
-	local row = controlRowRoot
-	local layout = controlRowLayout
-	local inventoryButton = inventoryControl
-	local diceButton = diceControl
-	local upgradeButton = upgradeControl
-	if
-		camera == nil
-		or row == nil
-		or layout == nil
-		or inventoryButton == nil
-		or diceButton == nil
-		or upgradeButton == nil
-	then
-		return
-	end
-	local shortLandscape = camera.ViewportSize.X > camera.ViewportSize.Y and camera.ViewportSize.Y < 520
-	if shortLandscape then
-		row.Position = UDim2.new(0.5, 0, 1, -136)
-		row.Size = UDim2.fromOffset(300, 90)
-		layout.Padding = UDim.new(0, 14)
-		inventoryButton.Size = UDim2.fromOffset(72, 72)
-		diceButton.Size = UDim2.fromOffset(88, 88)
-		upgradeButton.Size = UDim2.fromOffset(72, 72)
-	else
-		row.Position = UDim2.new(0.5, 0, 1, -152)
-		row.Size = UDim2.fromOffset(396, 174)
-		layout.Padding = UDim.new(0, 14)
-		inventoryButton.Size = UDim2.fromOffset(112, 112)
-		diceButton.Size = UDim2.fromOffset(144, 144)
-		upgradeButton.Size = UDim2.fromOffset(112, 112)
-	end
 end
 
 local function refresh()
@@ -360,12 +328,12 @@ local function refresh()
 	if screenGui == nil then
 		return
 	end
-	local presentationActive = towerPresentationActive()
+	local dungeonActive = dungeonPresentationActive()
+	local placementActive = towerPlacementActive()
 	if templateNavigation ~= nil then
-		templateNavigation.Visible = not presentationActive
-			and localPlayer:GetAttribute(DUNGEON_PRESENTATION_ATTRIBUTE) ~= true
+		templateNavigation.Visible = not dungeonActive
 	end
-	if not presentationActive then
+	if dungeonActive then
 		selectedSlot = nil
 		detailsUnitId = nil
 		detailsSlot = nil
@@ -386,6 +354,7 @@ local function refresh()
 		screenGui.Enabled = false
 		return
 	end
+	screenGui.Enabled = true
 	if type(state) ~= "table" then
 		return
 	end
@@ -502,10 +471,13 @@ local function refresh()
 		end
 	end
 
-	local selectedReady = selectedSlot ~= nil
+	local selectedReady = placementActive
+		and selectedSlot ~= nil
 		and loadout[selectedSlot] ~= nil
 		and placementForSlot(selectedSlot, loadout) == nil
-	if selectedReady and selectedSlot ~= nil then
+	if not placementActive then
+		setHint("GO TO YOUR TOWER TO PLACE UNITS")
+	elseif selectedReady and selectedSlot ~= nil then
 		local selectedUnit = TowerDefenseCatalog.unit(loadout[selectedSlot])
 		setHint(
 			if selectedUnit ~= nil
@@ -523,7 +495,6 @@ local function refresh()
 	StageGridRenderer.setPlacementMode(selectedReady and not panelBlocking, state)
 	refreshDetails()
 	refreshBarWidth()
-	screenGui.Enabled = true
 end
 
 local function sendLoadout(nextLoadout: { string })
@@ -668,7 +639,7 @@ local function occupied(column: number, row: number): boolean
 end
 
 local function cellFromScreenPoint(screenPoint: Vector2, viewportPoint: boolean): (number?, number?)
-	if not towerPresentationActive() then
+	if not towerPlacementActive() then
 		return nil, nil
 	end
 	local state = latestState
@@ -709,7 +680,7 @@ local function cellFromScreenPoint(screenPoint: Vector2, viewportPoint: boolean)
 end
 
 local function placeAt(screenPoint: Vector2, viewportPoint: boolean)
-	if not towerPresentationActive() then
+	if not towerPlacementActive() then
 		return
 	end
 	local unitId = selectedUnitId()
@@ -726,7 +697,7 @@ local function placeAt(screenPoint: Vector2, viewportPoint: boolean)
 end
 
 local function interactAt(screenPoint: Vector2, viewportPoint: boolean)
-	if not towerPresentationActive() then
+	if not towerPlacementActive() then
 		return
 	end
 	local placementId, unitId = StageTowerRenderer.localPlacementAtScreen(screenPoint, viewportPoint)
@@ -750,7 +721,7 @@ local function closePanels()
 end
 
 local function cycleSelection(direction: number)
-	if not towerPresentationActive() then
+	if dungeonPresentationActive() then
 		return
 	end
 	local loadout = currentLoadout()
@@ -841,11 +812,12 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 		local inventoryButton = controlRow:WaitForChild("InventoryButton") :: TextButton
 		local diceButton = controlRow:WaitForChild("DiceButton") :: TextButton
 		local upgradeTreeButton = controlRow:WaitForChild("UpgradeTreeButton") :: TextButton
-		controlRowRoot = controlRow :: Frame
-		controlRowLayout = controlRow:FindFirstChildOfClass("UIListLayout") :: UIListLayout?
-		inventoryControl = inventoryButton
-		diceControl = diceButton
-		upgradeControl = upgradeTreeButton
+		local inventoryIcon = inventoryButton:WaitForChild("Icon") :: ImageLabel
+		local diceIcon = diceButton:WaitForChild("Icon") :: ImageLabel
+		local upgradeTreeIcon = upgradeTreeButton:WaitForChild("Icon") :: ImageLabel
+		inventoryIcon.Image = IconCatalog.get("bag")
+		diceIcon.Image = IconCatalog.get("rollDice")
+		upgradeTreeIcon.Image = IconCatalog.get("talentUpgrade")
 		local slotsRoot = loadoutBar:WaitForChild("Slots")
 		for index = 1, Config.towerDefense.loadoutSlots do
 			local button = slotsRoot:WaitForChild(`UnitSlot{string.format("%02d", index)}`) :: TextButton
@@ -978,7 +950,7 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 	end)
 
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
-		if not towerPresentationActive() then
+		if dungeonPresentationActive() then
 			return
 		end
 		lastInputWasGamepad = string.find(input.UserInputType.Name, "Gamepad", 1, true) == 1
@@ -1030,6 +1002,7 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 			cycleSelection(1)
 		elseif
 			input.KeyCode == Enum.KeyCode.ButtonA
+			and towerPlacementActive()
 			and (inventoryPanel == nil or not inventoryPanel.Visible)
 			and (talentPanel == nil or not talentPanel.Visible)
 		then
@@ -1039,6 +1012,7 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 			end
 		elseif
 			input.UserInputType == Enum.UserInputType.MouseButton1
+			and towerPlacementActive()
 			and (inventoryPanel == nil or not inventoryPanel.Visible)
 			and (talentPanel == nil or not talentPanel.Visible)
 		then
@@ -1048,7 +1022,7 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 	end)
 
 	UserInputService.TouchTapInWorld:Connect(function(position: Vector2, processedByUI: boolean)
-		if not towerPresentationActive() then
+		if not towerPlacementActive() then
 			return
 		end
 		lastInputWasGamepad = false

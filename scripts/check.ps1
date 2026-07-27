@@ -206,8 +206,14 @@ Invoke-Checked "Stagewright performance budgets" { lune run scripts/benchmark-st
 if (-not (Test-Path -LiteralPath "worker\node_modules" -PathType Container)) {
     Invoke-Checked "Worker install" { npm ci --prefix worker }
 }
-Invoke-Checked "Worker type check" { npm --prefix worker run typecheck }
-Invoke-Checked "Worker tests" { npm --prefix worker test }
+$nodeExecutable = (Get-Command node -ErrorAction Stop).Source
+$typescriptCompiler = Join-Path $PSScriptRoot "..\worker\node_modules\typescript\bin\tsc"
+Invoke-Checked "Worker type check" {
+    & $nodeExecutable $typescriptCompiler -p worker\tsconfig.json
+}
+Invoke-Checked "Worker tests" {
+    & $nodeExecutable --experimental-strip-types --test worker\test\*.test.ts
+}
 Invoke-Checked "Skill validation" { python scripts\validate_skill.py ".agents\skills\roblox-template" }
 
 Write-Host "All template checks passed."

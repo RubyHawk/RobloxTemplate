@@ -6,6 +6,7 @@ export type IconName =
 	"bag"
 	| "shop"
 	| "rewards"
+	| "rollDice"
 	| "profile"
 	| "more"
 	| "codes"
@@ -26,6 +27,7 @@ export type IconName =
 	| "verification"
 	| "item"
 	| "starterTool"
+	| "talentUpgrade"
 	| "potionX2"
 	| "potionX3"
 
@@ -38,6 +40,7 @@ local sources: { [IconName]: SourceDefinition } = {
 	bag = { file = "bag.png", fallback = "rbxasset://textures/ui/TopBar/inventoryOff@3x.png" },
 	shop = { file = "shop.png", fallback = "" },
 	rewards = { file = "rewards.png", fallback = "rbxasset://textures/ui/InspectMenu/ico_favorite@3x.png" },
+	rollDice = { file = "roll_dice.png", fallback = "" },
 	profile = {
 		file = "profile.png",
 		fallback = "rbxasset://textures/ui/Settings/MenuBarIcons/PlayersTabIcon@2x.png",
@@ -61,6 +64,7 @@ local sources: { [IconName]: SourceDefinition } = {
 	verification = { file = "verification.png", fallback = "" },
 	item = { file = "item.png", fallback = "" },
 	starterTool = { file = "starter_tool.png", fallback = "" },
+	talentUpgrade = { file = "talent_upgrade.png", fallback = "" },
 	potionX2 = { file = "potion_x2.png", fallback = "" },
 	potionX3 = { file = "potion_x3.png", fallback = "" },
 }

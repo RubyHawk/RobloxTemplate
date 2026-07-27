@@ -13,6 +13,7 @@ $patchProjectPath = Join-Path $root "patches\rng-defender-grid-demo.project.json
 $expectedUniverseId = [long]10479279603
 $expectedPlaceId = [long]128136881672145
 $rojoPort = 34872
+$uiAssetManifestPath = Join-Path $root "assets\icons\icon-manifest.json"
 . (Join-Path $PSScriptRoot "rojo-plugin-state.ps1")
 
 function Find-RobloxStudio {
@@ -77,6 +78,24 @@ try {
     $allowedPlaces = @($patchProject.servePlaceIds)
     if ($allowedPlaces.Count -ne 1 -or [long]$allowedPlaces[0] -ne $expectedPlaceId) {
         throw "The RNG Defender patch must allow only place $expectedPlaceId through servePlaceIds."
+    }
+
+    if (Test-Path -LiteralPath $uiAssetManifestPath -PathType Leaf) {
+        $iconManifest = Get-Content -LiteralPath $uiAssetManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $pendingUiAssets = @(
+            $iconManifest.roles.PSObject.Properties | Where-Object {
+                [string]$_.Value.state -eq "pending-upload"
+            } | ForEach-Object {
+                $_.Name
+            }
+        )
+        if ($pendingUiAssets.Count -gt 0) {
+            Write-Host ""
+            Write-Host "UI ASSET STEP STILL REQUIRED" -ForegroundColor Yellow
+            Write-Host "  Pending: $($pendingUiAssets -join ', ')"
+            Write-Host "  Run RNG_DEFENDER_UI_ASSETS.cmd, upload the configured pending PNGs in Studio Asset Manager, and paste their IDs." -ForegroundColor Yellow
+            Write-Host ""
+        }
     }
 
     if ($SmokeTest) {
