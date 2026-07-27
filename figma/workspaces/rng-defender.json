@@ -5,6 +5,10 @@
   "preset": "incremental",
   "project": "patches/rng-defender-grid-demo.project.json",
   "output": "build/RNGDefenderSafePatch.rbxlx",
+  "studioBridge": {
+    "host": "127.0.0.1",
+    "port": 34874
+  },
   "models": [
     {
       "root": "TemplateUI",

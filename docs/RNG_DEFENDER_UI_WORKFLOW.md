@@ -16,27 +16,29 @@ Figma stores image pixels for design previews. Roblox needs uploaded asset IDs b
 
 ## Apply a Figma revision
 
-1. Stop Play and close Studio.
-2. In Figma, reopen the one local development **Roblox UI Bridge** so it uses the current checked-in files.
-3. Open `00 — RNG Defender PRODUCTION EXPORT`.
-4. Clear the Figma selection, then click **Export authoritative workspace**.
-5. Save the download with a `.figma-patch.json` or `.figma-patch` suffix.
-6. Stop `8_RNG_DEFENDER.cmd` if it is still serving.
-7. Run `FIGMA_UI.cmd` and choose the newest export. It:
+1. Run `8_RNG_DEFENDER.cmd`. It installs the current local Studio plugin, starts the secured local import helper, starts Rojo, and opens the existing RNG Defender experience.
+2. In Studio, connect **Plugins > Rojo** and keep the command window open.
+3. In Figma, reopen the one local development **Roblox UI Bridge** so it uses the current checked-in files.
+4. Open `00 — RNG Defender PRODUCTION EXPORT`.
+5. Click **Export authoritative workspace**. The bridge downloads the complete mapped workspace; no multi-board selection is required.
+6. Stop Play in Studio.
+7. Open **Plugins > Figma UI** and click **Import latest Figma**. On the first request, allow access to `127.0.0.1`.
+8. The one Studio action:
    - updates matching authored paths;
    - creates new mapped presentation paths;
    - removes mapped presentation paths deleted in Figma;
    - preserves nonvisual Lua and world/runtime objects;
    - generates the source/model checksum manifest;
    - rebuilds `build/RNGDefenderSafePatch.rbxlx`;
-   - refreshes the local read-only **Figma UI** Studio plugin.
-8. Run `8_RNG_DEFENDER.cmd`, connect Rojo, and wait for the sync to finish.
-9. Before Play, open **Plugins > Figma UI** and click **Refresh**. A matched report confirms that the authored hierarchy and stable presentation properties arrived.
-10. Start a fresh Play session and test runtime behavior.
+   - waits for Rojo to sync the authored hierarchy;
+   - verifies all mapped roots and stable visual properties in Studio.
+9. Wait for **MATCHED** in the plugin, then start a fresh Play session and test runtime behavior.
 
 Do not manually copy GUI instances into StarterGui. If a visual is missing, fix or map it in Figma and export again.
 
-The repository importer is the only correction and upsert layer. The Studio plugin is validation-only, so it cannot compete with Rojo or the authoritative model files.
+The repository importer is the only correction and upsert layer. The Studio plugin triggers that importer and validates its result; it does not directly rewrite the place or compete with Rojo.
+
+If the local button cannot be used, close Studio and run `FIGMA_UI.cmd` as the manual fallback, then restart `8_RNG_DEFENDER.cmd`.
 
 ## Expected smoke test
 

@@ -22,6 +22,7 @@ try {
   const patchPath = path.join(temporary, "export.figma-patch.json");
   const deliveryPath = path.join(temporary, "delivery.json");
   const outputPath = path.join(temporary, "Manifest.generated.luau");
+  const runtimePath = path.join(temporary, "Manifest.runtime.json");
 
   fs.writeFileSync(modelPath, JSON.stringify({
     ClassName: "ScreenGui",
@@ -66,6 +67,7 @@ try {
     "--workspace", workspacePath,
     "--delivery", deliveryPath,
     "--output", outputPath,
+    "--runtime", runtimePath,
     "--patch", patchPath,
   ];
   const generated = run(arguments_);
@@ -80,11 +82,14 @@ try {
   assert.match(manifest, /StarterGui\/ExampleUI/);
   assert.match(manifest, /\["Thickness"\] = 2/);
   assert.doesNotMatch(manifest, /\["Text"\]/);
+  const runtimeManifest = JSON.parse(fs.readFileSync(runtimePath, "utf8"));
+  assert.equal(runtimeManifest.roots[0].studioPath, "StarterGui/ExampleUI");
 
   const checked = run([
     "--workspace", workspacePath,
     "--delivery", deliveryPath,
     "--output", outputPath,
+    "--runtime", runtimePath,
     "--check",
   ]);
   assert.equal(checked.status, 0, checked.stderr);
@@ -94,6 +99,7 @@ try {
     "--workspace", workspacePath,
     "--delivery", deliveryPath,
     "--output", outputPath,
+    "--runtime", runtimePath,
     "--manifest-only",
   ]);
   assert.equal(runtimeGenerated.status, 0, runtimeGenerated.stderr);
@@ -106,6 +112,7 @@ try {
     "--workspace", workspacePath,
     "--delivery", deliveryPath,
     "--output", outputPath,
+    "--runtime", runtimePath,
     "--check",
   ]);
   assert.notEqual(stale.status, 0);
@@ -115,6 +122,7 @@ try {
     "--workspace", workspacePath,
     "--delivery", deliveryPath,
     "--output", outputPath,
+    "--runtime", runtimePath,
     "--manifest-only",
   ]);
   assert.notEqual(staleRuntime.status, 0);

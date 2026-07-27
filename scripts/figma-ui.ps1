@@ -288,7 +288,7 @@ if ($workspaceData) {
             }
         }
         else {
-            Write-Host "Studio is open, so the Figma UI validation plugin was not replaced. Close Studio and run 8_RNG_DEFENDER.cmd before testing." -ForegroundColor Yellow
+            Write-Host "Studio is open, so the installed plugin was kept. It will fetch this regenerated manifest through the local bridge." -ForegroundColor Cyan
         }
     }
     Write-Host ""

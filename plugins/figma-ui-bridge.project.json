@@ -9,6 +9,9 @@
       },
       "Manifest": {
         "$path": "../src/plugins/FigmaUiBridge/Manifest.generated.luau"
+      },
+      "Runtime": {
+        "$path": "../src/plugins/FigmaUiBridge/Runtime.generated.luau"
       }
     }
   }

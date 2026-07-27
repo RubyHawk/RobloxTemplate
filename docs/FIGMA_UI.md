@@ -27,24 +27,29 @@ The editable production target is [RNG Defender production export](https://www.f
 4. Keep loose concepts on `90 — UI EXPLORATIONS / ARCHIVE (DO NOT EXPORT)`.
 5. On the production page, clear the Figma selection.
 6. Click **Export authoritative workspace**. The isolated page supplies the complete mapped workspace without manual board selection.
-7. Run `FIGMA_UI.cmd` and accept the newest downloaded patch.
-8. `FIGMA_UI.cmd` applies the authoritative upsert, rebuilds the place patch, generates a delivery checksum, and refreshes the read-only Studio validator while Studio is closed.
+7. In stopped Studio, open **Plugins > Figma UI** and click **Import latest Figma**.
+8. On the first import, allow the plugin to access `127.0.0.1`. The local bridge then applies the authoritative upsert, rebuilds the place patch, refreshes the delivery checksum, waits for Rojo, and reports whether all 14 roots match.
+
+`FIGMA_UI.cmd` remains available as a manual fallback. It is not part of the normal edit/test loop.
 
 The RNG Defender bundle contains 14 authored roots: 12 `StarterGui` roots, the world rune-circle surfaces, and the enemy-rig world UI.
 
 `DungeonHUD` includes the authored ability bar. It shares the safe-area bottom-center control region with `TowerDefenseLoadoutHUD`: lobby and tower-defense play show the loadout, dice, inventory, and upgrades; an active dungeon suppresses those surfaces and shows abilities. Both remain separately editable in Figma; runtime code only switches authored visibility.
 
-## Studio delivery validator
+## One-click Studio delivery
 
-The local **Figma UI** Studio plugin is a read-only delivery companion, not another importer:
+The local **Figma UI** Studio plugin is a delivery companion, not another converter:
 
 - the repository importer remains the sole create/update/delete authority;
 - Rojo remains the sole transport into the open place;
+- **Import latest Figma** asks a token-authenticated loopback helper to apply the newest authoritative export from Downloads;
+- the helper accepts no file path from Studio and binds only to `127.0.0.1`;
+- after the repository update, the plugin fetches the new generated manifest and waits for Rojo to sync;
 - the Studio plugin compares the stopped place with the generated repository manifest;
 - it reports missing roots and instances, class mismatches, sizing or position drift, and mismatched authored corners, strokes, gradients, and other stable visual properties;
 - **Select first issue** focuses the closest affected instance, while **Print report** writes the complete result to Output.
 
-`8_RNG_DEFENDER.cmd` refreshes the local Studio plugin before opening Studio. Stop Play before validating because runtime controllers intentionally change visibility and content.
+`8_RNG_DEFENDER.cmd` installs the current local Studio plugin, creates a new private bridge token, starts the loopback helper, starts Rojo, and opens the existing experience. Keep its terminal open. Stop Play before importing or validating because runtime controllers intentionally change visibility and content.
 
 ## Surface and billboard sizing
 
