@@ -29,27 +29,54 @@
                 "Enabled": false,
                 "LightInfluence": 0,
                 "MaxDistance": 120,
-                "Size": { "UDim2": [[0, 46], [0, 6]] },
-                "StudsOffset": [0, 2.4, 0]
+                "Size": {"UDim2": [[0, 46], [0, 6]]},
+                "StudsOffset": [0, 2.4, 0],
+                "ResetOnSpawn": false
               },
               "Children": [
                 {
                   "Name": "Back",
                   "ClassName": "Frame",
                   "Properties": {
-                    "BackgroundColor3": [0.05, 0.06, 0.08],
-                    "BackgroundTransparency": 0.2,
+                    "BackgroundColor3": [0.05000000074505806, 0.05999999865889549, 0.07999999821186066],
+                    "BackgroundTransparency": 0,
                     "BorderSizePixel": 0,
-                    "Size": { "UDim2": [[1, 0], [1, 0]] }
+                    "Size": {"UDim2": [[0, 46], [0, 6]]},
+                    "AnchorPoint": [0.5, 0.5],
+                    "Position": {"UDim2": [[0.5, 0], [0.5, 0]]},
+                    "Visible": true,
+                    "Rotation": 0,
+                    "ClipsDescendants": false
                   },
                   "Children": [
                     {
                       "Name": "Fill",
                       "ClassName": "Frame",
                       "Properties": {
-                        "BackgroundColor3": [0.3, 0.85, 0.4],
+                        "BackgroundColor3": [0.30000001192092896, 0.8500000238418579, 0.4000000059604645],
                         "BorderSizePixel": 0,
-                        "Size": { "UDim2": [[1, 0], [1, 0]] }
+                        "Size": {"UDim2": [[0, 46], [0, 6]]},
+                        "AnchorPoint": [0.5, 0.5],
+                        "Position": {"UDim2": [[0.5, 0], [0.5, 0]]},
+                        "Visible": true,
+                        "Rotation": 0,
+                        "ClipsDescendants": false,
+                        "BackgroundTransparency": 0
+                      },
+                      "Children": [
+                        {
+                          "ClassName": "UICorner",
+                          "Properties": {
+                            "CornerRadius": {"UDim": [0, 0]}
+                          },
+                          "Children": []
+                        }
+                      ]
+                    },
+                    {
+                      "ClassName": "UICorner",
+                      "Properties": {
+                        "CornerRadius": {"UDim": [0, 0]}
                       },
                       "Children": []
                     }
@@ -60,9 +87,7 @@
             {
               "Name": "DeathPoofAttachment",
               "ClassName": "Attachment",
-              "Properties": {
-                "Position": [0, 0.4, 0]
-              },
+              "Properties": {"Position": [0, 0.4, 0]},
               "Children": [
                 {
                   "Name": "DeathPoof",
@@ -70,9 +95,9 @@
                   "Properties": {
                     "Enabled": false,
                     "LightEmission": 0.5,
-                    "Lifetime": { "NumberRange": [0.2, 0.45] },
+                    "Lifetime": {"NumberRange": [0.2, 0.45]},
                     "Rate": 0,
-                    "Speed": { "NumberRange": [4, 8] },
+                    "Speed": {"NumberRange": [4, 8]},
                     "SpreadAngle": [180, 180]
                   },
                   "Children": []
@@ -127,27 +152,54 @@
                 "Enabled": false,
                 "LightInfluence": 0,
                 "MaxDistance": 120,
-                "Size": { "UDim2": [[0, 46], [0, 6]] },
-                "StudsOffset": [0, 2.4, 0]
+                "Size": {"UDim2": [[0, 46], [0, 6]]},
+                "StudsOffset": [0, 2.4, 0],
+                "ResetOnSpawn": false
               },
               "Children": [
                 {
                   "Name": "Back",
                   "ClassName": "Frame",
                   "Properties": {
-                    "BackgroundColor3": [0.05, 0.06, 0.08],
-                    "BackgroundTransparency": 0.2,
+                    "BackgroundColor3": [0.05000000074505806, 0.05999999865889549, 0.07999999821186066],
+                    "BackgroundTransparency": 0,
                     "BorderSizePixel": 0,
-                    "Size": { "UDim2": [[1, 0], [1, 0]] }
+                    "Size": {"UDim2": [[0, 46], [0, 6]]},
+                    "AnchorPoint": [0.5, 0.5],
+                    "Position": {"UDim2": [[0.5, 0], [0.5, 0]]},
+                    "Visible": true,
+                    "Rotation": 0,
+                    "ClipsDescendants": false
                   },
                   "Children": [
                     {
                       "Name": "Fill",
                       "ClassName": "Frame",
                       "Properties": {
-                        "BackgroundColor3": [0.3, 0.85, 0.4],
+                        "BackgroundColor3": [0.30000001192092896, 0.8500000238418579, 0.4000000059604645],
                         "BorderSizePixel": 0,
-                        "Size": { "UDim2": [[1, 0], [1, 0]] }
+                        "Size": {"UDim2": [[0, 46], [0, 6]]},
+                        "AnchorPoint": [0.5, 0.5],
+                        "Position": {"UDim2": [[0.5, 0], [0.5, 0]]},
+                        "Visible": true,
+                        "Rotation": 0,
+                        "ClipsDescendants": false,
+                        "BackgroundTransparency": 0
+                      },
+                      "Children": [
+                        {
+                          "ClassName": "UICorner",
+                          "Properties": {
+                            "CornerRadius": {"UDim": [0, 0]}
+                          },
+                          "Children": []
+                        }
+                      ]
+                    },
+                    {
+                      "ClassName": "UICorner",
+                      "Properties": {
+                        "CornerRadius": {"UDim": [0, 0]}
                       },
                       "Children": []
                     }
@@ -158,9 +210,7 @@
             {
               "Name": "DeathPoofAttachment",
               "ClassName": "Attachment",
-              "Properties": {
-                "Position": [0, 0.4, 0]
-              },
+              "Properties": {"Position": [0, 0.4, 0]},
               "Children": [
                 {
                   "Name": "DeathPoof",
@@ -168,9 +218,9 @@
                   "Properties": {
                     "Enabled": false,
                     "LightEmission": 0.5,
-                    "Lifetime": { "NumberRange": [0.2, 0.45] },
+                    "Lifetime": {"NumberRange": [0.2, 0.45]},
                     "Rate": 0,
-                    "Speed": { "NumberRange": [4, 8] },
+                    "Speed": {"NumberRange": [4, 8]},
                     "SpreadAngle": [180, 180]
                   },
                   "Children": []
@@ -258,27 +308,54 @@
                 "Enabled": false,
                 "LightInfluence": 0,
                 "MaxDistance": 120,
-                "Size": { "UDim2": [[0, 46], [0, 6]] },
-                "StudsOffset": [0, 2.4, 0]
+                "Size": {"UDim2": [[0, 46], [0, 6]]},
+                "StudsOffset": [0, 2.4, 0],
+                "ResetOnSpawn": false
               },
               "Children": [
                 {
                   "Name": "Back",
                   "ClassName": "Frame",
                   "Properties": {
-                    "BackgroundColor3": [0.05, 0.06, 0.08],
-                    "BackgroundTransparency": 0.2,
+                    "BackgroundColor3": [0.05000000074505806, 0.05999999865889549, 0.07999999821186066],
+                    "BackgroundTransparency": 0,
                     "BorderSizePixel": 0,
-                    "Size": { "UDim2": [[1, 0], [1, 0]] }
+                    "Size": {"UDim2": [[0, 46], [0, 6]]},
+                    "AnchorPoint": [0.5, 0.5],
+                    "Position": {"UDim2": [[0.5, 0], [0.5, 0]]},
+                    "Visible": true,
+                    "Rotation": 0,
+                    "ClipsDescendants": false
                   },
                   "Children": [
                     {
                       "Name": "Fill",
                       "ClassName": "Frame",
                       "Properties": {
-                        "BackgroundColor3": [0.3, 0.85, 0.4],
+                        "BackgroundColor3": [0.30000001192092896, 0.8500000238418579, 0.4000000059604645],
                         "BorderSizePixel": 0,
-                        "Size": { "UDim2": [[1, 0], [1, 0]] }
+                        "Size": {"UDim2": [[0, 46], [0, 6]]},
+                        "AnchorPoint": [0.5, 0.5],
+                        "Position": {"UDim2": [[0.5, 0], [0.5, 0]]},
+                        "Visible": true,
+                        "Rotation": 0,
+                        "ClipsDescendants": false,
+                        "BackgroundTransparency": 0
+                      },
+                      "Children": [
+                        {
+                          "ClassName": "UICorner",
+                          "Properties": {
+                            "CornerRadius": {"UDim": [0, 0]}
+                          },
+                          "Children": []
+                        }
+                      ]
+                    },
+                    {
+                      "ClassName": "UICorner",
+                      "Properties": {
+                        "CornerRadius": {"UDim": [0, 0]}
                       },
                       "Children": []
                     }
@@ -289,9 +366,7 @@
             {
               "Name": "DeathPoofAttachment",
               "ClassName": "Attachment",
-              "Properties": {
-                "Position": [0, 0.4, 0]
-              },
+              "Properties": {"Position": [0, 0.4, 0]},
               "Children": [
                 {
                   "Name": "DeathPoof",
@@ -299,9 +374,9 @@
                   "Properties": {
                     "Enabled": false,
                     "LightEmission": 0.5,
-                    "Lifetime": { "NumberRange": [0.2, 0.45] },
+                    "Lifetime": {"NumberRange": [0.2, 0.45]},
                     "Rate": 0,
-                    "Speed": { "NumberRange": [4, 8] },
+                    "Speed": {"NumberRange": [4, 8]},
                     "SpreadAngle": [180, 180]
                   },
                   "Children": []
@@ -372,27 +447,54 @@
                 "Enabled": false,
                 "LightInfluence": 0,
                 "MaxDistance": 120,
-                "Size": { "UDim2": [[0, 46], [0, 6]] },
-                "StudsOffset": [0, 2.4, 0]
+                "Size": {"UDim2": [[0, 46], [0, 6]]},
+                "StudsOffset": [0, 2.4, 0],
+                "ResetOnSpawn": false
               },
               "Children": [
                 {
                   "Name": "Back",
                   "ClassName": "Frame",
                   "Properties": {
-                    "BackgroundColor3": [0.05, 0.06, 0.08],
-                    "BackgroundTransparency": 0.2,
+                    "BackgroundColor3": [0.05000000074505806, 0.05999999865889549, 0.07999999821186066],
+                    "BackgroundTransparency": 0,
                     "BorderSizePixel": 0,
-                    "Size": { "UDim2": [[1, 0], [1, 0]] }
+                    "Size": {"UDim2": [[0, 46], [0, 6]]},
+                    "AnchorPoint": [0.5, 0.5],
+                    "Position": {"UDim2": [[0.5, 0], [0.5, 0]]},
+                    "Visible": true,
+                    "Rotation": 0,
+                    "ClipsDescendants": false
                   },
                   "Children": [
                     {
                       "Name": "Fill",
                       "ClassName": "Frame",
                       "Properties": {
-                        "BackgroundColor3": [0.3, 0.85, 0.4],
+                        "BackgroundColor3": [0.30000001192092896, 0.8500000238418579, 0.4000000059604645],
                         "BorderSizePixel": 0,
-                        "Size": { "UDim2": [[1, 0], [1, 0]] }
+                        "Size": {"UDim2": [[0, 46], [0, 6]]},
+                        "AnchorPoint": [0.5, 0.5],
+                        "Position": {"UDim2": [[0.5, 0], [0.5, 0]]},
+                        "Visible": true,
+                        "Rotation": 0,
+                        "ClipsDescendants": false,
+                        "BackgroundTransparency": 0
+                      },
+                      "Children": [
+                        {
+                          "ClassName": "UICorner",
+                          "Properties": {
+                            "CornerRadius": {"UDim": [0, 0]}
+                          },
+                          "Children": []
+                        }
+                      ]
+                    },
+                    {
+                      "ClassName": "UICorner",
+                      "Properties": {
+                        "CornerRadius": {"UDim": [0, 0]}
                       },
                       "Children": []
                     }
@@ -403,9 +505,7 @@
             {
               "Name": "DeathPoofAttachment",
               "ClassName": "Attachment",
-              "Properties": {
-                "Position": [0, 0.4, 0]
-              },
+              "Properties": {"Position": [0, 0.4, 0]},
               "Children": [
                 {
                   "Name": "DeathPoof",
@@ -413,9 +513,9 @@
                   "Properties": {
                     "Enabled": false,
                     "LightEmission": 0.5,
-                    "Lifetime": { "NumberRange": [0.2, 0.45] },
+                    "Lifetime": {"NumberRange": [0.2, 0.45]},
                     "Rate": 0,
-                    "Speed": { "NumberRange": [4, 8] },
+                    "Speed": {"NumberRange": [4, 8]},
                     "SpreadAngle": [180, 180]
                   },
                   "Children": []
@@ -503,27 +603,54 @@
                 "Enabled": false,
                 "LightInfluence": 0,
                 "MaxDistance": 120,
-                "Size": { "UDim2": [[0, 46], [0, 6]] },
-                "StudsOffset": [0, 1.4, 0]
+                "Size": {"UDim2": [[0, 46], [0, 6]]},
+                "StudsOffset": [0, 1.4, 0],
+                "ResetOnSpawn": false
               },
               "Children": [
                 {
                   "Name": "Back",
                   "ClassName": "Frame",
                   "Properties": {
-                    "BackgroundColor3": [0.05, 0.06, 0.08],
-                    "BackgroundTransparency": 0.2,
+                    "BackgroundColor3": [0.05000000074505806, 0.05999999865889549, 0.07999999821186066],
+                    "BackgroundTransparency": 0,
                     "BorderSizePixel": 0,
-                    "Size": { "UDim2": [[1, 0], [1, 0]] }
+                    "Size": {"UDim2": [[0, 46], [0, 6]]},
+                    "AnchorPoint": [0.5, 0.5],
+                    "Position": {"UDim2": [[0.5, 0], [0.5, 0]]},
+                    "Visible": true,
+                    "Rotation": 0,
+                    "ClipsDescendants": false
                   },
                   "Children": [
                     {
                       "Name": "Fill",
                       "ClassName": "Frame",
                       "Properties": {
-                        "BackgroundColor3": [0.3, 0.85, 0.4],
+                        "BackgroundColor3": [0.30000001192092896, 0.8500000238418579, 0.4000000059604645],
                         "BorderSizePixel": 0,
-                        "Size": { "UDim2": [[1, 0], [1, 0]] }
+                        "Size": {"UDim2": [[0, 46], [0, 6]]},
+                        "AnchorPoint": [0.5, 0.5],
+                        "Position": {"UDim2": [[0.5, 0], [0.5, 0]]},
+                        "Visible": true,
+                        "Rotation": 0,
+                        "ClipsDescendants": false,
+                        "BackgroundTransparency": 0
+                      },
+                      "Children": [
+                        {
+                          "ClassName": "UICorner",
+                          "Properties": {
+                            "CornerRadius": {"UDim": [0, 0]}
+                          },
+                          "Children": []
+                        }
+                      ]
+                    },
+                    {
+                      "ClassName": "UICorner",
+                      "Properties": {
+                        "CornerRadius": {"UDim": [0, 0]}
                       },
                       "Children": []
                     }
@@ -534,9 +661,7 @@
             {
               "Name": "DeathPoofAttachment",
               "ClassName": "Attachment",
-              "Properties": {
-                "Position": [0, 0.4, 0]
-              },
+              "Properties": {"Position": [0, 0.4, 0]},
               "Children": [
                 {
                   "Name": "DeathPoof",
@@ -544,9 +669,9 @@
                   "Properties": {
                     "Enabled": false,
                     "LightEmission": 0.5,
-                    "Lifetime": { "NumberRange": [0.2, 0.45] },
+                    "Lifetime": {"NumberRange": [0.2, 0.45]},
                     "Rate": 0,
-                    "Speed": { "NumberRange": [4, 8] },
+                    "Speed": {"NumberRange": [4, 8]},
                     "SpreadAngle": [180, 180]
                   },
                   "Children": []
@@ -620,27 +745,54 @@
                 "Enabled": false,
                 "LightInfluence": 0,
                 "MaxDistance": 160,
-                "Size": { "UDim2": [[0, 64], [0, 8]] },
-                "StudsOffset": [0, 2.6, 0]
+                "Size": {"UDim2": [[0, 64], [0, 8]]},
+                "StudsOffset": [0, 2.6, 0],
+                "ResetOnSpawn": false
               },
               "Children": [
                 {
                   "Name": "Back",
                   "ClassName": "Frame",
                   "Properties": {
-                    "BackgroundColor3": [0.05, 0.06, 0.08],
-                    "BackgroundTransparency": 0.2,
+                    "BackgroundColor3": [0.05000000074505806, 0.05999999865889549, 0.07999999821186066],
+                    "BackgroundTransparency": 0,
                     "BorderSizePixel": 0,
-                    "Size": { "UDim2": [[1, 0], [1, 0]] }
+                    "Size": {"UDim2": [[0, 64], [0, 8]]},
+                    "AnchorPoint": [0.5, 0.5],
+                    "Position": {"UDim2": [[0.5, 0], [0.5, 0]]},
+                    "Visible": true,
+                    "Rotation": 0,
+                    "ClipsDescendants": false
                   },
                   "Children": [
                     {
                       "Name": "Fill",
                       "ClassName": "Frame",
                       "Properties": {
-                        "BackgroundColor3": [0.3, 0.85, 0.4],
+                        "BackgroundColor3": [0.30000001192092896, 0.8500000238418579, 0.4000000059604645],
                         "BorderSizePixel": 0,
-                        "Size": { "UDim2": [[1, 0], [1, 0]] }
+                        "Size": {"UDim2": [[0, 64], [0, 8]]},
+                        "AnchorPoint": [0.5, 0.5],
+                        "Position": {"UDim2": [[0.5, 0], [0.5, 0]]},
+                        "Visible": true,
+                        "Rotation": 0,
+                        "ClipsDescendants": false,
+                        "BackgroundTransparency": 0
+                      },
+                      "Children": [
+                        {
+                          "ClassName": "UICorner",
+                          "Properties": {
+                            "CornerRadius": {"UDim": [0, 0]}
+                          },
+                          "Children": []
+                        }
+                      ]
+                    },
+                    {
+                      "ClassName": "UICorner",
+                      "Properties": {
+                        "CornerRadius": {"UDim": [0, 0]}
                       },
                       "Children": []
                     }
@@ -651,9 +803,7 @@
             {
               "Name": "DeathPoofAttachment",
               "ClassName": "Attachment",
-              "Properties": {
-                "Position": [0, 0.4, 0]
-              },
+              "Properties": {"Position": [0, 0.4, 0]},
               "Children": [
                 {
                   "Name": "DeathPoof",
@@ -661,9 +811,9 @@
                   "Properties": {
                     "Enabled": false,
                     "LightEmission": 0.5,
-                    "Lifetime": { "NumberRange": [0.2, 0.45] },
+                    "Lifetime": {"NumberRange": [0.2, 0.45]},
                     "Rate": 0,
-                    "Speed": { "NumberRange": [4, 8] },
+                    "Speed": {"NumberRange": [4, 8]},
                     "SpreadAngle": [180, 180]
                   },
                   "Children": []

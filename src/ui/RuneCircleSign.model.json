@@ -22,7 +22,9 @@
         "Size": {"UDim2": [[1, -20], [1, -18]]},
         "ZIndex": 1,
         "AnchorPoint": [0, 0],
-        "Visible": true
+        "Visible": true,
+        "Rotation": 0,
+        "ClipsDescendants": false
       },
       "Children": [
         {
@@ -45,7 +47,9 @@
         "BackgroundTransparency": 0.04000002145767212,
         "AnchorPoint": [0, 0],
         "Position": {"UDim2": [[0, 0], [0, 0]]},
-        "Visible": true
+        "Visible": true,
+        "Rotation": 0,
+        "ClipsDescendants": false
       },
       "Children": [
         {
@@ -57,7 +61,7 @@
         },
         {
           "ClassName": "UIStroke",
-          "Properties": {"Color": [0.14509804546833038, 0.16470588743686676, 0.1921568661928177], "Thickness": 2, "Transparency": 0.32},
+          "Properties": {"Color": [0.14509804546833038, 0.16470588743686676, 0.1921568661928177], "Thickness": 2, "Transparency": 0},
           "Children": []
         },
         {
@@ -71,7 +75,9 @@
             "BackgroundTransparency": 0,
             "AnchorPoint": [0, 0],
             "Position": {"UDim2": [[0, 0], [0, 0]]},
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
           "Children": [
             {
@@ -92,14 +98,31 @@
                 "Text": "FOREST RUNES",
                 "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
                 "TextSize": 28,
-                "TextStrokeColor3": [0.018, 0.045, 0.028],
-                "TextStrokeTransparency": 0,
+                "TextStrokeColor3": [0.16470588743686676, 0.08627451211214066, 0.054901961237192154],
+                "TextStrokeTransparency": 1,
                 "TextXAlignment": "Left",
                 "ZIndex": 4,
                 "AnchorPoint": [0, 0.5],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                },
+                {
+                  "ClassName": "UIStroke",
+                  "Properties": {"ApplyStrokeMode": "Contextual", "Color": [0.16470588743686676, 0.08627451211214066, 0.054901961237192154], "Transparency": 0, "Thickness": 1},
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "AutoChip",
@@ -112,7 +135,9 @@
                 "ZIndex": 4,
                 "BackgroundTransparency": 0.18000000715255737,
                 "AnchorPoint": [1, 0.5],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
@@ -138,25 +163,27 @@
                     "TextColor3": [0.017999999225139618, 0.04500000178813934, 0.02800000086426735],
                     "TextSize": 14,
                     "ZIndex": 5,
-                    "TextStrokeTransparency": 0.72,
+                    "TextStrokeTransparency": 1,
                     "AnchorPoint": [0, 0],
                     "Position": {"UDim2": [[0, 0], [0, 0]]},
                     "Visible": true,
-                    "TextXAlignment": "Center"
+                    "TextXAlignment": "Center",
+                    "Rotation": 0,
+                    "ClipsDescendants": false,
+                    "TextYAlignment": "Center",
+                    "TextWrapped": true
                   },
-                  "Children": []
+                  "Children": [
+                    {
+                      "ClassName": "UICorner",
+                      "Properties": {
+                        "CornerRadius": {"UDim": [0, 0]}
+                      },
+                      "Children": []
+                    }
+                  ]
                 }
               ]
-            },
-            {
-              "ClassName": "UIGradient",
-              "Properties": {
-                "Color": {
-                  "ColorSequence": {"keypoints": [{"time": 0, "color": [0.16, 0.58, 0.22]}, {"time": 0.5, "color": [0.16, 0.58, 0.22]}, {"time": 1, "color": [1, 0.76, 0.24]}]}
-                },
-                "Rotation": 0
-              },
-              "Children": []
             },
             {
               "Name": "RuneBadge",
@@ -171,9 +198,19 @@
                 "Size": {"UDim2": [[0, 38], [0, 38]]},
                 "ZIndex": 5,
                 "AnchorPoint": [0, 0.5],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             }
           ]
         },
@@ -191,9 +228,22 @@
             "ZIndex": 3,
             "TextXAlignment": "Left",
             "AnchorPoint": [0, 0.5],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true,
+            "TextStrokeTransparency": 1
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "StatusLine",
@@ -210,9 +260,21 @@
             "ZIndex": 3,
             "TextXAlignment": "Left",
             "AnchorPoint": [0, 1],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextStrokeTransparency": 1
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "CoinWatermark",
@@ -227,9 +289,24 @@
             "Size": {"UDim2": [[0, 76], [0, 76]]},
             "ZIndex": 2,
             "AnchorPoint": [1, 1],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            },
+            {
+              "ClassName": "UIStroke",
+              "Properties": {"Color": [0.49000000953674316, 0.23000000417232513, 0.9300000071525574], "Transparency": 0, "Thickness": 1},
+              "Children": []
+            }
+          ]
         }
       ]
     }

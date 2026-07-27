@@ -22,7 +22,9 @@
         "ZIndex": 2,
         "AnchorPoint": [0, 0],
         "Position": {"UDim2": [[0, 4], [0, 4]]},
-        "Visible": true
+        "Visible": true,
+        "Rotation": 0,
+        "ClipsDescendants": true
       },
       "Children": [
         {
@@ -34,7 +36,7 @@
         },
         {
           "ClassName": "UIStroke",
-          "Properties": {"Color": [0.16470588743686676, 0.1882352977991104, 0.21960784494876862], "Thickness": 1, "Transparency": 0.3},
+          "Properties": {"Color": [0.16470588743686676, 0.1882352977991104, 0.21960784494876862], "Thickness": 1, "Transparency": 0},
           "Children": []
         },
         {
@@ -48,14 +50,31 @@
             "Text": "DUNGEON PORTAL",
             "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
             "TextSize": 27,
-            "TextStrokeColor3": [0.03, 0.024, 0.06],
-            "TextStrokeTransparency": 0,
+            "TextStrokeColor3": [0.0313725508749485, 0.03921568766236305, 0.05098039284348488],
+            "TextStrokeTransparency": 1,
             "TextXAlignment": "Left",
             "ZIndex": 3,
             "AnchorPoint": [0, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            },
+            {
+              "ClassName": "UIStroke",
+              "Properties": {"ApplyStrokeMode": "Contextual", "Color": [0.0313725508749485, 0.03921568766236305, 0.05098039284348488], "Transparency": 0, "Thickness": 1},
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "Countdown",
@@ -68,14 +87,31 @@
             "Text": "",
             "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
             "TextSize": 19,
-            "TextStrokeColor3": [0.03, 0.024, 0.06],
-            "TextStrokeTransparency": 0,
+            "TextStrokeColor3": [0.019607843831181526, 0.0235294122248888, 0.0313725508749485],
+            "TextStrokeTransparency": 1,
             "TextXAlignment": "Center",
             "Visible": false,
             "ZIndex": 3,
-            "AnchorPoint": [1, 0]
+            "AnchorPoint": [1, 0],
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 6]}
+              },
+              "Children": []
+            },
+            {
+              "ClassName": "UIStroke",
+              "Properties": {"ApplyStrokeMode": "Contextual", "Color": [0.019607843831181526, 0.0235294122248888, 0.0313725508749485], "Transparency": 0, "Thickness": 1},
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "Roster",
@@ -87,20 +123,11 @@
             "Size": {"UDim2": [[1, -20], [0, 120]]},
             "ZIndex": 3,
             "AnchorPoint": [0, 0.5],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
           "Children": [
-            {
-              "ClassName": "UIListLayout",
-              "Properties": {
-                "FillDirection": "Horizontal",
-                "HorizontalAlignment": "Center",
-                "VerticalAlignment": "Center",
-                "Padding": {"UDim": [0, 8]},
-                "SortOrder": "LayoutOrder"
-              },
-              "Children": []
-            },
             {
               "Name": "Slot1",
               "ClassName": "Frame",
@@ -112,7 +139,9 @@
                 "Size": {"UDim2": [[0, 72], [0, 108]]},
                 "Visible": false,
                 "ZIndex": 3,
-                "AnchorPoint": [0, 0.5]
+                "AnchorPoint": [0, 0.5],
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
@@ -135,7 +164,9 @@
                     "Size": {"UDim2": [[0, 60], [0, 60]]},
                     "ZIndex": 4,
                     "AnchorPoint": [0.5, 0],
-                    "Visible": true
+                    "Visible": true,
+                    "Rotation": 0,
+                    "ClipsDescendants": false
                   },
                   "Children": [
                     {
@@ -158,21 +189,42 @@
                     "Text": "",
                     "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
                     "TextScaled": true,
-                    "TextStrokeColor3": [0.03, 0.024, 0.06],
-                    "TextStrokeTransparency": 0.2,
+                    "TextStrokeColor3": [0.019607843831181526, 0.0235294122248888, 0.0313725508749485],
+                    "TextStrokeTransparency": 1,
                     "ZIndex": 4,
                     "AnchorPoint": [0, 1],
                     "Visible": true,
                     "TextSize": 12,
-                    "TextXAlignment": "Center"
+                    "TextXAlignment": "Center",
+                    "Rotation": 0,
+                    "ClipsDescendants": false,
+                    "TextYAlignment": "Center",
+                    "TextWrapped": true
                   },
                   "Children": [
                     {
                       "ClassName": "UITextSizeConstraint",
                       "Properties": {"MaxTextSize": 15},
                       "Children": []
+                    },
+                    {
+                      "ClassName": "UICorner",
+                      "Properties": {
+                        "CornerRadius": {"UDim": [0, 0]}
+                      },
+                      "Children": []
+                    },
+                    {
+                      "ClassName": "UIStroke",
+                      "Properties": {"ApplyStrokeMode": "Contextual", "Color": [0.019607843831181526, 0.0235294122248888, 0.0313725508749485], "Transparency": 0, "Thickness": 0.800000011920929},
+                      "Children": []
                     }
                   ]
+                },
+                {
+                  "ClassName": "UIStroke",
+                  "Properties": {"Color": [0.20392157137393951, 0.22745098173618317, 0.26274511218070984], "Transparency": 0, "Thickness": 1},
+                  "Children": []
                 }
               ]
             },
@@ -187,7 +239,9 @@
                 "Size": {"UDim2": [[0, 72], [0, 108]]},
                 "Visible": false,
                 "ZIndex": 3,
-                "AnchorPoint": [0, 0.5]
+                "AnchorPoint": [0, 0.5],
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
@@ -210,7 +264,9 @@
                     "Size": {"UDim2": [[0, 60], [0, 60]]},
                     "ZIndex": 4,
                     "AnchorPoint": [0.5, 0],
-                    "Visible": true
+                    "Visible": true,
+                    "Rotation": 0,
+                    "ClipsDescendants": false
                   },
                   "Children": [
                     {
@@ -233,21 +289,42 @@
                     "Text": "",
                     "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
                     "TextScaled": true,
-                    "TextStrokeColor3": [0.03, 0.024, 0.06],
-                    "TextStrokeTransparency": 0.2,
+                    "TextStrokeColor3": [0.019607843831181526, 0.0235294122248888, 0.0313725508749485],
+                    "TextStrokeTransparency": 1,
                     "ZIndex": 4,
                     "AnchorPoint": [0, 1],
                     "Visible": true,
                     "TextSize": 12,
-                    "TextXAlignment": "Center"
+                    "TextXAlignment": "Center",
+                    "Rotation": 0,
+                    "ClipsDescendants": false,
+                    "TextYAlignment": "Center",
+                    "TextWrapped": true
                   },
                   "Children": [
                     {
                       "ClassName": "UITextSizeConstraint",
                       "Properties": {"MaxTextSize": 15},
                       "Children": []
+                    },
+                    {
+                      "ClassName": "UICorner",
+                      "Properties": {
+                        "CornerRadius": {"UDim": [0, 0]}
+                      },
+                      "Children": []
+                    },
+                    {
+                      "ClassName": "UIStroke",
+                      "Properties": {"ApplyStrokeMode": "Contextual", "Color": [0.019607843831181526, 0.0235294122248888, 0.0313725508749485], "Transparency": 0, "Thickness": 0.800000011920929},
+                      "Children": []
                     }
                   ]
+                },
+                {
+                  "ClassName": "UIStroke",
+                  "Properties": {"Color": [0.20392157137393951, 0.22745098173618317, 0.26274511218070984], "Transparency": 0, "Thickness": 1},
+                  "Children": []
                 }
               ]
             },
@@ -262,7 +339,9 @@
                 "Size": {"UDim2": [[0, 72], [0, 108]]},
                 "Visible": false,
                 "ZIndex": 3,
-                "AnchorPoint": [0, 0.5]
+                "AnchorPoint": [0, 0.5],
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
@@ -285,7 +364,9 @@
                     "Size": {"UDim2": [[0, 60], [0, 60]]},
                     "ZIndex": 4,
                     "AnchorPoint": [0.5, 0],
-                    "Visible": true
+                    "Visible": true,
+                    "Rotation": 0,
+                    "ClipsDescendants": false
                   },
                   "Children": [
                     {
@@ -308,21 +389,42 @@
                     "Text": "",
                     "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
                     "TextScaled": true,
-                    "TextStrokeColor3": [0.03, 0.024, 0.06],
-                    "TextStrokeTransparency": 0.2,
+                    "TextStrokeColor3": [0.019607843831181526, 0.0235294122248888, 0.0313725508749485],
+                    "TextStrokeTransparency": 1,
                     "ZIndex": 4,
                     "AnchorPoint": [0, 1],
                     "Visible": true,
                     "TextSize": 12,
-                    "TextXAlignment": "Center"
+                    "TextXAlignment": "Center",
+                    "Rotation": 0,
+                    "ClipsDescendants": false,
+                    "TextYAlignment": "Center",
+                    "TextWrapped": true
                   },
                   "Children": [
                     {
                       "ClassName": "UITextSizeConstraint",
                       "Properties": {"MaxTextSize": 15},
                       "Children": []
+                    },
+                    {
+                      "ClassName": "UICorner",
+                      "Properties": {
+                        "CornerRadius": {"UDim": [0, 0]}
+                      },
+                      "Children": []
+                    },
+                    {
+                      "ClassName": "UIStroke",
+                      "Properties": {"ApplyStrokeMode": "Contextual", "Color": [0.019607843831181526, 0.0235294122248888, 0.0313725508749485], "Transparency": 0, "Thickness": 0.800000011920929},
+                      "Children": []
                     }
                   ]
+                },
+                {
+                  "ClassName": "UIStroke",
+                  "Properties": {"Color": [0.20392157137393951, 0.22745098173618317, 0.26274511218070984], "Transparency": 0, "Thickness": 1},
+                  "Children": []
                 }
               ]
             },
@@ -337,7 +439,9 @@
                 "Size": {"UDim2": [[0, 72], [0, 108]]},
                 "Visible": false,
                 "ZIndex": 3,
-                "AnchorPoint": [0, 0.5]
+                "AnchorPoint": [0, 0.5],
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
@@ -360,7 +464,9 @@
                     "Size": {"UDim2": [[0, 60], [0, 60]]},
                     "ZIndex": 4,
                     "AnchorPoint": [0.5, 0],
-                    "Visible": true
+                    "Visible": true,
+                    "Rotation": 0,
+                    "ClipsDescendants": false
                   },
                   "Children": [
                     {
@@ -383,23 +489,51 @@
                     "Text": "",
                     "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
                     "TextScaled": true,
-                    "TextStrokeColor3": [0.03, 0.024, 0.06],
-                    "TextStrokeTransparency": 0.2,
+                    "TextStrokeColor3": [0.019607843831181526, 0.0235294122248888, 0.0313725508749485],
+                    "TextStrokeTransparency": 1,
                     "ZIndex": 4,
                     "AnchorPoint": [0, 1],
                     "Visible": true,
                     "TextSize": 12,
-                    "TextXAlignment": "Center"
+                    "TextXAlignment": "Center",
+                    "Rotation": 0,
+                    "ClipsDescendants": false,
+                    "TextYAlignment": "Center",
+                    "TextWrapped": true
                   },
                   "Children": [
                     {
                       "ClassName": "UITextSizeConstraint",
                       "Properties": {"MaxTextSize": 15},
                       "Children": []
+                    },
+                    {
+                      "ClassName": "UICorner",
+                      "Properties": {
+                        "CornerRadius": {"UDim": [0, 0]}
+                      },
+                      "Children": []
+                    },
+                    {
+                      "ClassName": "UIStroke",
+                      "Properties": {"ApplyStrokeMode": "Contextual", "Color": [0.019607843831181526, 0.0235294122248888, 0.0313725508749485], "Transparency": 0, "Thickness": 0.800000011920929},
+                      "Children": []
                     }
                   ]
+                },
+                {
+                  "ClassName": "UIStroke",
+                  "Properties": {"Color": [0.20392157137393951, 0.22745098173618317, 0.26274511218070984], "Transparency": 0, "Thickness": 1},
+                  "Children": []
                 }
               ]
+            },
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 1]}
+              },
+              "Children": []
             }
           ]
         },
@@ -414,7 +548,9 @@
             "ZIndex": 3,
             "AnchorPoint": [0, 0],
             "Visible": true,
-            "BackgroundColor3": [0.04313725605607033, 0.05098039284348488, 0.062745101749897]
+            "BackgroundColor3": [0.04313725605607033, 0.05098039284348488, 0.062745101749897],
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
           "Children": [
             {
@@ -435,7 +571,13 @@
                 "TextSize": 22,
                 "ZIndex": 4,
                 "Visible": true,
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeColor3": [0.019607843831181526, 0.0235294122248888, 0.0313725508749485],
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -443,6 +585,11 @@
                   "Properties": {
                     "CornerRadius": {"UDim": [0, 5]}
                   },
+                  "Children": []
+                },
+                {
+                  "ClassName": "UIStroke",
+                  "Properties": {"ApplyStrokeMode": "Contextual", "Color": [0.019607843831181526, 0.0235294122248888, 0.0313725508749485], "Transparency": 0, "Thickness": 1},
                   "Children": []
                 }
               ]
@@ -458,18 +605,34 @@
                 "Text": "FOREST WARDEN",
                 "TextColor3": [0.9607843160629272, 0.7647058963775635, 0.2823529541492462],
                 "TextScaled": true,
-                "TextStrokeColor3": [0.03, 0.024, 0.06],
-                "TextStrokeTransparency": 0.2,
+                "TextStrokeColor3": [0.019607843831181526, 0.0235294122248888, 0.0313725508749485],
+                "TextStrokeTransparency": 1,
                 "ZIndex": 4,
                 "AnchorPoint": [0, 0],
                 "Visible": true,
                 "TextSize": 16,
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true
               },
               "Children": [
                 {
                   "ClassName": "UITextSizeConstraint",
                   "Properties": {"MaxTextSize": 20},
+                  "Children": []
+                },
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 1]}
+                  },
+                  "Children": []
+                },
+                {
+                  "ClassName": "UIStroke",
+                  "Properties": {"ApplyStrokeMode": "Contextual", "Color": [0.019607843831181526, 0.0235294122248888, 0.0313725508749485], "Transparency": 0, "Thickness": 1.2000000476837158},
                   "Children": []
                 }
               ]
@@ -492,7 +655,13 @@
                 "TextSize": 22,
                 "ZIndex": 4,
                 "Visible": true,
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeColor3": [0.019607843831181526, 0.0235294122248888, 0.0313725508749485],
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -501,8 +670,25 @@
                     "CornerRadius": {"UDim": [0, 5]}
                   },
                   "Children": []
+                },
+                {
+                  "ClassName": "UIStroke",
+                  "Properties": {"ApplyStrokeMode": "Contextual", "Color": [0.019607843831181526, 0.0235294122248888, 0.0313725508749485], "Transparency": 0, "Thickness": 1},
+                  "Children": []
                 }
               ]
+            },
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 6]}
+              },
+              "Children": []
+            },
+            {
+              "ClassName": "UIStroke",
+              "Properties": {"Color": [0.20392157137393951, 0.22745098173618317, 0.26274511218070984], "Transparency": 0, "Thickness": 1},
+              "Children": []
             }
           ]
         },
@@ -521,9 +707,27 @@
             "TextXAlignment": "Center",
             "ZIndex": 3,
             "AnchorPoint": [0, 1],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextStrokeColor3": [0.019607843831181526, 0.0235294122248888, 0.0313725508749485],
+            "TextStrokeTransparency": 1
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 1]}
+              },
+              "Children": []
+            },
+            {
+              "ClassName": "UIStroke",
+              "Properties": {"ApplyStrokeMode": "Contextual", "Color": [0.019607843831181526, 0.0235294122248888, 0.0313725508749485], "Transparency": 0, "Thickness": 0.699999988079071},
+              "Children": []
+            }
+          ]
         }
       ]
     }

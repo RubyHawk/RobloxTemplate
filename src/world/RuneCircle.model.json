@@ -10,28 +10,12 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          0,
-          90
-        ],
-        "Position": [
-          6,
-          20.68,
-          58
-        ],
+        "Orientation": [0, 0, 90],
+        "Position": [6, 20.68, 58],
         "Shape": "Cylinder",
-        "Size": [
-          0.16,
-          19.2,
-          19.2
-        ],
+        "Size": [0.16, 19.2, 19.2],
         "Transparency": 0.78
       },
       "Children": []
@@ -45,28 +29,12 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.78,
-          1,
-          0.72
-        ],
+        "Color": [0.78, 1, 0.72],
         "Material": "Glass",
-        "Orientation": [
-          0,
-          0,
-          90
-        ],
-        "Position": [
-          6,
-          20.74,
-          58
-        ],
+        "Orientation": [0, 0, 90],
+        "Position": [6, 20.74, 58],
         "Shape": "Cylinder",
-        "Size": [
-          0.18,
-          17.6,
-          17.6
-        ],
+        "Size": [0.18, 17.6, 17.6],
         "Transparency": 0.74
       },
       "Children": []
@@ -80,28 +48,12 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.28,
-          0.74,
-          0.28
-        ],
+        "Color": [0.28, 0.74, 0.28],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          0,
-          90
-        ],
-        "Position": [
-          6,
-          20.8,
-          58
-        ],
+        "Orientation": [0, 0, 90],
+        "Position": [6, 20.8, 58],
         "Shape": "Cylinder",
-        "Size": [
-          0.3,
-          16.6,
-          16.6
-        ],
+        "Size": [0.3, 16.6, 16.6],
         "Transparency": 0.4
       },
       "Children": []
@@ -115,28 +67,12 @@
         "CanQuery": true,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.025,
-          0.07,
-          0.038
-        ],
+        "Color": [0.025, 0.07, 0.038],
         "Material": "Slate",
-        "Orientation": [
-          0,
-          0,
-          90
-        ],
-        "Position": [
-          6,
-          20.9,
-          58
-        ],
+        "Orientation": [0, 0, 90],
+        "Position": [6, 20.9, 58],
         "Shape": "Cylinder",
-        "Size": [
-          0.72,
-          14.4,
-          14.4
-        ],
+        "Size": [0.72, 14.4, 14.4],
         "Transparency": 0.1
       },
       "Children": [
@@ -145,61 +81,34 @@
           "ClassName": "SurfaceGui",
           "Properties": {
             "AlwaysOnTop": true,
-            "Enabled": true,
+            "Enabled": false,
             "Face": "Top",
             "LightInfluence": 0,
             "PixelsPerStud": 12,
-            "SizingMode": "PixelsPerStud"
+            "SizingMode": "PixelsPerStud",
+            "ResetOnSpawn": false
           },
           "Children": [
             {
               "Name": "MossTint",
               "ClassName": "Frame",
               "Properties": {
-                "BackgroundColor3": [
-                  0.28,
-                  0.74,
-                  0.28
-                ],
-                "BackgroundTransparency": 0.9,
+                "BackgroundColor3": [0.2800000011920929, 0.7400000095367432, 0.2800000011920929],
+                "BackgroundTransparency": 0.8999999985098839,
                 "BorderSizePixel": 0,
-                "Size": {
-                  "UDim2": [
-                    [
-                      1,
-                      0
-                    ],
-                    [
-                      1,
-                      0
-                    ]
-                  ]
-                },
-                "ZIndex": 1
+                "Size": {"UDim2": [[0, 9], [0, 173]]},
+                "ZIndex": 1,
+                "AnchorPoint": [0.5, 0.5],
+                "Position": {"UDim2": [[0.5, 0], [0.5, 0]]},
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
                   "ClassName": "UICorner",
                   "Properties": {
-                    "CornerRadius": {
-                      "UDim": [
-                        0,
-                        180
-                      ]
-                    }
-                  },
-                  "Children": []
-                },
-                {
-                  "ClassName": "UIStroke",
-                  "Properties": {
-                    "Color": [
-                      0.55,
-                      1,
-                      0.55
-                    ],
-                    "Thickness": 3,
-                    "Transparency": 0.38
+                    "CornerRadius": {"UDim": [0, 0]}
                   },
                   "Children": []
                 }
@@ -211,56 +120,24 @@
               "Properties": {
                 "BackgroundTransparency": 1,
                 "BorderSizePixel": 0,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0.12,
-                      0
-                    ],
-                    [
-                      0.12,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0.76,
-                      0
-                    ],
-                    [
-                      0.76,
-                      0
-                    ]
-                  ]
-                },
-                "ZIndex": 2
+                "Position": {"UDim2": [[0.12, 0], [0.12, 0]]},
+                "Size": {"UDim2": [[0.76, 0], [0.76, 0]]},
+                "ZIndex": 2,
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
                   "ClassName": "UICorner",
                   "Properties": {
-                    "CornerRadius": {
-                      "UDim": [
-                        0,
-                        180
-                      ]
-                    }
+                    "CornerRadius": {"UDim": [0, 0]}
                   },
                   "Children": []
                 },
                 {
                   "ClassName": "UIStroke",
-                  "Properties": {
-                    "Color": [
-                      1,
-                      0.72,
-                      0.2
-                    ],
-                    "Thickness": 2,
-                    "Transparency": 0.44
-                  },
+                  "Properties": {"Color": [0.949999988079071, 0.699999988079071, 0.20000000298023224], "Thickness": 1, "Transparency": 0},
                   "Children": []
                 }
               ]
@@ -278,28 +155,12 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          0,
-          90
-        ],
-        "Position": [
-          6,
-          21.05,
-          58
-        ],
+        "Orientation": [0, 0, 90],
+        "Position": [6, 21.05, 58],
         "Shape": "Cylinder",
-        "Size": [
-          0.22,
-          11.1,
-          11.1
-        ],
+        "Size": [0.22, 11.1, 11.1],
         "Transparency": 0.68
       },
       "Children": []
@@ -313,28 +174,12 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.035,
-          0.14,
-          0.07
-        ],
+        "Color": [0.035, 0.14, 0.07],
         "Material": "Glass",
-        "Orientation": [
-          0,
-          0,
-          90
-        ],
-        "Position": [
-          6,
-          21.1,
-          58
-        ],
+        "Orientation": [0, 0, 90],
+        "Position": [6, 21.1, 58],
         "Shape": "Cylinder",
-        "Size": [
-          0.28,
-          8.6,
-          8.6
-        ],
+        "Size": [0.28, 8.6, 8.6],
         "Transparency": 0.42
       },
       "Children": []
@@ -348,44 +193,19 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.92,
-          0.45
-        ],
+        "Color": [1, 0.92, 0.45],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          0,
-          90
-        ],
-        "Position": [
-          6,
-          20.98,
-          58
-        ],
+        "Orientation": [0, 0, 90],
+        "Position": [6, 20.98, 58],
         "Shape": "Cylinder",
-        "Size": [
-          0.66,
-          7.5,
-          7.5
-        ],
+        "Size": [0.66, 7.5, 7.5],
         "Transparency": 0.24
       },
       "Children": [
         {
           "Name": "RuneLight",
           "ClassName": "PointLight",
-          "Properties": {
-            "Brightness": 4.2,
-            "Color": [
-              0.55,
-              1,
-              0.55
-            ],
-            "Range": 32,
-            "Shadows": false
-          },
+          "Properties": {"Brightness": 4.2, "Color": [0.55, 1, 0.55], "Range": 32, "Shadows": false},
           "Children": []
         },
         {
@@ -393,105 +213,29 @@
           "ClassName": "ParticleEmitter",
           "Properties": {
             "Color": {
-              "ColorSequence": {
-                "keypoints": [
-                  {
-                    "time": 0,
-                    "color": [
-                      1,
-                      0.92,
-                      0.45
-                    ]
-                  },
-                  {
-                    "time": 1,
-                    "color": [
-                      0.55,
-                      1,
-                      0.55
-                    ]
-                  }
-                ]
-              }
+              "ColorSequence": {"keypoints": [{"time": 0, "color": [1, 0.92, 0.45]}, {"time": 1, "color": [0.55, 1, 0.55]}]}
             },
             "EmissionDirection": "Top",
             "Enabled": true,
-            "Lifetime": {
-              "NumberRange": [
-                1.4,
-                2.4
-              ]
-            },
+            "Lifetime": {"NumberRange": [1.4, 2.4]},
             "LightEmission": 0.65,
             "LightInfluence": 0,
             "Rate": 10,
-            "Rotation": {
-              "NumberRange": [
-                0,
-                360
-              ]
-            },
-            "RotSpeed": {
-              "NumberRange": [
-                -80,
-                80
-              ]
-            },
+            "Rotation": {"NumberRange": [0, 360]},
+            "RotSpeed": {"NumberRange": [-80, 80]},
             "Size": {
-              "NumberSequence": {
-                "keypoints": [
-                  {
-                    "time": 0,
-                    "value": 0.08,
-                    "envelope": 0
-                  },
-                  {
-                    "time": 0.45,
-                    "value": 0.2,
-                    "envelope": 0
-                  },
-                  {
-                    "time": 1,
-                    "value": 0.02,
-                    "envelope": 0
-                  }
-                ]
-              }
+              "NumberSequence": {"keypoints": [{"time": 0, "value": 0.08, "envelope": 0}, {"time": 0.45, "value": 0.2, "envelope": 0}, {"time": 1, "value": 0.02, "envelope": 0}]}
             },
-            "Speed": {
-              "NumberRange": [
-                0.4,
-                1.15
-              ]
-            },
-            "SpreadAngle": [
-              360,
-              360
-            ],
+            "Speed": {"NumberRange": [0.4, 1.15]},
+            "SpreadAngle": [360, 360],
             "Texture": "rbxassetid://125907024425133",
             "Transparency": {
               "NumberSequence": {
                 "keypoints": [
-                  {
-                    "time": 0,
-                    "value": 1,
-                    "envelope": 0
-                  },
-                  {
-                    "time": 0.2,
-                    "value": 0.2,
-                    "envelope": 0
-                  },
-                  {
-                    "time": 0.72,
-                    "value": 0.34,
-                    "envelope": 0
-                  },
-                  {
-                    "time": 1,
-                    "value": 1,
-                    "envelope": 0
-                  }
+                  {"time": 0, "value": 1, "envelope": 0},
+                  {"time": 0.2, "value": 0.2, "envelope": 0},
+                  {"time": 0.72, "value": 0.34, "envelope": 0},
+                  {"time": 1, "value": 1, "envelope": 0}
                 ]
               }
             },
@@ -504,105 +248,29 @@
           "ClassName": "ParticleEmitter",
           "Properties": {
             "Color": {
-              "ColorSequence": {
-                "keypoints": [
-                  {
-                    "time": 0,
-                    "color": [
-                      0.78,
-                      1,
-                      0.72
-                    ]
-                  },
-                  {
-                    "time": 1,
-                    "color": [
-                      0.28,
-                      0.74,
-                      0.28
-                    ]
-                  }
-                ]
-              }
+              "ColorSequence": {"keypoints": [{"time": 0, "color": [0.78, 1, 0.72]}, {"time": 1, "color": [0.28, 0.74, 0.28]}]}
             },
             "EmissionDirection": "Top",
             "Enabled": true,
-            "Lifetime": {
-              "NumberRange": [
-                1.8,
-                3.2
-              ]
-            },
+            "Lifetime": {"NumberRange": [1.8, 3.2]},
             "LightEmission": 0.35,
             "LightInfluence": 0,
             "Rate": 5,
-            "Rotation": {
-              "NumberRange": [
-                0,
-                360
-              ]
-            },
-            "RotSpeed": {
-              "NumberRange": [
-                -25,
-                25
-              ]
-            },
+            "Rotation": {"NumberRange": [0, 360]},
+            "RotSpeed": {"NumberRange": [-25, 25]},
             "Size": {
-              "NumberSequence": {
-                "keypoints": [
-                  {
-                    "time": 0,
-                    "value": 1.1,
-                    "envelope": 0
-                  },
-                  {
-                    "time": 0.55,
-                    "value": 1.8,
-                    "envelope": 0
-                  },
-                  {
-                    "time": 1,
-                    "value": 2.4,
-                    "envelope": 0
-                  }
-                ]
-              }
+              "NumberSequence": {"keypoints": [{"time": 0, "value": 1.1, "envelope": 0}, {"time": 0.55, "value": 1.8, "envelope": 0}, {"time": 1, "value": 2.4, "envelope": 0}]}
             },
-            "Speed": {
-              "NumberRange": [
-                0.1,
-                0.4
-              ]
-            },
-            "SpreadAngle": [
-              360,
-              360
-            ],
+            "Speed": {"NumberRange": [0.1, 0.4]},
+            "SpreadAngle": [360, 360],
             "Texture": "rbxassetid://72854331493787",
             "Transparency": {
               "NumberSequence": {
                 "keypoints": [
-                  {
-                    "time": 0,
-                    "value": 1,
-                    "envelope": 0
-                  },
-                  {
-                    "time": 0.18,
-                    "value": 0.78,
-                    "envelope": 0
-                  },
-                  {
-                    "time": 0.8,
-                    "value": 0.9,
-                    "envelope": 0
-                  },
-                  {
-                    "time": 1,
-                    "value": 1,
-                    "envelope": 0
-                  }
+                  {"time": 0, "value": 1, "envelope": 0},
+                  {"time": 0.18, "value": 0.78, "envelope": 0},
+                  {"time": 0.8, "value": 0.9, "envelope": 0},
+                  {"time": 1, "value": 1, "envelope": 0}
                 ]
               }
             },
@@ -621,27 +289,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.94,
-          1,
-          0.9
-        ],
+        "Color": [0.94, 1, 0.9],
         "Material": "SmoothPlastic",
-        "Orientation": [
-          0,
-          0,
-          0
-        ],
-        "Position": [
-          6,
-          21.29,
-          58
-        ],
-        "Size": [
-          11.8,
-          0.08,
-          11.8
-        ],
+        "Orientation": [0, 0, 0],
+        "Position": [6, 21.29, 58],
+        "Size": [11.8, 0.08, 11.8],
         "Transparency": 1
       },
       "Children": [
@@ -650,11 +302,12 @@
           "ClassName": "SurfaceGui",
           "Properties": {
             "AlwaysOnTop": true,
-            "Enabled": true,
+            "Enabled": false,
             "Face": "Top",
             "LightInfluence": 0,
             "PixelsPerStud": 18,
-            "SizingMode": "PixelsPerStud"
+            "SizingMode": "PixelsPerStud",
+            "ResetOnSpawn": false
           },
           "Children": [
             {
@@ -663,41 +316,25 @@
               "Properties": {
                 "BackgroundTransparency": 1,
                 "Image": "rbxassetid://125907024425133",
-                "ImageColor3": [
-                  0.28,
-                  0.74,
-                  0.28
-                ],
+                "ImageColor3": [0.28, 0.74, 0.28],
                 "ImageTransparency": 0.44,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0.08,
-                      0
-                    ],
-                    [
-                      0.08,
-                      0
-                    ]
-                  ]
-                },
+                "Position": {"UDim2": [[0.08, 0], [0.08, 0]]},
                 "ScaleType": "Fit",
-                "Size": {
-                  "UDim2": [
-                    [
-                      0.84,
-                      0
-                    ],
-                    [
-                      0.84,
-                      0
-                    ]
-                  ]
-                },
+                "Size": {"UDim2": [[0.84, 0], [0.84, 0]]},
                 "ZIndex": 2,
-                "Rotation": -8
+                "Rotation": 0,
+                "Visible": true,
+                "ClipsDescendants": false
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "RuneSurfaceCoin",
@@ -705,40 +342,25 @@
               "Properties": {
                 "BackgroundTransparency": 1,
                 "Image": "rbxassetid://105300168575798",
-                "ImageColor3": [
-                  1,
-                  0.72,
-                  0.2
-                ],
+                "ImageColor3": [1, 0.72, 0.2],
                 "ImageTransparency": 0.16,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0.36,
-                      0
-                    ],
-                    [
-                      0.36,
-                      0
-                    ]
-                  ]
-                },
+                "Position": {"UDim2": [[0.36, 0], [0.36, 0]]},
                 "ScaleType": "Fit",
-                "Size": {
-                  "UDim2": [
-                    [
-                      0.28,
-                      0
-                    ],
-                    [
-                      0.28,
-                      0
-                    ]
-                  ]
-                },
-                "ZIndex": 4
+                "Size": {"UDim2": [[0.28, 0], [0.28, 0]]},
+                "ZIndex": 4,
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "RuneSurfacePremium",
@@ -746,40 +368,25 @@
               "Properties": {
                 "BackgroundTransparency": 1,
                 "Image": "rbxassetid://111977708425543",
-                "ImageColor3": [
-                  0.55,
-                  1,
-                  0.55
-                ],
+                "ImageColor3": [0.55, 1, 0.55],
                 "ImageTransparency": 0.5,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0.15,
-                      0
-                    ],
-                    [
-                      0.15,
-                      0
-                    ]
-                  ]
-                },
+                "Position": {"UDim2": [[0.15, 0], [0.15, 0]]},
                 "ScaleType": "Fit",
-                "Size": {
-                  "UDim2": [
-                    [
-                      0.22,
-                      0
-                    ],
-                    [
-                      0.22,
-                      0
-                    ]
-                  ]
-                },
-                "ZIndex": 3
+                "Size": {"UDim2": [[0.22, 0], [0.22, 0]]},
+                "ZIndex": 3,
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "RuneSurfacePotion",
@@ -787,40 +394,25 @@
               "Properties": {
                 "BackgroundTransparency": 1,
                 "Image": "rbxassetid://72854331493787",
-                "ImageColor3": [
-                  1,
-                  0.92,
-                  0.45
-                ],
+                "ImageColor3": [1, 0.92, 0.45],
                 "ImageTransparency": 0.52,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0.63,
-                      0
-                    ],
-                    [
-                      0.63,
-                      0
-                    ]
-                  ]
-                },
+                "Position": {"UDim2": [[0.63, 0], [0.63, 0]]},
                 "ScaleType": "Fit",
-                "Size": {
-                  "UDim2": [
-                    [
-                      0.22,
-                      0
-                    ],
-                    [
-                      0.22,
-                      0
-                    ]
-                  ]
-                },
-                "ZIndex": 3
+                "Size": {"UDim2": [[0.22, 0], [0.22, 0]]},
+                "ZIndex": 3,
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "RuneSurfaceRing",
@@ -828,56 +420,24 @@
               "Properties": {
                 "BackgroundTransparency": 1,
                 "BorderSizePixel": 0,
-                "Position": {
-                  "UDim2": [
-                    [
-                      0.12,
-                      0
-                    ],
-                    [
-                      0.12,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0.76,
-                      0
-                    ],
-                    [
-                      0.76,
-                      0
-                    ]
-                  ]
-                },
-                "ZIndex": 5
+                "Position": {"UDim2": [[0.12, 0], [0.12, 0]]},
+                "Size": {"UDim2": [[0.76, 0], [0.76, 0]]},
+                "ZIndex": 5,
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
                   "ClassName": "UICorner",
                   "Properties": {
-                    "CornerRadius": {
-                      "UDim": [
-                        0,
-                        999
-                      ]
-                    }
+                    "CornerRadius": {"UDim": [0, 0]}
                   },
                   "Children": []
                 },
                 {
                   "ClassName": "UIStroke",
-                  "Properties": {
-                    "Color": [
-                      0.55,
-                      1,
-                      0.55
-                    ],
-                    "Thickness": 3,
-                    "Transparency": 0.5
-                  },
+                  "Properties": {"Color": [0.550000011920929, 1, 0.550000011920929], "Thickness": 2, "Transparency": 0},
                   "Children": []
                 }
               ]
@@ -887,53 +447,31 @@
               "ClassName": "TextLabel",
               "Properties": {
                 "BackgroundTransparency": 1,
-                "FontFace": {
-                  "family": "rbxasset://fonts/families/FredokaOne.json",
-                  "weight": "Regular",
-                  "style": "Normal"
-                },
-                "Position": {
-                  "UDim2": [
-                    [
-                      0.18,
-                      0
-                    ],
-                    [
-                      0.74,
-                      0
-                    ]
-                  ]
-                },
-                "Size": {
-                  "UDim2": [
-                    [
-                      0.64,
-                      0
-                    ],
-                    [
-                      0.14,
-                      0
-                    ]
-                  ]
-                },
+                "FontFace": {"family": "rbxasset://fonts/families/FredokaOne.json", "weight": "Regular", "style": "Normal"},
+                "Position": {"UDim2": [[0.18, 0], [0.74, 0]]},
+                "Size": {"UDim2": [[0.64, 0], [0.14, 0]]},
                 "Text": "FOREST RUNES",
-                "TextColor3": [
-                  0.55,
-                  1,
-                  0.55
-                ],
+                "TextColor3": [0.550000011920929, 1, 0.550000011920929],
                 "TextSize": 16,
-                "TextStrokeColor3": [
-                  0,
-                  0,
-                  0
-                ],
-                "TextStrokeTransparency": 0.68,
+                "TextStrokeColor3": [0, 0, 0],
+                "TextStrokeTransparency": 1,
                 "TextXAlignment": "Center",
                 "TextYAlignment": "Center",
-                "ZIndex": 6
+                "ZIndex": 6,
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextWrapped": true
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             }
           ]
         }
@@ -948,27 +486,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.31,
-          0.19,
-          0.1
-        ],
+        "Color": [0.31, 0.19, 0.1],
         "Material": "Wood",
-        "Orientation": [
-          0,
-          9.124506458430123,
-          0
-        ],
-        "Position": [
-          15.43168204061173,
-          21.06,
-          59.13726596924474
-        ],
-        "Size": [
-          0.28,
-          4.2,
-          0.22
-        ],
+        "Orientation": [0, 9.124506458430123, 0],
+        "Position": [15.43168204061173, 21.06, 59.13726596924474],
+        "Size": [0.28, 4.2, 0.22],
         "Transparency": 0.02
       },
       "Children": []
@@ -982,27 +504,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.21,
-          0.13,
-          0.07
-        ],
+        "Color": [0.21, 0.13, 0.07],
         "Material": "Wood",
-        "Orientation": [
-          0,
-          -26.87549354156988,
-          0
-        ],
-        "Position": [
-          13.364981585472012,
-          21.06,
-          64.83809522057555
-        ],
-        "Size": [
-          0.28,
-          4.2,
-          0.22
-        ],
+        "Orientation": [0, -26.87549354156988, 0],
+        "Position": [13.364981585472012, 21.06, 64.83809522057555],
+        "Size": [0.28, 4.2, 0.22],
         "Transparency": 0.02
       },
       "Children": []
@@ -1016,27 +522,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.31,
-          0.19,
-          0.1
-        ],
+        "Color": [0.31, 0.19, 0.1],
         "Material": "Wood",
-        "Orientation": [
-          0,
-          -62.87549354156988,
-          0
-        ],
-        "Position": [
-          7.832945825279079,
-          21.06,
-          67.32149717596867
-        ],
-        "Size": [
-          0.28,
-          4.2,
-          0.22
-        ],
+        "Orientation": [0, -62.87549354156988, 0],
+        "Position": [7.832945825279079, 21.06, 67.32149717596867],
+        "Size": [0.28, 4.2, 0.22],
         "Transparency": 0.02
       },
       "Children": []
@@ -1050,27 +540,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.21,
-          0.13,
-          0.07
-        ],
+        "Color": [0.21, 0.13, 0.07],
         "Material": "Wood",
-        "Orientation": [
-          0,
-          -98.87549354156988,
-          0
-        ],
-        "Position": [
-          1.7724894545942735,
-          21.06,
-          67.11760136156892
-        ],
-        "Size": [
-          0.28,
-          4.2,
-          0.22
-        ],
+        "Orientation": [0, -98.87549354156988, 0],
+        "Position": [1.7724894545942735, 21.06, 67.11760136156892],
+        "Size": [0.28, 4.2, 0.22],
         "Transparency": 0.02
       },
       "Children": []
@@ -1084,27 +558,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.31,
-          0.19,
-          0.1
-        ],
+        "Color": [0.31, 0.19, 0.1],
         "Material": "Wood",
-        "Orientation": [
-          0,
-          -134.87549354156988,
-          0
-        ],
-        "Position": [
-          -2.298859221052032,
-          21.06,
-          62.62373611154007
-        ],
-        "Size": [
-          0.28,
-          4.2,
-          0.22
-        ],
+        "Orientation": [0, -134.87549354156988, 0],
+        "Position": [-2.298859221052032, 21.06, 62.62373611154007],
+        "Size": [0.28, 4.2, 0.22],
         "Transparency": 0.02
       },
       "Children": []
@@ -1118,27 +576,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.21,
-          0.13,
-          0.07
-        ],
+        "Color": [0.21, 0.13, 0.07],
         "Material": "Wood",
-        "Orientation": [
-          0,
-          -170.87549354156988,
-          0
-        ],
-        "Position": [
-          -3.9777267903313565,
-          21.06,
-          56.79689231674636
-        ],
-        "Size": [
-          0.28,
-          4.2,
-          0.22
-        ],
+        "Orientation": [0, -170.87549354156988, 0],
+        "Position": [-3.9777267903313565, 21.06, 56.79689231674636],
+        "Size": [0.28, 4.2, 0.22],
         "Transparency": 0.02
       },
       "Children": []
@@ -1152,27 +594,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.31,
-          0.19,
-          0.1
-        ],
+        "Color": [0.31, 0.19, 0.1],
         "Material": "Wood",
-        "Orientation": [
-          0,
-          -206.87549354156988,
-          0
-        ],
-        "Position": [
-          -0.9619228917397127,
-          21.06,
-          51.53612889597336
-        ],
-        "Size": [
-          0.28,
-          4.2,
-          0.22
-        ],
+        "Orientation": [0, -206.87549354156988, 0],
+        "Position": [-0.9619228917397127, 21.06, 51.53612889597336],
+        "Size": [0.28, 4.2, 0.22],
         "Transparency": 0.02
       },
       "Children": []
@@ -1186,27 +612,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.21,
-          0.13,
-          0.07
-        ],
+        "Color": [0.21, 0.13, 0.07],
         "Material": "Wood",
-        "Orientation": [
-          0,
-          -242.87549354156988,
-          0
-        ],
-        "Position": [
-          4.060936258520552,
-          21.06,
-          48.13883719805419
-        ],
-        "Size": [
-          0.28,
-          4.2,
-          0.22
-        ],
+        "Orientation": [0, -242.87549354156988, 0],
+        "Position": [4.060936258520552, 21.06, 48.13883719805419],
+        "Size": [0.28, 4.2, 0.22],
         "Transparency": 0.02
       },
       "Children": []
@@ -1220,27 +630,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.31,
-          0.19,
-          0.1
-        ],
+        "Color": [0.31, 0.19, 0.1],
         "Material": "Wood",
-        "Orientation": [
-          0,
-          -278.8754935415699,
-          0
-        ],
-        "Position": [
-          9.996154246900934,
-          21.06,
-          49.38137184727316
-        ],
-        "Size": [
-          0.28,
-          4.2,
-          0.22
-        ],
+        "Orientation": [0, -278.8754935415699, 0],
+        "Position": [9.996154246900934, 21.06, 49.38137184727316],
+        "Size": [0.28, 4.2, 0.22],
         "Transparency": 0.02
       },
       "Children": []
@@ -1254,27 +648,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.21,
-          0.13,
-          0.07
-        ],
+        "Color": [0.21, 0.13, 0.07],
         "Material": "Wood",
-        "Orientation": [
-          0,
-          -314.8754935415699,
-          0
-        ],
-        "Position": [
-          14.779319491744518,
-          21.06,
-          53.10857390305498
-        ],
-        "Size": [
-          0.28,
-          4.2,
-          0.22
-        ],
+        "Orientation": [0, -314.8754935415699, 0],
+        "Position": [14.779319491744518, 21.06, 53.10857390305498],
+        "Size": [0.28, 4.2, 0.22],
         "Transparency": 0.02
       },
       "Children": []
@@ -1288,27 +666,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -90,
-          0
-        ],
-        "Position": [
-          14.65,
-          21.34,
-          58
-        ],
-        "Size": [
-          0.34,
-          2.65,
-          0.2
-        ],
+        "Orientation": [0, -90, 0],
+        "Position": [14.65, 21.34, 58],
+        "Size": [0.34, 2.65, 0.2],
         "Transparency": 0.16
       },
       "Children": []
@@ -1322,27 +684,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.28,
-          0.74,
-          0.28
-        ],
+        "Color": [0.28, 0.74, 0.28],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -135,
-          0
-        ],
-        "Position": [
-          12.116473657263636,
-          21.34,
-          64.11647365726364
-        ],
-        "Size": [
-          0.34,
-          2.65,
-          0.2
-        ],
+        "Orientation": [0, -135, 0],
+        "Position": [12.116473657263636, 21.34, 64.11647365726364],
+        "Size": [0.34, 2.65, 0.2],
         "Transparency": 0.16
       },
       "Children": []
@@ -1356,27 +702,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.72,
-          0.2
-        ],
+        "Color": [1, 0.72, 0.2],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -180,
-          0
-        ],
-        "Position": [
-          6.000000000000001,
-          21.34,
-          66.65
-        ],
-        "Size": [
-          0.34,
-          2.65,
-          0.2
-        ],
+        "Orientation": [0, -180, 0],
+        "Position": [6.000000000000001, 21.34, 66.65],
+        "Size": [0.34, 2.65, 0.2],
         "Transparency": 0.16
       },
       "Children": []
@@ -1390,27 +720,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.12,
-          0.62,
-          0.2
-        ],
+        "Color": [0.12, 0.62, 0.2],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -225,
-          0
-        ],
-        "Position": [
-          -0.11647365726363557,
-          21.34,
-          64.11647365726364
-        ],
-        "Size": [
-          0.34,
-          2.65,
-          0.2
-        ],
+        "Orientation": [0, -225, 0],
+        "Position": [-0.11647365726363557, 21.34, 64.11647365726364],
+        "Size": [0.34, 2.65, 0.2],
         "Transparency": 0.16
       },
       "Children": []
@@ -1424,27 +738,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -270,
-          0
-        ],
-        "Position": [
-          -2.6500000000000004,
-          21.34,
-          58
-        ],
-        "Size": [
-          0.34,
-          2.65,
-          0.2
-        ],
+        "Orientation": [0, -270, 0],
+        "Position": [-2.6500000000000004, 21.34, 58],
+        "Size": [0.34, 2.65, 0.2],
         "Transparency": 0.16
       },
       "Children": []
@@ -1458,27 +756,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.28,
-          0.74,
-          0.28
-        ],
+        "Color": [0.28, 0.74, 0.28],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -315,
-          0
-        ],
-        "Position": [
-          -0.11647365726363734,
-          21.34,
-          51.88352634273637
-        ],
-        "Size": [
-          0.34,
-          2.65,
-          0.2
-        ],
+        "Orientation": [0, -315, 0],
+        "Position": [-0.11647365726363734, 21.34, 51.88352634273637],
+        "Size": [0.34, 2.65, 0.2],
         "Transparency": 0.16
       },
       "Children": []
@@ -1492,27 +774,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.72,
-          0.2
-        ],
+        "Color": [1, 0.72, 0.2],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -360,
-          0
-        ],
-        "Position": [
-          5.999999999999998,
-          21.34,
-          49.35
-        ],
-        "Size": [
-          0.34,
-          2.65,
-          0.2
-        ],
+        "Orientation": [0, -360, 0],
+        "Position": [5.999999999999998, 21.34, 49.35],
+        "Size": [0.34, 2.65, 0.2],
         "Transparency": 0.16
       },
       "Children": []
@@ -1526,27 +792,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.12,
-          0.62,
-          0.2
-        ],
+        "Color": [0.12, 0.62, 0.2],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -405,
-          0
-        ],
-        "Position": [
-          12.116473657263635,
-          21.34,
-          51.88352634273636
-        ],
-        "Size": [
-          0.34,
-          2.65,
-          0.2
-        ],
+        "Orientation": [0, -405, 0],
+        "Position": [12.116473657263635, 21.34, 51.88352634273636],
+        "Size": [0.34, 2.65, 0.2],
         "Transparency": 0.16
       },
       "Children": []
@@ -1560,27 +810,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Glass",
-        "Orientation": [
-          0,
-          0,
-          0
-        ],
-        "Position": [
-          14.876760388790498,
-          21.72,
-          63.125
-        ],
-        "Size": [
-          0.82,
-          0.82,
-          0.82
-        ],
+        "Orientation": [0, 0, 0],
+        "Position": [14.876760388790498, 21.72, 63.125],
+        "Size": [0.82, 0.82, 0.82],
         "Transparency": 0.18,
         "Shape": "Ball"
       },
@@ -1588,16 +822,7 @@
         {
           "Name": "CrystalLight",
           "ClassName": "PointLight",
-          "Properties": {
-            "Brightness": 0.35,
-            "Color": [
-              0.55,
-              1,
-              0.55
-            ],
-            "Range": 8,
-            "Shadows": false
-          },
+          "Properties": {"Brightness": 0.35, "Color": [0.55, 1, 0.55], "Range": 8, "Shadows": false},
           "Children": []
         }
       ]
@@ -1611,27 +836,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.28,
-          0.74,
-          0.28
-        ],
+        "Color": [0.28, 0.74, 0.28],
         "Material": "Glass",
-        "Orientation": [
-          0,
-          0,
-          0
-        ],
-        "Position": [
-          6.000000000000001,
-          21.72,
-          68.25
-        ],
-        "Size": [
-          0.58,
-          0.58,
-          0.58
-        ],
+        "Orientation": [0, 0, 0],
+        "Position": [6.000000000000001, 21.72, 68.25],
+        "Size": [0.58, 0.58, 0.58],
         "Transparency": 0.18,
         "Shape": "Ball"
       },
@@ -1639,16 +848,7 @@
         {
           "Name": "CrystalLight",
           "ClassName": "PointLight",
-          "Properties": {
-            "Brightness": 0.35,
-            "Color": [
-              0.28,
-              0.74,
-              0.28
-            ],
-            "Range": 8,
-            "Shadows": false
-          },
+          "Properties": {"Brightness": 0.35, "Color": [0.28, 0.74, 0.28], "Range": 8, "Shadows": false},
           "Children": []
         }
       ]
@@ -1662,27 +862,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Glass",
-        "Orientation": [
-          0,
-          0,
-          0
-        ],
-        "Position": [
-          -2.876760388790494,
-          21.72,
-          63.125
-        ],
-        "Size": [
-          0.82,
-          0.82,
-          0.82
-        ],
+        "Orientation": [0, 0, 0],
+        "Position": [-2.876760388790494, 21.72, 63.125],
+        "Size": [0.82, 0.82, 0.82],
         "Transparency": 0.18,
         "Shape": "Ball"
       },
@@ -1690,16 +874,7 @@
         {
           "Name": "CrystalLight",
           "ClassName": "PointLight",
-          "Properties": {
-            "Brightness": 0.35,
-            "Color": [
-              0.55,
-              1,
-              0.55
-            ],
-            "Range": 8,
-            "Shadows": false
-          },
+          "Properties": {"Brightness": 0.35, "Color": [0.55, 1, 0.55], "Range": 8, "Shadows": false},
           "Children": []
         }
       ]
@@ -1713,27 +888,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.28,
-          0.74,
-          0.28
-        ],
+        "Color": [0.28, 0.74, 0.28],
         "Material": "Glass",
-        "Orientation": [
-          0,
-          0,
-          0
-        ],
-        "Position": [
-          -2.8767603887904976,
-          21.72,
-          52.875
-        ],
-        "Size": [
-          0.58,
-          0.58,
-          0.58
-        ],
+        "Orientation": [0, 0, 0],
+        "Position": [-2.8767603887904976, 21.72, 52.875],
+        "Size": [0.58, 0.58, 0.58],
         "Transparency": 0.18,
         "Shape": "Ball"
       },
@@ -1741,16 +900,7 @@
         {
           "Name": "CrystalLight",
           "ClassName": "PointLight",
-          "Properties": {
-            "Brightness": 0.35,
-            "Color": [
-              0.28,
-              0.74,
-              0.28
-            ],
-            "Range": 8,
-            "Shadows": false
-          },
+          "Properties": {"Brightness": 0.35, "Color": [0.28, 0.74, 0.28], "Range": 8, "Shadows": false},
           "Children": []
         }
       ]
@@ -1764,27 +914,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Glass",
-        "Orientation": [
-          0,
-          0,
-          0
-        ],
-        "Position": [
-          5.999999999999998,
-          21.72,
-          47.75
-        ],
-        "Size": [
-          0.82,
-          0.82,
-          0.82
-        ],
+        "Orientation": [0, 0, 0],
+        "Position": [5.999999999999998, 21.72, 47.75],
+        "Size": [0.82, 0.82, 0.82],
         "Transparency": 0.18,
         "Shape": "Ball"
       },
@@ -1792,16 +926,7 @@
         {
           "Name": "CrystalLight",
           "ClassName": "PointLight",
-          "Properties": {
-            "Brightness": 0.35,
-            "Color": [
-              0.55,
-              1,
-              0.55
-            ],
-            "Range": 8,
-            "Shadows": false
-          },
+          "Properties": {"Brightness": 0.35, "Color": [0.55, 1, 0.55], "Range": 8, "Shadows": false},
           "Children": []
         }
       ]
@@ -1815,27 +940,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.28,
-          0.74,
-          0.28
-        ],
+        "Color": [0.28, 0.74, 0.28],
         "Material": "Glass",
-        "Orientation": [
-          0,
-          0,
-          0
-        ],
-        "Position": [
-          14.876760388790498,
-          21.72,
-          52.875
-        ],
-        "Size": [
-          0.58,
-          0.58,
-          0.58
-        ],
+        "Orientation": [0, 0, 0],
+        "Position": [14.876760388790498, 21.72, 52.875],
+        "Size": [0.58, 0.58, 0.58],
         "Transparency": 0.18,
         "Shape": "Ball"
       },
@@ -1843,16 +952,7 @@
         {
           "Name": "CrystalLight",
           "ClassName": "PointLight",
-          "Properties": {
-            "Brightness": 0.35,
-            "Color": [
-              0.28,
-              0.74,
-              0.28
-            ],
-            "Range": 8,
-            "Shadows": false
-          },
+          "Properties": {"Brightness": 0.35, "Color": [0.28, 0.74, 0.28], "Range": 8, "Shadows": false},
           "Children": []
         }
       ]
@@ -1866,27 +966,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.72,
-          0.2
-        ],
+        "Color": [1, 0.72, 0.2],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          0,
-          0
-        ],
-        "Position": [
-          12.35,
-          21.38,
-          58
-        ],
-        "Size": [
-          0.18,
-          1.18,
-          0.12
-        ],
+        "Orientation": [0, 0, 0],
+        "Position": [12.35, 21.38, 58],
+        "Size": [0.18, 1.18, 0.12],
         "Transparency": 0.08
       },
       "Children": []
@@ -1900,27 +984,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.72,
-          0.2
-        ],
+        "Color": [1, 0.72, 0.2],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -29.999999999999996,
-          0
-        ],
-        "Position": [
-          10.373428289111416,
-          21.38,
-          60.525
-        ],
-        "Size": [
-          0.18,
-          1.18,
-          0.12
-        ],
+        "Orientation": [0, -29.999999999999996, 0],
+        "Position": [10.373428289111416, 21.38, 60.525],
+        "Size": [0.18, 1.18, 0.12],
         "Transparency": 0.08
       },
       "Children": []
@@ -1934,27 +1002,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.72,
-          0.2
-        ],
+        "Color": [1, 0.72, 0.2],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -59.99999999999999,
-          0
-        ],
-        "Position": [
-          9.175,
-          21.38,
-          63.49926131403119
-        ],
-        "Size": [
-          0.18,
-          1.18,
-          0.12
-        ],
+        "Orientation": [0, -59.99999999999999, 0],
+        "Position": [9.175, 21.38, 63.49926131403119],
+        "Size": [0.18, 1.18, 0.12],
         "Transparency": 0.08
       },
       "Children": []
@@ -1968,27 +1020,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.72,
-          0.2
-        ],
+        "Color": [1, 0.72, 0.2],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -90,
-          0
-        ],
-        "Position": [
-          6,
-          21.38,
-          63.05
-        ],
-        "Size": [
-          0.18,
-          1.18,
-          0.12
-        ],
+        "Orientation": [0, -90, 0],
+        "Position": [6, 21.38, 63.05],
+        "Size": [0.18, 1.18, 0.12],
         "Transparency": 0.08
       },
       "Children": []
@@ -2002,27 +1038,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.72,
-          0.2
-        ],
+        "Color": [1, 0.72, 0.2],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -119.99999999999999,
-          0
-        ],
-        "Position": [
-          2.8250000000000015,
-          21.38,
-          63.49926131403119
-        ],
-        "Size": [
-          0.18,
-          1.18,
-          0.12
-        ],
+        "Orientation": [0, -119.99999999999999, 0],
+        "Position": [2.8250000000000015, 21.38, 63.49926131403119],
+        "Size": [0.18, 1.18, 0.12],
         "Transparency": 0.08
       },
       "Children": []
@@ -2036,27 +1056,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.72,
-          0.2
-        ],
+        "Color": [1, 0.72, 0.2],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -150.00000000000003,
-          0
-        ],
-        "Position": [
-          1.6265717108885847,
-          21.38,
-          60.525
-        ],
-        "Size": [
-          0.18,
-          1.18,
-          0.12
-        ],
+        "Orientation": [0, -150.00000000000003, 0],
+        "Position": [1.6265717108885847, 21.38, 60.525],
+        "Size": [0.18, 1.18, 0.12],
         "Transparency": 0.08
       },
       "Children": []
@@ -2070,27 +1074,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.72,
-          0.2
-        ],
+        "Color": [1, 0.72, 0.2],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -180,
-          0
-        ],
-        "Position": [
-          -0.34999999999999964,
-          21.38,
-          58
-        ],
-        "Size": [
-          0.18,
-          1.18,
-          0.12
-        ],
+        "Orientation": [0, -180, 0],
+        "Position": [-0.34999999999999964, 21.38, 58],
+        "Size": [0.18, 1.18, 0.12],
         "Transparency": 0.08
       },
       "Children": []
@@ -2104,27 +1092,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.72,
-          0.2
-        ],
+        "Color": [1, 0.72, 0.2],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -209.99999999999997,
-          0
-        ],
-        "Position": [
-          1.6265717108885838,
-          21.38,
-          55.475
-        ],
-        "Size": [
-          0.18,
-          1.18,
-          0.12
-        ],
+        "Orientation": [0, -209.99999999999997, 0],
+        "Position": [1.6265717108885838, 21.38, 55.475],
+        "Size": [0.18, 1.18, 0.12],
         "Transparency": 0.08
       },
       "Children": []
@@ -2138,27 +1110,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.72,
-          0.2
-        ],
+        "Color": [1, 0.72, 0.2],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -239.99999999999997,
-          0
-        ],
-        "Position": [
-          2.8249999999999975,
-          21.38,
-          52.50073868596881
-        ],
-        "Size": [
-          0.18,
-          1.18,
-          0.12
-        ],
+        "Orientation": [0, -239.99999999999997, 0],
+        "Position": [2.8249999999999975, 21.38, 52.50073868596881],
+        "Size": [0.18, 1.18, 0.12],
         "Transparency": 0.08
       },
       "Children": []
@@ -2172,27 +1128,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.72,
-          0.2
-        ],
+        "Color": [1, 0.72, 0.2],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -270,
-          0
-        ],
-        "Position": [
-          5.999999999999999,
-          21.38,
-          52.95
-        ],
-        "Size": [
-          0.18,
-          1.18,
-          0.12
-        ],
+        "Orientation": [0, -270, 0],
+        "Position": [5.999999999999999, 21.38, 52.95],
+        "Size": [0.18, 1.18, 0.12],
         "Transparency": 0.08
       },
       "Children": []
@@ -2206,27 +1146,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.72,
-          0.2
-        ],
+        "Color": [1, 0.72, 0.2],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -300.00000000000006,
-          0
-        ],
-        "Position": [
-          9.175,
-          21.38,
-          52.50073868596881
-        ],
-        "Size": [
-          0.18,
-          1.18,
-          0.12
-        ],
+        "Orientation": [0, -300.00000000000006, 0],
+        "Position": [9.175, 21.38, 52.50073868596881],
+        "Size": [0.18, 1.18, 0.12],
         "Transparency": 0.08
       },
       "Children": []
@@ -2240,27 +1164,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.72,
-          0.2
-        ],
+        "Color": [1, 0.72, 0.2],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -329.99999999999994,
-          0
-        ],
-        "Position": [
-          10.373428289111413,
-          21.38,
-          55.474999999999994
-        ],
-        "Size": [
-          0.18,
-          1.18,
-          0.12
-        ],
+        "Orientation": [0, -329.99999999999994, 0],
+        "Position": [10.373428289111413, 21.38, 55.474999999999994],
+        "Size": [0.18, 1.18, 0.12],
         "Transparency": 0.08
       },
       "Children": []
@@ -2274,27 +1182,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.92,
-          0.45
-        ],
+        "Color": [1, 0.92, 0.45],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          35.416337638953415,
-          18
-        ],
-        "Position": [
-          13.62553305321504,
-          21.48,
-          58.61134740886417
-        ],
-        "Size": [
-          0.18,
-          0.92,
-          0.08
-        ],
+        "Orientation": [0, 35.416337638953415, 18],
+        "Position": [13.62553305321504, 21.48, 58.61134740886417],
+        "Size": [0.18, 0.92, 0.08],
         "Transparency": 0.12
       },
       "Children": []
@@ -2308,27 +1200,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          9.702051924667703,
-          18
-        ],
-        "Position": [
-          13.727551886656972,
-          21.48,
-          62.51524549044947
-        ],
-        "Size": [
-          0.18,
-          0.92,
-          0.08
-        ],
+        "Orientation": [0, 9.702051924667703, 18],
+        "Position": [13.727551886656972, 21.48, 62.51524549044947],
+        "Size": [0.18, 0.92, 0.08],
         "Transparency": 0.12
       },
       "Children": []
@@ -2342,27 +1218,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -16.012233789618016,
-          18
-        ],
-        "Position": [
-          10.276471441441004,
-          21.48,
-          64.34305068642365
-        ],
-        "Size": [
-          0.18,
-          0.92,
-          0.08
-        ],
+        "Orientation": [0, -16.012233789618016, 18],
+        "Position": [10.276471441441004, 21.48, 64.34305068642365],
+        "Size": [0.18, 0.92, 0.08],
         "Transparency": 0.12
       },
       "Children": []
@@ -2376,27 +1236,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.92,
-          0.45
-        ],
+        "Color": [1, 0.92, 0.45],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -41.72651950390373,
-          18
-        ],
-        "Position": [
-          7.287888719159642,
-          21.48,
-          66.85685286357753
-        ],
-        "Size": [
-          0.18,
-          0.92,
-          0.08
-        ],
+        "Orientation": [0, -41.72651950390373, 18],
+        "Position": [7.287888719159642, 21.48, 66.85685286357753],
+        "Size": [0.18, 0.92, 0.08],
         "Transparency": 0.12
       },
       "Children": []
@@ -2410,27 +1254,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -67.44080521818945,
-          18
-        ],
-        "Position": [
-          3.70713961014213,
-          21.48,
-          65.2983074224522
-        ],
-        "Size": [
-          0.18,
-          0.92,
-          0.08
-        ],
+        "Orientation": [0, -67.44080521818945, 18],
+        "Position": [3.70713961014213, 21.48, 65.2983074224522],
+        "Size": [0.18, 0.92, 0.08],
         "Transparency": 0.12
       },
       "Children": []
@@ -2444,27 +1272,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -93.15509093247516,
-          18
-        ],
-        "Position": [
-          -0.12158092200708648,
-          21.48,
-          64.52906938355834
-        ],
-        "Size": [
-          0.18,
-          0.92,
-          0.08
-        ],
+        "Orientation": [0, -93.15509093247516, 18],
+        "Position": [-0.12158092200708648, 21.48, 64.52906938355834],
+        "Size": [0.18, 0.92, 0.08],
         "Transparency": 0.12
       },
       "Children": []
@@ -2478,27 +1290,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.92,
-          0.45
-        ],
+        "Color": [1, 0.92, 0.45],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -118.86937664676088,
-          18
-        ],
-        "Position": [
-          -1.1356215817654478,
-          21.48,
-          60.757789811034044
-        ],
-        "Size": [
-          0.18,
-          0.92,
-          0.08
-        ],
+        "Orientation": [0, -118.86937664676088, 18],
+        "Position": [-1.1356215817654478, 21.48, 60.757789811034044],
+        "Size": [0.18, 0.92, 0.08],
         "Transparency": 0.12
       },
       "Children": []
@@ -2512,27 +1308,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -144.58366236104658,
-          18
-        ],
-        "Position": [
-          -2.9213752714084453,
-          21.48,
-          57.284763488975905
-        ],
-        "Size": [
-          0.18,
-          0.92,
-          0.08
-        ],
+        "Orientation": [0, -144.58366236104658, 18],
+        "Position": [-2.9213752714084453, 21.48, 57.284763488975905],
+        "Size": [0.18, 0.92, 0.08],
         "Transparency": 0.12
       },
       "Children": []
@@ -2546,27 +1326,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -170.2979480753323,
-          18
-        ],
-        "Position": [
-          -0.6051141824498147,
-          21.48,
-          54.1406002232471
-        ],
-        "Size": [
-          0.18,
-          0.92,
-          0.08
-        ],
+        "Orientation": [0, -170.2979480753323, 18],
+        "Position": [-0.6051141824498147, 21.48, 54.1406002232471],
+        "Size": [0.18, 0.92, 0.08],
         "Transparency": 0.12
       },
       "Children": []
@@ -2580,27 +1344,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.92,
-          0.45
-        ],
+        "Color": [1, 0.92, 0.45],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -196.012233789618,
-          18
-        ],
-        "Position": [
-          0.9968079214513734,
-          21.48,
-          50.57904527536057
-        ],
-        "Size": [
-          0.18,
-          0.92,
-          0.08
-        ],
+        "Orientation": [0, -196.012233789618, 18],
+        "Position": [0.9968079214513734, 21.48, 50.57904527536057],
+        "Size": [0.18, 0.92, 0.08],
         "Transparency": 0.12
       },
       "Children": []
@@ -2614,27 +1362,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -221.72651950390377,
-          18
-        ],
-        "Position": [
-          4.899178916025557,
-          21.48,
-          50.42961738476335
-        ],
-        "Size": [
-          0.18,
-          0.92,
-          0.08
-        ],
+        "Orientation": [0, -221.72651950390377, 18],
+        "Position": [4.899178916025557, 21.48, 50.42961738476335],
+        "Size": [0.18, 0.92, 0.08],
         "Transparency": 0.12
       },
       "Children": []
@@ -2648,27 +1380,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -247.44080521818938,
-          18
-        ],
-        "Position": [
-          8.6824967959775,
-          21.48,
-          49.46145732928795
-        ],
-        "Size": [
-          0.18,
-          0.92,
-          0.08
-        ],
+        "Orientation": [0, -247.44080521818938, 18],
+        "Position": [8.6824967959775, 21.48, 49.46145732928795],
+        "Size": [0.18, 0.92, 0.08],
         "Transparency": 0.12
       },
       "Children": []
@@ -2682,27 +1398,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          1,
-          0.92,
-          0.45
-        ],
+        "Color": [1, 0.92, 0.45],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -273.15509093247516,
-          18
-        ],
-        "Position": [
-          11.232412743391532,
-          21.48,
-          52.41928706321549
-        ],
-        "Size": [
-          0.18,
-          0.92,
-          0.08
-        ],
+        "Orientation": [0, -273.15509093247516, 18],
+        "Position": [11.232412743391532, 21.48, 52.41928706321549],
+        "Size": [0.18, 0.92, 0.08],
         "Transparency": 0.12
       },
       "Children": []
@@ -2716,27 +1416,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -298.86937664676094,
-          18
-        ],
-        "Position": [
-          14.348210870170037,
-          21.48,
-          54.773566168790246
-        ],
-        "Size": [
-          0.18,
-          0.92,
-          0.08
-        ],
+        "Orientation": [0, -298.86937664676094, 18],
+        "Position": [14.348210870170037, 21.48, 54.773566168790246],
+        "Size": [0.18, 0.92, 0.08],
         "Transparency": 0.12
       },
       "Children": []
@@ -2750,27 +1434,11 @@
         "CanQuery": true,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.24,
-          0.28,
-          0.24
-        ],
+        "Color": [0.24, 0.28, 0.24],
         "Material": "Slate",
-        "Orientation": [
-          0,
-          -12.605071492878112,
-          0
-        ],
-        "Position": [
-          17.076436049902373,
-          20.82,
-          60.476906221967866
-        ],
-        "Size": [
-          1.15,
-          0.5,
-          0.82
-        ],
+        "Orientation": [0, -12.605071492878112, 0],
+        "Position": [17.076436049902373, 20.82, 60.476906221967866],
+        "Size": [1.15, 0.5, 0.82],
         "Transparency": 0.02
       },
       "Children": []
@@ -2784,27 +1452,11 @@
         "CanQuery": true,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.18,
-          0.42,
-          0.18
-        ],
+        "Color": [0.18, 0.42, 0.18],
         "Material": "Grass",
-        "Orientation": [
-          0,
-          -64.03364292144954,
-          0
-        ],
-        "Position": [
-          10.96952165459914,
-          20.82,
-          68.20423218691491
-        ],
-        "Size": [
-          1.15,
-          0.6799999999999999,
-          0.82
-        ],
+        "Orientation": [0, -64.03364292144954, 0],
+        "Position": [10.96952165459914, 20.82, 68.20423218691491],
+        "Size": [1.15, 0.6799999999999999, 0.82],
         "Transparency": 0.02
       },
       "Children": []
@@ -2818,27 +1470,11 @@
         "CanQuery": true,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.24,
-          0.28,
-          0.24
-        ],
+        "Color": [0.24, 0.28, 0.24],
         "Material": "Slate",
-        "Orientation": [
-          0,
-          -115.46221435002097,
-          0
-        ],
-        "Position": [
-          1.120456093615032,
-          20.82,
-          68.24756318671231
-        ],
-        "Size": [
-          1.15,
-          0.86,
-          0.82
-        ],
+        "Orientation": [0, -115.46221435002097, 0],
+        "Position": [1.120456093615032, 20.82, 68.24756318671231],
+        "Size": [1.15, 0.86, 0.82],
         "Transparency": 0.02
       },
       "Children": []
@@ -2852,27 +1488,11 @@
         "CanQuery": true,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.18,
-          0.42,
-          0.18
-        ],
+        "Color": [0.18, 0.42, 0.18],
         "Material": "Grass",
-        "Orientation": [
-          0,
-          -166.8907857785924,
-          0
-        ],
-        "Position": [
-          -5.054213381305047,
-          20.82,
-          60.57427009472131
-        ],
-        "Size": [
-          1.15,
-          0.5,
-          0.82
-        ],
+        "Orientation": [0, -166.8907857785924, 0],
+        "Position": [-5.054213381305047, 20.82, 60.57427009472131],
+        "Size": [1.15, 0.5, 0.82],
         "Transparency": 0.02
       },
       "Children": []
@@ -2886,27 +1506,11 @@
         "CanQuery": true,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.24,
-          0.28,
-          0.24
-        ],
+        "Color": [0.24, 0.28, 0.24],
         "Material": "Slate",
-        "Orientation": [
-          0,
-          -218.31935720716382,
-          0
-        ],
-        "Position": [
-          -2.904834715243121,
-          20.82,
-          50.96249911586499
-        ],
-        "Size": [
-          1.15,
-          0.6799999999999999,
-          0.82
-        ],
+        "Orientation": [0, -218.31935720716382, 0],
+        "Position": [-2.904834715243121, 20.82, 50.96249911586499],
+        "Size": [1.15, 0.6799999999999999, 0.82],
         "Transparency": 0.02
       },
       "Children": []
@@ -2920,27 +1524,11 @@
         "CanQuery": true,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.18,
-          0.42,
-          0.18
-        ],
+        "Color": [0.18, 0.42, 0.18],
         "Material": "Grass",
-        "Orientation": [
-          0,
-          -269.74792863573526,
-          0
-        ],
-        "Position": [
-          5.95006611692163,
-          20.82,
-          46.6501098416187
-        ],
-        "Size": [
-          1.15,
-          0.86,
-          0.82
-        ],
+        "Orientation": [0, -269.74792863573526, 0],
+        "Position": [5.95006611692163, 20.82, 46.6501098416187],
+        "Size": [1.15, 0.86, 0.82],
         "Transparency": 0.02
       },
       "Children": []
@@ -2954,27 +1542,11 @@
         "CanQuery": true,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.24,
-          0.28,
-          0.24
-        ],
+        "Color": [0.24, 0.28, 0.24],
         "Material": "Slate",
-        "Orientation": [
-          0,
-          -321.17650006430665,
-          0
-        ],
-        "Position": [
-          14.842568181509984,
-          20.82,
-          50.884419352199906
-        ],
-        "Size": [
-          1.15,
-          0.5,
-          0.82
-        ],
+        "Orientation": [0, -321.17650006430665, 0],
+        "Position": [14.842568181509984, 20.82, 50.884419352199906],
+        "Size": [1.15, 0.5, 0.82],
         "Transparency": 0.02
       },
       "Children": []
@@ -2988,27 +1560,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          0,
-          12
-        ],
-        "Position": [
-          11.6,
-          23.25,
-          58
-        ],
-        "Size": [
-          0.9,
-          1.55,
-          0.42
-        ],
+        "Orientation": [0, 0, 12],
+        "Position": [11.6, 23.25, 58],
+        "Size": [0.9, 1.55, 0.42],
         "Transparency": 0.04
       },
       "Children": []
@@ -3022,27 +1578,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -119.99999999999999,
-          -8
-        ],
-        "Position": [
-          3.2000000000000015,
-          23.25,
-          62.84974226119286
-        ],
-        "Size": [
-          0.9,
-          1.55,
-          0.42
-        ],
+        "Orientation": [0, -119.99999999999999, -8],
+        "Position": [3.2000000000000015, 23.25, 62.84974226119286],
+        "Size": [0.9, 1.55, 0.42],
         "Transparency": 0.04
       },
       "Children": []
@@ -3056,27 +1596,11 @@
         "CanQuery": false,
         "CanTouch": false,
         "CastShadow": false,
-        "Color": [
-          0.55,
-          1,
-          0.55
-        ],
+        "Color": [0.55, 1, 0.55],
         "Material": "Neon",
-        "Orientation": [
-          0,
-          -239.99999999999997,
-          10
-        ],
-        "Position": [
-          3.1999999999999975,
-          23.25,
-          53.15025773880714
-        ],
-        "Size": [
-          0.9,
-          1.55,
-          0.42
-        ],
+        "Orientation": [0, -239.99999999999997, 10],
+        "Position": [3.1999999999999975, 23.25, 53.15025773880714],
+        "Size": [0.9, 1.55, 0.42],
         "Transparency": 0.04
       },
       "Children": []

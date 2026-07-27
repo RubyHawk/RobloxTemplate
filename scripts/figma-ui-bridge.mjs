@@ -408,6 +408,42 @@ function entryGeometry(entry, entriesByPath) {
   return { parentWidth, parentHeight, width, height, x, y };
 }
 
+function udim2Components(value) {
+  const raw = value?.UDim2;
+  if (!Array.isArray(raw) || !Array.isArray(raw[0]) || !Array.isArray(raw[1])) return null;
+  const values = [raw[0][0], raw[0][1], raw[1][0], raw[1][1]].map(Number);
+  if (!values.every(Number.isFinite)) return null;
+  return { sx: values[0], ox: values[1], sy: values[2], oy: values[3] };
+}
+
+function authoredGeometry(node, parentWidth, parentHeight) {
+  const props = ensureProperties(node);
+  const size = udim2Components(props.Size);
+  const position = udim2Components(props.Position);
+  if (!size || !position) return null;
+  const anchor = vector2(props.AnchorPoint, [0, 0]);
+  const width = parentWidth * size.sx + size.ox;
+  const height = parentHeight * size.sy + size.oy;
+  return {
+    width,
+    height,
+    x: parentWidth * position.sx + position.ox - anchor[0] * width,
+    y: parentHeight * position.sy + position.oy - anchor[1] * height
+  };
+}
+
+function preservesAuthoredLayout(node, entry, geometry) {
+  const authored = authoredGeometry(node, geometry.parentWidth, geometry.parentHeight);
+  if (!authored) return false;
+  const tolerance = 2;
+  const sizeMatches = Math.abs(authored.width - geometry.width) <= tolerance
+    && Math.abs(authored.height - geometry.height) <= tolerance;
+  if (!sizeMatches) return false;
+  if (entry.layout?.managedByLayout) return true;
+  return Math.abs(authored.x - geometry.x) <= tolerance
+    && Math.abs(authored.y - geometry.y) <= tolerance;
+}
+
 function median(values) {
   const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
   if (!sorted.length) return 0;
@@ -434,10 +470,10 @@ function inferredAlignment(start, end, parentSize, leading, center, trailing) {
 // responsiveness is preserved, but their old values must not override newly
 // imported Figma geometry. Expand constraints to admit the new authored size
 // and derive layout spacing from visible managed children.
-function reconcileSourceOnlyLayout(node, entry, entriesByPath) {
+function reconcileSourceOnlyLayout(node, entry, entriesByPath, preserveAuthoredLayout = false) {
   const geometry = entryGeometry(entry, entriesByPath);
   const constraint = effectChild(node, "UISizeConstraint");
-  if (constraint) {
+  if (constraint && !preserveAuthoredLayout) {
     const props = ensureProperties(constraint);
     const min = vector2(props.MinSize, [0, 0]);
     const max = vector2(props.MaxSize, [100000, 100000]);
@@ -609,42 +645,44 @@ function applyEntry(node, entry, entriesByPath) {
   const layout = entry.layout;
   if (layout?.size && layout?.pos && layout?.anchor) {
     const geometry = entryGeometry(entry, entriesByPath);
-    const parentWidth = geometry.parentWidth;
-    const parentHeight = geometry.parentHeight;
-    const authoredSizeSx = Number(layout.size.sx) || 0;
-    const authoredSizeSy = Number(layout.size.sy) || 0;
-    const sizeSx = rebasedSizeScale(authoredSizeSx, geometry.width, parentWidth);
-    const sizeSy = rebasedSizeScale(authoredSizeSy, geometry.height, parentHeight);
-    const authoredPosSx = Number(layout.pos.sx) || 0;
-    const authoredPosSy = Number(layout.pos.sy) || 0;
-    const authoredAnchorX = Number(layout.anchor.x) || 0;
-    const authoredAnchorY = Number(layout.anchor.y) || 0;
-    const width = geometry.width;
-    const height = geometry.height;
-    const horizontalPosition = rebasedPosition(
-      authoredPosSx,
-      authoredAnchorX,
-      sizeSx,
-      geometry.x,
-      width,
-      parentWidth
-    );
-    const verticalPosition = rebasedPosition(
-      authoredPosSy,
-      authoredAnchorY,
-      sizeSy,
-      geometry.y,
-      height,
-      parentHeight
-    );
-    const posSx = horizontalPosition.scale;
-    const posSy = verticalPosition.scale;
-    const anchorX = horizontalPosition.anchor;
-    const anchorY = verticalPosition.anchor;
-    props.AnchorPoint = [anchorX, anchorY];
-    setUdim2(props, "Size", sizeSx, width - parentWidth * sizeSx, sizeSy, height - parentHeight * sizeSy);
-    if (!layout.managedByLayout) {
-      setUdim2(props, "Position", posSx, geometry.x + anchorX * width - parentWidth * posSx, posSy, geometry.y + anchorY * height - parentHeight * posSy);
+    if (!preservesAuthoredLayout(node, entry, geometry)) {
+      const parentWidth = geometry.parentWidth;
+      const parentHeight = geometry.parentHeight;
+      const authoredSizeSx = Number(layout.size.sx) || 0;
+      const authoredSizeSy = Number(layout.size.sy) || 0;
+      const sizeSx = rebasedSizeScale(authoredSizeSx, geometry.width, parentWidth);
+      const sizeSy = rebasedSizeScale(authoredSizeSy, geometry.height, parentHeight);
+      const authoredPosSx = Number(layout.pos.sx) || 0;
+      const authoredPosSy = Number(layout.pos.sy) || 0;
+      const authoredAnchorX = Number(layout.anchor.x) || 0;
+      const authoredAnchorY = Number(layout.anchor.y) || 0;
+      const width = geometry.width;
+      const height = geometry.height;
+      const horizontalPosition = rebasedPosition(
+        authoredPosSx,
+        authoredAnchorX,
+        sizeSx,
+        geometry.x,
+        width,
+        parentWidth
+      );
+      const verticalPosition = rebasedPosition(
+        authoredPosSy,
+        authoredAnchorY,
+        sizeSy,
+        geometry.y,
+        height,
+        parentHeight
+      );
+      const posSx = horizontalPosition.scale;
+      const posSy = verticalPosition.scale;
+      const anchorX = horizontalPosition.anchor;
+      const anchorY = verticalPosition.anchor;
+      props.AnchorPoint = [anchorX, anchorY];
+      setUdim2(props, "Size", sizeSx, width - parentWidth * sizeSx, sizeSy, height - parentHeight * sizeSy);
+      if (!layout.managedByLayout) {
+        setUdim2(props, "Position", posSx, geometry.x + anchorX * width - parentWidth * posSx, posSy, geometry.y + anchorY * height - parentHeight * posSy);
+      }
     }
   }
 
@@ -862,6 +900,7 @@ if (command === "bundle") {
   let applied = 0;
   let created = 0;
   let retyped = 0;
+  const preservedLayoutPaths = new Set();
   const rootEntries = effectiveEntries
     .filter((entry) => entry?.path?.startsWith(`${rootName}/`))
     .sort((left, right) => left.path.split("/").length - right.path.split("/").length);
@@ -905,12 +944,22 @@ if (command === "bundle") {
       node.Properties = {};
       retyped += 1;
     }
+    if (preservesAuthoredLayout(node, entry, entryGeometry(entry, entriesByPath))) {
+      preservedLayoutPaths.add(entry.path);
+    }
     applyEntry(node, entry, entriesByPath);
     applied += 1;
   }
   for (const entry of rootEntries) {
     const node = byPath.get(entry.path);
-    if (node) reconcileSourceOnlyLayout(node, entry, entriesByPath);
+    if (node) {
+      reconcileSourceOnlyLayout(
+        node,
+        entry,
+        entriesByPath,
+        preservedLayoutPaths.has(entry.path)
+      );
+    }
   }
   const removedPaths = pruneToAuthoritativeEntries(model, rootName, entriesByPath);
   const authoritativeIndex = indexNamedNodes(model, rootName);

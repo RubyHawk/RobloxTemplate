@@ -85,6 +85,68 @@ function Resolve-Preset([string]$RequestedPreset) {
     return $RequestedPreset
 }
 
+function Resolve-RepositoryFile([string]$Path) {
+    $repositoryRoot = [System.IO.Path]::GetFullPath($repo)
+    if (-not $repositoryRoot.EndsWith([System.IO.Path]::DirectorySeparatorChar)) {
+        $repositoryRoot += [System.IO.Path]::DirectorySeparatorChar
+    }
+    $resolved = [System.IO.Path]::GetFullPath($Path)
+    if (-not $resolved.StartsWith($repositoryRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Figma import target is outside the repository: $resolved"
+    }
+    return $resolved
+}
+
+function New-FigmaImportTransaction([string[]]$Paths) {
+    $backupRoot = Join-Path $repo ("build/figma-ui-import-backup-" + [System.Guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $backupRoot -Force | Out-Null
+    $entries = @()
+    $index = 0
+    foreach ($path in @($Paths | Select-Object -Unique)) {
+        $target = Resolve-RepositoryFile $path
+        $backup = Join-Path $backupRoot ("{0:D3}.backup" -f $index)
+        $exists = Test-Path -LiteralPath $target -PathType Leaf
+        if ($exists) {
+            Copy-Item -LiteralPath $target -Destination $backup -Force
+        }
+        $entries += [pscustomobject]@{
+            Target = $target
+            Backup = $backup
+            Existed = $exists
+        }
+        $index++
+    }
+    return [pscustomobject]@{
+        Root = $backupRoot
+        Entries = @($entries)
+    }
+}
+
+function Restore-FigmaImportTransaction($Transaction) {
+    foreach ($entry in @($Transaction.Entries)) {
+        if ($entry.Existed) {
+            Copy-Item -LiteralPath $entry.Backup -Destination $entry.Target -Force
+        }
+        elseif (Test-Path -LiteralPath $entry.Target -PathType Leaf) {
+            Remove-Item -LiteralPath $entry.Target -Force
+        }
+    }
+}
+
+function Remove-FigmaImportTransaction($Transaction) {
+    $backupRoot = Resolve-RepositoryFile ([string]$Transaction.Root)
+    $expectedBuildRoot = [System.IO.Path]::GetFullPath((Join-Path $repo "build"))
+    if (-not $expectedBuildRoot.EndsWith([System.IO.Path]::DirectorySeparatorChar)) {
+        $expectedBuildRoot += [System.IO.Path]::DirectorySeparatorChar
+    }
+    if (-not $backupRoot.StartsWith($expectedBuildRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to remove a Figma import backup outside the build directory: $backupRoot"
+    }
+    if (Test-Path -LiteralPath $backupRoot -PathType Container) {
+        Remove-Item -LiteralPath $backupRoot -Recurse -Force
+    }
+}
+
 if (-not $PatchPath) {
     $downloadsFolder = Get-DownloadsFolder
     $newestPatch = $null
@@ -235,14 +297,26 @@ if ($SmokeTest) {
     exit 0
 }
 
+$transactionPaths = @()
 foreach ($rootName in $roots) {
     if (-not $modelMap.ContainsKey($rootName)) {
         throw "The selected Figma target does not map exported root '$rootName'."
     }
-    $model = [string]$modelMap[$rootName]
+    $model = Resolve-RepositoryFile ([string]$modelMap[$rootName])
     if (-not (Test-Path -LiteralPath $model -PathType Leaf)) {
         throw "Mapped Rojo UI model is missing: $model"
     }
+    $transactionPaths += $model
+}
+if ($workspaceData -and [string]$workspaceData.id -eq "rng-defender") {
+    $transactionPaths += Join-Path $repo "figma/deliveries/rng-defender.json"
+    $transactionPaths += Join-Path $repo "src/plugins/FigmaUiBridge/Manifest.generated.luau"
+}
+$transaction = New-FigmaImportTransaction $transactionPaths
+
+try {
+foreach ($rootName in $roots) {
+    $model = [string]$modelMap[$rootName]
     node (Join-Path $repo "scripts/figma-ui-bridge.mjs") apply --model $model --patch $PatchPath
     if ($LASTEXITCODE -ne 0) {
         throw "Figma patch failed validation for $rootName."
@@ -305,4 +379,13 @@ else {
     }
     Write-Host ""
     Write-Host "Done. Updated $($roots.Count) authored $Preset model(s) and rebuilt the playable export." -ForegroundColor Green
+}
+}
+catch {
+    Restore-FigmaImportTransaction $transaction
+    Write-Host "Figma import failed; every authored model was restored to its pre-import state." -ForegroundColor Yellow
+    throw
+}
+finally {
+    Remove-FigmaImportTransaction $transaction
 }

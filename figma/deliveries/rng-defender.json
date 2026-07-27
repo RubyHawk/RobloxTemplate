@@ -5,11 +5,11 @@
     "name": "RNG Defender"
   },
   "source": {
-    "exportedAt": "repository baseline",
-    "checksum": "",
-    "fileName": ""
+    "exportedAt": "2026-07-27T22:37:54.840Z",
+    "checksum": "4e7c8bb6feee645d2da927a564d0641392414c5ef6ef7fb199fff67e788418c2",
+    "fileName": "TemplateUI.figma-patch.json"
   },
-  "modelChecksum": "9f211c7429444423da794fcda9e934f4ec341f43c4ac84f8c1c523d04dfcbda3",
+  "modelChecksum": "53e2afc83f809b933edc9ac05c3807fd335fe2a2bed46393f147bb4c855ac411",
   "rootCount": 14,
-  "entryCount": 2685
+  "entryCount": 3608
 }
