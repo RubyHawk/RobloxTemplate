@@ -4,7 +4,10 @@ const fs = require("node:fs");
 const source = fs.readFileSync("src/plugins/FigmaUiBridgePlugin.server.luau", "utf8");
 const project = JSON.parse(fs.readFileSync("plugins/figma-ui-bridge.project.json", "utf8"));
 
-assert.match(source, /require\(script\.Parent\.FigmaUiBridge\.Runtime\)/);
+assert.match(source, /require\(script\.FigmaUiBridge\.Validator\)/);
+assert.match(source, /require\(script\.FigmaUiBridge\.Manifest\)/);
+assert.match(source, /require\(script\.FigmaUiBridge\.Runtime\)/);
+assert.doesNotMatch(source, /script\.Parent\.FigmaUiBridge/);
 assert.match(source, /requestJson\("POST", "\/apply"\)/);
 assert.match(source, /requestJson\("GET", "\/status"\)/);
 assert.match(source, /requestJson\("GET", "\/manifest"\)/);
