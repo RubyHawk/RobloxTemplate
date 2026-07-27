@@ -12,19 +12,19 @@
       "Name": "Panel",
       "ClassName": "Frame",
       "Properties": {
-        "AnchorPoint": [0, 1],
+        "AnchorPoint": [1, 1],
         "BackgroundColor3": [0.054901961237192154, 0.062745101749897, 0.07450980693101883],
         "BackgroundTransparency": 0,
         "BorderSizePixel": 0,
         "ClipsDescendants": true,
-        "Position": {"UDim2": [[0, 82], [1, -14]]},
-        "Size": {"UDim2": [[1, -96], [0, 276]]},
+        "Position": {"UDim2": [[1, -24], [1, -180]]},
+        "Size": {"UDim2": [[0.94, 0], [0, 330]]},
         "Visible": true
       },
       "Children": [
         {
           "ClassName": "UISizeConstraint",
-          "Properties": {"MaxSize": [100000, 276], "MinSize": [300, 276]},
+          "Properties": {"MaxSize": [560, 330], "MinSize": [340, 330]},
           "Children": []
         },
         {
@@ -45,8 +45,8 @@
           "Properties": {
             "BackgroundTransparency": 1,
             "FontFace": {"family": "rbxasset://fonts/families/LuckiestGuy.json", "weight": "Regular", "style": "Normal"},
-            "Position": {"UDim2": [[0, 24], [0, 16]]},
-            "Size": {"UDim2": [[0, 780], [0, 36]]},
+            "Position": {"UDim2": [[0, 22], [0, 16]]},
+            "Size": {"UDim2": [[1, -44], [0, 34]]},
             "Text": "TOWER DEFENSE - LEVEL SELECT",
             "TextColor3": [0.9803921580314636, 0.9647058844566345, 0.9215686321258545],
             "TextScaled": true,
@@ -69,8 +69,8 @@
           "Properties": {
             "BackgroundTransparency": 1,
             "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "SemiBold", "style": "Normal"},
-            "Position": {"UDim2": [[0, 26], [0, 53]]},
-            "Size": {"UDim2": [[0, 760], [0, 24]]},
+            "Position": {"UDim2": [[0, 22], [0, 52]]},
+            "Size": {"UDim2": [[1, -44], [0, 24]]},
             "Text": "Loading levels...",
             "TextColor3": [0.5803921818733215, 0.6313725709915161, 0.6901960968971252],
             "TextSize": 14,
@@ -86,9 +86,9 @@
           "ClassName": "Frame",
           "Properties": {
             "BackgroundTransparency": 0,
-            "Position": {"UDim2": [[0, 152], [0.5, -4]]},
-            "Size": {"UDim2": [[1, -304], [0, 84]]},
-            "AnchorPoint": [0, 0.5],
+            "Position": {"UDim2": [[0, 30], [0, 88]]},
+            "Size": {"UDim2": [[1, -60], [0, 140]]},
+            "AnchorPoint": [0, 0],
             "Visible": true,
             "BackgroundColor3": [0.0313725508749485, 0.03529411926865578, 0.04313725605607033]
           },
@@ -96,9 +96,9 @@
             {
               "ClassName": "UIGridLayout",
               "Properties": {
-                "CellPadding": {"UDim2": [[0, 28], [0, 0]]},
-                "CellSize": {"UDim2": [[0, 72], [0, 72]]},
-                "FillDirectionMaxCells": 10,
+                "CellPadding": {"UDim2": [[0, 20], [0, 12]]},
+                "CellSize": {"UDim2": [[0, 80], [0, 64]]},
+                "FillDirectionMaxCells": 5,
                 "HorizontalAlignment": "Center",
                 "SortOrder": "LayoutOrder",
                 "FillDirection": "Horizontal",
@@ -443,9 +443,9 @@
           "ClassName": "Frame",
           "Properties": {
             "BackgroundTransparency": 1,
-            "Position": {"UDim2": [[1, -48], [1, -28]]},
-            "Size": {"UDim2": [[0, 420], [0, 58]]},
-            "AnchorPoint": [1, 1],
+            "Position": {"UDim2": [[0, 22], [0, 278]]},
+            "Size": {"UDim2": [[1, -44], [0, 40]]},
+            "AnchorPoint": [0, 0],
             "Visible": true
           },
           "Children": [
@@ -453,7 +453,7 @@
               "ClassName": "UIGridLayout",
               "Properties": {
                 "CellPadding": {"UDim2": [[0, 12], [0, 0]]},
-                "CellSize": {"UDim2": [[0, 132], [0, 58]]},
+                "CellSize": {"UDim2": [[0.333333, -8], [1, 0]]},
                 "FillDirectionMaxCells": 3,
                 "SortOrder": "LayoutOrder",
                 "FillDirection": "Horizontal",
@@ -603,13 +603,13 @@
             "BackgroundColor3": [0.067, 0.102, 0.133],
             "BorderSizePixel": 0,
             "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "SemiBold", "style": "Normal"},
-            "Position": {"UDim2": [[0, 24], [1, -28]]},
-            "Size": {"UDim2": [[1, -524], [0, 58]]},
+            "Position": {"UDim2": [[0, 22], [0, 238]]},
+            "Size": {"UDim2": [[1, -44], [0, 32]]},
             "Text": "Choose units below, then place manually or auto-place",
             "TextColor3": [0.5803921818733215, 0.6313725709915161, 0.6901960968971252],
             "TextSize": 14,
             "TextTruncate": "AtEnd",
-            "AnchorPoint": [0, 1],
+            "AnchorPoint": [0, 0],
             "Visible": true,
             "TextXAlignment": "Center"
           },

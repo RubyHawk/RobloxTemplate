@@ -470,36 +470,64 @@ local function applyState(nextState: any)
 	local balances = if type(nextState.profile.currencies) == "table"
 		then nextState.profile.currencies
 		else {}
-	local primaryId = if definitions[1] then definitions[1].id else "coins"
-	local previousPrimary = if state
-			and state.profile
-			and type(state.profile.currencies) == "table"
-		then state.profile.currencies[primaryId] or state.profile.coins
-		else balances[primaryId] or nextState.profile.coins
+	local primaryDefinition = definitions[1]
+	local primaryId = if type(primaryDefinition) == "table"
+			and type(primaryDefinition.id) == "string"
+		then primaryDefinition.id
+		else ""
+	local nextPrimary = balances[primaryId]
+	if type(nextPrimary) ~= "number" then
+		nextPrimary = nextState.profile.coins
+	end
+	if type(nextPrimary) ~= "number" then
+		nextPrimary = 0
+	end
+	local previousPrimary = nextPrimary
+	if state and state.profile then
+		local previousBalances = if type(state.profile.currencies) == "table"
+			then state.profile.currencies
+			else {}
+		local previousValue = previousBalances[primaryId]
+		if type(previousValue) ~= "number" then
+			previousValue = state.profile.coins
+		end
+		if type(previousValue) == "number" then
+			previousPrimary = previousValue
+		end
+	end
 	state = nextState
+	currencyTray.Visible = primaryId ~= ""
 	for index, slot in currencySlots do
 		local definition = definitions[index]
-		slot.Visible = definition ~= nil
-		if definition then
+		local hasDefinition = type(definition) == "table" and type(definition.id) == "string"
+		slot.Visible = hasDefinition
+		if hasDefinition then
 			local amount = slot:WaitForChild("AmountLabel") :: TextLabel
 			local icon = slot:WaitForChild("Icon") :: ImageLabel
 			local caption = slot:FindFirstChild("Caption")
 			local symbol = slot:FindFirstChild("Symbol")
 			local accent = slot:FindFirstChild("Accent")
-			amount.Text = UIFactory.formatNumber(balances[definition.id] or 0)
+			local rawBalance = balances[definition.id]
+			local balance = if type(rawBalance) == "number"
+				then rawBalance
+				elseif definition.id == primaryId then nextPrimary
+				else 0
+			amount.Text = UIFactory.formatNumber(balance)
 			if caption and caption:IsA("TextLabel") then
-				caption.Text = string.upper(definition.name)
+				caption.Text =
+					string.upper(if type(definition.name) == "string" then definition.name else definition.id)
 			end
 			if symbol and symbol:IsA("TextLabel") then
-				symbol.Text = definition.symbol
+				symbol.Text = if type(definition.symbol) == "string" then definition.symbol else ""
 			end
-			local hasIcon = definition.iconAssetId ~= ""
+			local iconAssetId = if type(definition.iconAssetId) == "string"
+				then definition.iconAssetId
+				else ""
+			local hasIcon = iconAssetId ~= ""
 			if symbol and symbol:IsA("TextLabel") then
 				symbol.Visible = not hasIcon
 			end
-			icon.Image = if hasIcon
-				then `rbxthumb://type=Asset&id={definition.iconAssetId}&w=150&h=150`
-				else ""
+			icon.Image = if hasIcon then `rbxthumb://type=Asset&id={iconAssetId}&w=150&h=150` else ""
 			icon.Visible = hasIcon
 			local color = definition.color
 			if accent and accent:IsA("Frame") and type(color) == "table" then
@@ -541,7 +569,7 @@ local function applyState(nextState: any)
 	end
 	ResponsiveController.setPlayerScale(state.profile.settings.uiScale)
 	AudioController.applySettings(state.profile.settings)
-	if (balances[primaryId] or state.profile.coins) > previousPrimary then
+	if nextPrimary > previousPrimary then
 		AudioController.play("cash")
 	end
 	local features = state.features

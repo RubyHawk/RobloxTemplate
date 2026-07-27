@@ -17,8 +17,8 @@
         "BackgroundTransparency": 0.08,
         "BorderSizePixel": 0,
         "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "SemiBold", "style": "Normal"},
-        "Position": {"UDim2": [[0.5, 0], [1, -316]]},
-        "Size": {"UDim2": [[0, 600], [0, 36]]},
+        "Position": {"UDim2": [[0.5, 0], [1, -318]]},
+        "Size": {"UDim2": [[0.92, 0], [0, 34]]},
         "Text": "SELECT A UNIT SLOT TO PLACE",
         "TextColor3": [0.8980392217636108, 0.9137254953384399, 0.9372549057006836],
         "TextScaled": true,
@@ -30,7 +30,7 @@
       "Children": [
         {
           "ClassName": "UISizeConstraint",
-          "Properties": {"MaxSize": [600, 36], "MinSize": [260, 34]},
+          "Properties": {"MaxSize": [600, 34], "MinSize": [260, 34]},
           "Children": []
         },
         {
@@ -58,15 +58,15 @@
       "Properties": {
         "AnchorPoint": [0.5, 1],
         "BackgroundTransparency": 1,
-        "Position": {"UDim2": [[0.5, 0], [1, -152]]},
-        "Size": {"UDim2": [[0, 396], [0, 174]]},
+        "Position": {"UDim2": [[0.5, 0], [1, -164]]},
+        "Size": {"UDim2": [[0, 356], [0, 152]]},
         "ZIndex": 96,
         "Visible": true
       },
       "Children": [
         {
           "ClassName": "UISizeConstraint",
-          "Properties": {"MaxSize": [440, 174], "MinSize": [300, 48]},
+          "Properties": {"MaxSize": [356, 152], "MinSize": [280, 48]},
           "Children": []
         },
         {
@@ -77,8 +77,8 @@
             "BackgroundTransparency": 1,
             "BorderSizePixel": 0,
             "LayoutOrder": 1,
-            "Position": {"UDim2": [[0, 0], [0, 26]]},
-            "Size": {"UDim2": [[0, 112], [0, 112]]},
+            "Position": {"UDim2": [[0, 0], [0, 22]]},
+            "Size": {"UDim2": [[0, 96], [0, 96]]},
             "Text": "",
             "ZIndex": 97,
             "Visible": true
@@ -104,8 +104,8 @@
                 "BackgroundTransparency": 1,
                 "BorderSizePixel": 0,
                 "FontFace": {"family": "rbxasset://fonts/families/LuckiestGuy.json", "weight": "Regular", "style": "Normal"},
-                "Position": {"UDim2": [[0, -10], [0, 84]]},
-                "Size": {"UDim2": [[0, 132], [0, 38]]},
+                "Position": {"UDim2": [[0, -8], [0, 72]]},
+                "Size": {"UDim2": [[0, 112], [0, 34]]},
                 "Text": "INVENTORY",
                 "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
                 "TextScaled": true,
@@ -126,8 +126,8 @@
             "BackgroundTransparency": 1,
             "BorderSizePixel": 0,
             "LayoutOrder": 2,
-            "Position": {"UDim2": [[0, 126], [0, 0]]},
-            "Size": {"UDim2": [[0, 144], [0, 144]]},
+            "Position": {"UDim2": [[0, 116], [0, 0]]},
+            "Size": {"UDim2": [[0, 124], [0, 124]]},
             "Text": "",
             "ZIndex": 97,
             "Visible": true
@@ -153,8 +153,8 @@
                 "BackgroundTransparency": 1,
                 "BorderSizePixel": 0,
                 "FontFace": {"family": "rbxasset://fonts/families/LuckiestGuy.json", "weight": "Regular", "style": "Normal"},
-                "Position": {"UDim2": [[0, -10], [0, 108]]},
-                "Size": {"UDim2": [[0, 164], [0, 49]]},
+                "Position": {"UDim2": [[0, -8], [0, 92]]},
+                "Size": {"UDim2": [[0, 140], [0, 42]]},
                 "Text": "ROLL",
                 "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
                 "TextScaled": true,
@@ -175,8 +175,8 @@
             "BackgroundTransparency": 1,
             "BorderSizePixel": 0,
             "LayoutOrder": 3,
-            "Position": {"UDim2": [[0, 284], [0, 26]]},
-            "Size": {"UDim2": [[0, 112], [0, 112]]},
+            "Position": {"UDim2": [[0, 260], [0, 22]]},
+            "Size": {"UDim2": [[0, 96], [0, 96]]},
             "Text": "",
             "ZIndex": 97,
             "Visible": true
@@ -202,8 +202,8 @@
                 "BackgroundTransparency": 1,
                 "BorderSizePixel": 0,
                 "FontFace": {"family": "rbxasset://fonts/families/LuckiestGuy.json", "weight": "Regular", "style": "Normal"},
-                "Position": {"UDim2": [[0, -10], [0, 84]]},
-                "Size": {"UDim2": [[0, 132], [0, 38]]},
+                "Position": {"UDim2": [[0, -8], [0, 72]]},
+                "Size": {"UDim2": [[0, 112], [0, 34]]},
                 "Text": "UPGRADES",
                 "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
                 "TextScaled": true,

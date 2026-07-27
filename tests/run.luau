@@ -4043,6 +4043,60 @@ do
 		`Incremental preset physically authors {modernObject}`
 	)
 end
+do
+	local incrementalModel =
+		serde.decode("json", fs.readFile("src/ui/presets/incremental/TemplateUI.model.json"))
+	local function descendant(root: any, name: string): any
+		if type(root) ~= "table" then
+			return nil
+		end
+		if root.Name == name then
+			return root
+		end
+		for _, child in root.Children or {} do
+			local found = descendant(child, name)
+			if found ~= nil then
+				return found
+			end
+		end
+		return nil
+	end
+	local function directChildByClass(root: any, className: string): any
+		for _, child in root.Children or {} do
+			if child.ClassName == className then
+				return child
+			end
+		end
+		return nil
+	end
+	local inventoryScreen = descendant(incrementalModel, "InventoryScreen")
+	local currencyTray = descendant(incrementalModel, "CurrencyTray")
+	local inventoryHeader = descendant(inventoryScreen, "Header")
+	local inventoryTitle = descendant(inventoryScreen, "Title")
+	expectEqual(
+		currencyTray.Properties.Position.UDim2[1][2] == -22
+			and currencyTray.Properties.Position.UDim2[2][2] == 78,
+		true,
+		"incremental currency tray clears the authored rune-boost chip instead of rendering behind it"
+	)
+	expectEqual(
+		inventoryHeader.Properties.Size.UDim2[1][1] == 0
+			and inventoryHeader.Properties.Size.UDim2[1][2] == 361
+			and inventoryTitle.Properties.Size.UDim2[1][1] == 0
+			and inventoryTitle.Properties.Size.UDim2[1][2] == 223,
+		true,
+		"inventory header and title retain their fixed Figma widths when the responsive modal reaches max size"
+	)
+	for _, buttonName in { "AllButton", "ConsumableButton", "EquipmentButton", "MiscButton" } do
+		local button = descendant(inventoryScreen, buttonName)
+		local stroke = directChildByClass(button, "UIStroke")
+		expectEqual(
+			button.Properties.BackgroundTransparency == 1 and stroke.Properties.Transparency == 1,
+			true,
+			`inventory category {buttonName} stays icon-driven without a generic button plate`
+		)
+	end
+end
 expectEqual(
 	string.find(rpgPreset, '"Text": "MERCHANT"', 1, true) ~= nil
 		or string.find(rpgPreset, '"Text":"MERCHANT"', 1, true) ~= nil,
@@ -6660,6 +6714,20 @@ for _, silentBackgroundCall in { 'query("InitialState", {}, "")', 'request("AfkR
 		string.find(initClient, silentBackgroundCall, 1, true) ~= nil,
 		true,
 		`background polling and AFK rollover stay silent: {silentBackgroundCall}`
+	)
+end
+for _, currencyBindingMarker in
+	{
+		'currencyTray.Visible = primaryId ~= ""',
+		'type(rawBalance) == "number"',
+		"elseif definition.id == primaryId then nextPrimary",
+		'type(definition.iconAssetId) == "string"',
+	}
+do
+	expectEqual(
+		string.find(initClient, currencyBindingMarker, 1, true) ~= nil,
+		true,
+		`currency controller preserves saved primary balances and safe icon fallback: {currencyBindingMarker}`
 	)
 end
 
@@ -9567,8 +9635,17 @@ do
 end
 do
 	local levelHudModel = fs.readFile("src/ui/TowerDefenseLevelHUD.model.json")
+	local levelHud = serde.decode("json", levelHudModel)
 	local levelControllerSource = fs.readFile("src/client/Controllers/TowerDefenseLevelController.luau")
 	local defaultProjectSource = fs.readFile("default.project.json")
+	local function directChild(root: any, name: string): any
+		for _, child in root.Children or {} do
+			if child.Name == name then
+				return child
+			end
+		end
+		return nil
+	end
 	expectCompiles(levelControllerSource, "tower-defense level selector controller compiles as Luau")
 	expectEqual(
 		string.find(defaultProjectSource, '"servePlaceIds": [140239777311760]', 1, true) ~= nil,
@@ -9611,6 +9688,24 @@ do
 		true,
 		"level selector clips its panel and scales authored labels inside their controls"
 	)
+	local levelPanel = directChild(levelHud, "Panel")
+	local levels = directChild(levelPanel, "Levels")
+	local levelsGrid = levels.Children[1]
+	local actions = directChild(levelPanel, "Actions")
+	local detail = directChild(levelPanel, "Detail")
+	expectEqual(
+		levelPanel.Properties.AnchorPoint[1] == 1
+			and levelPanel.Properties.AnchorPoint[2] == 1
+			and levelPanel.Properties.Position.UDim2[1][2] == -24
+			and levelPanel.Properties.Position.UDim2[2][2] == -180
+			and levelsGrid.Properties.FillDirectionMaxCells == 5
+			and levelsGrid.Properties.CellSize.UDim2[1][2] == 80
+			and levelsGrid.Properties.CellSize.UDim2[2][2] == 64
+			and actions.Properties.Size.UDim2[2][2] == 40
+			and detail.Properties.Position.UDim2[2][2] == 238,
+		true,
+		"level selector uses the compact two-row Figma composition without covering the loadout controls"
+	)
 	for _, marker in
 		{
 			'request("ActivateTowerStage", { stageId = option.id })',
@@ -9646,8 +9741,17 @@ do
 end
 do
 	local loadoutHudModel = fs.readFile("src/ui/TowerDefenseLoadoutHUD.model.json")
+	local loadoutHud = serde.decode("json", loadoutHudModel)
 	local loadoutControllerSource = fs.readFile("src/client/Controllers/TowerDefenseLoadoutController.luau")
 	local defaultProjectSource = fs.readFile("default.project.json")
+	local function directChild(root: any, name: string): any
+		for _, child in root.Children or {} do
+			if child.Name == name then
+				return child
+			end
+		end
+		return nil
+	end
 	expectCompiles(loadoutControllerSource, "tower-defense loadout controller compiles as Luau")
 	expectEqual(
 		string.find(defaultProjectSource, '"TowerDefenseLoadoutHUD"', 1, true) ~= nil
@@ -9709,7 +9813,10 @@ do
 			"TowerPlatformPresentationActive",
 			"StageGridRenderer.setPlacementMode(false, latestState)",
 			"screenGui.Enabled = false",
-			"templateNavigation.Visible = not presentationActive",
+			"templateNavigation.Visible = not dungeonActive",
+			"local placementActive = towerPlacementActive()",
+			'"GO TO YOUR TOWER TO PLACE UNITS"',
+			"and towerPlacementActive()",
 			"templateNavigation = navigation",
 			'IconCatalog.get("bag")',
 			'IconCatalog.get("rollDice")',
@@ -9724,6 +9831,21 @@ do
 			`loadout controller includes {inputContract}`
 		)
 	end
+	local controlRow = directChild(loadoutHud, "ControlRow")
+	local inventoryButton = directChild(controlRow, "InventoryButton")
+	local diceButton = directChild(controlRow, "DiceButton")
+	local upgradeButton = directChild(controlRow, "UpgradeTreeButton")
+	local placementHintModel = directChild(loadoutHud, "PlacementHint")
+	expectEqual(
+		controlRow.Properties.Size.UDim2[1][2] == 356
+			and controlRow.Properties.Size.UDim2[2][2] == 152
+			and inventoryButton.Properties.Size.UDim2[1][2] == 96
+			and diceButton.Properties.Size.UDim2[1][2] == 124
+			and upgradeButton.Properties.Size.UDim2[1][2] == 96
+			and placementHintModel.Properties.Size.UDim2[1][1] == 0.92,
+		true,
+		"loadout controls use the compact icon-driven Figma hierarchy with the primary dice action emphasized"
+	)
 	expectEqual(
 		string.find(loadoutControllerSource, "inventoryButton.Size", 1, true) == nil
 			and string.find(loadoutControllerSource, "diceButton.Size", 1, true) == nil

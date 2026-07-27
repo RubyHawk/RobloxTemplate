@@ -735,7 +735,13 @@ for (const [name, expected] of Object.entries({
   );
   assert.equal(button.Properties.BackgroundTransparency, 1);
   assert.equal(button.Properties.ClipsDescendants, false);
-  assert.equal(childNamed(button, "IconBubble").Properties.BackgroundTransparency, 1);
+  const iconBubble = childNamed(button, "IconBubble");
+  assert.equal(iconBubble.Properties.BackgroundTransparency, 1);
+  assert.equal(
+    iconBubble.Children.find((child) => child.ClassName === "UIStroke").Properties.Transparency,
+    1,
+    `${name} does not render a generic plate around its icon`
+  );
 }
 
 const towerLoadoutUi = readJson("src/ui/TowerDefenseLoadoutHUD.model.json");
@@ -747,9 +753,9 @@ assert.equal(
   "the raised Roll action is not flattened by a legacy UIListLayout"
 );
 for (const [name, expectedPosition] of Object.entries({
-  InventoryButton: [0, 26],
-  DiceButton: [126, 0],
-  UpgradeTreeButton: [284, 26]
+  InventoryButton: [0, 22],
+  DiceButton: [116, 0],
+  UpgradeTreeButton: [260, 22]
 })) {
   const button = childNamed(towerControlRow, name);
   assert.ok(button, `${name} remains authored`);
@@ -773,16 +779,16 @@ assert.doesNotMatch(
 );
 const towerLevelUi = readJson("src/ui/TowerDefenseLevelHUD.model.json");
 const towerLevelPanel = findNamed(towerLevelUi, "Panel");
-assert.deepEqual(towerLevelPanel.Properties.AnchorPoint, [0, 1]);
+assert.deepEqual(towerLevelPanel.Properties.AnchorPoint, [1, 1]);
 assert.deepEqual(
   towerLevelPanel.Properties.Position,
-  { UDim2: [[0, 82], [1, -14]] },
-  "level selector stays attached to the authored bottom edge"
+  { UDim2: [[1, -24], [1, -180]] },
+  "level selector stays attached to the authored lower-right safe area"
 );
 assert.deepEqual(
   towerLevelPanel.Properties.Size,
-  { UDim2: [[1, -96], [0, 276]] },
-  "level selector scales horizontally instead of becoming a fixed top overlay"
+  { UDim2: [[0.94, 0], [0, 330]] },
+  "level selector scales down from its compact authored maximum width"
 );
 const towerLoadoutController = fs.readFileSync(
   path.join(repo, "src/client/Controllers/TowerDefenseLoadoutController.luau"),
