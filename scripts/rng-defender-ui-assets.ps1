@@ -45,6 +45,14 @@ if ($pendingRoles.Count -eq 0) {
     exit 0
 }
 
+foreach ($role in $pendingRoles) {
+    $source = [string]$manifest.roles.$role.source
+    $sourcePath = [System.IO.Path]::GetFullPath((Join-Path $root ($source -replace '/', '\')))
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+        throw "Local source PNG for '$role' is missing: $sourcePath. Restore the repository asset before uploading."
+    }
+}
+
 Write-Host "In Roblox Studio:" -ForegroundColor Yellow
 Write-Host "  1. Open View > Asset Manager."
 Write-Host "  2. Open Images and choose Bulk Import."
@@ -55,9 +63,8 @@ Write-Host ""
 Start-Process explorer.exe -ArgumentList @("/select,`"$assetFolder\roll_dice.png`"")
 Read-Host "Press Enter after both PNG files have been uploaded"
 
-$changed = $false
+$updates = [ordered]@{}
 foreach ($role in $pendingRoles) {
-    $entry = $manifest.roles.$role
     while ($true) {
         $content = (Read-Host "Paste the Roblox asset ID for $role, or leave blank to keep it pending").Trim()
         if ($content -eq "") {
@@ -67,18 +74,40 @@ foreach ($role in $pendingRoles) {
             Write-Host "Use the numeric image asset ID or rbxassetid:// followed by digits." -ForegroundColor Yellow
             continue
         }
-        $entry.content = $content
-        $entry.state = "uploaded"
-        $changed = $true
+        $updates[$role] = if ($content -match '^\d+$') {
+            "rbxassetid://$content"
+        } else {
+            $content
+        }
         break
     }
 }
 
-if ($changed) {
-    $json = $manifest | ConvertTo-Json -Depth 8
+if ($updates.Count -gt 0) {
+    $json = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8
+    foreach ($role in $updates.Keys) {
+        $escapedRole = [regex]::Escape([string]$role)
+        $pattern = "(?s)(`"$escapedRole`"\s*:\s*\{[^{}]*?`"content`"\s*:\s*)`"[^`"]*`"(?<middle>\s*,\s*`"state`"\s*:\s*)`"[^`"]*`""
+        $matcher = [regex]::new($pattern)
+        if (-not $matcher.IsMatch($json)) {
+            throw "Could not update the '$role' manifest entry safely."
+        }
+        $content = [string]$updates[$role]
+        $json = $matcher.Replace(
+            $json,
+            {
+                param($match)
+                $match.Groups[1].Value `
+                    + "`"$content`"" `
+                    + $match.Groups["middle"].Value `
+                    + '"uploaded"'
+            },
+            1
+        )
+    }
     [System.IO.File]::WriteAllText(
         $manifestPath,
-        $json + "`n",
+        (($json -replace "\r?\n$", "") + "`n"),
         [System.Text.UTF8Encoding]::new($false)
     )
     & (Join-Path $PSScriptRoot "sync-icon-manifest.ps1")

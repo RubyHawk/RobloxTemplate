@@ -23,12 +23,12 @@ local ids = {
 	premium = "111977708425543",
 	profile = "132073513775656",
 	rewards = "125907024425133",
-	rollDice = "",
+	rollDice = "rbxassetid://100753529538241",
 	search = "",
 	settings = "94272687133453",
 	shop = "118554800883386",
 	starterTool = "134119181427014",
-	talentUpgrade = "",
+	talentUpgrade = "rbxassetid://114772525707370",
 	verification = "121433088081713",
 }
 
