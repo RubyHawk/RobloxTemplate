@@ -3,6 +3,7 @@ if (typeof figma !== "undefined") {
 }
 
 const NAMESPACE = "roblox_ui_bridge";
+const BRIDGE_VERSION = "2.2.0";
 const DEFAULT_VIEWPORT = { width: 1600, height: 900 };
 const DEFAULT_SURFACE_CANVAS = { width: 800, height: 600 };
 const DEFAULT_BILLBOARD_PIXELS_PER_STUD = 100;
@@ -862,6 +863,14 @@ if (typeof figma !== "undefined") {
   figma.ui.onmessage = async (message) => {
     try {
       if (message.type === "close") return figma.closePlugin();
+      if (message.type === "ready") {
+        figma.ui.postMessage({
+          type: "bridge-info",
+          version: BRIDGE_VERSION,
+          page: figma.currentPage.name
+        });
+        return;
+      }
       if (message.type === "import-models") {
         const files = expandImportFiles(message.files);
         const cursor = createPlacementCursor(figma.currentPage);
@@ -936,6 +945,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     DEFAULT_VIEWPORT,
     DEFAULT_SURFACE_CANVAS,
+    BRIDGE_VERSION,
     DISPLAY_CLASSES,
     VISUAL_CLASSES,
     collectDisplayContainers,

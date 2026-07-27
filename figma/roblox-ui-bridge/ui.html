@@ -20,7 +20,7 @@
   </style>
 </head>
 <body>
-  <h1>Roblox UI Bridge</h1>
+  <h1>Roblox UI Bridge <span id="version" class="tag">loading…</span></h1>
   <p>Edit every native Roblox UI surface as real Figma layers, then export one authoritative create/update/delete patch.</p>
   <span class="tag">ScreenGui / HUD</span>
   <span class="tag">SurfaceGui</span>
@@ -35,7 +35,7 @@
 
   <div class="card">
     <strong>2. Export the complete workspace</strong>
-    <p>Select one or more imported artboards to export only those. Clear the selection to export every mapped UI layer on this page.</p>
+    <p>On <code>00 — RNG Defender PRODUCTION EXPORT</code>, leave everything unselected and export. The whole isolated gameplay workspace is included automatically.</p>
     <button id="export">Export authoritative workspace</button>
   </div>
 
@@ -50,6 +50,7 @@
   <script>
     const status = document.getElementById('status');
     const setStatus = (value) => { status.textContent = value; };
+    parent.postMessage({ pluginMessage: { type: 'ready' } }, '*');
 
     const models = document.getElementById('models');
     document.getElementById('import').onclick = () => models.click();
@@ -71,6 +72,10 @@
     onmessage = (event) => {
       const message = event.data.pluginMessage;
       if (!message) return;
+      if (message.type === 'bridge-info') {
+        document.getElementById('version').textContent = `v${message.version}`;
+        setStatus(`Ready on “${message.page}”.`);
+      }
       if (message.type === 'status') setStatus(message.text);
       if (message.type === 'download') {
         const blob = new Blob([message.text], { type: 'application/json' });

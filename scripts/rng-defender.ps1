@@ -123,6 +123,12 @@ try {
             throw "Stagewright could not be installed. Save your work, close every Studio window, and try again."
         }
 
+        Write-Host "Installing the read-only Figma UI delivery validator..." -ForegroundColor Yellow
+        & (Join-Path $PSScriptRoot "install-figma-ui-plugin.ps1")
+        if ($LASTEXITCODE -ne 0) {
+            throw "The Figma UI delivery validator could not be installed. Save your work, close every Studio window, and try again."
+        }
+
         $rojoPluginState = Get-RojoStudioPluginState
         if ($rojoPluginState.HasConflict) {
             throw (Get-RojoStudioPluginConflictMessage)
