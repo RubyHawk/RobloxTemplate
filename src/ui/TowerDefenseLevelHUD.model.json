@@ -12,19 +12,19 @@
       "Name": "Panel",
       "ClassName": "Frame",
       "Properties": {
-        "AnchorPoint": [1, 1],
+        "AnchorPoint": [0, 1],
         "BackgroundColor3": [0.054901961237192154, 0.062745101749897, 0.07450980693101883],
         "BackgroundTransparency": 0,
         "BorderSizePixel": 0,
         "ClipsDescendants": true,
-        "Position": {"UDim2": [[1, -14], [1, -14]]},
-        "Size": {"UDim2": [[0.94, 0], [0, 276]]},
+        "Position": {"UDim2": [[0, 82], [1, -14]]},
+        "Size": {"UDim2": [[1, -96], [0, 276]]},
         "Visible": true
       },
       "Children": [
         {
           "ClassName": "UISizeConstraint",
-          "Properties": {"MaxSize": [430, 344], "MinSize": [300, 276]},
+          "Properties": {"MaxSize": [100000, 276], "MinSize": [300, 276]},
           "Children": []
         },
         {

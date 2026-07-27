@@ -577,12 +577,12 @@ function collectPatch(nodes) {
       }
     }
     if (path) {
-      const rawLayout = node.getSharedPluginData(NAMESPACE, "layout");
-      const layout = rawLayout ? JSON.parse(rawLayout) : inferredLayout(node);
-      if (layout && node.parent && "width" in node.parent && "height" in node.parent) {
-        layout.parentWidth = node.parent.width;
-        layout.parentHeight = node.parent.height;
-      }
+      // Figma is the visual source of truth after import. Stored layout data
+      // describes the Roblox model as it looked at import time and becomes
+      // stale as soon as a designer moves, resizes, or removes auto-layout
+      // from a node. Always export the node's current constraints/geometry.
+      const layout = inferredLayout(node);
+      storeMetadata(node, { path, className, layout });
       const entry = {
         path,
         className,
@@ -733,6 +733,7 @@ if (typeof module !== "undefined" && module.exports) {
     expandImportFiles,
     inferredBinding,
     inferredLayout,
+    collectPatch,
     singleWorkspaceId,
     surfacePixelsFromPart,
     udim2,

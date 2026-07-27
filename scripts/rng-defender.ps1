@@ -13,6 +13,7 @@ $patchProjectPath = Join-Path $root "patches\rng-defender-grid-demo.project.json
 $expectedUniverseId = [long]10479279603
 $expectedPlaceId = [long]128136881672145
 $rojoPort = 34872
+$uiAssetManifestPath = Join-Path $root "assets\icons\icon-manifest.json"
 . (Join-Path $PSScriptRoot "rojo-plugin-state.ps1")
 
 function Find-RobloxStudio {
@@ -82,6 +83,20 @@ try {
     if ($SmokeTest) {
         Write-Host "RNG Defender delivery verified: $($experience.name) | universe $universeId | place $placeId | port $rojoPort"
         exit 0
+    }
+
+    if (Test-Path -LiteralPath $uiAssetManifestPath -PathType Leaf) {
+        $iconManifest = Get-Content -LiteralPath $uiAssetManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $pendingUiAssets = @("rollDice", "talentUpgrade") | Where-Object {
+            [string]::IsNullOrWhiteSpace([string]$iconManifest.roles.$_.content)
+        }
+        if ($pendingUiAssets.Count -gt 0) {
+            Write-Host ""
+            Write-Host "UI ASSET STEP STILL REQUIRED" -ForegroundColor Yellow
+            Write-Host "  Pending: $($pendingUiAssets -join ', ')"
+            Write-Host "  Run RNG_DEFENDER_UI_ASSETS.cmd, upload the two PNGs in Studio Asset Manager, and paste their IDs." -ForegroundColor Yellow
+            Write-Host ""
+        }
     }
 
     if (-not (Get-Command rojo -ErrorAction SilentlyContinue)) {

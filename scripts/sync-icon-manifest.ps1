@@ -13,7 +13,8 @@ $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | Convert
 $expectedRoles = @(
     "bag", "cart", "close", "codes", "coin", "community", "daily", "feedback", "friends", "item",
     "leaderboard", "likes", "more", "notifications", "offline", "potionX2", "potionX3", "premium",
-    "profile", "rewards", "search", "settings", "shop", "starterTool", "verification"
+    "profile", "rewards", "rollDice", "search", "settings", "shop", "starterTool", "talentUpgrade",
+    "verification"
 )
 $states = @("demo-public", "pending-upload", "uploaded", "game-asset", "disabled")
 

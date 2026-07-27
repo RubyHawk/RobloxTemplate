@@ -342,6 +342,12 @@ function reconcileSourceOnlyLayout(node, entry, entriesByPath) {
     .map((child) => entriesByPath.get(`${entry.path}/${child.Name}`))
     .filter((childEntry) => childEntry?.layout?.managedByLayout && childEntry.visible !== false)
     .map((childEntry) => ({ entry: childEntry, geometry: entryGeometry(childEntry, entriesByPath) }));
+  if (managed.length === 0) {
+    // The Figma parent is now a freeform frame. Keeping a source-only Roblox
+    // layout helper would rearrange every explicitly positioned child.
+    node.Children = childrenOf(node).filter((child) => child !== layoutNode);
+    return;
+  }
   if (managed.length < 2) return;
 
   const xRange = Math.max(...managed.map((item) => item.geometry.x))
@@ -379,9 +385,8 @@ function reconcileSourceOnlyLayout(node, entry, entriesByPath) {
       ? item.geometry.y + item.geometry.height / 2
       : item.geometry.x + item.geometry.width / 2
   );
-  const orthogonalSizes = horizontal ? heights : widths;
   const singleTrack = Math.max(...orthogonalCenters) - Math.min(...orthogonalCenters)
-    <= Math.max(2, median(orthogonalSizes) * 0.25);
+    <= 2;
 
   if (layoutNode.ClassName === "UIListLayout" && !singleTrack) {
     node.Children = childrenOf(node).filter((child) => child !== layoutNode);

@@ -9606,10 +9606,6 @@ do
 			"DungeonPresentationActive",
 			"TowerPlatformPresentationActive",
 			"screenGui.Enabled = false",
-			"applyResponsiveLayout",
-			"shortLandscape",
-			"panelConstraint",
-			"FillDirectionMaxCells = 10",
 		}
 	do
 		expectEqual(
@@ -9618,6 +9614,12 @@ do
 			`level selector controller uses the existing authoritative action: {marker}`
 		)
 	end
+	expectEqual(
+		string.find(levelControllerSource, "applyResponsiveLayout", 1, true) == nil
+			and string.find(levelControllerSource, "ViewportSize", 1, true) == nil,
+		true,
+		"level selector runtime preserves Figma-authored geometry"
+	)
 	expectEqual(
 		string.find(towerDefenseServiceSource, "local levelOptions:", 1, true) ~= nil
 			and string.find(towerDefenseServiceSource, "StageRuntimeService.isUnlocked", 1, true) ~= nil
@@ -9693,8 +9695,9 @@ do
 			"screenGui.Enabled = false",
 			"templateNavigation.Visible = not presentationActive",
 			"templateNavigation = navigation",
-			"controlRowLayout",
-			"shortLandscape",
+			'IconCatalog.get("bag")',
+			'IconCatalog.get("rollDice")',
+			'IconCatalog.get("talentUpgrade")',
 			"SLOT_WIDTH = 96",
 			"SLOT_GAP = 12",
 		}
@@ -9705,6 +9708,13 @@ do
 			`loadout controller includes {inputContract}`
 		)
 	end
+	expectEqual(
+		string.find(loadoutControllerSource, "inventoryButton.Size", 1, true) == nil
+			and string.find(loadoutControllerSource, "diceButton.Size", 1, true) == nil
+			and string.find(loadoutControllerSource, "upgradeButton.Size", 1, true) == nil,
+		true,
+		"loadout runtime preserves the Figma-authored action composition"
+	)
 	for _, forbiddenRuntimeGuiMutation in { "Instance.new", ":Clone(", ":Destroy(" } do
 		expectEqual(
 			string.find(loadoutControllerSource, forbiddenRuntimeGuiMutation, 1, true),

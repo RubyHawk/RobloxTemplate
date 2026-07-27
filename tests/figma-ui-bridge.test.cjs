@@ -600,7 +600,7 @@ assert.doesNotMatch(pluginUi, /input\[type=file\]\s*\{\s*display:\s*none/);
 const pluginSource = fs.readFileSync(path.join(repo, "figma/roblox-ui-bridge/code.js"), "utf8");
 assert.match(pluginSource, /entry\.fontFamily = textNode\.fontName\.family/);
 assert.match(pluginSource, /entry\.textAlignHorizontal/);
-assert.match(pluginSource, /layout\.parentWidth = node\.parent\.width/);
+assert.match(pluginSource, /const layout = inferredLayout\(node\)/);
 assert.match(pluginSource, /mode: "authoritative"/);
 assert.match(pluginSource, /Duplicate Roblox paths found in Figma/);
 assert.doesNotMatch(
@@ -617,6 +617,53 @@ assert.deepEqual(
   }),
   { name: "ClaimButton", className: "TextButton" },
   "new named Figma controls receive a stable Roblox class and path"
+);
+
+const staleLayoutData = new Map([
+  ["path", "TemplateUI/Root/Navigation/Buttons/ProfileButton"],
+  ["className", "TextButton"],
+  ["layout", JSON.stringify({
+    size: { sx: 0, ox: 82, sy: 0, oy: 74 },
+    pos: { sx: 0, ox: 0, sy: 0, oy: 0 },
+    anchor: { x: 1, y: 0 },
+    parentWidth: 220,
+    parentHeight: 360,
+    managedByLayout: true
+  })]
+]);
+const movedFigmaNode = {
+  name: "ProfileButton",
+  type: "FRAME",
+  visible: true,
+  opacity: 1,
+  x: 108,
+  y: 59,
+  width: 96,
+  height: 106,
+  constraints: { horizontal: "MIN", vertical: "MIN" },
+  fills: [],
+  strokes: [],
+  children: [],
+  parent: { width: 220, height: 360, layoutMode: "NONE" },
+  getSharedPluginData(_namespace, key) {
+    return staleLayoutData.get(key) || "";
+  },
+  setSharedPluginData(_namespace, key, value) {
+    staleLayoutData.set(key, value);
+  }
+};
+const movedEntry = bridge.collectPatch([movedFigmaNode])[0];
+assert.deepEqual(
+  movedEntry.layout,
+  {
+    size: { sx: 0, ox: 96, sy: 0, oy: 106 },
+    pos: { sx: 0, ox: 108, sy: 0, oy: 59 },
+    anchor: { x: 0, y: 0 },
+    parentWidth: 220,
+    parentHeight: 360,
+    managedByLayout: false
+  },
+  "patch export uses current Figma geometry instead of stale imported layout metadata"
 );
 
 const templateUi = readJson("src/ui/presets/incremental/TemplateUI.model.json");
@@ -690,5 +737,63 @@ for (const [name, expected] of Object.entries({
   assert.equal(button.Properties.ClipsDescendants, false);
   assert.equal(childNamed(button, "IconBubble").Properties.BackgroundTransparency, 1);
 }
+
+const towerLoadoutUi = readJson("src/ui/TowerDefenseLoadoutHUD.model.json");
+const towerControlRow = findNamed(towerLoadoutUi, "ControlRow");
+assert.ok(towerControlRow, "tower-defense loadout keeps the Figma-authored action row");
+assert.equal(
+  towerControlRow.Children.some((child) => child.ClassName === "UIListLayout"),
+  false,
+  "the raised Roll action is not flattened by a legacy UIListLayout"
+);
+for (const [name, expectedPosition] of Object.entries({
+  InventoryButton: [0, 26],
+  DiceButton: [126, 0],
+  UpgradeTreeButton: [284, 26]
+})) {
+  const button = childNamed(towerControlRow, name);
+  assert.ok(button, `${name} remains authored`);
+  assert.deepEqual(
+    button.Properties.Position,
+    { UDim2: [[0, expectedPosition[0]], [0, expectedPosition[1]]] }
+  );
+  assert.equal(button.Properties.Text, "");
+  assert.equal(childNamed(button, "Icon").ClassName, "ImageLabel");
+  assert.equal(childNamed(button, "Label").ClassName, "TextLabel");
+}
+
+const towerLevelController = fs.readFileSync(
+  path.join(repo, "src/client/Controllers/TowerDefenseLevelController.luau"),
+  "utf8"
+);
+assert.doesNotMatch(
+  towerLevelController,
+  /applyResponsiveLayout|ViewportSize/,
+  "runtime state binding does not replace the Figma-authored level-selector geometry"
+);
+const towerLevelUi = readJson("src/ui/TowerDefenseLevelHUD.model.json");
+const towerLevelPanel = findNamed(towerLevelUi, "Panel");
+assert.deepEqual(towerLevelPanel.Properties.AnchorPoint, [0, 1]);
+assert.deepEqual(
+  towerLevelPanel.Properties.Position,
+  { UDim2: [[0, 82], [1, -14]] },
+  "level selector stays attached to the authored bottom edge"
+);
+assert.deepEqual(
+  towerLevelPanel.Properties.Size,
+  { UDim2: [[1, -96], [0, 276]] },
+  "level selector scales horizontally instead of becoming a fixed top overlay"
+);
+const towerLoadoutController = fs.readFileSync(
+  path.join(repo, "src/client/Controllers/TowerDefenseLoadoutController.luau"),
+  "utf8"
+);
+assert.match(towerLoadoutController, /IconCatalog\.get\("rollDice"\)/);
+assert.match(towerLoadoutController, /IconCatalog\.get\("talentUpgrade"\)/);
+assert.doesNotMatch(
+  towerLoadoutController,
+  /inventoryButton\.Size|diceButton\.Size|upgradeButton\.Size/,
+  "runtime state binding does not replace the Figma-authored action geometry"
+);
 
 console.log("Figma UI bridge world-space tests passed.");

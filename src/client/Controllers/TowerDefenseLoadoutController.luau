@@ -8,6 +8,7 @@ local Workspace = game:GetService("Workspace")
 local Template = ReplicatedStorage:WaitForChild("Template")
 local Shared = Template:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("TemplateConfig"))
+local IconCatalog = require(Shared:WaitForChild("IconCatalog"))
 local StageCatalog = require(Shared:WaitForChild("StageCatalog"))
 local StageCell = require(Shared:WaitForChild("StageCell"))
 local StageSchema = require(Shared:WaitForChild("StageSchema"))
@@ -72,11 +73,6 @@ local selectedSlot: number? = nil
 local screenGui: ScreenGui? = nil
 local templateNavigation: GuiObject? = nil
 local placementHint: TextLabel? = nil
-local controlRowRoot: Frame? = nil
-local controlRowLayout: UIListLayout? = nil
-local inventoryControl: TextButton? = nil
-local diceControl: TextButton? = nil
-local upgradeControl: TextButton? = nil
 local loadoutBar: Frame? = nil
 local dynamicWidthConstraint: UISizeConstraint? = nil
 local aimDot: Frame? = nil
@@ -321,38 +317,6 @@ local function refreshBarWidth()
 	local width = math.floor(math.min(desiredWidth, availableWidth))
 	dynamicWidthConstraint.MinSize = Vector2.new(width, BAR_HEIGHT)
 	dynamicWidthConstraint.MaxSize = Vector2.new(width, BAR_HEIGHT)
-
-	local row = controlRowRoot
-	local layout = controlRowLayout
-	local inventoryButton = inventoryControl
-	local diceButton = diceControl
-	local upgradeButton = upgradeControl
-	if
-		camera == nil
-		or row == nil
-		or layout == nil
-		or inventoryButton == nil
-		or diceButton == nil
-		or upgradeButton == nil
-	then
-		return
-	end
-	local shortLandscape = camera.ViewportSize.X > camera.ViewportSize.Y and camera.ViewportSize.Y < 520
-	if shortLandscape then
-		row.Position = UDim2.new(0.5, 0, 1, -136)
-		row.Size = UDim2.fromOffset(300, 90)
-		layout.Padding = UDim.new(0, 14)
-		inventoryButton.Size = UDim2.fromOffset(72, 72)
-		diceButton.Size = UDim2.fromOffset(88, 88)
-		upgradeButton.Size = UDim2.fromOffset(72, 72)
-	else
-		row.Position = UDim2.new(0.5, 0, 1, -152)
-		row.Size = UDim2.fromOffset(396, 174)
-		layout.Padding = UDim.new(0, 14)
-		inventoryButton.Size = UDim2.fromOffset(112, 112)
-		diceButton.Size = UDim2.fromOffset(144, 144)
-		upgradeButton.Size = UDim2.fromOffset(112, 112)
-	end
 end
 
 local function refresh()
@@ -841,11 +805,12 @@ function TowerDefenseLoadoutController.initialize(request: Request)
 		local inventoryButton = controlRow:WaitForChild("InventoryButton") :: TextButton
 		local diceButton = controlRow:WaitForChild("DiceButton") :: TextButton
 		local upgradeTreeButton = controlRow:WaitForChild("UpgradeTreeButton") :: TextButton
-		controlRowRoot = controlRow :: Frame
-		controlRowLayout = controlRow:FindFirstChildOfClass("UIListLayout") :: UIListLayout?
-		inventoryControl = inventoryButton
-		diceControl = diceButton
-		upgradeControl = upgradeTreeButton
+		local inventoryIcon = inventoryButton:WaitForChild("Icon") :: ImageLabel
+		local diceIcon = diceButton:WaitForChild("Icon") :: ImageLabel
+		local upgradeTreeIcon = upgradeTreeButton:WaitForChild("Icon") :: ImageLabel
+		inventoryIcon.Image = IconCatalog.get("bag")
+		diceIcon.Image = IconCatalog.get("rollDice")
+		upgradeTreeIcon.Image = IconCatalog.get("talentUpgrade")
 		local slotsRoot = loadoutBar:WaitForChild("Slots")
 		for index = 1, Config.towerDefense.loadoutSlots do
 			local button = slotsRoot:WaitForChild(`UnitSlot{string.format("%02d", index)}`) :: TextButton
