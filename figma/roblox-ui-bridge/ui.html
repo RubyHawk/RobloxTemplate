@@ -2,76 +2,433 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <title>Roblox UI Bridge</title>
   <style>
-    :root { font: 13px/1.45 Inter, sans-serif; color: #17152b; }
-    body { margin: 0; padding: 18px; background: #f7f5ff; }
-    h1 { margin: 0 0 6px; font-size: 20px; }
-    p { margin: 5px 0 14px; color: #5e5875; }
-    .card { padding: 14px; margin: 12px 0; border: 1px solid #d9d3ef; border-radius: 12px; background: white; }
-    .tag { display: inline-block; margin: 4px 3px 0 0; padding: 3px 7px; border-radius: 999px; color: #5b21b6; background: #ede9fe; font-size: 11px; font-weight: 700; }
-    button { display: block; box-sizing: border-box; width: 100%; padding: 11px 12px; border: 0; border-radius: 9px; font-weight: 700; text-align: center; cursor: pointer; }
-    button { color: white; background: #0ea5e9; }
-    button.file { background: #7c3aed; }
-    button.secondary { color: #17152b; background: #facc15; }
-    button:focus-visible { outline: 3px solid #17152b; outline-offset: 3px; }
-    input[type=file] { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-    #status { min-height: 50px; margin-top: 12px; padding: 10px; border-radius: 9px; background: #ede9fe; white-space: pre-wrap; }
-    code { font-size: 11px; }
+    :root {
+      color-scheme: light dark;
+      --bg: var(--figma-color-bg, #ffffff);
+      --bg-sunken: var(--figma-color-bg-secondary, #f5f5f5);
+      --bg-chip: var(--figma-color-bg-tertiary, #e6e6e6);
+      --bg-hover: var(--figma-color-bg-hover, #f0f0f0);
+      --text: var(--figma-color-text, #1e1e1e);
+      --text-muted: var(--figma-color-text-secondary, #5c5c5c);
+      --text-faint: var(--figma-color-text-tertiary, #8c8c8c);
+      --border: var(--figma-color-border, #e1e1e1);
+      --border-strong: var(--figma-color-border-strong, #cdcdcd);
+      --brand: var(--figma-color-bg-brand, #0d99ff);
+      --brand-hover: var(--figma-color-bg-brand-hover, #007be5);
+      --brand-pressed: var(--figma-color-bg-brand-pressed, #0a6dc2);
+      --on-brand: var(--figma-color-text-onbrand, #ffffff);
+      --success: var(--figma-color-icon-success, #14ae5c);
+      --danger: var(--figma-color-icon-danger, #f24822);
+      --danger-text: var(--figma-color-text-danger, #b3271a);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: var(--figma-color-bg, #2c2c2c);
+        --bg-sunken: var(--figma-color-bg-secondary, #383838);
+        --bg-chip: var(--figma-color-bg-tertiary, #444444);
+        --bg-hover: var(--figma-color-bg-hover, #3d3d3d);
+        --text: var(--figma-color-text, #ffffff);
+        --text-muted: var(--figma-color-text-secondary, #b3b3b3);
+        --text-faint: var(--figma-color-text-tertiary, #808080);
+        --border: var(--figma-color-border, #444444);
+        --border-strong: var(--figma-color-border-strong, #666666);
+        --danger-text: var(--figma-color-text-danger, #ffafa3);
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 11px;
+      line-height: 16px;
+      letter-spacing: 0.005em;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    p { margin: 0; }
+
+    main {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    main::-webkit-scrollbar { width: 10px; }
+    main::-webkit-scrollbar-track { background: transparent; }
+    main::-webkit-scrollbar-thumb {
+      background: var(--border-strong);
+      border: 3px solid var(--bg);
+      border-radius: 999px;
+    }
+
+    section { padding: 14px 16px; }
+    section + section { border-top: 1px solid var(--border); }
+
+    /* Document state sits on a tonal band; everything below it is a control.
+       The tonal step is the divider, so the hairline under it is dropped. */
+    .state {
+      padding: 16px;
+      background: var(--bg-sunken);
+    }
+
+    .state + section { border-top: 0; }
+
+    /* An empty page has one line to report, which is not enough to carry a band. */
+    body[data-state=empty] .state { background: var(--bg); }
+    body[data-state=empty] .state + section { border-top: 1px solid var(--border); }
+
+    main > section:last-child { padding: 12px 16px; }
+
+    .readout {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+    }
+
+    .count {
+      font-size: 22px;
+      line-height: 26px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .count-label { color: var(--text-muted); }
+
+    .workspace {
+      margin-top: 1px;
+      overflow: hidden;
+      color: var(--text-muted);
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .breakdown {
+      display: flex;
+      flex-wrap: wrap;
+      margin: 12px 0 0;
+      padding: 0;
+      list-style: none;
+      color: var(--text-muted);
+    }
+
+    .breakdown li + li {
+      margin-left: 12px;
+      padding-left: 12px;
+      border-left: 1px solid var(--border-strong);
+    }
+
+    .breakdown b {
+      color: var(--text);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .empty-note { color: var(--text-muted); }
+
+    .scope {
+      color: var(--text-muted);
+      text-wrap: pretty;
+    }
+
+    .footnote {
+      margin-top: 8px;
+      color: var(--text-faint);
+      font-size: 10px;
+      line-height: 14px;
+      text-wrap: pretty;
+    }
+
+    code {
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: var(--bg-sunken);
+      color: var(--text-muted);
+      font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+      font-size: 10px;
+    }
+
+    button {
+      display: block;
+      width: 100%;
+      height: 32px;
+      margin-top: 10px;
+      padding: 0 12px;
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+      font-weight: 600;
+      letter-spacing: 0;
+      cursor: pointer;
+    }
+
+    section > button:first-child { margin-top: 0; }
+
+    button:hover:not(:disabled) { background: var(--bg-hover); }
+    button:active:not(:disabled) { background: var(--bg-chip); }
+
+    .primary {
+      border-color: transparent;
+      background: var(--brand);
+      color: var(--on-brand);
+    }
+
+    .primary:hover:not(:disabled) { background: var(--brand-hover); }
+    .primary:active:not(:disabled) { background: var(--brand-pressed); }
+
+    /* Inert, not faded — a dimmed brand fill still reads as pressable. */
+    button:disabled {
+      border-color: transparent;
+      background: var(--bg-sunken);
+      color: var(--text-faint);
+      cursor: default;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--brand);
+      outline-offset: 1px;
+    }
+
+    .ghost {
+      width: auto;
+      height: 24px;
+      margin: 0;
+      padding: 0 8px;
+      border-color: transparent;
+      background: transparent;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    input[type=file] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* Empty page: the readout has nothing to report and importing becomes the action. */
+    body[data-state=empty] .readout,
+    body[data-state=empty] .breakdown,
+    body[data-state=empty] .workspace { display: none; }
+
+    body:not([data-state=empty]) .empty-note { display: none; }
+
+    body[data-state=empty] #import:not(:disabled) {
+      border-color: transparent;
+      background: var(--brand);
+      color: var(--on-brand);
+    }
+
+    body[data-state=empty] #import:not(:disabled):hover { background: var(--brand-hover); }
+
+    footer {
+      flex: none;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 10px 8px 16px;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .status-line {
+      flex: 1 1 auto;
+      display: flex;
+      gap: 8px;
+      min-width: 0;
+      max-height: 48px;
+      overflow-y: auto;
+    }
+
+    .status-line::before {
+      content: "";
+      flex: none;
+      width: 6px;
+      height: 6px;
+      margin-top: 5px;
+      border-radius: 50%;
+      background: var(--text-faint);
+    }
+
+    .status-line[data-state=working]::before {
+      background: var(--brand);
+      animation: pulse 1.1s ease-in-out infinite;
+    }
+
+    .status-line[data-state=done]::before { background: var(--success); }
+    .status-line[data-state=error]::before { background: var(--danger); }
+    .status-line[data-state=error] #status { color: var(--danger-text); }
+
+    #status {
+      min-width: 0;
+      color: var(--text-muted);
+      overflow-wrap: anywhere;
+      text-wrap: pretty;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.25; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .status-line[data-state=working]::before { animation: none; }
+    }
   </style>
 </head>
-<body>
-  <h1>Roblox UI Bridge</h1>
-  <p>Edit every native Roblox UI surface as real Figma layers, then export one authoritative create/update/delete patch.</p>
-  <span class="tag">ScreenGui / HUD</span>
-  <span class="tag">SurfaceGui</span>
-  <span class="tag">BillboardGui</span>
+<body data-state="loading">
+  <main>
+    <section class="state">
+      <p class="readout">
+        <span class="count" id="count">&mdash;</span>
+        <span class="count-label" id="count-label">mapped artboards</span>
+      </p>
+      <p class="workspace" id="workspace"></p>
+      <ul class="breakdown" id="breakdown"></ul>
+      <p class="empty-note">No imported Roblox UI on this page.</p>
+    </section>
 
-  <div class="card">
-    <strong>1. Import authored UI</strong>
-    <p>Choose one or more Rojo <code>*.model.json</code> files. Nested world UI is found automatically. Everything is placed on the current page, so this works with Figma Starter's three-page limit.</p>
-    <button class="file" id="import" type="button">Import Rojo UI models</button>
-    <input id="models" type="file" accept=".json" multiple tabindex="-1">
-  </div>
+    <section>
+      <p class="scope" id="scope">Reading this page&hellip;</p>
+      <button class="primary" id="export" type="button">Export authoritative workspace</button>
+      <p class="footnote">Visual properties only &mdash; Roblox keeps placement, scripts, and asset IDs.</p>
+    </section>
 
-  <div class="card">
-    <strong>2. Export the complete workspace</strong>
-    <p>Select one or more imported artboards to export only those. Clear the selection to export every mapped UI layer on this page.</p>
-    <button id="export">Export authoritative workspace</button>
-  </div>
+    <section>
+      <button class="file" id="import" type="button">Import Rojo UI models</button>
+      <input id="models" type="file" accept=".json" multiple tabindex="-1">
+    </section>
+  </main>
 
-  <div class="card">
-    <strong>Roblox stays authoritative</strong>
-    <p>Container placement, Adornee/Face, scripts, asset IDs, and runtime behavior stay in Roblox. The bridge updates the child Frames, text, images, sizing, colors, corners, and strokes.</p>
-  </div>
-
-  <button class="secondary" id="close">Close</button>
-  <div id="status" role="status">Ready.</div>
+  <footer>
+    <div class="status-line" id="status-line" data-state="idle">
+      <div id="status" role="status">Ready.</div>
+    </div>
+    <button class="ghost" id="close" type="button">Close</button>
+  </footer>
 
   <script>
-    const status = document.getElementById('status');
-    const setStatus = (value) => { status.textContent = value; };
-
+    const statusLine = document.getElementById('status-line');
+    const statusText = document.getElementById('status');
+    const importButton = document.getElementById('import');
+    const exportButton = document.getElementById('export');
     const models = document.getElementById('models');
-    document.getElementById('import').onclick = () => models.click();
+    const countValue = document.getElementById('count');
+    const countLabel = document.getElementById('count-label');
+    const workspaceLine = document.getElementById('workspace');
+    const breakdown = document.getElementById('breakdown');
+    const scopeLine = document.getElementById('scope');
+
+    const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
+
+    // Sections keep their natural height while <main> stretches, so summing the
+    // sections gives the height the panel actually needs in its current state.
+    const syncHeight = () => {
+      const content = Array.from(document.querySelector('main').children)
+        .reduce((total, section) => total + section.offsetHeight, 0);
+      const height = Math.ceil(content + document.querySelector('footer').offsetHeight);
+      parent.postMessage({ pluginMessage: { type: 'resize', height } }, '*');
+    };
+
+    const setStatus = (text, state) => {
+      statusText.textContent = text;
+      statusLine.dataset.state = state || 'idle';
+      statusLine.scrollTop = 0;
+      syncHeight();
+    };
+
+    const setBusy = (busy) => {
+      importButton.disabled = busy;
+      exportButton.disabled = busy || exportButton.dataset.blocked === 'true';
+    };
+
+    const scopeText = (scope) => {
+      if (scope.kind === 'empty') return 'Nothing to export yet.';
+      if (scope.kind === 'all') return `Nothing selected — exports all ${plural(scope.count, 'artboard')} on this page.`;
+      if (scope.kind === 'workspace') {
+        return `${scope.selected} selected — exports the full ${scope.workspace} workspace, `
+          + `${plural(scope.count, 'artboard')}.`;
+      }
+      if (scope.kind === 'selection') return `Exports ${plural(scope.count, 'selected artboard')}.`;
+      if (scope.kind === 'conflict') {
+        return `Selection spans ${scope.workspaces.join(' and ')}. Export one workspace at a time.`;
+      }
+      return '';
+    };
+
+    const renderSummary = (summary) => {
+      document.body.dataset.state = summary.total ? 'ready' : 'empty';
+      countValue.textContent = String(summary.total);
+      countLabel.textContent = summary.total === 1 ? 'mapped artboard' : 'mapped artboards';
+
+      const workspaces = summary.workspaces || [];
+      workspaceLine.textContent = workspaces.length === 1
+        ? `${workspaces[0]} workspace`
+        : workspaces.length > 1 ? `${workspaces.length} workspaces on this page` : '';
+      workspaceLine.hidden = !workspaceLine.textContent;
+
+      breakdown.replaceChildren();
+      for (const group of summary.byClass) {
+        const item = document.createElement('li');
+        const count = document.createElement('b');
+        count.textContent = String(group.count);
+        item.append(count, ' ' + group.className);
+        breakdown.append(item);
+      }
+
+      scopeLine.textContent = scopeText(summary.scope);
+      const blocked = summary.scope.kind === 'empty' || summary.scope.kind === 'conflict';
+      exportButton.dataset.blocked = String(blocked);
+      exportButton.disabled = blocked;
+      syncHeight();
+    };
+
+    importButton.onclick = () => models.click();
     models.addEventListener('change', async (event) => {
       const files = Array.from(event.target.files || []);
       if (!files.length) return;
-      setStatus('Reading files...');
+      setBusy(true);
+      setStatus(`Reading ${plural(files.length, 'model file')}...`, 'working');
       const payload = await Promise.all(files.map(async (file) => ({ name: file.name, text: await file.text() })));
       parent.postMessage({ pluginMessage: { type: 'import-models', files: payload } }, '*');
       event.target.value = '';
     });
 
-    document.getElementById('export').onclick = () => {
-      setStatus('Preparing validated patch...');
+    exportButton.onclick = () => {
+      setBusy(true);
+      setStatus('Preparing validated patch...', 'working');
       parent.postMessage({ pluginMessage: { type: 'export-patch' } }, '*');
     };
+
     document.getElementById('close').onclick = () => parent.postMessage({ pluginMessage: { type: 'close' } }, '*');
 
     onmessage = (event) => {
       const message = event.data.pluginMessage;
       if (!message) return;
-      if (message.type === 'status') setStatus(message.text);
+      if (message.type === 'summary') return renderSummary(message.summary);
+      if (message.type === 'status') {
+        setBusy(false);
+        setStatus(message.text, /^error:/i.test(message.text) ? 'error' : 'done');
+      }
       if (message.type === 'download') {
         const blob = new Blob([message.text], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -80,9 +437,12 @@
         anchor.download = message.name;
         anchor.click();
         URL.revokeObjectURL(url);
-        setStatus('Patch downloaded. Run FIGMA_UI.cmd to validate, apply, and rebuild it.');
+        setBusy(false);
+        setStatus('Patch downloaded. Run FIGMA_UI.cmd to validate, apply, and rebuild it.', 'done');
       }
     };
+
+    parent.postMessage({ pluginMessage: { type: 'request-summary' } }, '*');
   </script>
 </body>
 </html>
