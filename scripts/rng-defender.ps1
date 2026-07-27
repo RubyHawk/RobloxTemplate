@@ -80,23 +80,27 @@ try {
         throw "The RNG Defender patch must allow only place $expectedPlaceId through servePlaceIds."
     }
 
-    if ($SmokeTest) {
-        Write-Host "RNG Defender delivery verified: $($experience.name) | universe $universeId | place $placeId | port $rojoPort"
-        exit 0
-    }
-
     if (Test-Path -LiteralPath $uiAssetManifestPath -PathType Leaf) {
         $iconManifest = Get-Content -LiteralPath $uiAssetManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-        $pendingUiAssets = @("rollDice", "talentUpgrade") | Where-Object {
-            [string]::IsNullOrWhiteSpace([string]$iconManifest.roles.$_.content)
-        }
+        $pendingUiAssets = @(
+            $iconManifest.roles.PSObject.Properties | Where-Object {
+                [string]$_.Value.state -eq "pending-upload"
+            } | ForEach-Object {
+                $_.Name
+            }
+        )
         if ($pendingUiAssets.Count -gt 0) {
             Write-Host ""
             Write-Host "UI ASSET STEP STILL REQUIRED" -ForegroundColor Yellow
             Write-Host "  Pending: $($pendingUiAssets -join ', ')"
-            Write-Host "  Run RNG_DEFENDER_UI_ASSETS.cmd, upload the two PNGs in Studio Asset Manager, and paste their IDs." -ForegroundColor Yellow
+            Write-Host "  Run RNG_DEFENDER_UI_ASSETS.cmd, upload the configured pending PNGs in Studio Asset Manager, and paste their IDs." -ForegroundColor Yellow
             Write-Host ""
         }
+    }
+
+    if ($SmokeTest) {
+        Write-Host "RNG Defender delivery verified: $($experience.name) | universe $universeId | place $placeId | port $rojoPort"
+        exit 0
     }
 
     if (-not (Get-Command rojo -ErrorAction SilentlyContinue)) {

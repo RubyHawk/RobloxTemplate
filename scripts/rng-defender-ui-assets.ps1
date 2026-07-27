@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [switch]$StatusOnly
+    [switch]$StatusOnly,
+    [string]$DeliverySet = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -8,8 +9,6 @@ Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $PSScriptRoot
 $manifestPath = Join-Path $root "assets\icons\icon-manifest.json"
-$assetFolder = Join-Path $root "assets\icons\gvesster-basic"
-$requiredRoles = @("rollDice", "talentUpgrade")
 
 function Read-Manifest {
     Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -28,10 +27,33 @@ function Show-Status($Manifest) {
         Write-Host ("  {0,-16} {1,-24} {2}" -f $role, $status, $entry.source)
     }
     Write-Host ""
-    Write-Host "Inventory uses the already connected 'bag' role. Only the two assets above are new." -ForegroundColor DarkGray
+    Write-Host "Only assets in the configured '$deliverySetName' delivery set are managed here." -ForegroundColor DarkGray
 }
 
 $manifest = Read-Manifest
+$deliverySets = @($manifest.deliverySets.PSObject.Properties)
+if ([string]::IsNullOrWhiteSpace($DeliverySet)) {
+    if ($deliverySets.Count -ne 1) {
+        throw "Specify -DeliverySet because the icon manifest defines $($deliverySets.Count) delivery sets."
+    }
+    $selectedDeliverySet = $deliverySets[0]
+} else {
+    $matchingDeliverySets = @($deliverySets | Where-Object Name -eq $DeliverySet)
+    if ($matchingDeliverySets.Count -ne 1) {
+        throw "Icon manifest delivery set '$DeliverySet' was not found."
+    }
+    $selectedDeliverySet = $matchingDeliverySets[0]
+}
+$deliverySetName = [string]$selectedDeliverySet.Name
+$requiredRoles = @($selectedDeliverySet.Value)
+if ($requiredRoles.Count -eq 0) {
+    throw "Icon manifest delivery set '$deliverySetName' is missing or empty."
+}
+foreach ($role in $requiredRoles) {
+    if ($null -eq $manifest.roles.$role) {
+        throw "Icon manifest delivery set '$deliverySetName' contains unknown role '$role'."
+    }
+}
 Show-Status $manifest
 if ($StatusOnly) {
     exit 0
@@ -45,12 +67,14 @@ if ($pendingRoles.Count -eq 0) {
     exit 0
 }
 
+$sourcePathsByRole = @{}
 foreach ($role in $pendingRoles) {
     $source = [string]$manifest.roles.$role.source
     $sourcePath = [System.IO.Path]::GetFullPath((Join-Path $root ($source -replace '/', '\')))
     if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
         throw "Local source PNG for '$role' is missing: $sourcePath. Restore the repository asset before uploading."
     }
+    $sourcePathsByRole[$role] = $sourcePath
 }
 
 Write-Host "In Roblox Studio:" -ForegroundColor Yellow
@@ -60,7 +84,7 @@ Write-Host "  3. Import the PNG files shown in the Explorer window."
 Write-Host "  4. After moderation finishes, right-click each image and copy its asset ID."
 Write-Host "  5. Return here and paste the matching numeric ID."
 Write-Host ""
-Start-Process explorer.exe -ArgumentList @("/select,`"$assetFolder\roll_dice.png`"")
+Start-Process explorer.exe -ArgumentList @("/select,`"$($sourcePathsByRole[$pendingRoles[0]])`"")
 Read-Host "Press Enter after both PNG files have been uploaded"
 
 $updates = [ordered]@{}

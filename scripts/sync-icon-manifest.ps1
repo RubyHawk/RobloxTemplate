@@ -29,6 +29,24 @@ $actualRoles = @($manifest.roles.PSObject.Properties.Name | Sort-Object)
 if (($actualRoles -join ',') -ne (($expectedRoles | Sort-Object) -join ',')) {
     throw "Icon manifest roles do not match IconCatalog. Adding a new role requires a programmer to update both."
 }
+$deliverySets = @($manifest.deliverySets.PSObject.Properties)
+if ($deliverySets.Count -eq 0) {
+    throw "Icon manifest must define at least one delivery set."
+}
+foreach ($deliverySet in $deliverySets) {
+    $deliveryRoles = @($deliverySet.Value)
+    if ($deliveryRoles.Count -eq 0) {
+        throw "Icon manifest delivery set '$($deliverySet.Name)' must not be empty."
+    }
+    if (@($deliveryRoles | Select-Object -Unique).Count -ne $deliveryRoles.Count) {
+        throw "Icon manifest delivery set '$($deliverySet.Name)' contains duplicate roles."
+    }
+    foreach ($role in $deliveryRoles) {
+        if ($role -notin $actualRoles) {
+            throw "Icon manifest delivery set '$($deliverySet.Name)' contains unknown role '$role'."
+        }
+    }
+}
 
 $lines = [System.Collections.Generic.List[string]]::new()
 $lines.Add("--!strict")

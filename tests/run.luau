@@ -3726,6 +3726,7 @@ do
 	local setupSource = fs.readFile("scripts/setup.ps1")
 	local doctorSource = fs.readFile("scripts/doctor.ps1")
 	local rngDefenderLauncherSource = fs.readFile("scripts/rng-defender.ps1")
+	local rngDefenderAssetHelperSource = fs.readFile("scripts/rng-defender-ui-assets.ps1")
 	local rojoPluginStateSource = fs.readFile("scripts/rojo-plugin-state.ps1")
 	for _, pluginStateMarker in
 		{
@@ -3765,6 +3766,21 @@ do
 		rngCreatorStoreBranch ~= nil and rngPluginInstall ~= nil and rngCreatorStoreBranch < rngPluginInstall,
 		true,
 		"RNG Defender preserves a verified Creator Store plugin and refreshes the sole managed copy"
+	)
+	expectEqual(
+		string.find(rngDefenderLauncherSource, "roles.PSObject.Properties", 1, true) ~= nil
+			and string.find(rngDefenderLauncherSource, '"pending-upload"', 1, true) ~= nil
+			and string.find(rngDefenderLauncherSource, '@("rollDice", "talentUpgrade")', 1, true) == nil,
+		true,
+		"RNG Defender launcher discovers pending icon uploads from manifest state"
+	)
+	expectEqual(
+		string.find(rngDefenderAssetHelperSource, "deliverySets.PSObject.Properties", 1, true) ~= nil
+			and string.find(rngDefenderAssetHelperSource, "[string]$DeliverySet", 1, true) ~= nil
+			and string.find(rngDefenderAssetHelperSource, '@("rollDice", "talentUpgrade")', 1, true)
+				== nil,
+		true,
+		"RNG Defender asset helper reads its configurable manifest delivery set"
 	)
 end
 

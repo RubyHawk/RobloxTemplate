@@ -5,6 +5,9 @@
     "id": 0
   },
   "notes": "demo-public content values are temporary public Roblox assets; source files are the licensed replacements to upload for this project.",
+  "deliverySets": {
+    "rngDefenderTowerActions": ["rollDice", "talentUpgrade"]
+  },
   "roles": {
     "bag": { "source": "assets/icons/gvesster-basic/bag.png", "sourceSha256": "b3634a279e971e3037d47b202e34c9cf13f990b7d76ad13a22cd1d75a7db0335", "content": "94001317361506", "state": "demo-public" },
     "cart": { "source": "assets/icons/gvesster-basic/cart.png", "sourceSha256": "7165b6e958a40040b17e26826ab1ac985b48eb691ea44883b5a602619e83806d", "content": "118554800883386", "state": "demo-public" },
