@@ -270,9 +270,25 @@ if ($workspaceData) {
         throw "Workspace Rojo build failed."
     }
     if ([string]$workspaceData.id -eq "rng-defender") {
+        node (Join-Path $repo "scripts/generate-figma-studio-manifest.mjs") `
+            --workspace $workspacePath `
+            --patch $PatchPath
+        if ($LASTEXITCODE -ne 0) {
+            throw "Figma Studio delivery manifest generation failed."
+        }
+
         & (Join-Path $repo "scripts/rng-defender.ps1") -SmokeTest
         if ($LASTEXITCODE -ne 0) {
             throw "RNG Defender delivery validation failed."
+        }
+        if (-not (Get-Process -Name "RobloxStudioBeta" -ErrorAction SilentlyContinue)) {
+            & (Join-Path $repo "scripts/install-figma-ui-plugin.ps1")
+            if ($LASTEXITCODE -ne 0) {
+                throw "Figma UI Studio plugin installation failed."
+            }
+        }
+        else {
+            Write-Host "Studio is open, so the installed plugin was kept. It will fetch this regenerated manifest through the local bridge." -ForegroundColor Cyan
         }
     }
     Write-Host ""

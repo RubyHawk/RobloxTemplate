@@ -1003,4 +1003,64 @@ assert.doesNotMatch(
   "runtime state binding does not replace the Figma-authored action geometry"
 );
 
+// The panel states what the export button will do before it is pressed, so the
+// summary has to resolve the same scope the export handler resolves.
+const board = (id, containerClass, workspaceId, workspaceName) => ({
+  id,
+  modelRoot: id,
+  containerClass,
+  workspaceId: workspaceId || "",
+  workspaceName: workspaceName || ""
+});
+const defenderBoards = [
+  board("hud", "ScreenGui", "rng-defender", "RNG Defender"),
+  board("menu", "ScreenGui", "rng-defender", "RNG Defender"),
+  board("rune", "SurfaceGui", "rng-defender", "RNG Defender"),
+  board("health", "BillboardGui", "rng-defender", "RNG Defender")
+];
+
+const emptySummary = bridge.pageSummary([], []);
+assert.equal(emptySummary.total, 0);
+assert.equal(emptySummary.scope.kind, "empty", "an empty page cannot export");
+
+const wholePage = bridge.pageSummary(defenderBoards, []);
+assert.equal(wholePage.total, 4);
+assert.deepEqual(
+  wholePage.byClass,
+  [
+    { className: "ScreenGui", count: 2 },
+    { className: "BillboardGui", count: 1 },
+    { className: "SurfaceGui", count: 1 }
+  ],
+  "container classes are counted and ordered by weight"
+);
+assert.deepEqual(wholePage.workspaces, ["RNG Defender"], "the workspace is a page fact, not a selection fact");
+assert.deepEqual(wholePage.scope, { kind: "all", count: 4 }, "no selection exports the whole page");
+
+const workspaceScope = bridge.pageSummary(defenderBoards, ["rune"]).scope;
+assert.equal(workspaceScope.kind, "workspace");
+assert.equal(workspaceScope.count, 4, "one selected artboard expands to its whole workspace");
+assert.equal(workspaceScope.selected, 1);
+assert.equal(workspaceScope.workspace, "RNG Defender");
+
+const looseBoards = [board("solo", "ScreenGui"), board("other", "ScreenGui")];
+assert.deepEqual(
+  bridge.pageSummary(looseBoards, ["solo"]).scope,
+  { kind: "selection", count: 1 },
+  "artboards imported without a workspace export exactly what is selected"
+);
+assert.deepEqual(bridge.pageSummary(looseBoards, []).workspaces, []);
+
+const conflictScope = bridge.pageSummary(
+  [...defenderBoards, board("incremental", "ScreenGui", "incremental", "Incremental")],
+  ["hud", "incremental"]
+).scope;
+assert.equal(conflictScope.kind, "conflict", "a selection spanning workspaces blocks export up front");
+assert.deepEqual(conflictScope.workspaces, ["RNG Defender", "Incremental"]);
+
+assert.match(pluginUi, /id="scope"/, "the panel shows the resolved export scope");
+assert.match(pluginUi, /type: 'request-summary'/, "the panel asks for page state on load");
+assert.match(pluginSource, /figma\.on\("selectionchange", postSummary\)/);
+assert.match(pluginSource, /figma\.ui\.resize\(PANEL_WIDTH/, "the panel is sized from its own content");
+
 console.log("Figma UI bridge world-space tests passed.");

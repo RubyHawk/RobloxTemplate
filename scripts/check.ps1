@@ -78,6 +78,15 @@ Invoke-Checked "Shared tower-defense safe patch build" {
 Invoke-Checked "Runewright plugin build" {
     rojo build plugins\rune-config-editor.project.json --output build\RunewrightPlugin.rbxm
 }
+Invoke-Checked "Figma Studio plugin manifest generation" {
+    node scripts\generate-figma-studio-manifest.mjs --manifest-only
+}
+Invoke-Checked "Figma Studio plugin runtime generation" {
+    node scripts\generate-figma-plugin-runtime.mjs
+}
+Invoke-Checked "Figma UI delivery plugin build" {
+    rojo build plugins\figma-ui-bridge.project.json --output build\FigmaUiBridge.rbxm
+}
 Invoke-Checked "Game Designer UI smoke test" {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\game-designer.ps1 -SmokeTest
 }
@@ -117,6 +126,21 @@ Invoke-Checked "Rojo Studio plugin install-state detector" {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-rojo-plugin-state.ps1
 }
 Invoke-Checked "Figma bridge syntax" { node --check figma\roblox-ui-bridge\code.js }
+Invoke-Checked "Figma Studio manifest generator syntax" { node --check scripts\generate-figma-studio-manifest.mjs }
+Invoke-Checked "Figma Studio runtime generator syntax" { node --check scripts\generate-figma-plugin-runtime.mjs }
+Invoke-Checked "Figma Studio bridge server syntax" { node --check scripts\figma-studio-bridge-server.mjs }
+Invoke-Checked "Figma Studio delivery manifest parity" {
+    node scripts\generate-figma-studio-manifest.mjs --check
+}
+Invoke-Checked "Figma Studio manifest tests" {
+    node tests\figma-studio-manifest.test.cjs
+}
+Invoke-Checked "Figma Studio bridge server tests" {
+    node tests\figma-studio-bridge-server.test.cjs
+}
+Invoke-Checked "Figma Studio plugin contract tests" {
+    node tests\figma-studio-plugin.test.cjs
+}
 Invoke-Checked "Figma bridge world-space containers" { node tests\figma-ui-bridge.test.cjs }
 Invoke-Checked "Figma RNG Defender apply route" {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\figma-ui.ps1 `
@@ -187,9 +211,10 @@ foreach ($figmaWorkspaceFile in $figmaWorkspaces) {
     foreach ($modelDefinition in @($figmaWorkspace.models)) {
         if (
             [string]::IsNullOrWhiteSpace([string]$modelDefinition.root) -or
-            [string]::IsNullOrWhiteSpace([string]$modelDefinition.path)
+            [string]::IsNullOrWhiteSpace([string]$modelDefinition.path) -or
+            [string]::IsNullOrWhiteSpace([string]$modelDefinition.studioPath)
         ) {
-            throw "Every workspace model requires root and path: $($figmaWorkspaceFile.FullName)"
+            throw "Every workspace model requires root, path, and studioPath: $($figmaWorkspaceFile.FullName)"
         }
         $modelRoot = [string]$modelDefinition.root
         if ($figmaWorkspaceModelRoots.ContainsKey($modelRoot)) {

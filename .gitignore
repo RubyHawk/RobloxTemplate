@@ -15,6 +15,8 @@ node_modules/
 .cache/
 coverage/
 build/
+src/plugins/FigmaUiBridge/Manifest.generated.luau
+src/plugins/FigmaUiBridge/Runtime.generated.luau
 __pycache__/
 !assets/icons/gvesster-basic/*.png
 !assets/icons/gvesster-basic/LICENSE.txt

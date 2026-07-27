@@ -5,75 +5,93 @@
   "preset": "incremental",
   "project": "patches/rng-defender-grid-demo.project.json",
   "output": "build/RNGDefenderSafePatch.rbxlx",
+  "studioBridge": {
+    "host": "127.0.0.1",
+    "port": 34874
+  },
   "models": [
     {
       "root": "TemplateUI",
       "path": "src/ui/presets/incremental/TemplateUI.model.json",
+      "studioPath": "StarterGui/TemplateUI",
       "scope": "production"
     },
     {
       "root": "TemplateLoading",
       "path": "src/ui/presets/incremental/TemplateLoading.model.json",
+      "studioPath": "StarterGui/TemplateLoading",
       "scope": "production"
     },
     {
       "root": "StarterSignUI",
       "path": "src/ui/presets/incremental/StarterSignUI.model.json",
+      "studioPath": "StarterGui/StarterSignUI",
       "scope": "production"
     },
     {
       "root": "RuneCircleSign",
       "path": "src/ui/RuneCircleSign.model.json",
+      "studioPath": "StarterGui/RuneCircleSign",
       "scope": "production"
     },
     {
       "root": "RuneCircleUI",
       "path": "src/ui/RuneCircleUI.model.json",
+      "studioPath": "StarterGui/RuneCircleUI",
       "scope": "production"
     },
     {
       "root": "StagePlatformOwners",
       "path": "src/ui/StagePlatformOwners.model.json",
+      "studioPath": "StarterGui/StagePlatformOwners",
       "scope": "production"
     },
     {
       "root": "TowerDefenseTravelHUD",
       "path": "src/ui/TowerDefenseTravelHUD.model.json",
+      "studioPath": "StarterGui/TowerDefenseTravelHUD",
       "scope": "production"
     },
     {
       "root": "TowerDefenseLevelHUD",
       "path": "src/ui/TowerDefenseLevelHUD.model.json",
+      "studioPath": "StarterGui/TowerDefenseLevelHUD",
       "scope": "production"
     },
     {
       "root": "TowerDefenseLoadoutHUD",
       "path": "src/ui/TowerDefenseLoadoutHUD.model.json",
+      "studioPath": "StarterGui/TowerDefenseLoadoutHUD",
       "scope": "production"
     },
     {
       "root": "PortalSign",
       "path": "src/ui/PortalSign.model.json",
+      "studioPath": "StarterGui/PortalSign",
       "scope": "production"
     },
     {
       "root": "DungeonHUD",
       "path": "src/ui/DungeonHUD.model.json",
+      "studioPath": "StarterGui/DungeonHUD",
       "scope": "production"
     },
     {
       "root": "StagewrightPlaytestHUD",
       "path": "src/ui/StagewrightPlaytestHUD.model.json",
+      "studioPath": "StarterGui/StagewrightPlaytestHUD",
       "scope": "studio-only"
     },
     {
       "root": "RuneCircle",
       "path": "src/world/RuneCircle.model.json",
+      "studioPath": "Workspace/RuneCircle",
       "scope": "production"
     },
     {
       "root": "EnemyRigs",
       "path": "src/world/EnemyRigs.model.json",
+      "studioPath": "ReplicatedStorage/Template/EnemyRigs",
       "scope": "production"
     }
   ]

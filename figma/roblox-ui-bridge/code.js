@@ -1,8 +1,12 @@
+const PANEL_WIDTH = 400;
+
 if (typeof figma !== "undefined") {
-  figma.showUI(__html__, { width: 420, height: 650, themeColors: true });
+  // The panel measures its own content and asks for the height it needs.
+  figma.showUI(__html__, { width: PANEL_WIDTH, height: 360, themeColors: true });
 }
 
 const NAMESPACE = "roblox_ui_bridge";
+const BRIDGE_VERSION = "2.3.0";
 const DEFAULT_VIEWPORT = { width: 1600, height: 900 };
 const DEFAULT_SURFACE_CANVAS = { width: 800, height: 600 };
 const DEFAULT_BILLBOARD_PIXELS_PER_STUD = 100;
@@ -582,7 +586,12 @@ function expandImportFiles(files) {
     if (parsed && parsed.format === "roblox-ui-workspace-v1" && Array.isArray(parsed.models)) {
       for (const item of parsed.models) {
         if (item && item.name && item.model) {
-          expanded.push({ name: item.name, model: item.model, workspaceId: String(parsed.id || "") });
+          expanded.push({
+            name: item.name,
+            model: item.model,
+            workspaceId: String(parsed.id || ""),
+            workspaceName: String(parsed.name || "")
+          });
         }
       }
     } else {
@@ -850,6 +859,79 @@ function workspaceIdsForNodes(nodes) {
   return [...ids];
 }
 
+function boardDescriptor(node) {
+  if (!node || !node.getSharedPluginData) return null;
+  const modelRoot = node.getSharedPluginData(NAMESPACE, "modelRoot");
+  if (!modelRoot) return null;
+  return {
+    id: node.id,
+    modelRoot,
+    containerClass: node.getSharedPluginData(NAMESPACE, "containerClass") || "",
+    workspaceId: node.getSharedPluginData(NAMESPACE, "workspaceId") || "",
+    workspaceName: node.getSharedPluginData(NAMESPACE, "workspaceName") || ""
+  };
+}
+
+function selectedBoardIds(nodes) {
+  const ids = new Set();
+  for (const node of nodes || []) {
+    let current = node;
+    while (current) {
+      if (current.getSharedPluginData && current.getSharedPluginData(NAMESPACE, "modelRoot")) {
+        ids.add(current.id);
+        break;
+      }
+      current = current.parent;
+    }
+  }
+  return [...ids];
+}
+
+// Mirrors the export scope resolved in the "export-patch" handler so the panel can
+// state what the button will do before it is pressed.
+function pageSummary(boards, selectedIds) {
+  const mapped = (boards || []).filter(Boolean);
+  const selected = new Set(selectedIds || []);
+  const counts = new Map();
+  for (const board of mapped) {
+    const key = board.containerClass || "Unmapped";
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  const byClass = [...counts.entries()]
+    .map(([className, count]) => ({ className, count }))
+    .sort((left, right) => right.count - left.count || left.className.localeCompare(right.className));
+
+  const selectedBoards = mapped.filter((board) => selected.has(board.id));
+  const selectedWorkspaces = [...new Set(selectedBoards.map((board) => board.workspaceId).filter(Boolean))];
+  const workspaceLabel = (workspaceId) => {
+    const named = mapped.find((board) => board.workspaceId === workspaceId && board.workspaceName);
+    return named ? named.workspaceName : workspaceId;
+  };
+
+  let scope;
+  if (!mapped.length) {
+    scope = { kind: "empty", count: 0 };
+  } else if (!selectedBoards.length) {
+    scope = { kind: "all", count: mapped.length };
+  } else if (selectedWorkspaces.length > 1) {
+    scope = { kind: "conflict", count: 0, workspaces: selectedWorkspaces.map(workspaceLabel) };
+  } else if (selectedWorkspaces.length === 1) {
+    const workspaceId = selectedWorkspaces[0];
+    scope = {
+      kind: "workspace",
+      count: mapped.filter((board) => board.workspaceId === workspaceId).length,
+      selected: selectedBoards.length,
+      workspace: workspaceLabel(workspaceId)
+    };
+  } else {
+    scope = { kind: "selection", count: selectedBoards.length };
+  }
+
+  const workspaces = [...new Set(mapped.map((board) => board.workspaceId).filter(Boolean))].map(workspaceLabel);
+
+  return { total: mapped.length, byClass, workspaces, scope };
+}
+
 function singleWorkspaceId(nodes) {
   const workspaceIds = workspaceIdsForNodes(nodes);
   if (workspaceIds.length > 1) {
@@ -859,9 +941,34 @@ function singleWorkspaceId(nodes) {
 }
 
 if (typeof figma !== "undefined") {
+  const postSummary = () => {
+    const boards = figma.currentPage.children.map(boardDescriptor).filter(Boolean);
+    figma.ui.postMessage({
+      type: "summary",
+      summary: pageSummary(boards, selectedBoardIds(figma.currentPage.selection))
+    });
+  };
+
+  figma.on("selectionchange", postSummary);
+  figma.on("currentpagechange", postSummary);
+
   figma.ui.onmessage = async (message) => {
     try {
       if (message.type === "close") return figma.closePlugin();
+      if (message.type === "request-summary") {
+        figma.ui.postMessage({
+          type: "bridge-info",
+          version: BRIDGE_VERSION,
+          page: figma.currentPage.name
+        });
+        postSummary();
+        return;
+      }
+      if (message.type === "resize") {
+        const height = Math.round(Number(message.height) || 0);
+        if (height > 0) figma.ui.resize(PANEL_WIDTH, Math.min(Math.max(height, 200), 760));
+        return;
+      }
       if (message.type === "import-models") {
         const files = expandImportFiles(message.files);
         const cursor = createPlacementCursor(figma.currentPage);
@@ -870,14 +977,16 @@ if (typeof figma !== "undefined") {
           const imported = await importModel(file, cursor);
           for (const artboard of imported) {
             if (file.workspaceId) artboard.setSharedPluginData(NAMESPACE, "workspaceId", file.workspaceId);
+            if (file.workspaceName) artboard.setSharedPluginData(NAMESPACE, "workspaceName", file.workspaceName);
           }
           artboards.push(...imported);
         }
         figma.currentPage.selection = artboards;
         if (artboards.length) figma.viewport.scrollAndZoomIntoView(artboards);
+        postSummary();
         figma.ui.postMessage({
           type: "status",
-          text: `Imported ${artboards.length} editable artboards on this page. ScreenGui, SurfaceGui, and BillboardGui containers are supported.`
+          text: `Imported ${artboards.length} editable artboards on this page.`
         });
         return;
       }
@@ -936,6 +1045,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     DEFAULT_VIEWPORT,
     DEFAULT_SURFACE_CANVAS,
+    BRIDGE_VERSION,
     DISPLAY_CLASSES,
     VISUAL_CLASSES,
     collectDisplayContainers,
@@ -945,6 +1055,7 @@ if (typeof module !== "undefined" && module.exports) {
     inferredBinding,
     inferredLayout,
     collectPatch,
+    pageSummary,
     figmaGradientTransform,
     gradientEntryFromPaint,
     robloxGradientPaint,
