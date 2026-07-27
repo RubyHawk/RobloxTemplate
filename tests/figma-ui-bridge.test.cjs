@@ -113,6 +113,36 @@ assert.throws(
   "mixed-workspace selections are rejected before patch export"
 );
 
+const gradientPaint = bridge.robloxGradientPaint({
+  Properties: {
+    Color: {
+      ColorSequence: {
+        keypoints: [
+          { time: 0, color: [1, 0.72, 0.14] },
+          { time: 1, color: [1, 0.46, 0.2] }
+        ]
+      }
+    },
+    Rotation: 90,
+    Transparency: {
+      NumberSequence: {
+        keypoints: [
+          { time: 0, value: 1, envelope: 0 },
+          { time: 1, value: 0.76, envelope: 0 }
+        ]
+      }
+    }
+  }
+}, { r: 1, g: 1, b: 1 }, 1);
+assert.equal(gradientPaint.type, "GRADIENT_LINEAR");
+assert.ok(Math.abs(gradientPaint.gradientTransform[0][0]) < 0.000001);
+assert.ok(Math.abs(gradientPaint.gradientTransform[0][1] - 1) < 0.000001);
+const gradientEntry = bridge.gradientEntryFromPaint(gradientPaint);
+assert.equal(Math.round(gradientEntry.rotation), 90);
+assert.deepEqual(gradientEntry.colorKeypoints[0].color, [1, 0.72, 0.14]);
+assert.equal(gradientEntry.transparencyKeypoints[0].value, 1);
+assert.equal(gradientEntry.transparencyKeypoints.at(-1).value, 0.76);
+
 const workspace = readJson("figma/workspaces/rng-defender.json");
 assert.equal(
   workspace.models.length,
@@ -228,6 +258,8 @@ try {
           Position: { UDim2: [[0, 0], [0, 0]] },
           Size: { UDim2: [[0, 120], [0, 32]] },
           Text: "0",
+          TextStrokeColor3: [1, 0, 0],
+          TextStrokeTransparency: 0,
           TextXAlignment: "Left"
         },
         Children: []
@@ -338,8 +370,18 @@ try {
       height: 32,
       text: "12.4K",
       textAlignHorizontal: "Right",
+      textAlignVertical: "Bottom",
+      textWrapped: true,
+      textStroke: {
+        color: [0.1647058874, 0.0862745121, 0.0549019612],
+        opacity: 0.8,
+        thickness: 1.5,
+        align: "outside"
+      },
       fontFamily: "Luckiest Guy",
       fontStyle: "Regular",
+      rotation: 7,
+      clipsDescendants: true,
       layout: {
         size: { sx: 0, ox: 120, sy: 0, oy: 32 },
         pos: { sx: 1, ox: -30, sy: 1, oy: -28 },
@@ -356,6 +398,20 @@ try {
       y: 12,
       width: 140,
       height: 48,
+      gradient: {
+        type: "linear",
+        rotation: 0,
+        colorKeypoints: [
+          { time: 0, color: [1, 0.72, 0.14] },
+          { time: 0.52, color: [1, 0.72, 0.14] },
+          { time: 1, color: [1, 0.72, 0.14] }
+        ],
+        transparencyKeypoints: [
+          { time: 0, value: 1 },
+          { time: 0.52, value: 0.985 },
+          { time: 1, value: 0.76 }
+        ]
+      },
       layout: {
         size: { sx: 1, ox: 0, sy: 0, oy: 48 },
         pos: { sx: 0, ox: 18, sy: 0, oy: 12 },
@@ -486,7 +542,7 @@ try {
       height: 30,
       text: "NEW",
       cornerRadius: 8,
-      stroke: { color: [1, 0.8, 0.1], thickness: 2 },
+      stroke: { color: [1, 0.8, 0.1], opacity: 0.65, thickness: 2 },
       layout: {
         size: { sx: 0, ox: 120, sy: 0, oy: 30 },
         pos: { sx: 0, ox: 400, sy: 0, oy: 220 },
@@ -534,6 +590,18 @@ try {
   assert.deepEqual(applied.Children[0].Children[0].Properties.Position, { UDim2: [[1, 10], [1, -8]] });
   assert.equal(applied.Children[0].Children[0].Properties.Text, "12.4K");
   assert.equal(applied.Children[0].Children[0].Properties.TextXAlignment, "Right");
+  assert.equal(applied.Children[0].Children[0].Properties.TextYAlignment, "Bottom");
+  assert.equal(applied.Children[0].Children[0].Properties.TextWrapped, true);
+  assert.equal(applied.Children[0].Children[0].Properties.Rotation, 7);
+  assert.equal(applied.Children[0].Children[0].Properties.ClipsDescendants, true);
+  assert.equal(applied.Children[0].Children[0].Properties.TextStrokeTransparency, 1);
+  const importedTextStroke = applied.Children[0].Children[0].Children.find(
+    (child) => child.ClassName === "UIStroke" && child.Properties.ApplyStrokeMode === "Contextual"
+  );
+  assert.ok(importedTextStroke, "the Figma $Text stroke becomes a contextual Roblox UIStroke");
+  assert.deepEqual(importedTextStroke.Properties.Color, [0.1647058874, 0.0862745121, 0.0549019612]);
+  assert.ok(Math.abs(importedTextStroke.Properties.Transparency - 0.2) < 0.000001);
+  assert.equal(importedTextStroke.Properties.Thickness, 1.5);
   assert.deepEqual(applied.Children[0].Children[0].Properties.FontFace, {
     family: "rbxasset://fonts/families/LuckiestGuy.json",
     weight: "Regular",
@@ -543,6 +611,21 @@ try {
     applied.Children[0].Children[1].Properties.Size,
     { UDim2: [[0, 140], [0, 48]] },
     "a substantially resized stretch node becomes a responsive fixed-size tab"
+  );
+  assert.deepEqual(applied.Children[0].Children[1].Properties.BackgroundColor3, [1, 1, 1]);
+  assert.equal(applied.Children[0].Children[1].Properties.BackgroundTransparency, 0);
+  const importedGradient = applied.Children[0].Children[1].Children.find(
+    (child) => child.ClassName === "UIGradient"
+  );
+  assert.ok(importedGradient, "a Figma linear fill becomes a UIGradient on the mapped Roblox parent");
+  assert.equal(importedGradient.Properties.Rotation, 0);
+  assert.deepEqual(
+    importedGradient.Properties.Color.ColorSequence.keypoints[0],
+    { time: 0, color: [1, 0.72, 0.14] }
+  );
+  assert.deepEqual(
+    importedGradient.Properties.Transparency.NumberSequence.keypoints.at(-1),
+    { time: 1, value: 0.76, envelope: 0 }
   );
   assert.deepEqual(applied.Children[0].Children[1].Children[0].Properties.MinSize, [140, 48]);
   const importedRow = applied.Children[0].Children[2];
@@ -582,6 +665,10 @@ try {
   assert.equal(
     createdFromFigma.Children.find((child) => child.ClassName === "UIStroke").Properties.Thickness,
     2
+  );
+  assert.equal(
+    createdFromFigma.Children.find((child) => child.ClassName === "UIStroke").Properties.Transparency,
+    0.35
   );
   const reclassed = applied.Children[0].Children.find((child) => child.Name === "Reclassed");
   assert.equal(reclassed.ClassName, "TextLabel", "a stable path can change Roblox visual class");
@@ -665,6 +752,120 @@ assert.deepEqual(
   },
   "patch export uses current Figma geometry instead of stale imported layout metadata"
 );
+
+const titleData = new Map([
+  ["path", "TemplateUI/Root/Screens/StoreScreen/Title"],
+  ["className", "TextLabel"],
+  ["layout", JSON.stringify({
+    size: { sx: 0, ox: 107, sy: 0, oy: 52 },
+    pos: { sx: 0, ox: 112, sy: 0, oy: -8 },
+    anchor: { x: 0, y: 0 },
+    parentWidth: 1440,
+    parentHeight: 738,
+    managedByLayout: false
+  })]
+]);
+const styledTitleNode = {
+  name: "Title",
+  type: "FRAME",
+  visible: true,
+  opacity: 1,
+  x: 112,
+  y: -8,
+  width: 107,
+  height: 52,
+  rotation: 0,
+  clipsContent: false,
+  cornerRadius: 0,
+  constraints: { horizontal: "MIN", vertical: "MIN" },
+  fills: [],
+  strokes: [],
+  children: [{
+    name: "$Text",
+    type: "TEXT",
+    characters: "SHOP",
+    fontSize: 42,
+    fontName: { family: "Luckiest Guy", style: "Regular" },
+    textAlignHorizontal: "LEFT",
+    textAlignVertical: "CENTER",
+    textAutoResize: "NONE",
+    fills: [{ type: "SOLID", color: { r: 1, g: 0.972549, b: 0.913725 }, opacity: 1 }],
+    strokes: [{
+      type: "SOLID",
+      color: { r: 0.1647058874, g: 0.0862745121, b: 0.0549019612 },
+      opacity: 0.8
+    }],
+    strokeWeight: 1.5,
+    strokeAlign: "OUTSIDE",
+    children: []
+  }],
+  parent: { width: 1440, height: 738, layoutMode: "NONE" },
+  getSharedPluginData(_namespace, key) {
+    return titleData.get(key) || "";
+  },
+  setSharedPluginData(_namespace, key, value) {
+    titleData.set(key, value);
+  }
+};
+const styledTitleEntry = bridge.collectPatch([styledTitleNode])[0];
+assert.deepEqual(styledTitleEntry.textStroke, {
+  color: [0.1647058874, 0.0862745121, 0.0549019612],
+  opacity: 0.8,
+  thickness: 1.5,
+  align: "outside"
+});
+assert.equal(styledTitleEntry.textAlignVertical, "Center");
+assert.equal(styledTitleEntry.textWrapped, true);
+
+const currencyData = new Map([
+  ["path", "TemplateUI/Root/CurrencyTray/Slots/CurrencySlot01"],
+  ["className", "Frame"],
+  ["layout", JSON.stringify({
+    size: { sx: 0, ox: 194, sy: 0, oy: 44 },
+    pos: { sx: 0, ox: 0, sy: 0, oy: 0 },
+    anchor: { x: 0.5, y: 0.5 },
+    parentWidth: 970,
+    parentHeight: 44,
+    managedByLayout: true
+  })]
+]);
+const currencyNode = {
+  name: "CurrencySlot01",
+  type: "FRAME",
+  visible: true,
+  opacity: 1,
+  x: 0,
+  y: 0,
+  width: 194,
+  height: 44,
+  rotation: 0,
+  clipsContent: false,
+  cornerRadius: 0,
+  constraints: { horizontal: "MIN", vertical: "MIN" },
+  fills: [{
+    type: "GRADIENT_LINEAR",
+    gradientTransform: [[1, 0, 0], [0, 1, 0]],
+    gradientStops: [
+      { position: 0, color: { r: 1, g: 0.72, b: 0.14, a: 0 } },
+      { position: 1, color: { r: 1, g: 0.72, b: 0.14, a: 0.24 } }
+    ]
+  }],
+  strokes: [],
+  children: [],
+  parent: { width: 970, height: 44, layoutMode: "HORIZONTAL" },
+  getSharedPluginData(_namespace, key) {
+    return currencyData.get(key) || "";
+  },
+  setSharedPluginData(_namespace, key, value) {
+    currencyData.set(key, value);
+  }
+};
+const currencyEntry = bridge.collectPatch([currencyNode])[0];
+assert.equal(currencyEntry.fill, null);
+assert.equal(currencyEntry.gradient.type, "linear");
+assert.equal(currencyEntry.gradient.rotation, 0);
+assert.equal(currencyEntry.gradient.transparencyKeypoints[0].value, 1);
+assert.equal(currencyEntry.gradient.transparencyKeypoints.at(-1).value, 0.76);
 
 const templateUi = readJson("src/ui/presets/incremental/TemplateUI.model.json");
 const childNamed = (node, name) =>

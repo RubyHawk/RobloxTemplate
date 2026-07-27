@@ -6776,10 +6776,14 @@ expectEqual(
 	"Figma bridge exports corner styling for TextButtons as well as non-text controls"
 )
 expectEqual(
-	string.find(figmaBridge, 'String(className).startsWith("Image") ? null : solidPaint(node)', 1, true)
-		~= nil,
+	string.find(
+		figmaBridge,
+		'String(className).startsWith("Image") || linearGradientPaint(node) ? null : solidPaint(node)',
+		1,
+		true
+	) ~= nil,
 	true,
-	"Figma bridge does not export synthetic image-placeholder fills"
+	"Figma bridge does not export synthetic image-placeholder or gradient fills as solid backgrounds"
 )
 local figmaPatchApplier = fs.readFile("scripts/figma-ui-bridge.mjs")
 expectEqual(

@@ -44,6 +44,15 @@ new tower-defense roles are ready.
 Do not manually copy GUI instances into StarterGui after the import. If a
 visual is missing, fix or map it in Figma and export again.
 
+The repository importer is the correction layer; no second Studio-side Figma
+plugin is required. The exported patch carries current parent-relative
+geometry, anchors, clipping, rotation, preserved layout metadata, text
+alignment/wrapping, solid fills, linear gradients, corners, and both border and
+text strokes. The importer upserts the corresponding `GuiObject`, `UICorner`,
+`UIStroke`, and `UIGradient` hierarchy before Rojo synchronizes it to Studio.
+After updating the local Figma plugin, always make a fresh export so the patch
+contains the current visual contract.
+
 ## Expected smoke test
 
 1. In the lobby, the five persistent actions form the middle-left 3+2 icon

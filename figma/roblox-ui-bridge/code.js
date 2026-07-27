@@ -21,6 +21,117 @@ function color(value, fallback) {
   return { r: Number(value[0]), g: Number(value[1]), b: Number(value[2]) };
 }
 
+function clamp01(value) {
+  return Math.max(0, Math.min(1, Number(value) || 0));
+}
+
+function sequenceKeypoints(value, kind, fallback) {
+  const sequence = value && value[kind];
+  const keypoints = sequence && Array.isArray(sequence.keypoints) ? sequence.keypoints : [];
+  const normalized = keypoints
+    .map((keypoint) => ({
+      time: clamp01(keypoint.time),
+      value: kind === "ColorSequence"
+        ? color(keypoint.color, fallback)
+        : clamp01(keypoint.value)
+    }))
+    .sort((left, right) => left.time - right.time);
+  if (normalized.length) return normalized;
+  return [{ time: 0, value: fallback }, { time: 1, value: fallback }];
+}
+
+function sampleSequence(keypoints, time, interpolate) {
+  if (time <= keypoints[0].time) return keypoints[0].value;
+  if (time >= keypoints[keypoints.length - 1].time) return keypoints[keypoints.length - 1].value;
+  for (let index = 1; index < keypoints.length; index += 1) {
+    const right = keypoints[index];
+    if (time > right.time) continue;
+    const left = keypoints[index - 1];
+    const span = Math.max(0.000001, right.time - left.time);
+    return interpolate(left.value, right.value, (time - left.time) / span);
+  }
+  return keypoints[keypoints.length - 1].value;
+}
+
+function figmaGradientTransform(rotation) {
+  const radians = Number(rotation || 0) * Math.PI / 180;
+  const cosine = Math.cos(radians);
+  const sine = Math.sin(radians);
+  return [
+    [cosine, sine, (1 - cosine - sine) / 2],
+    [-sine, cosine, (1 + sine - cosine) / 2]
+  ];
+}
+
+function robloxGradientPaint(gradient, tint = { r: 1, g: 1, b: 1 }, opacity = 1) {
+  if (!gradient) return null;
+  const colorPoints = sequenceKeypoints(
+    property(gradient, "Color", null),
+    "ColorSequence",
+    { r: 1, g: 1, b: 1 }
+  );
+  const transparencyPoints = sequenceKeypoints(
+    property(gradient, "Transparency", null),
+    "NumberSequence",
+    0
+  );
+  const times = [...new Set([
+    ...colorPoints.map((keypoint) => keypoint.time),
+    ...transparencyPoints.map((keypoint) => keypoint.time)
+  ])].sort((left, right) => left - right);
+  return {
+    type: "GRADIENT_LINEAR",
+    gradientTransform: figmaGradientTransform(property(gradient, "Rotation", 0)),
+    gradientStops: times.map((time) => {
+      const sampledColor = sampleSequence(colorPoints, time, (left, right, alpha) => ({
+        r: left.r + (right.r - left.r) * alpha,
+        g: left.g + (right.g - left.g) * alpha,
+        b: left.b + (right.b - left.b) * alpha
+      }));
+      const transparency = sampleSequence(
+        transparencyPoints,
+        time,
+        (left, right, alpha) => left + (right - left) * alpha
+      );
+      return {
+        position: time,
+        color: {
+          r: clamp01(sampledColor.r * tint.r),
+          g: clamp01(sampledColor.g * tint.g),
+          b: clamp01(sampledColor.b * tint.b),
+          a: clamp01((1 - transparency) * opacity)
+        }
+      };
+    })
+  };
+}
+
+function gradientRotation(paint) {
+  const transform = paint && paint.gradientTransform;
+  if (!Array.isArray(transform) || !Array.isArray(transform[0]) || !Array.isArray(transform[1])) return 0;
+  const degrees = Math.atan2(-Number(transform[1][0] || 0), Number(transform[0][0] || 0)) * 180 / Math.PI;
+  return (degrees + 360) % 360;
+}
+
+function gradientEntryFromPaint(paint) {
+  if (!paint || paint.type !== "GRADIENT_LINEAR" || !Array.isArray(paint.gradientStops)) return null;
+  const paintOpacity = paint.opacity === undefined ? 1 : clamp01(paint.opacity);
+  const stops = paint.gradientStops
+    .map((stop) => ({
+      time: clamp01(stop.position),
+      color: [clamp01(stop.color.r), clamp01(stop.color.g), clamp01(stop.color.b)],
+      transparency: 1 - clamp01((stop.color.a === undefined ? 1 : stop.color.a) * paintOpacity)
+    }))
+    .sort((left, right) => left.time - right.time);
+  if (!stops.length) return null;
+  return {
+    type: "linear",
+    rotation: gradientRotation(paint),
+    colorKeypoints: stops.map((stop) => ({ time: stop.time, color: stop.color })),
+    transparencyKeypoints: stops.map((stop) => ({ time: stop.time, value: stop.transparency }))
+  };
+}
+
 function vector2(value, fallback = { width: 0, height: 0 }) {
   const raw = value && Array.isArray(value.Vector2) ? value.Vector2 : value;
   if (!Array.isArray(raw) || raw.length < 2) return { ...fallback };
@@ -198,7 +309,13 @@ const loadedFonts = new Map();
 async function chooseFont(object) {
   const raw = property(object, "FontFace", null);
   const familyUrl = raw && raw.family ? raw.family : "";
-  const wantedFamily = familyUrl.includes("Fredoka") ? "Fredoka" : familyUrl.includes("Nunito") ? "Nunito" : "Inter";
+  const wantedFamily = familyUrl.includes("LuckiestGuy")
+    ? "Luckiest Guy"
+    : familyUrl.includes("Fredoka")
+      ? "Fredoka"
+      : familyUrl.includes("Nunito")
+        ? "Nunito"
+        : "Inter";
   const wantedStyle = raw && /bold/i.test(String(raw.weight)) ? "Bold" : "Regular";
   availableFontsPromise ||= figma.listAvailableFontsAsync();
   const fonts = await availableFontsPromise;
@@ -217,6 +334,7 @@ function storeMetadata(node, data) {
   node.setSharedPluginData(NAMESPACE, "className", data.className);
   node.setSharedPluginData(NAMESPACE, "layout", JSON.stringify(data.layout));
   if (data.image) node.setSharedPluginData(NAMESPACE, "image", data.image);
+  if (data.properties) node.setSharedPluginData(NAMESPACE, "properties", JSON.stringify(data.properties));
 }
 
 async function createVisualTree(object, parent, path, parentSize, forceVisible, managedByLayout = false) {
@@ -254,6 +372,7 @@ async function createVisual(object, parent, path, parentSize, forceVisible, mana
     horizontal: constraint(pos.sx, size.sx, anch.x),
     vertical: constraint(pos.sy, size.sy, anch.y)
   };
+  node.rotation = Number(property(object, "Rotation", 0)) || 0;
   node.visible = forceVisible || property(object, "Visible", true) !== false;
   const groupTransparency = Number(property(object, "GroupTransparency", 0));
   node.opacity = Math.max(0, Math.min(1, 1 - (Number.isFinite(groupTransparency) ? groupTransparency : 0)));
@@ -261,16 +380,29 @@ async function createVisual(object, parent, path, parentSize, forceVisible, mana
   const backgroundTransparency = Number(property(object, "BackgroundTransparency", isImage ? 1 : 0));
   const background = color(property(object, "BackgroundColor3", null), { r: 0.94, g: 0.92, b: 1 });
   node.fills = backgroundTransparency >= 1 ? [] : [{ type: "SOLID", color: background, opacity: 1 - backgroundTransparency }];
+  const gradient = childOfClass(object, "UIGradient");
+  const backgroundGradient = robloxGradientPaint(gradient, background, 1 - backgroundTransparency);
+  if (backgroundGradient && !isText) node.fills = [backgroundGradient];
 
   const corner = childOfClass(object, "UICorner");
   if (corner) {
     const radius = property(corner, "CornerRadius", { UDim: [0, 0] }).UDim || [0, 0];
     node.cornerRadius = Math.max(0, Number(radius[1]) + Math.min(width, height) * Number(radius[0]));
   }
-  const stroke = childOfClass(object, "UIStroke");
-  if (stroke) {
-    node.strokes = [{ type: "SOLID", color: color(property(stroke, "Color", null), { r: 0.05, g: 0.04, b: 0.12 }), opacity: 1 - Number(property(stroke, "Transparency", 0)) }];
-    node.strokeWeight = Math.max(0, Number(property(stroke, "Thickness", 1)));
+  const strokes = (object.Children || []).filter((child) => child.ClassName === "UIStroke");
+  const borderStroke = isText
+    ? strokes.find((candidate) => String(property(candidate, "ApplyStrokeMode", "")) !== "Contextual")
+    : strokes[0];
+  const contextualStroke = strokes.find(
+    (candidate) => String(property(candidate, "ApplyStrokeMode", "")) === "Contextual"
+  );
+  if (borderStroke) {
+    node.strokes = [{
+      type: "SOLID",
+      color: color(property(borderStroke, "Color", null), { r: 0.05, g: 0.04, b: 0.12 }),
+      opacity: 1 - Number(property(borderStroke, "Transparency", 0))
+    }];
+    node.strokeWeight = Math.max(0, Number(property(borderStroke, "Thickness", 1)));
   }
 
   if (isText) {
@@ -284,7 +416,27 @@ async function createVisual(object, parent, path, parentSize, forceVisible, mana
     textNode.x = 0;
     textNode.y = 0;
     textNode.characters = String(property(object, "Text", object.Name || "Text"));
-    textNode.fills = [{ type: "SOLID", color: color(property(object, "TextColor3", null), { r: 0.06, g: 0.05, b: 0.12 }), opacity: 1 - Number(property(object, "TextTransparency", 0)) }];
+    const textColor = color(property(object, "TextColor3", null), { r: 0.06, g: 0.05, b: 0.12 });
+    const textOpacity = 1 - Number(property(object, "TextTransparency", 0));
+    textNode.fills = [{ type: "SOLID", color: textColor, opacity: textOpacity }];
+    const textGradient = robloxGradientPaint(gradient, textColor, textOpacity);
+    if (textGradient) textNode.fills = [textGradient];
+    const legacyStrokeTransparency = Number(property(object, "TextStrokeTransparency", 1));
+    if (contextualStroke || legacyStrokeTransparency < 1) {
+      textNode.strokes = [{
+        type: "SOLID",
+        color: contextualStroke
+          ? color(property(contextualStroke, "Color", null), { r: 0.05, g: 0.04, b: 0.12 })
+          : color(property(object, "TextStrokeColor3", null), { r: 0.05, g: 0.04, b: 0.12 }),
+        opacity: contextualStroke
+          ? 1 - Number(property(contextualStroke, "Transparency", 0))
+          : 1 - legacyStrokeTransparency
+      }];
+      textNode.strokeWeight = contextualStroke
+        ? Math.max(0, Number(property(contextualStroke, "Thickness", 1)))
+        : 1;
+      textNode.strokeAlign = "OUTSIDE";
+    }
     textNode.textAlignHorizontal = String(property(object, "TextXAlignment", "Center")).toUpperCase();
     textNode.textAlignVertical = String(property(object, "TextYAlignment", "Center")).toUpperCase();
   }
@@ -303,7 +455,12 @@ async function createVisual(object, parent, path, parentSize, forceVisible, mana
     path,
     className: object.ClassName,
     image: isImage ? String(property(object, "Image", "")) : "",
-    layout: { size, pos, anchor: anch, parentWidth: parentSize.width, parentHeight: parentSize.height, managedByLayout }
+    layout: { size, pos, anchor: anch, parentWidth: parentSize.width, parentHeight: parentSize.height, managedByLayout },
+    properties: {
+      zIndex: Number(property(object, "ZIndex", 1)),
+      layoutOrder: Number(property(object, "LayoutOrder", 0)),
+      automaticSize: String(property(object, "AutomaticSize", "None"))
+    }
   });
 
   // Roblox text controls can contain authored visual children. TextButton is
@@ -437,8 +594,18 @@ function expandImportFiles(files) {
 
 function solidPaint(node) {
   if (!("fills" in node) || !Array.isArray(node.fills)) return null;
-  const paint = node.fills.find((fill) => fill.type === "SOLID");
+  const paint = node.fills.find((fill) => fill.visible !== false && fill.type === "SOLID");
   return paint ? { color: [paint.color.r, paint.color.g, paint.color.b], opacity: paint.opacity === undefined ? 1 : paint.opacity } : null;
+}
+
+function linearGradientPaint(node) {
+  if (!("fills" in node) || !Array.isArray(node.fills)) return null;
+  return node.fills.find((fill) => fill.visible !== false && fill.type === "GRADIENT_LINEAR") || null;
+}
+
+function solidStrokePaint(node) {
+  if (!("strokes" in node) || !Array.isArray(node.strokes)) return null;
+  return node.strokes.find((paint) => paint.visible !== false && paint.type === "SOLID") || null;
 }
 
 function directTextNode(node) {
@@ -546,6 +713,18 @@ function boardContentPath(board) {
   return containerPath || modelRoot || "";
 }
 
+function storedProperties(node) {
+  if (!node.getSharedPluginData) return {};
+  const raw = node.getSharedPluginData(NAMESPACE, "properties");
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (_error) {
+    return {};
+  }
+}
+
 function collectPatch(nodes) {
   const entries = [];
   const visit = (node, parentPath = "") => {
@@ -583,6 +762,7 @@ function collectPatch(nodes) {
       // from a node. Always export the node's current constraints/geometry.
       const layout = inferredLayout(node);
       storeMetadata(node, { path, className, layout });
+      const preserved = storedProperties(node);
       const entry = {
         path,
         className,
@@ -592,12 +772,24 @@ function collectPatch(nodes) {
         y: node.y,
         width: node.width,
         height: node.height,
+        rotation: typeof node.rotation === "number" ? node.rotation : 0,
+        clipsDescendants: "clipsContent" in node ? node.clipsContent : false,
+        zIndex: Number.isFinite(preserved.zIndex) ? preserved.zIndex : undefined,
+        layoutOrder: Number.isFinite(preserved.layoutOrder) ? preserved.layoutOrder : undefined,
+        automaticSize: typeof preserved.automaticSize === "string"
+          ? preserved.automaticSize
+          : undefined,
+        gradient: null,
+        stroke: null,
         // Image frames use a synthetic fill to make otherwise unavailable
         // Roblox assets visible in Figma. It is not a Roblox background edit.
-        fill: String(className).startsWith("Image") ? null : solidPaint(node),
+        fill: String(className).startsWith("Image") || linearGradientPaint(node) ? null : solidPaint(node),
         layout
       };
+      const wrapperGradient = linearGradientPaint(node);
+      if (wrapperGradient) entry.gradient = gradientEntryFromPaint(wrapperGradient);
       if (String(entry.className).startsWith("Text") && "children" in node) {
+        entry.textStroke = null;
         const textNode = directTextNode(node);
         entry.text = textNode ? textNode.characters : "";
         entry.fontSize = textNode && typeof textNode.fontSize === "number" ? textNode.fontSize : null;
@@ -607,14 +799,33 @@ function collectPatch(nodes) {
           entry.textAlignHorizontal = String(textNode.textAlignHorizontal || "CENTER")
             .toLowerCase()
             .replace(/^./, (value) => value.toUpperCase());
+          entry.textAlignVertical = String(textNode.textAlignVertical || "CENTER")
+            .toLowerCase()
+            .replace(/^./, (value) => value.toUpperCase());
+          entry.textWrapped = textNode.textAutoResize === "NONE";
         }
-        const textPaint = textNode ? solidPaint(textNode) : null;
+        const textGradient = textNode ? linearGradientPaint(textNode) : null;
+        if (textGradient) entry.gradient = gradientEntryFromPaint(textGradient);
+        const textPaint = textGradient || !textNode ? null : solidPaint(textNode);
         entry.textColor = textPaint ? textPaint.color : null;
+        const textStroke = textNode ? solidStrokePaint(textNode) : null;
+        if (textStroke) {
+          entry.textStroke = {
+            color: [textStroke.color.r, textStroke.color.g, textStroke.color.b],
+            opacity: textStroke.opacity === undefined ? 1 : textStroke.opacity,
+            thickness: typeof textNode.strokeWeight === "number" ? textNode.strokeWeight : 1,
+            align: String(textNode.strokeAlign || "OUTSIDE").toLowerCase()
+          };
+        }
       }
       entry.cornerRadius = typeof node.cornerRadius === "number" ? node.cornerRadius : null;
-      if (Array.isArray(node.strokes)) {
-        const stroke = node.strokes.find((paint) => paint.type === "SOLID");
-        if (stroke) entry.stroke = { color: [stroke.color.r, stroke.color.g, stroke.color.b], thickness: node.strokeWeight };
+      const nodeStroke = solidStrokePaint(node);
+      if (nodeStroke) {
+        entry.stroke = {
+          color: [nodeStroke.color.r, nodeStroke.color.g, nodeStroke.color.b],
+          opacity: nodeStroke.opacity === undefined ? 1 : nodeStroke.opacity,
+          thickness: node.strokeWeight
+        };
       }
       entries.push(entry);
     }
@@ -734,6 +945,10 @@ if (typeof module !== "undefined" && module.exports) {
     inferredBinding,
     inferredLayout,
     collectPatch,
+    figmaGradientTransform,
+    gradientEntryFromPaint,
+    robloxGradientPaint,
+    storedProperties,
     singleWorkspaceId,
     surfacePixelsFromPart,
     udim2,
