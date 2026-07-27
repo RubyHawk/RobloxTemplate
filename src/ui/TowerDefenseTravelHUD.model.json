@@ -18,7 +18,9 @@
         "BorderSizePixel": 0,
         "Position": {"UDim2": [[0.5, 0], [0, 14]]},
         "Size": {"UDim2": [[0.92, 0], [0, 82]]},
-        "Visible": true
+        "Visible": true,
+        "Rotation": 0,
+        "ClipsDescendants": false
       },
       "Children": [
         {
@@ -31,11 +33,6 @@
           "Properties": {
             "CornerRadius": {"UDim": [0, 7]}
           },
-          "Children": []
-        },
-        {
-          "ClassName": "UIStroke",
-          "Properties": {"Color": [0.176, 0.733, 0.463], "Thickness": 2, "Transparency": 0.08},
           "Children": []
         },
         {
@@ -52,9 +49,22 @@
             "TextTruncate": "AtEnd",
             "TextXAlignment": "Left",
             "AnchorPoint": [0, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true,
+            "TextStrokeTransparency": 1
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "Status",
@@ -70,9 +80,22 @@
             "TextTruncate": "AtEnd",
             "TextXAlignment": "Left",
             "AnchorPoint": [0, 0.5],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true,
+            "TextStrokeTransparency": 1
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "TravelButton",
@@ -90,7 +113,11 @@
             "TextWrapped": true,
             "AnchorPoint": [1, 0.5],
             "Visible": true,
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextStrokeTransparency": 1
           },
           "Children": [
             {

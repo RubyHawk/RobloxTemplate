@@ -18,8 +18,9 @@
         "BorderSizePixel": 0,
         "ClipsDescendants": true,
         "Position": {"UDim2": [[1, -24], [1, -180]]},
-        "Size": {"UDim2": [[0.94, 0], [0, 330]]},
-        "Visible": true
+        "Size": {"UDim2": [[0, 560], [0, 330]]},
+        "Visible": true,
+        "Rotation": 0
       },
       "Children": [
         {
@@ -36,7 +37,7 @@
         },
         {
           "ClassName": "UIStroke",
-          "Properties": {"Color": [0.16078431904315948, 0.18039216101169586, 0.20392157137393951], "Thickness": 1, "Transparency": 0.08},
+          "Properties": {"Color": [0.16078431904315948, 0.18039216101169586, 0.20392157137393951], "Thickness": 1, "Transparency": 0},
           "Children": []
         },
         {
@@ -53,12 +54,24 @@
             "TextSize": 26,
             "TextXAlignment": "Left",
             "AnchorPoint": [0, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true,
+            "TextStrokeTransparency": 1
           },
           "Children": [
             {
               "ClassName": "UITextSizeConstraint",
               "Properties": {"MaxTextSize": 17, "MinTextSize": 12},
+              "Children": []
+            },
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
               "Children": []
             }
           ]
@@ -77,9 +90,22 @@
             "TextTruncate": "AtEnd",
             "TextXAlignment": "Left",
             "AnchorPoint": [0, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true,
+            "TextStrokeTransparency": 1
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "Levels",
@@ -90,15 +116,17 @@
             "Size": {"UDim2": [[1, -60], [0, 140]]},
             "AnchorPoint": [0, 0],
             "Visible": true,
-            "BackgroundColor3": [0.0313725508749485, 0.03529411926865578, 0.04313725605607033]
+            "BackgroundColor3": [0.0313725508749485, 0.03529411926865578, 0.04313725605607033],
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
           "Children": [
             {
               "ClassName": "UIGridLayout",
               "Properties": {
-                "CellPadding": {"UDim2": [[0, 20], [0, 12]]},
+                "CellPadding": {"UDim2": [[0, 20], [0, 0]]},
                 "CellSize": {"UDim2": [[0, 80], [0, 64]]},
-                "FillDirectionMaxCells": 5,
+                "FillDirectionMaxCells": 10,
                 "HorizontalAlignment": "Center",
                 "SortOrder": "LayoutOrder",
                 "FillDirection": "Horizontal",
@@ -118,11 +146,15 @@
                 "TextScaled": true,
                 "TextSize": 18,
                 "TextWrapped": true,
-                "AnchorPoint": [0, 0.5],
-                "Size": {"UDim2": [[0, 72], [0, 72]]},
+                "AnchorPoint": [0, 0],
+                "Size": {"UDim2": [[0, 80], [0, 64]]},
                 "Visible": true,
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -151,11 +183,15 @@
                 "TextScaled": true,
                 "TextSize": 16,
                 "TextWrapped": true,
-                "AnchorPoint": [0, 0.5],
-                "Size": {"UDim2": [[0, 72], [0, 72]]},
+                "AnchorPoint": [0, 0],
+                "Size": {"UDim2": [[0, 80], [0, 64]]},
                 "Visible": true,
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -184,11 +220,15 @@
                 "TextScaled": true,
                 "TextSize": 16,
                 "TextWrapped": true,
-                "AnchorPoint": [0, 0.5],
-                "Size": {"UDim2": [[0, 72], [0, 72]]},
+                "AnchorPoint": [0.5, 0],
+                "Size": {"UDim2": [[0, 80], [0, 64]]},
                 "Visible": true,
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -217,11 +257,15 @@
                 "TextScaled": true,
                 "TextSize": 16,
                 "TextWrapped": true,
-                "AnchorPoint": [0, 0.5],
-                "Size": {"UDim2": [[0, 72], [0, 72]]},
+                "AnchorPoint": [0, 0],
+                "Size": {"UDim2": [[0, 80], [0, 64]]},
                 "Visible": true,
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -250,11 +294,15 @@
                 "TextScaled": true,
                 "TextSize": 16,
                 "TextWrapped": true,
-                "AnchorPoint": [0.5, 0.5],
-                "Size": {"UDim2": [[0, 72], [0, 72]]},
+                "AnchorPoint": [1, 0],
+                "Size": {"UDim2": [[0, 80], [0, 64]]},
                 "Visible": true,
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -283,11 +331,15 @@
                 "TextScaled": true,
                 "TextSize": 16,
                 "TextWrapped": true,
-                "AnchorPoint": [0.5, 0.5],
-                "Size": {"UDim2": [[0, 72], [0, 72]]},
+                "AnchorPoint": [0, 1],
+                "Size": {"UDim2": [[0, 80], [0, 64]]},
                 "Visible": true,
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -316,11 +368,15 @@
                 "TextScaled": true,
                 "TextSize": 16,
                 "TextWrapped": true,
-                "AnchorPoint": [0, 0.5],
-                "Size": {"UDim2": [[0, 72], [0, 72]]},
+                "AnchorPoint": [0, 1],
+                "Size": {"UDim2": [[0, 80], [0, 64]]},
                 "Visible": true,
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -349,11 +405,15 @@
                 "TextScaled": true,
                 "TextSize": 16,
                 "TextWrapped": true,
-                "AnchorPoint": [0, 0.5],
-                "Size": {"UDim2": [[0, 72], [0, 72]]},
+                "AnchorPoint": [0.5, 1],
+                "Size": {"UDim2": [[0, 80], [0, 64]]},
                 "Visible": true,
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -382,11 +442,15 @@
                 "TextScaled": true,
                 "TextSize": 16,
                 "TextWrapped": true,
-                "AnchorPoint": [0, 0.5],
-                "Size": {"UDim2": [[0, 72], [0, 72]]},
+                "AnchorPoint": [0, 1],
+                "Size": {"UDim2": [[0, 80], [0, 64]]},
                 "Visible": true,
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -415,11 +479,15 @@
                 "TextScaled": true,
                 "TextSize": 16,
                 "TextWrapped": true,
-                "AnchorPoint": [1, 0.5],
-                "Size": {"UDim2": [[0, 72], [0, 72]]},
+                "AnchorPoint": [1, 1],
+                "Size": {"UDim2": [[0, 80], [0, 64]]},
                 "Visible": true,
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -435,6 +503,13 @@
                   "Children": []
                 }
               ]
+            },
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 42]}
+              },
+              "Children": []
             }
           ]
         },
@@ -446,14 +521,16 @@
             "Position": {"UDim2": [[0, 22], [0, 278]]},
             "Size": {"UDim2": [[1, -44], [0, 40]]},
             "AnchorPoint": [0, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
           "Children": [
             {
               "ClassName": "UIGridLayout",
               "Properties": {
                 "CellPadding": {"UDim2": [[0, 12], [0, 0]]},
-                "CellSize": {"UDim2": [[0.333333, -8], [1, 0]]},
+                "CellSize": {"UDim2": [[0, 164], [0, 40]]},
                 "FillDirectionMaxCells": 3,
                 "SortOrder": "LayoutOrder",
                 "FillDirection": "Horizontal",
@@ -478,7 +555,11 @@
                 "AnchorPoint": [0, 0.5],
                 "Size": {"UDim2": [[0, 100], [0, 50]]},
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -508,10 +589,14 @@
                 "TextSize": 14,
                 "TextWrapped": true,
                 "AnchorPoint": [0, 0.5],
-                "Size": {"UDim2": [[0, 132], [0, 58]]},
+                "Size": {"UDim2": [[0, 164], [0, 40]]},
                 "Visible": true,
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -541,10 +626,14 @@
                 "TextSize": 14,
                 "TextWrapped": true,
                 "AnchorPoint": [0.5, 0.5],
-                "Size": {"UDim2": [[0, 132], [0, 58]]},
+                "Size": {"UDim2": [[0, 164], [0, 40]]},
                 "Visible": true,
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -574,10 +663,14 @@
                 "TextSize": 14,
                 "TextWrapped": true,
                 "AnchorPoint": [1, 0.5],
-                "Size": {"UDim2": [[0, 132], [0, 58]]},
+                "Size": {"UDim2": [[0, 164], [0, 40]]},
                 "Visible": true,
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -593,6 +686,13 @@
                   "Children": []
                 }
               ]
+            },
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
             }
           ]
         },
@@ -611,7 +711,12 @@
             "TextTruncate": "AtEnd",
             "AnchorPoint": [0, 0],
             "Visible": true,
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true,
+            "TextStrokeTransparency": 1
           },
           "Children": [
             {

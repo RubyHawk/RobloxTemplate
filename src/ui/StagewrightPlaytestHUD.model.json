@@ -18,7 +18,9 @@
         "BorderSizePixel": 0,
         "Position": {"UDim2": [[1, -18], [0, 18]]},
         "Size": {"UDim2": [[0, 400], [0, 326]]},
-        "Visible": true
+        "Visible": true,
+        "Rotation": 0,
+        "ClipsDescendants": false
       },
       "Children": [
         {
@@ -36,7 +38,7 @@
         },
         {
           "ClassName": "UIStroke",
-          "Properties": {"Color": [0.16470588743686676, 0.1882352977991104, 0.21960784494876862], "Thickness": 2, "Transparency": 0.08},
+          "Properties": {"Color": [0.16470588743686676, 0.1882352977991104, 0.21960784494876862], "Thickness": 2, "Transparency": 0},
           "Children": []
         },
         {
@@ -52,9 +54,22 @@
             "TextSize": 22,
             "TextXAlignment": "Left",
             "AnchorPoint": [0, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true,
+            "TextStrokeTransparency": 1
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 6]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "CatalogLabel",
@@ -70,9 +85,22 @@
             "TextTruncate": "AtEnd",
             "TextXAlignment": "Left",
             "AnchorPoint": [0, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true,
+            "TextStrokeTransparency": 1
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "Levels",
@@ -82,7 +110,9 @@
             "Position": {"UDim2": [[0, 16], [0, 86]]},
             "Size": {"UDim2": [[1, -32], [0, 42]]},
             "AnchorPoint": [0, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
           "Children": [
             {
@@ -111,7 +141,12 @@
                 "AnchorPoint": [0, 0],
                 "Visible": true,
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -119,6 +154,11 @@
                   "Properties": {
                     "CornerRadius": {"UDim": [0, 5]}
                   },
+                  "Children": []
+                },
+                {
+                  "ClassName": "UIStroke",
+                  "Properties": {"ApplyStrokeMode": "Border", "Color": [0.5411764979362488, 0.3294117748737335, 0.10980392247438431], "Transparency": 0, "Thickness": 1},
                   "Children": []
                 }
               ]
@@ -138,7 +178,12 @@
                 "AnchorPoint": [0.5, 0],
                 "Visible": true,
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -146,6 +191,11 @@
                   "Properties": {
                     "CornerRadius": {"UDim": [0, 5]}
                   },
+                  "Children": []
+                },
+                {
+                  "ClassName": "UIStroke",
+                  "Properties": {"ApplyStrokeMode": "Border", "Color": [0.20392157137393951, 0.22745098173618317, 0.26274511218070984], "Transparency": 0, "Thickness": 1},
                   "Children": []
                 }
               ]
@@ -165,7 +215,12 @@
                 "AnchorPoint": [1, 0],
                 "Visible": true,
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -174,8 +229,20 @@
                     "CornerRadius": {"UDim": [0, 5]}
                   },
                   "Children": []
+                },
+                {
+                  "ClassName": "UIStroke",
+                  "Properties": {"ApplyStrokeMode": "Border", "Color": [0.20392157137393951, 0.22745098173618317, 0.26274511218070984], "Transparency": 0, "Thickness": 1},
+                  "Children": []
                 }
               ]
+            },
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
             }
           ]
         },
@@ -188,7 +255,9 @@
             "Size": {"UDim2": [[1, -28], [0, 44]]},
             "AnchorPoint": [0, 0.5],
             "Visible": true,
-            "BackgroundColor3": [0.10196078568696976, 0.11372549086809158, 0.13725490868091583]
+            "BackgroundColor3": [0.10196078568696976, 0.11372549086809158, 0.13725490868091583],
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
           "Children": [
             {
@@ -205,7 +274,12 @@
                 "AnchorPoint": [0, 0],
                 "Visible": true,
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -231,7 +305,12 @@
                 "TextSize": 14,
                 "AnchorPoint": [0, 0],
                 "Visible": true,
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -257,7 +336,12 @@
                 "AnchorPoint": [1, 0],
                 "Visible": true,
                 "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "Bold", "style": "Normal"},
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
               "Children": [
                 {
@@ -268,6 +352,18 @@
                   "Children": []
                 }
               ]
+            },
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 5]}
+              },
+              "Children": []
+            },
+            {
+              "ClassName": "UIStroke",
+              "Properties": {"Color": [0.20392157137393951, 0.22745098173618317, 0.26274511218070984], "Transparency": 0, "Thickness": 1},
+              "Children": []
             }
           ]
         },
@@ -285,7 +381,12 @@
             "TextSize": 15,
             "AnchorPoint": [0, 0],
             "Visible": true,
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true,
+            "TextStrokeTransparency": 1
           },
           "Children": [
             {
@@ -311,7 +412,12 @@
             "TextSize": 15,
             "AnchorPoint": [0, 0],
             "Visible": true,
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true,
+            "TextStrokeTransparency": 1
           },
           "Children": [
             {
@@ -336,9 +442,22 @@
             "TextSize": 14,
             "TextXAlignment": "Left",
             "AnchorPoint": [0, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true,
+            "TextStrokeTransparency": 1
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 5]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "StatusLabel",
@@ -355,7 +474,11 @@
             "TextWrapped": true,
             "AnchorPoint": [0, 1],
             "Visible": true,
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextStrokeTransparency": 1
           },
           "Children": [
             {
@@ -363,6 +486,11 @@
               "Properties": {
                 "CornerRadius": {"UDim": [0, 5]}
               },
+              "Children": []
+            },
+            {
+              "ClassName": "UIStroke",
+              "Properties": {"ApplyStrokeMode": "Border", "Color": [0.20392157137393951, 0.22745098173618317, 0.26274511218070984], "Transparency": 0, "Thickness": 1},
               "Children": []
             }
           ]

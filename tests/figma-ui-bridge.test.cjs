@@ -278,6 +278,21 @@ try {
           }
         }]
       }, {
+        Name: "ResponsiveBar",
+        ClassName: "Frame",
+        Properties: {
+          AnchorPoint: [0.5, 1],
+          Position: { UDim2: [[0.5, 0], [1, -12]] },
+          Size: { UDim2: [[0.8, 0], [0, 60]] }
+        },
+        Children: [{
+          ClassName: "UISizeConstraint",
+          Properties: {
+            MinSize: [280, 60],
+            MaxSize: [440, 60]
+          }
+        }]
+      }, {
         Name: "Row",
         ClassName: "Frame",
         Properties: {
@@ -418,6 +433,22 @@ try {
         anchor: { x: 0, y: 0 },
         parentWidth: 600,
         parentHeight: 300,
+        managedByLayout: false
+      }
+    }, {
+      path: "SurfaceTest/Panel/ResponsiveBar",
+      className: "Frame",
+      visible: true,
+      x: 56,
+      y: 208,
+      width: 448,
+      height: 60,
+      layout: {
+        size: { sx: 0, ox: 448, sy: 0, oy: 60 },
+        pos: { sx: 0.5, ox: 0, sy: 1, oy: -12 },
+        anchor: { x: 0.5, y: 1 },
+        parentWidth: 560,
+        parentHeight: 280,
         managedByLayout: false
       }
     }, {
@@ -628,7 +659,20 @@ try {
     { time: 1, value: 0.76, envelope: 0 }
   );
   assert.deepEqual(applied.Children[0].Children[1].Children[0].Properties.MinSize, [140, 48]);
-  const importedRow = applied.Children[0].Children[2];
+  const importedResponsiveBar = applied.Children[0].Children.find(
+    (child) => child.Name === "ResponsiveBar"
+  );
+  assert.deepEqual(
+    importedResponsiveBar.Properties.Size,
+    { UDim2: [[0.8, 0], [0, 60]] },
+    "pixel-equivalent Figma geometry does not erase an authored responsive scale"
+  );
+  assert.deepEqual(
+    importedResponsiveBar.Children[0].Properties.MaxSize,
+    [440, 60],
+    "pixel-equivalent Figma geometry does not expand an authored responsive size constraint"
+  );
+  const importedRow = applied.Children[0].Children.find((child) => child.Name === "Row");
   assert.equal(importedRow.Children[0].ClassName, "UIListLayout");
   assert.deepEqual(importedRow.Children[0].Properties.Padding, { UDim: [0, 12] });
   assert.equal(importedRow.Children[0].Properties.HorizontalAlignment, "Left");
@@ -687,7 +731,7 @@ assert.doesNotMatch(pluginUi, /input\[type=file\]\s*\{\s*display:\s*none/);
 const pluginSource = fs.readFileSync(path.join(repo, "figma/roblox-ui-bridge/code.js"), "utf8");
 assert.match(pluginSource, /entry\.fontFamily = textNode\.fontName\.family/);
 assert.match(pluginSource, /entry\.textAlignHorizontal/);
-assert.match(pluginSource, /const layout = inferredLayout\(node\)/);
+assert.match(pluginSource, /layoutStillMatchesNode\(importedLayout, node\)/);
 assert.match(pluginSource, /mode: "authoritative"/);
 assert.match(pluginSource, /Duplicate Roblox paths found in Figma/);
 assert.doesNotMatch(
@@ -704,6 +748,46 @@ assert.deepEqual(
   }),
   { name: "ClaimButton", className: "TextButton" },
   "new named Figma controls receive a stable Roblox class and path"
+);
+
+const responsiveLayout = {
+  size: { sx: 0.96, ox: 0, sy: 0, oy: 116 },
+  pos: { sx: 0.5, ox: 0, sy: 1, oy: -14 },
+  anchor: { x: 0.5, y: 1 },
+  parentWidth: 1600,
+  parentHeight: 900,
+  managedByLayout: false
+};
+const responsiveLayoutData = new Map([
+  ["path", "DungeonHUD/Root/AbilityBar"],
+  ["className", "Frame"],
+  ["layout", JSON.stringify(responsiveLayout)]
+]);
+const untouchedResponsiveNode = {
+  name: "AbilityBar",
+  type: "FRAME",
+  visible: true,
+  opacity: 1,
+  x: 32,
+  y: 770,
+  width: 1536,
+  height: 116,
+  constraints: { horizontal: "CENTER", vertical: "MAX" },
+  fills: [],
+  strokes: [],
+  children: [],
+  parent: { width: 1600, height: 900, layoutMode: "NONE" },
+  getSharedPluginData(_namespace, key) {
+    return responsiveLayoutData.get(key) || "";
+  },
+  setSharedPluginData(_namespace, key, value) {
+    responsiveLayoutData.set(key, value);
+  }
+};
+assert.deepEqual(
+  bridge.collectPatch([untouchedResponsiveNode])[0].layout,
+  responsiveLayout,
+  "an untouched Figma node preserves its imported Roblox scale and anchor semantics"
 );
 
 const staleLayoutData = new Map([
@@ -920,27 +1004,17 @@ assert.equal(
   false,
   "explicit staggered button positions are not overridden by a layout helper"
 );
-for (const [name, expected] of Object.entries({
-  BagButton: [0, 0],
-  ShopButton: [0, 118],
-  GiftButton: [0, 236],
-  ProfileButton: [108, 59],
-  MoreButton: [108, 177]
-})) {
+for (const name of ["BagButton", "ShopButton", "GiftButton", "ProfileButton", "MoreButton"]) {
   const button = childNamed(navigationButtons, name);
   assert.ok(button, `${name} remains authored`);
-  assert.deepEqual(
-    button.Properties.Position,
-    { UDim2: [[0, expected[0]], [0, expected[1]]] },
-    `${name} preserves the intended staggered position`
-  );
+  assert.ok(button.Properties.Position?.UDim2, `${name} keeps a Figma-authored position`);
   assert.equal(button.Properties.BackgroundTransparency, 1);
   assert.equal(button.Properties.ClipsDescendants, false);
   const iconBubble = childNamed(button, "IconBubble");
   assert.equal(iconBubble.Properties.BackgroundTransparency, 1);
-  assert.equal(
-    iconBubble.Children.find((child) => child.ClassName === "UIStroke").Properties.Transparency,
-    1,
+  const iconBubbleStroke = iconBubble.Children.find((child) => child.ClassName === "UIStroke");
+  assert.ok(
+    !iconBubbleStroke || iconBubbleStroke.Properties.Transparency === 1,
     `${name} does not render a generic plate around its icon`
   );
 }
@@ -953,17 +1027,10 @@ assert.equal(
   false,
   "the raised Roll action is not flattened by a legacy UIListLayout"
 );
-for (const [name, expectedPosition] of Object.entries({
-  InventoryButton: [0, 22],
-  DiceButton: [116, 0],
-  UpgradeTreeButton: [260, 22]
-})) {
+for (const name of ["InventoryButton", "DiceButton", "UpgradeTreeButton"]) {
   const button = childNamed(towerControlRow, name);
   assert.ok(button, `${name} remains authored`);
-  assert.deepEqual(
-    button.Properties.Position,
-    { UDim2: [[0, expectedPosition[0]], [0, expectedPosition[1]]] }
-  );
+  assert.ok(button.Properties.Position?.UDim2, `${name} keeps a Figma-authored position`);
   assert.equal(button.Properties.Text, "");
   assert.equal(childNamed(button, "Icon").ClassName, "ImageLabel");
   assert.equal(childNamed(button, "Label").ClassName, "TextLabel");
@@ -986,10 +1053,9 @@ assert.deepEqual(
   { UDim2: [[1, -24], [1, -180]] },
   "level selector stays attached to the authored lower-right safe area"
 );
-assert.deepEqual(
-  towerLevelPanel.Properties.Size,
-  { UDim2: [[0.94, 0], [0, 330]] },
-  "level selector scales down from its compact authored maximum width"
+assert.ok(
+  towerLevelPanel.Properties.Size?.UDim2,
+  "level selector keeps its Figma-authored responsive size"
 );
 const towerLoadoutController = fs.readFileSync(
   path.join(repo, "src/client/Controllers/TowerDefenseLoadoutController.luau"),

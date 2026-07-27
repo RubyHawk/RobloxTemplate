@@ -19,7 +19,9 @@
         "Size": {"UDim2": [[0, 336], [0, 412]]},
         "Visible": false,
         "ZIndex": 20,
-        "BackgroundTransparency": 0.029999971389770508
+        "BackgroundTransparency": 0.029999971389770508,
+        "Rotation": 0,
+        "ClipsDescendants": false
       },
       "Children": [
         {
@@ -31,7 +33,7 @@
         },
         {
           "ClassName": "UIStroke",
-          "Properties": {"Color": [0.16470588743686676, 0.1882352977991104, 0.21960784494876862], "Thickness": 2, "Transparency": 0.24},
+          "Properties": {"Color": [0.16470588743686676, 0.1882352977991104, 0.21960784494876862], "Thickness": 2, "Transparency": 0},
           "Children": []
         },
         {
@@ -50,7 +52,9 @@
             "BackgroundTransparency": 0,
             "AnchorPoint": [0, 0],
             "Position": {"UDim2": [[0, 0], [0, 0]]},
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
           "Children": [
             {
@@ -71,24 +75,31 @@
                 "Size": {"UDim2": [[1, 0], [1, 0]]},
                 "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
                 "TextSize": 30,
-                "TextStrokeColor3": [0.018, 0.045, 0.028],
-                "TextStrokeTransparency": 0.72,
+                "TextStrokeColor3": [0.10196078568696976, 0.06666667014360428, 0.16862745583057404],
+                "TextStrokeTransparency": 1,
                 "AnchorPoint": [0, 0],
                 "Position": {"UDim2": [[0, 0], [0, 0]]},
                 "Visible": true,
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true
               },
-              "Children": []
-            },
-            {
-              "ClassName": "UIGradient",
-              "Properties": {
-                "Color": {
-                  "ColorSequence": {"keypoints": [{"time": 0, "color": [0.16, 0.58, 0.22]}, {"time": 0.45, "color": [0.16, 0.58, 0.22]}, {"time": 1, "color": [1, 0.76, 0.24]}]}
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
                 },
-                "Rotation": 0
-              },
-              "Children": []
+                {
+                  "ClassName": "UIStroke",
+                  "Properties": {"ApplyStrokeMode": "Contextual", "Color": [0.10196078568696976, 0.06666667014360428, 0.16862745583057404], "Transparency": 0, "Thickness": 1},
+                  "Children": []
+                }
+              ]
             }
           ]
         },
@@ -99,12 +110,13 @@
             "BackgroundColor3": [0.9529411792755127, 0.7019608020782471, 0.19607843458652496],
             "BorderSizePixel": 0,
             "Position": {"UDim2": [[1, -8], [0, -14]]},
-            "Rotation": 12,
+            "Rotation": 0,
             "Size": {"UDim2": [[0, 76], [0, 34]]},
             "Visible": false,
             "ZIndex": 25,
             "BackgroundTransparency": 0,
-            "AnchorPoint": [1, 0]
+            "AnchorPoint": [1, 0],
+            "ClipsDescendants": false
           },
           "Children": [
             {
@@ -133,9 +145,22 @@
                 "AnchorPoint": [0, 0],
                 "Position": {"UDim2": [[0, 0], [0, 0]]},
                 "Visible": true,
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             }
           ]
         },
@@ -146,12 +171,13 @@
             "BackgroundColor3": [0.125490203499794, 0.1411764770746231, 0.16470588743686676],
             "BorderSizePixel": 0,
             "Position": {"UDim2": [[0, 8], [0, -14]]},
-            "Rotation": -8,
+            "Rotation": 0,
             "Size": {"UDim2": [[0, 124], [0, 30]]},
             "Visible": false,
             "ZIndex": 25,
             "BackgroundTransparency": 0,
-            "AnchorPoint": [0, 0]
+            "AnchorPoint": [0, 0],
+            "ClipsDescendants": false
           },
           "Children": [
             {
@@ -180,9 +206,22 @@
                 "AnchorPoint": [0, 0],
                 "Position": {"UDim2": [[0, 0], [0, 0]]},
                 "Visible": true,
-                "TextXAlignment": "Center"
+                "TextXAlignment": "Center",
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             }
           ]
         },
@@ -198,12 +237,24 @@
             "Size": {"UDim2": [[1, 0], [0, 86]]},
             "TextColor3": [1, 0.7599999904632568, 0.23999999463558197],
             "TextSize": 72,
-            "TextStrokeTransparency": 0.45,
+            "TextStrokeTransparency": 1,
             "AnchorPoint": [0, 0],
             "Visible": true,
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "GlyphImage",
@@ -217,9 +268,24 @@
             "ZIndex": 21,
             "Position": {"UDim2": [[0, 0], [0, 86]]},
             "Size": {"UDim2": [[1, 0], [0, 78]]},
-            "AnchorPoint": [0, 0]
+            "AnchorPoint": [0, 0],
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            },
+            {
+              "ClassName": "UIStroke",
+              "Properties": {"Color": [0.49000000953674316, 0.23000000417232513, 0.9300000071525574], "Transparency": 0, "Thickness": 1},
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "RuneName",
@@ -233,12 +299,30 @@
             "Size": {"UDim2": [[1, -36], [0, 38]]},
             "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
             "TextSize": 28,
-            "TextStrokeTransparency": 0.72,
+            "TextStrokeTransparency": 1,
             "AnchorPoint": [0, 0.5],
             "Visible": true,
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true,
+            "TextStrokeColor3": [0.0313725508749485, 0.03921568766236305, 0.05098039284348488]
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            },
+            {
+              "ClassName": "UIStroke",
+              "Properties": {"ApplyStrokeMode": "Contextual", "Color": [0.0313725508749485, 0.03921568766236305, 0.05098039284348488], "Transparency": 0, "Thickness": 1},
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "BonusLine",
@@ -252,12 +336,24 @@
             "Size": {"UDim2": [[1, -36], [0, 30]]},
             "TextColor3": [0.843137264251709, 0.7647058963775635, 1],
             "TextSize": 18,
-            "TextStrokeTransparency": 0.72,
+            "TextStrokeTransparency": 1,
             "AnchorPoint": [0, 0.5],
             "Visible": true,
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "OwnedLine",
@@ -271,12 +367,24 @@
             "Size": {"UDim2": [[1, -24], [0, 26]]},
             "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
             "TextSize": 15,
-            "TextStrokeTransparency": 0.72,
+            "TextStrokeTransparency": 1,
             "AnchorPoint": [0, 0],
             "Visible": true,
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "MilestoneLine",
@@ -290,12 +398,24 @@
             "Size": {"UDim2": [[1, -24], [0, 24]]},
             "TextColor3": [0.9529411792755127, 0.7019608020782471, 0.19607843458652496],
             "TextSize": 14,
-            "TextStrokeTransparency": 0.72,
+            "TextStrokeTransparency": 1,
             "Visible": false,
             "AnchorPoint": [0, 0],
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "TotalLine",
@@ -309,12 +429,24 @@
             "Size": {"UDim2": [[1, -24], [0, 28]]},
             "TextColor3": [0.9137254953384399, 0.929411768913269, 0.9529411792755127],
             "TextSize": 16,
-            "TextStrokeTransparency": 0.72,
+            "TextStrokeTransparency": 1,
             "AnchorPoint": [0, 0],
             "Visible": true,
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "NextCostLine",
@@ -328,12 +460,24 @@
             "Size": {"UDim2": [[1, -24], [0, 28]]},
             "TextColor3": [0.9607843160629272, 0.7647058963775635, 0.2823529541492462],
             "TextSize": 16,
-            "TextStrokeTransparency": 0.72,
+            "TextStrokeTransparency": 1,
             "AnchorPoint": [0, 0],
             "Visible": true,
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "GlassArtwork",
@@ -348,9 +492,24 @@
             "Size": {"UDim2": [[1, -36], [0, 170]]},
             "ZIndex": 20,
             "AnchorPoint": [0, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 7]}
+              },
+              "Children": []
+            },
+            {
+              "ClassName": "UIStroke",
+              "Properties": {"Color": [0.20392157137393951, 0.22745098173618317, 0.26274511218070984], "Transparency": 0, "Thickness": 1},
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "RuneHalo",
@@ -365,9 +524,19 @@
             "ScaleType": "Fit",
             "Size": {"UDim2": [[0, 118], [0, 118]]},
             "ZIndex": 20,
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "CornerGem",
@@ -382,9 +551,24 @@
             "Size": {"UDim2": [[0, 64], [0, 64]]},
             "ZIndex": 26,
             "AnchorPoint": [0, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 8]}
+              },
+              "Children": []
+            },
+            {
+              "ClassName": "UIStroke",
+              "Properties": {"Color": [0.6627451181411743, 0.5411764979362488, 0.9098039269447327], "Transparency": 0, "Thickness": 1},
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "BottomGlow",
@@ -397,7 +581,9 @@
             "Size": {"UDim2": [[1, -48], [0, 5]]},
             "ZIndex": 21,
             "AnchorPoint": [0, 1],
-            "Visible": false
+            "Visible": false,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
           "Children": [
             {
@@ -422,7 +608,9 @@
         "Size": {"UDim2": [[0, 286], [0, 352]]},
         "Visible": false,
         "ZIndex": 10,
-        "BackgroundTransparency": 0.029999971389770508
+        "BackgroundTransparency": 0.029999971389770508,
+        "Rotation": 0,
+        "ClipsDescendants": false
       },
       "Children": [
         {
@@ -434,7 +622,7 @@
         },
         {
           "ClassName": "UIStroke",
-          "Properties": {"Color": [0.16470588743686676, 0.1882352977991104, 0.21960784494876862], "Thickness": 2, "Transparency": 0.36},
+          "Properties": {"Color": [0.16470588743686676, 0.1882352977991104, 0.21960784494876862], "Thickness": 2, "Transparency": 0},
           "Children": []
         },
         {
@@ -449,12 +637,24 @@
             "Size": {"UDim2": [[1, -44], [0, 28]]},
             "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
             "TextSize": 24,
-            "TextStrokeTransparency": 0.72,
+            "TextStrokeTransparency": 1,
             "TextXAlignment": "Left",
             "AnchorPoint": [0, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "RarityRow1",
@@ -467,7 +667,9 @@
             "BackgroundColor3": [0.10196078568696976, 0.11372549086809158, 0.13333334028720856],
             "BorderSizePixel": 0,
             "AnchorPoint": [0, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
           "Children": [
             {
@@ -481,7 +683,9 @@
                 "Size": {"UDim2": [[0, 16], [0, 16]]},
                 "ZIndex": 12,
                 "Visible": true,
-                "BackgroundTransparency": 0
+                "BackgroundTransparency": 0,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
@@ -507,9 +711,22 @@
                 "TextSize": 13,
                 "TextXAlignment": "Left",
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "OddsLabel",
@@ -525,9 +742,22 @@
                 "TextSize": 13,
                 "TextXAlignment": "Right",
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "OwnedLabel",
@@ -543,9 +773,22 @@
                 "TextSize": 13,
                 "TextXAlignment": "Right",
                 "AnchorPoint": [1, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "ClassName": "UICorner",
@@ -567,7 +810,9 @@
             "BackgroundColor3": [0.08235294371843338, 0.0941176488995552, 0.11372549086809158],
             "BorderSizePixel": 0,
             "AnchorPoint": [0, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
           "Children": [
             {
@@ -581,7 +826,9 @@
                 "Size": {"UDim2": [[0, 16], [0, 16]]},
                 "ZIndex": 12,
                 "Visible": true,
-                "BackgroundTransparency": 0
+                "BackgroundTransparency": 0,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
@@ -607,9 +854,22 @@
                 "TextSize": 13,
                 "TextXAlignment": "Left",
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "OddsLabel",
@@ -625,9 +885,22 @@
                 "TextSize": 13,
                 "TextXAlignment": "Right",
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "OwnedLabel",
@@ -643,9 +916,22 @@
                 "TextSize": 13,
                 "TextXAlignment": "Right",
                 "AnchorPoint": [1, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "ClassName": "UICorner",
@@ -667,7 +953,9 @@
             "BackgroundColor3": [0.10196078568696976, 0.11372549086809158, 0.13333334028720856],
             "BorderSizePixel": 0,
             "AnchorPoint": [0, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
           "Children": [
             {
@@ -681,7 +969,9 @@
                 "Size": {"UDim2": [[0, 16], [0, 16]]},
                 "ZIndex": 12,
                 "Visible": true,
-                "BackgroundTransparency": 0
+                "BackgroundTransparency": 0,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
@@ -707,9 +997,22 @@
                 "TextSize": 13,
                 "TextXAlignment": "Left",
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "OddsLabel",
@@ -725,9 +1028,22 @@
                 "TextSize": 13,
                 "TextXAlignment": "Right",
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "OwnedLabel",
@@ -743,9 +1059,22 @@
                 "TextSize": 13,
                 "TextXAlignment": "Right",
                 "AnchorPoint": [1, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "ClassName": "UICorner",
@@ -767,7 +1096,9 @@
             "BackgroundColor3": [0.08235294371843338, 0.0941176488995552, 0.11372549086809158],
             "BorderSizePixel": 0,
             "AnchorPoint": [0, 0.5],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
           "Children": [
             {
@@ -781,7 +1112,9 @@
                 "Size": {"UDim2": [[0, 16], [0, 16]]},
                 "ZIndex": 12,
                 "Visible": true,
-                "BackgroundTransparency": 0
+                "BackgroundTransparency": 0,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
@@ -807,9 +1140,22 @@
                 "TextSize": 13,
                 "TextXAlignment": "Left",
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "OddsLabel",
@@ -825,9 +1171,22 @@
                 "TextSize": 13,
                 "TextXAlignment": "Right",
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "OwnedLabel",
@@ -843,9 +1202,22 @@
                 "TextSize": 13,
                 "TextXAlignment": "Right",
                 "AnchorPoint": [1, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "ClassName": "UICorner",
@@ -867,7 +1239,9 @@
             "BackgroundColor3": [0.10196078568696976, 0.11372549086809158, 0.13333334028720856],
             "BorderSizePixel": 0,
             "AnchorPoint": [0, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
           "Children": [
             {
@@ -881,7 +1255,9 @@
                 "Size": {"UDim2": [[0, 16], [0, 16]]},
                 "ZIndex": 12,
                 "Visible": true,
-                "BackgroundTransparency": 0
+                "BackgroundTransparency": 0,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
@@ -907,9 +1283,22 @@
                 "TextSize": 13,
                 "TextXAlignment": "Left",
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "OddsLabel",
@@ -925,9 +1314,22 @@
                 "TextSize": 13,
                 "TextXAlignment": "Right",
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "OwnedLabel",
@@ -943,9 +1345,22 @@
                 "TextSize": 13,
                 "TextXAlignment": "Right",
                 "AnchorPoint": [1, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "ClassName": "UICorner",
@@ -967,7 +1382,9 @@
             "BackgroundColor3": [0.08235294371843338, 0.0941176488995552, 0.11372549086809158],
             "BorderSizePixel": 0,
             "AnchorPoint": [0, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
           "Children": [
             {
@@ -981,7 +1398,9 @@
                 "Size": {"UDim2": [[0, 16], [0, 16]]},
                 "ZIndex": 12,
                 "Visible": true,
-                "BackgroundTransparency": 0
+                "BackgroundTransparency": 0,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
@@ -1007,9 +1426,22 @@
                 "TextSize": 13,
                 "TextXAlignment": "Left",
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "OddsLabel",
@@ -1025,9 +1457,22 @@
                 "TextSize": 13,
                 "TextXAlignment": "Right",
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "OwnedLabel",
@@ -1043,9 +1488,22 @@
                 "TextSize": 13,
                 "TextXAlignment": "Right",
                 "AnchorPoint": [1, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true,
+                "TextStrokeTransparency": 1
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "ClassName": "UICorner",
@@ -1070,9 +1528,22 @@
             "TextSize": 17,
             "AnchorPoint": [0, 1],
             "Visible": true,
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true,
+            "TextStrokeTransparency": 1
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "RestrictedNote",
@@ -1091,9 +1562,21 @@
             "Visible": false,
             "ZIndex": 14,
             "AnchorPoint": [0, 0.5],
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextStrokeTransparency": 1
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "OddsArtwork",
@@ -1108,9 +1591,24 @@
             "Size": {"UDim2": [[0, 82], [0, 82]]},
             "ZIndex": 10,
             "AnchorPoint": [1, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            },
+            {
+              "ClassName": "UIStroke",
+              "Properties": {"Color": [0.49000000953674316, 0.23000000417232513, 0.9300000071525574], "Transparency": 0, "Thickness": 1},
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "OddsRail",
@@ -1123,7 +1621,9 @@
             "Size": {"UDim2": [[0, 4], [1, -92]]},
             "ZIndex": 11,
             "AnchorPoint": [0, 0],
-            "Visible": false
+            "Visible": false,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
           "Children": [
             {
@@ -1147,12 +1647,24 @@
             "Size": {"UDim2": [[1, -44], [0, 24]]},
             "TextColor3": [1, 0.7599999904632568, 0.23999999463558197],
             "TextSize": 14,
-            "TextStrokeTransparency": 0.72,
+            "TextStrokeTransparency": 1,
             "TextXAlignment": "Left",
             "Visible": false,
-            "AnchorPoint": [0, 0]
+            "AnchorPoint": [0, 0],
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         }
       ]
     },
@@ -1167,7 +1679,9 @@
         "Size": {"UDim2": [[0, 212], [0, 44]]},
         "Visible": false,
         "ZIndex": 6,
-        "BackgroundTransparency": 0
+        "BackgroundTransparency": 0,
+        "Rotation": 0,
+        "ClipsDescendants": false
       },
       "Children": [
         {
@@ -1179,7 +1693,7 @@
         },
         {
           "ClassName": "UIStroke",
-          "Properties": {"Color": [0.22745098173618317, 0.2549019753932953, 0.29019609093666077], "Thickness": 1, "Transparency": 0.3},
+          "Properties": {"Color": [0.22745098173618317, 0.2549019753932953, 0.29019609093666077], "Thickness": 1, "Transparency": 0},
           "Children": []
         },
         {
@@ -1193,13 +1707,25 @@
             "Size": {"UDim2": [[1, 0], [1, 0]]},
             "TextColor3": [0.8600000143051147, 1, 0.7799999713897705],
             "TextSize": 14,
-            "TextStrokeTransparency": 0.72,
+            "TextStrokeTransparency": 1,
             "AnchorPoint": [0, 0],
             "Position": {"UDim2": [[0, 0], [0, 0]]},
             "Visible": true,
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         }
       ]
     },
@@ -1214,7 +1740,9 @@
         "Position": {"UDim2": [[1, -18], [1, -88]]},
         "Size": {"UDim2": [[0, 286], [0, 176]]},
         "Visible": false,
-        "ZIndex": 10
+        "ZIndex": 10,
+        "Rotation": 0,
+        "ClipsDescendants": false
       },
       "Children": [
         {
@@ -1226,7 +1754,7 @@
         },
         {
           "ClassName": "UIStroke",
-          "Properties": {"Color": [0.16470588743686676, 0.1882352977991104, 0.21960784494876862], "Thickness": 2, "Transparency": 0.24},
+          "Properties": {"Color": [0.16470588743686676, 0.1882352977991104, 0.21960784494876862], "Thickness": 2, "Transparency": 0},
           "Children": []
         },
         {
@@ -1241,12 +1769,24 @@
             "Size": {"UDim2": [[1, -28], [0, 20]]},
             "TextColor3": [1, 0.9725490212440491, 0.9137254953384399],
             "TextSize": 17,
-            "TextStrokeTransparency": 0.72,
+            "TextStrokeTransparency": 1,
             "TextXAlignment": "Left",
             "AnchorPoint": [0, 0],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true
           },
-          "Children": []
+          "Children": [
+            {
+              "ClassName": "UICorner",
+              "Properties": {
+                "CornerRadius": {"UDim": [0, 0]}
+              },
+              "Children": []
+            }
+          ]
         },
         {
           "Name": "ModeButton1",
@@ -1265,7 +1805,12 @@
             "TextSize": 16,
             "TextColor3": [0.05999999865889549, 0.05000000074505806, 0.11999999731779099],
             "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true,
+            "TextStrokeTransparency": 1
           },
           "Children": [
             {
@@ -1286,7 +1831,9 @@
                 "Visible": false,
                 "ZIndex": 12,
                 "AnchorPoint": [0, 0],
-                "BackgroundTransparency": 0
+                "BackgroundTransparency": 0,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
@@ -1310,12 +1857,24 @@
                 "Size": {"UDim2": [[1, -70], [1, 0]]},
                 "TextColor3": [0.8600000143051147, 1, 0.7799999713897705],
                 "TextSize": 15,
-                "TextStrokeTransparency": 0.72,
+                "TextStrokeTransparency": 1,
                 "TextXAlignment": "Left",
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "LockLabel",
@@ -1329,12 +1888,24 @@
                 "Size": {"UDim2": [[0, 50], [1, 0]]},
                 "TextColor3": [0.5799999833106995, 0.949999988079071, 0.5600000023841858],
                 "TextSize": 13,
-                "TextStrokeTransparency": 0.72,
+                "TextStrokeTransparency": 1,
                 "TextXAlignment": "Right",
                 "Visible": false,
-                "AnchorPoint": [1, 0]
+                "AnchorPoint": [1, 0],
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             }
           ]
         },
@@ -1355,7 +1926,12 @@
             "TextSize": 16,
             "TextColor3": [0.05999999865889549, 0.05000000074505806, 0.11999999731779099],
             "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true,
+            "TextStrokeTransparency": 1
           },
           "Children": [
             {
@@ -1376,7 +1952,9 @@
                 "Visible": false,
                 "ZIndex": 12,
                 "AnchorPoint": [0, 0],
-                "BackgroundTransparency": 0
+                "BackgroundTransparency": 0,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
@@ -1400,12 +1978,24 @@
                 "Size": {"UDim2": [[1, -70], [1, 0]]},
                 "TextColor3": [0.8600000143051147, 1, 0.7799999713897705],
                 "TextSize": 15,
-                "TextStrokeTransparency": 0.72,
+                "TextStrokeTransparency": 1,
                 "TextXAlignment": "Left",
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "LockLabel",
@@ -1419,12 +2009,24 @@
                 "Size": {"UDim2": [[0, 50], [1, 0]]},
                 "TextColor3": [0.5799999833106995, 0.949999988079071, 0.5600000023841858],
                 "TextSize": 13,
-                "TextStrokeTransparency": 0.72,
+                "TextStrokeTransparency": 1,
                 "TextXAlignment": "Right",
                 "Visible": false,
-                "AnchorPoint": [1, 0]
+                "AnchorPoint": [1, 0],
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             }
           ]
         },
@@ -1445,7 +2047,12 @@
             "TextSize": 16,
             "TextColor3": [0.05999999865889549, 0.05000000074505806, 0.11999999731779099],
             "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true,
+            "TextStrokeTransparency": 1
           },
           "Children": [
             {
@@ -1466,7 +2073,9 @@
                 "Visible": false,
                 "ZIndex": 12,
                 "AnchorPoint": [0, 0],
-                "BackgroundTransparency": 0
+                "BackgroundTransparency": 0,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
@@ -1490,12 +2099,24 @@
                 "Size": {"UDim2": [[1, -70], [1, 0]]},
                 "TextColor3": [0.8600000143051147, 1, 0.7799999713897705],
                 "TextSize": 15,
-                "TextStrokeTransparency": 0.72,
+                "TextStrokeTransparency": 1,
                 "TextXAlignment": "Left",
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "LockLabel",
@@ -1509,12 +2130,24 @@
                 "Size": {"UDim2": [[0, 50], [1, 0]]},
                 "TextColor3": [0.5799999833106995, 0.949999988079071, 0.5600000023841858],
                 "TextSize": 13,
-                "TextStrokeTransparency": 0.72,
+                "TextStrokeTransparency": 1,
                 "TextXAlignment": "Right",
                 "Visible": false,
-                "AnchorPoint": [1, 0]
+                "AnchorPoint": [1, 0],
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             }
           ]
         },
@@ -1535,7 +2168,12 @@
             "TextSize": 16,
             "TextColor3": [0.05999999865889549, 0.05000000074505806, 0.11999999731779099],
             "FontFace": {"family": "rbxasset://fonts/families/Nunito.json", "weight": "ExtraBold", "style": "Normal"},
-            "TextXAlignment": "Center"
+            "TextXAlignment": "Center",
+            "Rotation": 0,
+            "ClipsDescendants": false,
+            "TextYAlignment": "Center",
+            "TextWrapped": true,
+            "TextStrokeTransparency": 1
           },
           "Children": [
             {
@@ -1556,7 +2194,9 @@
                 "Visible": false,
                 "ZIndex": 12,
                 "AnchorPoint": [0, 0],
-                "BackgroundTransparency": 0
+                "BackgroundTransparency": 0,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
@@ -1580,12 +2220,24 @@
                 "Size": {"UDim2": [[1, -70], [1, 0]]},
                 "TextColor3": [0.8600000143051147, 1, 0.7799999713897705],
                 "TextSize": 15,
-                "TextStrokeTransparency": 0.72,
+                "TextStrokeTransparency": 1,
                 "TextXAlignment": "Left",
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "LockLabel",
@@ -1599,12 +2251,24 @@
                 "Size": {"UDim2": [[0, 50], [1, 0]]},
                 "TextColor3": [0.5799999833106995, 0.949999988079071, 0.5600000023841858],
                 "TextSize": 13,
-                "TextStrokeTransparency": 0.72,
+                "TextStrokeTransparency": 1,
                 "TextXAlignment": "Right",
                 "Visible": false,
-                "AnchorPoint": [1, 0]
+                "AnchorPoint": [1, 0],
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             }
           ]
         },
@@ -1619,7 +2283,9 @@
             "Size": {"UDim2": [[1, -28], [0, 24]]},
             "ZIndex": 11,
             "AnchorPoint": [0, 1],
-            "Visible": true
+            "Visible": true,
+            "Rotation": 0,
+            "ClipsDescendants": false
           },
           "Children": [
             {
@@ -1640,7 +2306,9 @@
                 "Size": {"UDim2": [[0, 1], [1, 0]]},
                 "ZIndex": 12,
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false
               },
               "Children": [
                 {
@@ -1664,12 +2332,24 @@
                 "Size": {"UDim2": [[0.5, -10], [1, 0]]},
                 "TextColor3": [0.8600000143051147, 1, 0.7799999713897705],
                 "TextSize": 13,
-                "TextStrokeTransparency": 0.72,
+                "TextStrokeTransparency": 1,
                 "TextXAlignment": "Left",
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             },
             {
               "Name": "NextLabel",
@@ -1683,12 +2363,24 @@
                 "Size": {"UDim2": [[0.5, -10], [1, 0]]},
                 "TextColor3": [0.8600000143051147, 1, 0.7799999713897705],
                 "TextSize": 13,
-                "TextStrokeTransparency": 0.72,
+                "TextStrokeTransparency": 1,
                 "TextXAlignment": "Right",
                 "AnchorPoint": [0, 0],
-                "Visible": true
+                "Visible": true,
+                "Rotation": 0,
+                "ClipsDescendants": false,
+                "TextYAlignment": "Center",
+                "TextWrapped": true
               },
-              "Children": []
+              "Children": [
+                {
+                  "ClassName": "UICorner",
+                  "Properties": {
+                    "CornerRadius": {"UDim": [0, 0]}
+                  },
+                  "Children": []
+                }
+              ]
             }
           ]
         }

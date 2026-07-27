@@ -734,6 +734,46 @@ function storedProperties(node) {
   }
 }
 
+function storedLayout(node) {
+  if (!node.getSharedPluginData) return null;
+  const raw = node.getSharedPluginData(NAMESPACE, "layout");
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && parsed.size && parsed.pos && parsed.anchor ? parsed : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function layoutStillMatchesNode(layout, node) {
+  const parentWidth = Number(layout.parentWidth);
+  const parentHeight = Number(layout.parentHeight);
+  if (!Number.isFinite(parentWidth) || !Number.isFinite(parentHeight)) return false;
+  const width = parentWidth * Number(layout.size.sx || 0) + Number(layout.size.ox || 0);
+  const height = parentHeight * Number(layout.size.sy || 0) + Number(layout.size.oy || 0);
+  const x = parentWidth * Number(layout.pos.sx || 0)
+    + Number(layout.pos.ox || 0)
+    - Number(layout.anchor.x || 0) * width;
+  const y = parentHeight * Number(layout.pos.sy || 0)
+    + Number(layout.pos.oy || 0)
+    - Number(layout.anchor.y || 0) * height;
+  const tolerance = 2;
+  const geometryMatches = Math.abs(Number(node.width) - width) <= tolerance
+    && Math.abs(Number(node.height) - height) <= tolerance
+    && (
+      layout.managedByLayout
+      || (
+        Math.abs(Number(node.x) - x) <= tolerance
+        && Math.abs(Number(node.y) - y) <= tolerance
+      )
+    );
+  if (!geometryMatches) return false;
+  const constraints = node.constraints || { horizontal: "MIN", vertical: "MIN" };
+  return constraints.horizontal === constraint(layout.pos.sx, layout.size.sx, layout.anchor.x)
+    && constraints.vertical === constraint(layout.pos.sy, layout.size.sy, layout.anchor.y);
+}
+
 function collectPatch(nodes) {
   const entries = [];
   const visit = (node, parentPath = "") => {
@@ -765,11 +805,13 @@ function collectPatch(nodes) {
       }
     }
     if (path) {
-      // Figma is the visual source of truth after import. Stored layout data
-      // describes the Roblox model as it looked at import time and becomes
-      // stale as soon as a designer moves, resizes, or removes auto-layout
-      // from a node. Always export the node's current constraints/geometry.
-      const layout = inferredLayout(node);
+      // Preserve Roblox scale/anchor semantics while the Figma node still has
+      // the imported geometry and constraints. Once a designer actually moves,
+      // resizes, or re-constrains it, infer a fresh layout from Figma.
+      const importedLayout = storedLayout(node);
+      const layout = importedLayout && layoutStillMatchesNode(importedLayout, node)
+        ? importedLayout
+        : inferredLayout(node);
       storeMetadata(node, { path, className, layout });
       const preserved = storedProperties(node);
       const entry = {
@@ -1059,6 +1101,8 @@ if (typeof module !== "undefined" && module.exports) {
     figmaGradientTransform,
     gradientEntryFromPaint,
     robloxGradientPaint,
+    storedLayout,
+    layoutStillMatchesNode,
     storedProperties,
     singleWorkspaceId,
     surfacePixelsFromPart,
