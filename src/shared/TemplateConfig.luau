@@ -7,6 +7,7 @@ local DungeonConfig = require(script.Parent.DungeonConfig)
 local IconAssets = require(script.Parent.IconAssets)
 local RuneModeConfig = require(script.Parent.RuneModeConfig)
 local StagePlatformLayout = require(script.Parent.StagePlatformLayout)
+local StageWaveDefaults = require(script.Parent.StageWaveDefaults)
 
 local configuredCurrencies = CurrencyConfig.normalize(DesignerConfig.currencies)
 local dataNamespace = DataStoreNames.validateNamespace(DesignerConfig.dataNamespace)
@@ -230,6 +231,10 @@ local Config = {
 		networkSnapshotHz = 4,
 		maximumEnemiesPerPlayer = 500,
 		armoredDamageMultiplier = 0.6,
+		-- Fallback loop growth for wave sets that predate authored curves, and
+		-- for the legacy catalog waves. Authored wave sets carry their own curve
+		-- and ignore this entirely.
+		waveLoopScaling = StageWaveDefaults.defaultLoopScaling(),
 		starterLevelsPerStage = 10,
 		levelSelectorSlots = 10,
 		requirePlatformOnJoin = designerTowerDefense.requirePlatformOnJoin ~= false,

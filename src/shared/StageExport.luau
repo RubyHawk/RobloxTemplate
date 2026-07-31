@@ -169,8 +169,19 @@ local function projectMap(map: any): StageTypes.RuntimeMapDefinition
 	}
 end
 
-local ENEMY_TYPE_FIELDS =
-	{ "id", "name", "tags", "health", "speed", "reward", "baseDamage", "modelId", "renderScale", "tint" }
+local ENEMY_TYPE_FIELDS = {
+	"id",
+	"name",
+	"tags",
+	"health",
+	"speed",
+	"reward",
+	"baseDamage",
+	"modelId",
+	"renderScale",
+	"tint",
+	"animations",
+}
 local WAVE_ENTRY_FIELDS = {
 	"enemyTypeId",
 	"count",
@@ -184,6 +195,16 @@ local WAVE_ENTRY_FIELDS = {
 local function projectEnemyType(enemyType: any): StageTypes.EnemyTypeDefinition
 	return copyFields(enemyType, ENEMY_TYPE_FIELDS) :: StageTypes.EnemyTypeDefinition
 end
+
+local LOOP_SCALING_FIELDS = {
+	"curve",
+	"healthPerLoop",
+	"rewardPerLoop",
+	"speedPerLoop",
+	"countPerLoop",
+	"spacingPerLoop",
+	"bossEveryWaves",
+}
 
 local function projectWaveSet(waveSet: any): StageTypes.WaveSetDefinition
 	local waves: { StageTypes.WaveDefinition } = {}
@@ -204,6 +225,8 @@ local function projectWaveSet(waveSet: any): StageTypes.WaveSetDefinition
 		id = waveSet.id,
 		name = waveSet.name,
 		waves = waves,
+		endless = waveSet.endless == true,
+		loopScaling = copyFields(waveSet.loopScaling, LOOP_SCALING_FIELDS) :: StageTypes.WaveLoopScaling,
 	}
 end
 

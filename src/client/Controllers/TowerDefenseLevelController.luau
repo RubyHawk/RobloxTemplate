@@ -122,14 +122,24 @@ local function refresh()
 		else 0
 	local enemyCount = if type(state.enemies) == "table" then #state.enemies else 0
 	local waveRunning = state.waveRunning == true
-	statusLabel.Text = `{activeName}  |  WAVE {wave}/{waveCount}  |  BASE {baseHealth}/{maxBaseHealth}`
-	detailLabel.Text = if waveRunning
-		then `{enemyCount} enemies alive - clear the wave or reset to change levels`
+	-- An endless set has no last wave, so a denominator would be a lie once the
+	-- run loops past it. Show the bare wave number and the loop it belongs to.
+	local waveLoop = if type(state.waveLoop) == "number" then math.max(math.floor(state.waveLoop), 1) else 1
+	local runComplete = state.runComplete == true
+	local waveText = if runComplete
+		then `COMPLETE  {wave}/{waveCount}`
+		elseif state.waveEndless == false and waveCount > 0 then `WAVE {wave}/{waveCount}`
+		elseif waveLoop > 1 then `WAVE {wave}  (LOOP {waveLoop})`
+		else `WAVE {wave}`
+	statusLabel.Text = `{activeName}  |  {waveText}  |  BASE {baseHealth}/{maxBaseHealth}`
+	detailLabel.Text = if runComplete
+		then "Level complete - reset to play it again or pick another level"
+		elseif waveRunning then `{enemyCount} enemies alive - clear the wave or reset to change levels`
 		else "Choose units below, then place manually or auto-place"
 
 	setActionEnabled(rollButton, not waveRunning, Color3.fromRGB(73, 116, 195))
 	setActionEnabled(autoPlaceButton, not waveRunning, Color3.fromRGB(72, 132, 196))
-	setActionEnabled(startWaveButton, not waveRunning, START_COLOR)
+	setActionEnabled(startWaveButton, not waveRunning and not runComplete, START_COLOR)
 	setActionEnabled(resetButton, true, Color3.fromRGB(168, 73, 81))
 	screenGui.Enabled = true
 end

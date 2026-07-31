@@ -125,6 +125,14 @@ export type EnemyTint = {
 	b: number,
 }
 
+-- Animation overrides for an enemy rig. An empty id means "use whatever the rig
+-- model declares under its own Animations folder", so a character asset that
+-- ships with animations needs no authoring at all.
+export type EnemyAnimations = {
+	walkId: string,
+	deathId: string,
+}
+
 export type EnemyTypeDefinition = {
 	id: string,
 	name: string,
@@ -136,6 +144,7 @@ export type EnemyTypeDefinition = {
 	modelId: string,
 	renderScale: number,
 	tint: EnemyTint?,
+	animations: EnemyAnimations?,
 }
 
 export type WaveEntryDefinition = {
@@ -153,10 +162,30 @@ export type WaveDefinition = {
 	isBoss: boolean?,
 }
 
+-- Growth applied once per completed loop of the authored waves. Linear adds
+-- `rate * loops`; Exponential compounds `(1 + rate) ^ loops`. Spacing is the one
+-- inverted axis: its rate tightens the gap between spawns instead of widening
+-- it, so every rate reads as "more difficulty" at higher values.
+export type WaveLoopCurve = "Linear" | "Exponential"
+
+export type WaveLoopScaling = {
+	curve: WaveLoopCurve,
+	healthPerLoop: number,
+	rewardPerLoop: number,
+	speedPerLoop: number,
+	countPerLoop: number,
+	spacingPerLoop: number,
+	bossEveryWaves: number,
+}
+
+-- `endless` and `loopScaling` are optional at runtime because generated bundles
+-- predating schema 6 do not carry them; TowerDefenseWaves resolves the fallback.
 export type WaveSetDefinition = {
 	id: string,
 	name: string,
 	waves: { WaveDefinition },
+	endless: boolean?,
+	loopScaling: WaveLoopScaling?,
 }
 
 export type MapDefinition = {

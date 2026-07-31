@@ -71,6 +71,9 @@ type MatchState = {
 	spawnStreams: { TowerDefenseWaves.SpawnStream },
 	waveIsBoss: boolean,
 	waveCount: number,
+	waveEndless: boolean,
+	waveScaling: TowerDefenseWaves.WaveScaling,
+	runComplete: boolean,
 	stageId: string,
 	graphId: string,
 	graph: any?,
@@ -159,6 +162,9 @@ local function defaultMatch(): MatchState
 		spawnStreams = {},
 		waveIsBoss = false,
 		waveCount = 0,
+		waveEndless = true,
+		waveScaling = TowerDefenseWaves.baseScaling(),
+		runComplete = false,
 		stageId = "",
 		graphId = "",
 		graph = nil,
@@ -515,29 +521,42 @@ local function enemyDefinitionFor(enemyTypeId: string): StageTypes.EnemyTypeDefi
 	}
 end
 
+-- Aborting stops the simulation for this match, so no enemy may survive it: the
+-- fixed-step loop skips matches that are not running, which would otherwise
+-- freeze live enemies in place, keep them counted against the enemy cap, and
+-- leave the wave unable to ever complete.
 local function abortWave(match: MatchState)
 	match.waveRunning = false
 	table.clear(match.spawnStreams)
+	table.clear(match.enemies)
+	table.clear(match.enemyOrder)
 end
 
-local function spawnEnemy(player: Player, match: MatchState, stream: TowerDefenseWaves.SpawnStream): boolean
+-- "Deferred" is backpressure, not an error: the field is momentarily full, so
+-- the stream keeps its pending spawns and retries on a later step. Only a
+-- genuinely unplayable wave returns "Failed" and aborts.
+type SpawnOutcome = "Spawned" | "Deferred" | "Failed"
+
+local function spawnEnemy(
+	player: Player,
+	match: MatchState,
+	stream: TowerDefenseWaves.SpawnStream
+): SpawnOutcome
 	local enemyDefinition = enemyDefinitionFor(stream.enemyTypeId)
 	local graph = match.graph
 	if enemyDefinition == nil or graph == nil then
 		warn(`Tower defense spawn rejected: unknown enemy type {stream.enemyTypeId}`)
 		abortWave(match)
-		return false
+		return "Failed"
 	end
 	if #match.enemyOrder >= Config.towerDefense.maximumEnemiesPerPlayer then
-		warn(`Tower defense spawn rejected: enemy cap reached for {player.Name}`)
-		abortWave(match)
-		return false
+		return "Deferred"
 	end
 	local spawnNodes = StageRuntimeService.spawnNodes(graph)
 	if #spawnNodes == 0 then
 		warn(`Tower defense graph {match.graphId} has no spawn node`)
 		abortWave(match)
-		return false
+		return "Failed"
 	end
 	local enemySequence = match.nextEnemyId + 1
 	local spawnNode = spawnNodes[StageLanes.index(enemySequence, #spawnNodes)]
@@ -549,7 +568,7 @@ local function spawnEnemy(player: Player, match: MatchState, stream: TowerDefens
 	if firstEdge == nil then
 		warn(`Tower defense route failed at {spawnNode.id}: {reason or "no eligible edge"}`)
 		abortWave(match)
-		return false
+		return "Failed"
 	end
 	local laneProfile = graph.laneProfiles[firstEdge.laneProfileId]
 	local laneCount = if laneProfile ~= nil and #laneProfile.offsets > 0 then #laneProfile.offsets else 1
@@ -579,7 +598,7 @@ local function spawnEnemy(player: Player, match: MatchState, stream: TowerDefens
 	}
 	match.enemies[enemy.id] = enemy
 	table.insert(match.enemyOrder, enemy.id)
-	return true
+	return "Spawned"
 end
 
 local function startWaveInternal(
@@ -594,6 +613,11 @@ local function startWaveInternal(
 	local match = matchFor(player)
 	if match.waveRunning then
 		return false, "A wave is already running"
+	end
+	-- A finite set really ends. Replaying is an explicit reset, not an implicit
+	-- wrap back to wave one.
+	if match.runComplete and requestedWave == nil then
+		return false, "This level is complete - reset to play it again"
 	end
 	if match.baseHealth <= 0 then
 		matches[player] = defaultMatch()
@@ -625,10 +649,15 @@ local function startWaveInternal(
 		wave = TowerDefenseWaves.fromCatalogWave(TowerDefenseCatalog.wave(match.wave))
 		waveCount = #TowerDefenseCatalog.waves
 	end
-	local loopScale = TowerDefenseLogic.waveScale(match.wave, waveCount)
-	match.spawnStreams = TowerDefenseWaves.buildStreams(wave, os.clock(), loopScale)
-	match.waveIsBoss = TowerDefenseWaves.isBossWave(wave)
+	local loopScaling = TowerDefenseWaves.resolveScaling(waveSet, Config.towerDefense.waveLoopScaling)
+	local waveScaling = TowerDefenseWaves.scalingFor(loopScaling, match.wave, waveCount)
+	local wavePlan =
+		TowerDefenseWaves.planWave(wave, os.clock(), waveScaling, loopScaling.bossEveryWaves, match.wave)
+	match.spawnStreams = wavePlan.streams
+	match.waveIsBoss = wavePlan.isBoss
 	match.waveCount = waveCount
+	match.waveEndless = TowerDefenseWaves.isEndless(waveSet)
+	match.waveScaling = waveScaling
 	if not match.isPlaytest then
 		profile.towerDefense.stats.bestWave = math.max(profile.towerDefense.stats.bestWave, match.wave)
 		ProfileService.markDirty(player, "towerDefense:startWave")
@@ -653,7 +682,9 @@ function TowerDefenseService.runWavePlaytest(
 	end
 	local stage = StageCatalog.get(stageId)
 	local waveSet = StageCatalog.waveSetForStage(stageId)
-	if stage == nil or waveSet == nil or waveNumber < 1 or waveNumber > #waveSet.waves then
+	-- Deliberately not bounded by the authored wave count: tuning an endless
+	-- curve means jumping straight to a deep wave to see what it feels like.
+	if stage == nil or waveSet == nil or waveNumber < 1 then
 		return false, "Unknown playtest level or wave"
 	end
 	local activated, activationMessage = StageRuntimeService.activateForPlaytest(player, stageId)
@@ -717,7 +748,17 @@ local function tickSpawns(player: Player, match: MatchState, now: number)
 	local dueIndex = TowerDefenseWaves.dueStreamIndex(match.spawnStreams, now)
 	while dueIndex ~= nil do
 		local stream = match.spawnStreams[dueIndex]
-		if not spawnEnemy(player, match, stream) then
+		local outcome = spawnEnemy(player, match, stream)
+		if outcome == "Failed" then
+			-- The abort already cleared the field. Publish the complete snapshot:
+			-- clients must retire their rigs and also learn that the wave stopped.
+			publish(player)
+			return
+		end
+		if outcome == "Deferred" then
+			-- The field is full. Every remaining stream is blocked by the same
+			-- cap, so stop this pass and retry once kills make room; the wave
+			-- keeps its pending spawns and finishes late instead of aborting.
 			return
 		end
 		stream.remaining -= 1
@@ -738,10 +779,7 @@ local function tickEnemies(player: Player, match: MatchState, deltaTime: number)
 	local function invalidateRoute(nodeOrEdgeId: string, reason: string)
 		warn(`Invalid Stagewright route {match.stageId}/{match.graphId} at {nodeOrEdgeId}: {reason}`)
 		abortWave(match)
-		for _, id in table.clone(match.enemyOrder) do
-			removeEnemy(match, id)
-		end
-		publishEnemies(player)
+		publish(player)
 	end
 	for _, enemyId in table.clone(match.enemyOrder) do
 		local enemy = match.enemies[enemyId]
@@ -792,9 +830,6 @@ local function tickEnemies(player: Player, match: MatchState, deltaTime: number)
 						ProfileService.markDirty(player, "towerDefense:loss")
 					end
 					abortWave(match)
-					for _, id in table.clone(match.enemyOrder) do
-						removeEnemy(match, id)
-					end
 					publish(player)
 					return
 				end
@@ -925,6 +960,10 @@ local function tickTowers(player: Player, match: MatchState, now: number)
 				"towerDefense:enemy"
 			)
 			removeEnemy(match, target.id)
+			-- The index is built once per pass, so a killed enemy must leave it
+			-- immediately. Otherwise a later tower firing on the same step would
+			-- re-target the corpse and pay its reward again.
+			spatial.positions[target.id] = nil
 		end
 	end
 end
@@ -937,6 +976,12 @@ local function tickWaveCompletion(player: Player, match: MatchState)
 		and match.baseHealth > 0
 	then
 		match.waveRunning = false
+		local clearedFullSet = match.waveCount > 0 and match.wave >= match.waveCount
+		-- The endless toggle is load-bearing: a set marked finite ends its run
+		-- here instead of looping back to wave one.
+		if clearedFullSet and not match.waveEndless then
+			match.runComplete = true
+		end
 		local profile = ProfileService.get(player)
 		if profile ~= nil and not match.isPlaytest then
 			profile.towerDefense.stats.wins += 1
@@ -949,7 +994,10 @@ local function tickWaveCompletion(player: Player, match: MatchState)
 			stageProgress.unlocked = true
 			stageProgress.clears += 1
 			stageProgress.bestWave = math.max(stageProgress.bestWave, match.wave)
-			local nextLevelId = StageCatalog.nextLevelId(match.stageId)
+			-- Endless sets loop, so clearing wave 1 must not unlock the next
+			-- level. A level counts as beaten once the player has cleared every
+			-- authored wave in it at least once.
+			local nextLevelId = if clearedFullSet then StageCatalog.nextLevelId(match.stageId) else nil
 			if nextLevelId ~= nil then
 				local nextProgress = profile.towerDefense.stageProgress[nextLevelId]
 				if type(nextProgress) ~= "table" then
@@ -1115,6 +1163,12 @@ function TowerDefenseService.snapshotFor(player: Player): TowerDefenseClientStat
 		waveRunning = match.waveRunning,
 		waveIsBoss = match.waveIsBoss,
 		waveCount = displayedWaveCount,
+		waveEndless = if match.waveCount > 0
+			then match.waveEndless
+			else TowerDefenseWaves.isEndless(activeWaveSet),
+		waveDifficulty = match.waveScaling.health,
+		waveLoop = match.waveScaling.loops + 1,
+		runComplete = match.runComplete,
 		levelOptions = levelOptions,
 		placements = placements,
 		enemies = enemies,
