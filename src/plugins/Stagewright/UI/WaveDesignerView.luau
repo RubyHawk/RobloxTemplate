@@ -616,7 +616,7 @@ function WaveDesignerView.new(config: Config): Controller
 			BackgroundTransparency = 1,
 			Font = Enum.Font.BuilderSans,
 			LayoutOrder = 9,
-			Size = UDim2.new(1, -6, 0, 42),
+			Size = UDim2.new(1, -6, 0, 58),
 			Text = "",
 			TextColor3 = COLORS.muted,
 			TextSize = 10,
@@ -640,16 +640,28 @@ function WaveDesignerView.new(config: Config): Controller
 			end
 			local previewSet = table.clone(waveSet)
 			previewSet.loopScaling = parsed
-			local preview = Model.previewScaling(previewSet, previewWave)
+			local preview = Model.previewWavePlan(previewSet, previewWave)
+			local scalingPreview = preview.scaling
+			local bossText = if preview.isBoss then " • BOSS" else ""
+			local capText = if preview.spawnCapReached
+				then string.format(" (cap; curve requested %d)", preview.requestedSpawns)
+				else ""
 			previewLabel.Text = string.format(
-				"At wave %d (loop %d): health x%.2f, reward x%.2f, count x%.2f, spacing /%.2f, speed x%.2f",
+				"Wave %d replays authored %d/%d%s • %d mobs%s in %d stream(s) • planned %.1f-%.1fs\nHP x%.2f  reward x%.2f  count x%.2f  spacing /%.2f  speed x%.2f",
 				previewWave,
-				preview.loops + 1,
-				preview.health,
-				preview.reward,
-				preview.count,
-				preview.spacing,
-				preview.speed
+				preview.authoredWaveIndex,
+				preview.authoredWaveCount,
+				bossText,
+				preview.totalSpawns,
+				capText,
+				preview.streamCount,
+				preview.firstSpawnSeconds,
+				preview.finalSpawnSeconds,
+				scalingPreview.health,
+				scalingPreview.reward,
+				scalingPreview.count,
+				scalingPreview.spacing,
+				scalingPreview.speed
 			)
 		end
 		button(previewRow, "Preview -10", 84, function()

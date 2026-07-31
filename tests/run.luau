@@ -2787,6 +2787,20 @@ do
 		true,
 		"the designer preview runs the exact runtime growth math"
 	)
+	local planPreview = WavesModel.previewWavePlan(endlessProject.waveSets.default, 13)
+	expectEqual(
+		planPreview.authoredWaveIndex == 1
+			and planPreview.authoredWaveCount == defaultWaveCount
+			and planPreview.totalSpawns == 10
+			and planPreview.requestedSpawns == 10
+			and planPreview.spawnCapReached == false
+			and planPreview.streamCount == 1
+			and planPreview.firstSpawnSeconds == 0
+			and math.abs(planPreview.finalSpawnSeconds - 6.3) < 0.0001
+			and planPreview.scaling.health == preview.health,
+		true,
+		"the designer previews the effective scheduler count, timing, and scaling"
+	)
 end
 
 -- Stagewright wave authoring: enemy types + wave sets live at project scope,
@@ -7398,6 +7412,19 @@ do
 		true,
 		"entry scales multiply with the loop difficulty scale"
 	)
+	local plan = TowerDefenseWaves.planWave(mixedWave, 100, legacyLoopScaling, 2, 4)
+	expectEqual(
+		plan.totalSpawns == 3
+			and plan.requestedSpawns == 3
+			and plan.spawnCapReached == false
+			and plan.streamCount == 2
+			and plan.firstSpawnSeconds == 0
+			and plan.finalSpawnSeconds == 4
+			and plan.isBoss == true
+			and #plan.streams == #streams,
+		true,
+		"the shared wave plan reports the exact server schedule and boss cadence"
+	)
 	expectEqual(TowerDefenseWaves.dueStreamIndex(streams, 100), 1, "only elapsed streams are due")
 	expectEqual(TowerDefenseWaves.dueStreamIndex(streams, 104.5), 1, "earlier streams win due-stream ties")
 	streams[1].remaining = 0
@@ -7565,6 +7592,21 @@ do
 		TowerDefenseWaves.remainingSpawns(flooded),
 		TowerDefenseWaves.MAXIMUM_WAVE_SPAWNS,
 		"runaway count growth is clamped to the wave spawn cap the scheduler is sized for"
+	)
+	local floodPlan = TowerDefenseWaves.planWave(floodWave, 0, {
+		health = 1,
+		reward = 1,
+		speed = 1,
+		count = 50,
+		spacing = 1,
+		loops = 20,
+	}, 0, 1)
+	expectEqual(
+		floodPlan.totalSpawns == TowerDefenseWaves.MAXIMUM_WAVE_SPAWNS
+			and floodPlan.requestedSpawns == 20_000
+			and floodPlan.spawnCapReached == true,
+		true,
+		"the preview exposes when authored count growth hits the runtime spawn cap"
 	)
 	expectEqual(
 		TowerDefenseWaves.MAXIMUM_WAVE_SPAWNS,
@@ -9522,7 +9564,7 @@ for _, towerDefenseMarker in
 		"simulationAccumulator",
 		"StageCatalog.nextLevelId",
 		"StageCatalog.waveSetForStage",
-		"TowerDefenseWaves.buildStreams",
+		"TowerDefenseWaves.planWave",
 		"TowerDefenseWaves.dueStreamIndex",
 		"target.armorMultiplier",
 		"publishEnemies",
@@ -9748,6 +9790,7 @@ for _, endlessMarker in
 	{
 		"TowerDefenseWaves.resolveScaling",
 		"TowerDefenseWaves.scalingFor",
+		"TowerDefenseWaves.planWave",
 		"Config.towerDefense.waveLoopScaling",
 		"loopScaling.bossEveryWaves",
 		"match.waveScaling",

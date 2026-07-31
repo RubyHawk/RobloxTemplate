@@ -651,8 +651,10 @@ local function startWaveInternal(
 	end
 	local loopScaling = TowerDefenseWaves.resolveScaling(waveSet, Config.towerDefense.waveLoopScaling)
 	local waveScaling = TowerDefenseWaves.scalingFor(loopScaling, match.wave, waveCount)
-	match.spawnStreams = TowerDefenseWaves.buildStreams(wave, os.clock(), waveScaling)
-	match.waveIsBoss = TowerDefenseWaves.isBossWave(wave, loopScaling.bossEveryWaves, match.wave)
+	local wavePlan =
+		TowerDefenseWaves.planWave(wave, os.clock(), waveScaling, loopScaling.bossEveryWaves, match.wave)
+	match.spawnStreams = wavePlan.streams
+	match.waveIsBoss = wavePlan.isBoss
 	match.waveCount = waveCount
 	match.waveEndless = TowerDefenseWaves.isEndless(waveSet)
 	match.waveScaling = waveScaling

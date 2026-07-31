@@ -98,9 +98,13 @@ decision, not a side effect of this change.
 
 The Wave Designer gains an **Endless Growth** panel: endless toggle, curve
 toggle, one field per axis, boss cadence, and a preview that reports the
-resolved multipliers for a chosen wave number. The preview calls
-`TowerDefenseWaves.scalingFor` — the exact runtime function — so it cannot drift
-from what the server does.
+resolved multipliers and effective spawn plan for a chosen wave number. It shows
+which authored wave is being replayed, boss state, effective mob count, number
+of concurrent streams, the planned first-to-final spawn window, and whether the
+growth curve requested more mobs than the runtime cap permits. The preview and
+server both call `TowerDefenseWaves.planWave`, so counts, cap behavior, cadence,
+and the baseline stream timing cannot drift between authoring and gameplay.
+Enemy-cap backpressure may intentionally make the live wave finish later.
 
 Playtest can now jump to any wave up to `TowerDefenseRequest.MAX_PLAYTEST_WAVE`
 (1000) instead of stopping at the authored set length, because sampling a deep

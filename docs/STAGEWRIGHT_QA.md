@@ -118,11 +118,17 @@ each completed loop multiplies. Verify:
    towers make room; the wave must not abort and the field must not be wiped.
 5. With `bossEveryWaves` set, confirm every Nth wave number reports as a boss
    wave in the HUD even though the authored set is shorter than N.
-6. Clearing wave 1 must **not** unlock the next level. The unlock lands only
+6. Change a wave entry's count, spacing, or delay, then adjust growth and boss
+   cadence. Confirm **Endless Growth** reports the effective authored-wave
+   index, mob total, concurrent streams, planned first/final spawn time, boss
+   state, and whether count growth hit the 500-mob cap. Run that wave and
+   confirm the schedule follows the preview (unless enemy-cap backpressure
+   deliberately makes it finish later).
+7. Clearing wave 1 must **not** unlock the next level. The unlock lands only
    after every authored wave in the set has been cleared.
-7. The lobby HUD shows a bare wave number (with the loop once past loop 1) for an
+8. The lobby HUD shows a bare wave number (with the loop once past loop 1) for an
    endless set, and `wave/count` only for a set marked not endless.
-8. Turn **Endless: OFF** on a set, then clear its last authored wave. The run
+9. Turn **Endless: OFF** on a set, then clear its last authored wave. The run
    must end: the HUD reports the level complete, Start Wave is disabled, and only
    Reset (or another level) starts play again. Turn it back on and confirm the
    same set loops past its last wave instead.

@@ -69,6 +69,19 @@ export type LoopScalingInput = {
 	bossEveryWaves: string,
 }
 
+export type WavePlanPreview = {
+	scaling: TowerDefenseWaves.WaveScaling,
+	authoredWaveIndex: number,
+	authoredWaveCount: number,
+	totalSpawns: number,
+	requestedSpawns: number,
+	spawnCapReached: boolean,
+	streamCount: number,
+	firstSpawnSeconds: number,
+	finalSpawnSeconds: number,
+	isBoss: boolean,
+}
+
 Model.LOOP_RATE_FIELDS = table.freeze({
 	"healthPerLoop",
 	"rewardPerLoop",
@@ -338,6 +351,25 @@ end
 function Model.previewScaling(waveSet: any, waveNumber: number): TowerDefenseWaves.WaveScaling
 	local scaling = TowerDefenseWaves.resolveScaling(waveSet, StageWaveDefaults.defaultLoopScaling())
 	return TowerDefenseWaves.scalingFor(scaling, waveNumber, math.max(#waveSet.waves, 1))
+end
+
+function Model.previewWavePlan(waveSet: any, waveNumber: number): WavePlanPreview
+	local wave, waveCount = TowerDefenseWaves.waveForIndex(waveSet, waveNumber)
+	local scalingConfig = TowerDefenseWaves.resolveScaling(waveSet, StageWaveDefaults.defaultLoopScaling())
+	local scaling = TowerDefenseWaves.scalingFor(scalingConfig, waveNumber, waveCount)
+	local plan = TowerDefenseWaves.planWave(wave, 0, scaling, scalingConfig.bossEveryWaves, waveNumber)
+	return {
+		scaling = scaling,
+		authoredWaveIndex = ((math.max(math.floor(waveNumber), 1) - 1) % waveCount) + 1,
+		authoredWaveCount = waveCount,
+		totalSpawns = plan.totalSpawns,
+		requestedSpawns = plan.requestedSpawns,
+		spawnCapReached = plan.spawnCapReached,
+		streamCount = plan.streamCount,
+		firstSpawnSeconds = plan.firstSpawnSeconds,
+		finalSpawnSeconds = plan.finalSpawnSeconds,
+		isBoss = plan.isBoss,
+	}
 end
 
 function Model.createWaveSet(project: any, requestedId: string, copyFromId: string?): (string?, string?)

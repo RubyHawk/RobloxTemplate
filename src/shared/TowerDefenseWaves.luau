@@ -47,6 +47,17 @@ export type SpawnStream = {
 	speedScale: number,
 }
 
+export type WavePlan = {
+	streams: { SpawnStream },
+	totalSpawns: number,
+	requestedSpawns: number,
+	spawnCapReached: boolean,
+	streamCount: number,
+	firstSpawnSeconds: number,
+	finalSpawnSeconds: number,
+	isBoss: boolean,
+}
+
 export type LegacyCatalogWave = {
 	enemyId: string,
 	count: number,
@@ -169,6 +180,11 @@ function TowerDefenseWaves.fromCatalogWave(wave: LegacyCatalogWave): StageTypes.
 	}
 end
 
+local function scaledEntryCount(entry: StageTypes.WaveEntryDefinition, scaling: WaveScaling): number
+	local authoredCount = math.max(math.floor(entry.count), 1)
+	return math.max(math.floor(authoredCount * scaling.count + 0.5), 1)
+end
+
 function TowerDefenseWaves.buildStreams(
 	wave: StageTypes.WaveDefinition,
 	now: number,
@@ -182,8 +198,7 @@ function TowerDefenseWaves.buildStreams(
 		if budget <= 0 then
 			break
 		end
-		local authoredCount = math.max(math.floor(entry.count), 1)
-		local grownCount = math.max(math.floor(authoredCount * scaling.count + 0.5), 1)
+		local grownCount = scaledEntryCount(entry, scaling)
 		local count = math.min(grownCount, budget)
 		budget -= count
 		table.insert(streams, {
@@ -200,6 +215,48 @@ function TowerDefenseWaves.buildStreams(
 		})
 	end
 	return streams
+end
+
+-- Builds the exact spawn schedule consumed by the server and summarizes it for
+-- Stagewright. Keeping both views on this function prevents the editor from
+-- estimating counts or timings with math that can drift from gameplay.
+function TowerDefenseWaves.planWave(
+	wave: StageTypes.WaveDefinition,
+	now: number,
+	scaling: WaveScaling,
+	bossEveryWaves: number?,
+	waveNumber: number?
+): WavePlan
+	local streams = TowerDefenseWaves.buildStreams(wave, now, scaling)
+	local totalSpawns = 0
+	local requestedSpawns = 0
+	local firstSpawnSeconds = math.huge
+	local finalSpawnSeconds = 0
+	for _, stream in streams do
+		local startSeconds = math.max(stream.nextSpawnAt - now, 0)
+		totalSpawns += stream.remaining
+		firstSpawnSeconds = math.min(firstSpawnSeconds, startSeconds)
+		finalSpawnSeconds = math.max(
+			finalSpawnSeconds,
+			startSeconds + math.max(stream.remaining - 1, 0) * stream.spacingSeconds
+		)
+	end
+	for _, entry in wave.entries do
+		requestedSpawns += scaledEntryCount(entry, scaling)
+	end
+	if totalSpawns == 0 then
+		firstSpawnSeconds = 0
+	end
+	return {
+		streams = streams,
+		totalSpawns = totalSpawns,
+		requestedSpawns = requestedSpawns,
+		spawnCapReached = requestedSpawns > totalSpawns,
+		streamCount = #streams,
+		firstSpawnSeconds = firstSpawnSeconds,
+		finalSpawnSeconds = finalSpawnSeconds,
+		isBoss = TowerDefenseWaves.isBossWave(wave, bossEveryWaves, waveNumber),
+	}
 end
 
 function TowerDefenseWaves.dueStreamIndex(streams: { SpawnStream }, now: number): number?
