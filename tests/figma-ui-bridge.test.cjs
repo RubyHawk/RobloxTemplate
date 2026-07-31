@@ -16,6 +16,53 @@ assert.deepEqual(
   "ScreenGui uses the 16:9 editable HUD viewport"
 );
 
+const constrainedPanel = {
+  Name: "InventoryScreen",
+  ClassName: "Frame",
+  Properties: {
+    AnchorPoint: [0.5, 0.5],
+    Position: { UDim2: [[0.5, 0], [0.5, 0]] },
+    Size: { UDim2: [[0.88, 32], [0.82, 0]] }
+  },
+  Children: [{
+    ClassName: "UISizeConstraint",
+    Properties: { MinSize: [300, 300], MaxSize: [820, 620] }
+  }]
+};
+const constrainedGeometry = bridge.visualGeometry(constrainedPanel, { width: 1600, height: 900 });
+assert.deepEqual(
+  { width: constrainedGeometry.width, height: constrainedGeometry.height },
+  { width: 820, height: 620 },
+  "the Figma repository preview applies Roblox UISizeConstraint bounds"
+);
+assert.deepEqual(
+  { x: constrainedGeometry.x, y: constrainedGeometry.y },
+  { x: 390, y: 140 },
+  "anchored constrained geometry remains centered like Roblox"
+);
+assert.equal(
+  bridge.layoutStillMatchesNode({
+    size: constrainedGeometry.size,
+    pos: constrainedGeometry.pos,
+    anchor: constrainedGeometry.anchor,
+    parentWidth: 1600,
+    parentHeight: 900,
+    managedByLayout: false,
+    renderedWidth: constrainedGeometry.width,
+    renderedHeight: constrainedGeometry.height,
+    renderedX: constrainedGeometry.x,
+    renderedY: constrainedGeometry.y
+  }, {
+    width: 820,
+    height: 620,
+    x: 390,
+    y: 140,
+    constraints: { horizontal: "CENTER", vertical: "CENTER" }
+  }),
+  true,
+  "an unchanged constrained preview preserves its responsive Roblox UDim2 metadata"
+);
+
 assert.deepEqual(
   bridge.displayCanvasSize({
     ClassName: "SurfaceGui",
@@ -293,6 +340,22 @@ try {
           }
         }]
       }, {
+        Name: "RuntimeSizedBar",
+        ClassName: "Frame",
+        Properties: {
+          AnchorPoint: [0.5, 1],
+          Position: { UDim2: [[0.5, 0], [1, -12]] },
+          Size: { UDim2: [[0.8, 0], [0, 60]] }
+        },
+        Children: [{
+          Name: "DynamicWidthConstraint",
+          ClassName: "UISizeConstraint",
+          Properties: {
+            MinSize: [204, 60],
+            MaxSize: [204, 60]
+          }
+        }]
+      }, {
         Name: "Row",
         ClassName: "Frame",
         Properties: {
@@ -442,6 +505,22 @@ try {
       }
     }, {
       path: "SurfaceTest/Panel/ResponsiveBar",
+      className: "Frame",
+      visible: true,
+      x: 56,
+      y: 208,
+      width: 448,
+      height: 60,
+      layout: {
+        size: { sx: 0, ox: 448, sy: 0, oy: 60 },
+        pos: { sx: 0.5, ox: 0, sy: 1, oy: -12 },
+        anchor: { x: 0.5, y: 1 },
+        parentWidth: 560,
+        parentHeight: 280,
+        managedByLayout: false
+      }
+    }, {
+      path: "SurfaceTest/Panel/RuntimeSizedBar",
       className: "Frame",
       visible: true,
       x: 56,
@@ -630,6 +709,7 @@ try {
     modelPath,
     "--patch",
     patchPath,
+    "--expand-constraints",
     "--exclude-path",
     "SurfaceTest/Panel/LegacyExcluded"
   ], { cwd: repo, encoding: "utf8" });
@@ -697,8 +777,16 @@ try {
   );
   assert.deepEqual(
     importedResponsiveBar.Children[0].Properties.MaxSize,
-    [440, 60],
-    "pixel-equivalent Figma geometry does not expand an authored responsive size constraint"
+    [448, 60],
+    "a source-only responsive constraint admits the geometry authored in Figma"
+  );
+  const importedRuntimeSizedBar = applied.Children[0].Children.find(
+    (child) => child.Name === "RuntimeSizedBar"
+  );
+  assert.deepEqual(
+    importedRuntimeSizedBar.Children[0].Properties.MaxSize,
+    [204, 60],
+    "an explicitly dynamic runtime constraint is not overwritten by Figma geometry"
   );
   const importedRow = applied.Children[0].Children.find((child) => child.Name === "Row");
   assert.equal(importedRow.Children[0].ClassName, "UIListLayout");
@@ -757,6 +845,7 @@ assert.match(pluginUi, /<input id="models"[^>]*tabindex="-1">/);
 assert.match(pluginUi, /<div id="status" role="status">/);
 assert.doesNotMatch(pluginUi, /input\[type=file\]\s*\{\s*display:\s*none/);
 const pluginSource = fs.readFileSync(path.join(repo, "figma/roblox-ui-bridge/code.js"), "utf8");
+assert.equal(bridge.BRIDGE_VERSION, "2.4.0");
 assert.match(pluginSource, /entry\.fontFamily = textNode\.fontName\.family/);
 assert.match(pluginSource, /entry\.textAlignHorizontal/);
 assert.match(pluginSource, /layoutStillMatchesNode\(importedLayout, node\)/);
@@ -1063,6 +1152,13 @@ for (const name of ["InventoryButton", "DiceButton", "UpgradeTreeButton"]) {
   assert.equal(childNamed(button, "Icon").ClassName, "ImageLabel");
   assert.equal(childNamed(button, "Label").ClassName, "TextLabel");
 }
+const towerLoadoutBar = findNamed(towerLoadoutUi, "LoadoutBar");
+const dynamicWidthConstraint = childNamed(towerLoadoutBar, "DynamicWidthConstraint");
+assert.deepEqual(
+  dynamicWidthConstraint.Properties.MaxSize,
+  dynamicWidthConstraint.Properties.MinSize,
+  "Figma import preserves the controller-owned dynamic loadout width"
+);
 
 const towerLevelController = fs.readFileSync(
   path.join(repo, "src/client/Controllers/TowerDefenseLevelController.luau"),

@@ -224,6 +224,7 @@ if (-not $workspacePath -and $needsWorkspace) {
 }
 
 $modelMap = @{}
+$figmaOwnsConstraints = @{}
 $workspaceData = $null
 if ($workspacePath) {
     $workspaceData = Get-Content -LiteralPath $workspacePath -Raw | ConvertFrom-Json
@@ -240,6 +241,10 @@ if ($workspacePath) {
             throw "Every workspace model requires root and path."
         }
         $modelMap[$rootName] = Join-Path $repo $relativePath
+        $figmaOwnsConstraints[$rootName] = (
+            $modelDefinition.PSObject.Properties.Name -contains "figmaOwnsConstraints" -and
+            $modelDefinition.figmaOwnsConstraints -eq $true
+        )
     }
 }
 else {
@@ -317,7 +322,18 @@ $transaction = New-FigmaImportTransaction $transactionPaths
 try {
 foreach ($rootName in $roots) {
     $model = [string]$modelMap[$rootName]
-    node (Join-Path $repo "scripts/figma-ui-bridge.mjs") apply --model $model --patch $PatchPath
+    $applyArguments = @(
+        (Join-Path $repo "scripts/figma-ui-bridge.mjs"),
+        "apply",
+        "--model",
+        $model,
+        "--patch",
+        $PatchPath
+    )
+    if ($figmaOwnsConstraints.ContainsKey($rootName) -and $figmaOwnsConstraints[$rootName]) {
+        $applyArguments += "--expand-constraints"
+    }
+    & node @applyArguments
     if ($LASTEXITCODE -ne 0) {
         throw "Figma patch failed validation for $rootName."
     }

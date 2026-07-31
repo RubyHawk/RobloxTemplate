@@ -470,30 +470,33 @@ function inferredAlignment(start, end, parentSize, leading, center, trailing) {
 // responsiveness is preserved, but their old values must not override newly
 // imported Figma geometry. Expand constraints to admit the new authored size
 // and derive layout spacing from visible managed children.
-function reconcileSourceOnlyLayout(node, entry, entriesByPath, preserveAuthoredLayout = false) {
+function reconcileSourceOnlyLayout(
+  node,
+  entry,
+  entriesByPath,
+  preserveAuthoredLayout = false,
+  expandConstraints = false
+) {
   const geometry = entryGeometry(entry, entriesByPath);
   const constraint = effectChild(node, "UISizeConstraint");
-  if (constraint && !preserveAuthoredLayout) {
+  const runtimeOwnedConstraint = constraint?.Name && /^Dynamic/i.test(constraint.Name);
+  if (constraint && expandConstraints && !runtimeOwnedConstraint) {
     const props = ensureProperties(constraint);
     const min = vector2(props.MinSize, [0, 0]);
     const max = vector2(props.MaxSize, [100000, 100000]);
-    const sizeSx = rebasedSizeScale(
-      finiteOr(entry.layout?.size?.sx, 0),
-      geometry.width,
-      geometry.parentWidth
-    );
-    const sizeSy = rebasedSizeScale(
-      finiteOr(entry.layout?.size?.sy, 0),
-      geometry.height,
-      geometry.parentHeight
-    );
+    // UISizeConstraint is not an editable Figma node. Regardless of whether
+    // the underlying UDim2 changed, its bounds must admit the geometry the
+    // designer can actually see in Figma. Otherwise Roblox clamps the parent
+    // while its children retain their wider Figma layout (for example a
+    // 1440px inventory panel capped to 820px). Explicitly named Dynamic*
+    // constraints remain controller-owned and are not rewritten by art import.
     props.MinSize = [
-      Math.round(Math.abs(sizeSx) < 0.001 ? Math.min(min[0], geometry.width) : min[0]),
-      Math.round(Math.abs(sizeSy) < 0.001 ? Math.min(min[1], geometry.height) : min[1])
+      Math.round(Math.min(min[0], geometry.width)),
+      Math.round(Math.min(min[1], geometry.height))
     ];
     props.MaxSize = [
-      Math.round(Math.abs(sizeSx) < 0.001 ? Math.max(max[0], geometry.width) : max[0]),
-      Math.round(Math.abs(sizeSy) < 0.001 ? Math.max(max[1], geometry.height) : max[1])
+      Math.round(Math.max(max[0], geometry.width)),
+      Math.round(Math.max(max[1], geometry.height))
     ];
   }
 
@@ -866,6 +869,7 @@ if (command === "bundle") {
   const modelFile = option("--model");
   const patchFile = option("--patch");
   const outFile = option("--out") || modelFile;
+  const expandConstraints = args.includes("--expand-constraints");
   if (!modelFile || !patchFile) {
     fail(
       "Usage: node scripts/figma-ui-bridge.mjs apply --model <model> --patch <patch> "
@@ -959,7 +963,8 @@ if (command === "bundle") {
         node,
         entry,
         entriesByPath,
-        preservedLayoutPaths.has(entry.path)
+        preservedLayoutPaths.has(entry.path),
+        expandConstraints
       );
     }
   }
