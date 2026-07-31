@@ -7490,6 +7490,26 @@ do
 		TowerDefenseWaves.MAXIMUM_SPEED_MULTIPLIER,
 		"speed growth is capped so enemies cannot outrun the fixed simulation step"
 	)
+	local overflowCurve = TowerDefenseWaves.resolveScaling({
+		loopScaling = {
+			curve = "Exponential",
+			healthPerLoop = StageSchema.MAX_LOOP_RATE,
+			rewardPerLoop = StageSchema.MAX_LOOP_RATE,
+			speedPerLoop = StageSchema.MAX_LOOP_RATE,
+			countPerLoop = StageSchema.MAX_LOOP_RATE,
+			spacingPerLoop = StageSchema.MAX_LOOP_RATE,
+		},
+	}, defaults)
+	local boundedDeepWave = TowerDefenseWaves.scalingFor(overflowCurve, 1_000, 1)
+	expectEqual(
+		boundedDeepWave.health == TowerDefenseWaves.MAXIMUM_LOOP_MULTIPLIER
+			and boundedDeepWave.reward == TowerDefenseWaves.MAXIMUM_LOOP_MULTIPLIER
+			and boundedDeepWave.count == TowerDefenseWaves.MAXIMUM_LOOP_MULTIPLIER
+			and boundedDeepWave.spacing == TowerDefenseWaves.MAXIMUM_LOOP_MULTIPLIER
+			and boundedDeepWave.speed == TowerDefenseWaves.MAXIMUM_SPEED_MULTIPLIER,
+		true,
+		"deep exponential playtest waves remain finite on every growth axis"
+	)
 
 	-- Bundles from before schema 6 carry no curve at all.
 	local legacyResolved = TowerDefenseWaves.resolveScaling({ id = "legacy", waves = {} }, defaults)
@@ -9606,9 +9626,24 @@ do
 	)
 	local spawnTickSource = string.sub(towerDefenseServiceSource, spawnTickAt, enemyTickResumeAt - 1)
 	expectEqual(
-		string.find(spawnTickSource, "publishEnemies(player)", 1, true) ~= nil,
+		string.find(spawnTickSource, "publish(player)", 1, true) ~= nil,
 		true,
-		"a rejected spawn republishes so clients stop extrapolating cleared enemies"
+		"a rejected spawn republishes the full stopped-wave state and cleared enemies"
+	)
+	local enemyTickAt = assert(
+		string.find(towerDefenseServiceSource, "local function tickEnemies", 1, true),
+		"enemy movement exists"
+	)
+	local towerTickAt = assert(
+		string.find(towerDefenseServiceSource, "local function tickTowers", enemyTickAt, true),
+		"enemy movement has a bounded source section"
+	)
+	local enemyTickSource = string.sub(towerDefenseServiceSource, enemyTickAt, towerTickAt - 1)
+	expectEqual(
+		string.find(enemyTickSource, "local function invalidateRoute", 1, true) ~= nil
+			and string.find(enemyTickSource, "publish(player)", 1, true) ~= nil,
+		true,
+		"a route failure also publishes the complete stopped-wave state"
 	)
 end
 -- The tower spatial index is built once per simulation step. A killed enemy has
@@ -9780,8 +9815,12 @@ do
 			'FindFirstChildOfClass("AnimationController")',
 			"animator:LoadAnimation",
 			"walkTrack.Looped = true",
+			"walkTrack.Priority = Enum.AnimationPriority.Movement",
 			"deathTrack.Looped = false",
+			"deathTrack.Priority = Enum.AnimationPriority.Action",
 			"animationsByModel",
+			"warnedMissingRigIds",
+			"warnedAnimationIds",
 		}
 	do
 		expectEqual(
@@ -9807,7 +9846,14 @@ do
 	end
 	local designerSource = fs.readFile("src/plugins/Stagewright/UI/WaveDesignerView.luau")
 	for _, designerMarker in
-		{ "RigCatalog.names()", "RigCatalog.describe", "Use rig animations", "walkAnimationId" }
+		{
+			"RigCatalog.names()",
+			"RigCatalog.describe",
+			"Use rig animations",
+			"walkAnimationId",
+			"scalingWaveSetId",
+			"previewSet.loopScaling = parsed",
+		}
 	do
 		expectEqual(
 			string.find(designerSource, designerMarker, 1, true) ~= nil,

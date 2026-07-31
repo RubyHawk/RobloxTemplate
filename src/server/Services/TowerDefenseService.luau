@@ -748,9 +748,9 @@ local function tickSpawns(player: Player, match: MatchState, now: number)
 		local stream = match.spawnStreams[dueIndex]
 		local outcome = spawnEnemy(player, match, stream)
 		if outcome == "Failed" then
-			-- The abort already cleared the field; clients must be told so their
-			-- pooled rigs stop extrapolating along the last replicated edge.
-			publishEnemies(player)
+			-- The abort already cleared the field. Publish the complete snapshot:
+			-- clients must retire their rigs and also learn that the wave stopped.
+			publish(player)
 			return
 		end
 		if outcome == "Deferred" then
@@ -777,7 +777,7 @@ local function tickEnemies(player: Player, match: MatchState, deltaTime: number)
 	local function invalidateRoute(nodeOrEdgeId: string, reason: string)
 		warn(`Invalid Stagewright route {match.stageId}/{match.graphId} at {nodeOrEdgeId}: {reason}`)
 		abortWave(match)
-		publishEnemies(player)
+		publish(player)
 	end
 	for _, enemyId in table.clone(match.enemyOrder) do
 		local enemy = match.enemies[enemyId]

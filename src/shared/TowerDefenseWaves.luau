@@ -17,6 +17,10 @@ TowerDefenseWaves.MINIMUM_SPACING_SECONDS = 0.05
 -- Enemies that outrun the fixed simulation step would skip past tower ranges
 -- between samples, so growth on the speed axis is bounded regardless of curve.
 TowerDefenseWaves.MAXIMUM_SPEED_MULTIPLIER = 8
+-- Exponential authoring is useful for short curves, but deep Studio jumps can
+-- overflow a Luau number. Keep every authored axis finite so enemies never
+-- receive infinite health and rewards never become invalid profile values.
+TowerDefenseWaves.MAXIMUM_LOOP_MULTIPLIER = 1_000_000
 -- A single wave may never schedule more spawns than the authoring cap, however
 -- steep the count curve gets; the scheduler and the per-player enemy cap are
 -- both sized against this number.
@@ -112,10 +116,16 @@ function TowerDefenseWaves.multiplier(curve: string, rate: number, loops: number
 	if rate <= 0 or loops <= 0 then
 		return 1
 	end
+	local result: number
 	if curve == "Exponential" then
-		return (1 + rate) ^ loops
+		result = (1 + rate) ^ loops
+	else
+		result = 1 + rate * loops
 	end
-	return 1 + rate * loops
+	if result ~= result or result == math.huge then
+		return TowerDefenseWaves.MAXIMUM_LOOP_MULTIPLIER
+	end
+	return math.clamp(result, 1, TowerDefenseWaves.MAXIMUM_LOOP_MULTIPLIER)
 end
 
 -- Resolves every growth axis for one wave number. Spacing is returned as the

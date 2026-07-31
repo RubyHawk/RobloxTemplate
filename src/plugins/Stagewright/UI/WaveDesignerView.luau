@@ -259,7 +259,7 @@ function WaveDesignerView.new(config: Config): Controller
 		Font = Enum.Font.BuilderSans,
 		Position = UDim2.fromOffset(0, 44),
 		Size = UDim2.new(1, 0, 0, 40),
-		Text = "Wave sets are shared by every Map. Levels pick a wave set in Stage settings; the default set is the runtime fallback and every wave needs at least one entry. Authored waves loop forever, and Endless Growth is what each completed loop multiplies.",
+		Text = "Wave sets are shared by every Map. Levels pick a wave set in Stage settings; the default set is the runtime fallback and every wave needs at least one entry. Endless sets repeat their authored waves and apply the growth below after each completed loop.",
 		TextColor3 = COLORS.muted,
 		TextSize = 10,
 		TextWrapped = true,
@@ -312,6 +312,7 @@ function WaveDesignerView.new(config: Config): Controller
 	local enemyFields: { [string]: TextBox } = {}
 	local scalingFields: { [string]: TextBox } = {}
 	local scalingCurve = "Linear"
+	local scalingWaveSetId: string? = nil
 	local previewWave = 25
 
 	local function selectedWaveSet(): any?
@@ -624,7 +625,22 @@ function WaveDesignerView.new(config: Config): Controller
 			TextYAlignment = Enum.TextYAlignment.Top,
 		}, endlessPanel) :: TextLabel
 		local function refreshPreview()
-			local preview = Model.previewScaling(waveSet, previewWave)
+			local parsed = Model.parseLoopScaling({
+				curve = scalingCurve,
+				healthPerLoop = scalingFields.healthPerLoop.Text,
+				rewardPerLoop = scalingFields.rewardPerLoop.Text,
+				speedPerLoop = scalingFields.speedPerLoop.Text,
+				countPerLoop = scalingFields.countPerLoop.Text,
+				spacingPerLoop = scalingFields.spacingPerLoop.Text,
+				bossEveryWaves = scalingFields.bossEveryWaves.Text,
+			})
+			if parsed == nil then
+				previewLabel.Text = "Enter a valid growth curve to preview it."
+				return
+			end
+			local previewSet = table.clone(waveSet)
+			previewSet.loopScaling = parsed
+			local preview = Model.previewScaling(previewSet, previewWave)
 			previewLabel.Text = string.format(
 				"At wave %d (loop %d): health x%.2f, reward x%.2f, count x%.2f, spacing /%.2f, speed x%.2f",
 				previewWave,
@@ -831,8 +847,13 @@ function WaveDesignerView.new(config: Config): Controller
 			selectedEntryIndex = 1
 		end
 		local activeSet = project().waveSets[selectedWaveSetId]
-		if revisionChanged and activeSet ~= nil and type(activeSet.loopScaling) == "table" then
+		if
+			activeSet ~= nil
+			and type(activeSet.loopScaling) == "table"
+			and (revisionChanged or scalingWaveSetId ~= selectedWaveSetId)
+		then
 			scalingCurve = if activeSet.loopScaling.curve == "Exponential" then "Exponential" else "Linear"
+			scalingWaveSetId = selectedWaveSetId
 		end
 		renderWaveSets()
 		renderEndless()

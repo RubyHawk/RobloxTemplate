@@ -40,7 +40,8 @@ fields, which is the quickest way to see what an asset ships with.
 `StageEnemyRenderer` binds tracks once per cloned rig and caches them against
 the model, so pooled reuse costs no reload. Walk is looped and plays on spawn;
 death plays once on retire, alongside the existing poof, before the rig returns
-to its pool.
+to its pool. Walk uses Roblox's `Movement` animation priority and death uses
+`Action`, so an asset's idle track cannot silently win over either state.
 
 Animator resolution prefers what the asset already has — a `Humanoid`, then an
 `AnimationController`. One is only created when animations exist and the rig has
@@ -50,9 +51,10 @@ instance, and it is parented into the rig rather than built and discarded, which
 also keeps the renderer within its "clone authored rigs, do not construct"
 contract.
 
-A failed animation load warns and leaves the mob rendering without that track.
-A `modelId` naming a rig that is not present warns and renders `Fallback`; it
-previously fell back silently.
+A failed animation load warns once per asset id and leaves the mob rendering
+without that track. A `modelId` naming a rig that is not present warns once per
+rig name and renders `Fallback`; warnings are deduplicated so a large wave does
+not flood Studio output. Missing rigs previously fell back silently.
 
 ## Boundaries
 

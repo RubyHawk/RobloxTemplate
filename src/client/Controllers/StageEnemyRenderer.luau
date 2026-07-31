@@ -49,6 +49,8 @@ local states: { [string]: RenderState } = {}
 local modelPools: { [string]: { Model } } = {}
 -- Tracks are bound once per cloned rig and follow the model through the pool.
 local animationsByModel: { [Model]: RigAnimations } = {}
+local warnedMissingRigIds: { [string]: boolean } = {}
+local warnedAnimationIds: { [string]: boolean } = {}
 local folder: Folder? = nil
 local initialized = false
 
@@ -152,7 +154,10 @@ local function loadTrack(animator: Animator, animation: Animation): AnimationTra
 		return animator:LoadAnimation(animation)
 	end)
 	if not loaded or typeof(track) ~= "Instance" then
-		warn(`Stagewright enemy animation failed to load: {animation.AnimationId}`)
+		if not warnedAnimationIds[animation.AnimationId] then
+			warnedAnimationIds[animation.AnimationId] = true
+			warn(`Stagewright enemy animation failed to load: {animation.AnimationId}`)
+		end
 		return nil
 	end
 	return track
@@ -174,6 +179,7 @@ local function bindAnimations(model: Model, definition: StageTypes.EnemyTypeDefi
 		local walkTrack = loadTrack(animator, walk)
 		if walkTrack ~= nil then
 			walkTrack.Looped = true
+			walkTrack.Priority = Enum.AnimationPriority.Movement
 			animations.walk = walkTrack
 		end
 	end
@@ -181,6 +187,7 @@ local function bindAnimations(model: Model, definition: StageTypes.EnemyTypeDefi
 		local deathTrack = loadTrack(animator, death)
 		if deathTrack ~= nil then
 			deathTrack.Looped = false
+			deathTrack.Priority = Enum.AnimationPriority.Action
 			animations.death = deathTrack
 		end
 	end
@@ -205,7 +212,8 @@ local function acquireModel(enemyTypeId: string): (Model?, RigAnimations)
 	local modelId = if definition ~= nil then definition.modelId else ""
 	local template = if modelId ~= "" then rigs:FindFirstChild(modelId) else nil
 	if template == nil or not template:IsA("Model") then
-		if modelId ~= "" then
+		if modelId ~= "" and not warnedMissingRigIds[modelId] then
+			warnedMissingRigIds[modelId] = true
 			warn(`Stagewright enemy rig {modelId} is missing from EnemyRigs; rendering the fallback`)
 		end
 		template = rigs:FindFirstChild(FALLBACK_RIG_NAME)

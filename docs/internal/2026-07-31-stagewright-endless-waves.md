@@ -69,6 +69,9 @@ Count growth is the axis that can hurt the simulation, so it is bounded twice:
   runaway curve cannot schedule a wave the scheduler was not sized for.
 - Speed growth is clamped to `MAXIMUM_SPEED_MULTIPLIER`. Enemies that outrun the
   fixed 20 Hz step would skip past tower ranges between samples.
+- Every loop multiplier is clamped to `MAXIMUM_LOOP_MULTIPLIER`. A deep Studio
+  jump on an exponential curve therefore stays finite instead of producing an
+  immortal infinite-health enemy or a non-finite reward value.
 
 Hitting the per-player enemy cap is now **backpressure, not failure**.
 `spawnEnemy` returns `Spawned | Deferred | Failed`; a full field defers, keeps
@@ -76,7 +79,8 @@ the stream's pending spawns, and retries once kills make room. Previously the
 cap aborted the wave outright, which endless runs would have hit routinely.
 `Failed` — unknown enemy type, no spawn node, unroutable graph — still aborts,
 and an abort now clears the field because the fixed-step loop skips matches that
-are not running.
+are not running. It also republishes the complete tower-defense snapshot so the
+HUD leaves its running state at the same time client rigs are retired.
 
 ## Progression
 
