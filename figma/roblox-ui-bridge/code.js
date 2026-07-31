@@ -6,7 +6,7 @@ if (typeof figma !== "undefined") {
 }
 
 const NAMESPACE = "roblox_ui_bridge";
-const BRIDGE_VERSION = "2.3.0";
+const BRIDGE_VERSION = "2.4.0";
 const DEFAULT_VIEWPORT = { width: 1600, height: 900 };
 const DEFAULT_SURFACE_CANVAS = { width: 800, height: 600 };
 const DEFAULT_BILLBOARD_PIXELS_PER_STUD = 100;
@@ -160,6 +160,31 @@ function udim2(value) {
 
 function anchor(value) {
   return Array.isArray(value) ? { x: Number(value[0]), y: Number(value[1]) } : { x: 0, y: 0 };
+}
+
+function visualGeometry(object, parentSize) {
+  const size = udim2(property(object, "Size", { UDim2: [[0, 100], [0, 50]] }));
+  const pos = udim2(property(object, "Position", { UDim2: [[0, 0], [0, 0]] }));
+  const anch = anchor(property(object, "AnchorPoint", [0, 0]));
+  const rawWidth = Math.max(1, parentSize.width * size.sx + size.ox);
+  const rawHeight = Math.max(1, parentSize.height * size.sy + size.oy);
+  const sizeConstraint = childOfClass(object, "UISizeConstraint");
+  const minimum = vector2(property(sizeConstraint, "MinSize", [0, 0]), { width: 0, height: 0 });
+  const maximum = vector2(
+    property(sizeConstraint, "MaxSize", [100000, 100000]),
+    { width: 100000, height: 100000 }
+  );
+  const width = Math.max(1, Math.min(Math.max(rawWidth, minimum.width), maximum.width));
+  const height = Math.max(1, Math.min(Math.max(rawHeight, minimum.height), maximum.height));
+  return {
+    size,
+    pos,
+    anchor: anch,
+    width,
+    height,
+    x: parentSize.width * pos.sx + pos.ox - anch.x * width,
+    y: parentSize.height * pos.sy + pos.oy - anch.y * height
+  };
 }
 
 function constraint(positionScale, sizeScale, anchorValue) {
@@ -361,13 +386,8 @@ async function createVisual(object, parent, path, parentSize, forceVisible, mana
   parent.appendChild(node);
   node.clipsContent = property(object, "ClipsDescendants", false) === true;
 
-  const size = udim2(property(object, "Size", { UDim2: [[0, 100], [0, 50]] }));
-  const pos = udim2(property(object, "Position", { UDim2: [[0, 0], [0, 0]] }));
-  const anch = anchor(property(object, "AnchorPoint", [0, 0]));
-  const width = Math.max(1, parentSize.width * size.sx + size.ox);
-  const height = Math.max(1, parentSize.height * size.sy + size.oy);
-  const x = parentSize.width * pos.sx + pos.ox - anch.x * width;
-  const y = parentSize.height * pos.sy + pos.oy - anch.y * height;
+  const geometry = visualGeometry(object, parentSize);
+  const { size, pos, anchor: anch, width, height, x, y } = geometry;
 
   node.resize(width, height);
   node.x = x;
@@ -459,7 +479,18 @@ async function createVisual(object, parent, path, parentSize, forceVisible, mana
     path,
     className: object.ClassName,
     image: isImage ? String(property(object, "Image", "")) : "",
-    layout: { size, pos, anchor: anch, parentWidth: parentSize.width, parentHeight: parentSize.height, managedByLayout },
+    layout: {
+      size,
+      pos,
+      anchor: anch,
+      parentWidth: parentSize.width,
+      parentHeight: parentSize.height,
+      managedByLayout,
+      renderedWidth: width,
+      renderedHeight: height,
+      renderedX: x,
+      renderedY: y
+    },
     properties: {
       zIndex: Number(property(object, "ZIndex", 1)),
       layoutOrder: Number(property(object, "LayoutOrder", 0)),
@@ -750,14 +781,18 @@ function layoutStillMatchesNode(layout, node) {
   const parentWidth = Number(layout.parentWidth);
   const parentHeight = Number(layout.parentHeight);
   if (!Number.isFinite(parentWidth) || !Number.isFinite(parentHeight)) return false;
-  const width = parentWidth * Number(layout.size.sx || 0) + Number(layout.size.ox || 0);
-  const height = parentHeight * Number(layout.size.sy || 0) + Number(layout.size.oy || 0);
-  const x = parentWidth * Number(layout.pos.sx || 0)
+  const rawWidth = parentWidth * Number(layout.size.sx || 0) + Number(layout.size.ox || 0);
+  const rawHeight = parentHeight * Number(layout.size.sy || 0) + Number(layout.size.oy || 0);
+  const width = Number.isFinite(Number(layout.renderedWidth)) ? Number(layout.renderedWidth) : rawWidth;
+  const height = Number.isFinite(Number(layout.renderedHeight)) ? Number(layout.renderedHeight) : rawHeight;
+  const rawX = parentWidth * Number(layout.pos.sx || 0)
     + Number(layout.pos.ox || 0)
     - Number(layout.anchor.x || 0) * width;
-  const y = parentHeight * Number(layout.pos.sy || 0)
+  const rawY = parentHeight * Number(layout.pos.sy || 0)
     + Number(layout.pos.oy || 0)
     - Number(layout.anchor.y || 0) * height;
+  const x = Number.isFinite(Number(layout.renderedX)) ? Number(layout.renderedX) : rawX;
+  const y = Number.isFinite(Number(layout.renderedY)) ? Number(layout.renderedY) : rawY;
   const tolerance = 2;
   const geometryMatches = Math.abs(Number(node.width) - width) <= tolerance
     && Math.abs(Number(node.height) - height) <= tolerance
@@ -1065,6 +1100,7 @@ if (typeof figma !== "undefined") {
         const workspaceId = singleWorkspaceId(sourceNodes);
         const patch = {
           format: "roblox-ui-bridge-v1",
+          bridgeVersion: BRIDGE_VERSION,
           mode: "authoritative",
           exportedAt: new Date().toISOString(),
           workspace: workspaceId || undefined,
@@ -1108,6 +1144,7 @@ if (typeof module !== "undefined" && module.exports) {
     surfacePixelsFromPart,
     udim2,
     vector2,
+    visualGeometry,
     workspaceIdsForNodes
   };
 }

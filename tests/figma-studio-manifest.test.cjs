@@ -39,6 +39,11 @@ try {
         ClassName: "UIStroke",
         Properties: { Color: [0.1, 0.2, 0.3], Thickness: 2 },
         Children: [],
+      }, {
+        Name: "Card",
+        ClassName: "CanvasGroup",
+        Properties: { ClipsDescendants: false },
+        Children: [],
       }],
     }],
   }));
@@ -75,7 +80,7 @@ try {
 
   const delivery = JSON.parse(fs.readFileSync(deliveryPath, "utf8"));
   assert.equal(delivery.rootCount, 1);
-  assert.equal(delivery.entryCount, 3);
+  assert.equal(delivery.entryCount, 4);
   assert.equal(delivery.source.checksum, crypto.createHash("sha256").update(patchText).digest("hex"));
 
   const manifest = fs.readFileSync(outputPath, "utf8");
@@ -84,6 +89,12 @@ try {
   assert.doesNotMatch(manifest, /\["Text"\]/);
   const runtimeManifest = JSON.parse(fs.readFileSync(runtimePath, "utf8"));
   assert.equal(runtimeManifest.roots[0].studioPath, "StarterGui/ExampleUI");
+  const canvasGroup = runtimeManifest.roots[0].entries.find((entry) => entry.className === "CanvasGroup");
+  assert.equal(
+    canvasGroup.properties.ClipsDescendants,
+    true,
+    "the delivery manifest uses CanvasGroup's engine-forced clipping value",
+  );
 
   const checked = run([
     "--workspace", workspacePath,

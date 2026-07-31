@@ -54,6 +54,9 @@ The local **Figma UI** Studio plugin is a delivery companion, not another conver
 ## Surface and billboard sizing
 
 - A `ScreenGui` uses a 1600x900 (16:9) editing canvas. Roblox still lays it out against the live viewport at runtime.
+- The Figma importer previews authored `UISizeConstraint` limits, so its parent geometry matches Roblox instead of showing an unconstrained scale size.
+- A workspace model may declare `figmaOwnsConstraints: true` when its Figma geometry is authoritative for ordinary size constraints. The repository upsert then expands those bounds only enough to admit the exported composition.
+- Named `Dynamic*` constraints remain runtime-owned. Figma imports and exports never replace values that a controller updates for state such as the unlocked unit-slot count.
 - A fixed-size `SurfaceGui` uses its authored `CanvasSize`.
 - A `SurfaceGui` using `PixelsPerStud` derives its Figma canvas from the nearest authored part size and selected face.
 - If the part or Adornee is outside the imported model, the bridge uses an 800x600 editing canvas.
