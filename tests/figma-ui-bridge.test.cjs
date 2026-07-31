@@ -352,6 +352,11 @@ try {
         ClassName: "Frame",
         Properties: { Visible: true },
         Children: []
+      }, {
+        Name: "CanvasCard",
+        ClassName: "CanvasGroup",
+        Properties: { ClipsDescendants: true },
+        Children: []
       }]
     }]
   }));
@@ -583,6 +588,23 @@ try {
         managedByLayout: false
       }
     }, {
+      path: "SurfaceTest/Panel/CanvasCard",
+      className: "CanvasGroup",
+      visible: true,
+      clipsDescendants: false,
+      x: 200,
+      y: 200,
+      width: 100,
+      height: 30,
+      layout: {
+        size: { sx: 0, ox: 100, sy: 0, oy: 30 },
+        pos: { sx: 0, ox: 200, sy: 0, oy: 200 },
+        anchor: { x: 0, y: 0 },
+        parentWidth: 560,
+        parentHeight: 280,
+        managedByLayout: false
+      }
+    }, {
       path: "SurfaceTest/Panel/Reclassed",
       className: "TextLabel",
       visible: true,
@@ -613,6 +635,12 @@ try {
   ], { cwd: repo, encoding: "utf8" });
   assert.equal(applyResult.status, 0, applyResult.stderr || applyResult.stdout);
   const applied = JSON.parse(fs.readFileSync(modelPath, "utf8"));
+  const importedCanvasCard = applied.Children[0].Children.find((child) => child.Name === "CanvasCard");
+  assert.equal(
+    importedCanvasCard.Properties.ClipsDescendants,
+    true,
+    "CanvasGroup keeps the engine-forced clipping value even when Figma exports false",
+  );
   assert.deepEqual(applied.Children[0].Properties.BackgroundColor3, [0.1, 0.2, 0.3]);
   assert.equal(applied.Children[0].Properties.BackgroundTransparency, 0.25);
   assert.deepEqual(applied.Children[0].Properties.Size, { UDim2: [[1, -40], [1, -20]] });

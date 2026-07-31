@@ -689,7 +689,9 @@ function applyEntry(node, entry, entriesByPath) {
   if (typeof entry.visible === "boolean") props.Visible = entry.visible;
   if (Number.isFinite(entry.rotation)) props.Rotation = Number(entry.rotation);
   if (typeof entry.clipsDescendants === "boolean") {
-    props.ClipsDescendants = entry.clipsDescendants;
+    // CanvasGroup clips unconditionally in Roblox. Persist the engine value so
+    // Rojo does not repeatedly attempt an impossible false assignment.
+    props.ClipsDescendants = node.ClassName === "CanvasGroup" ? true : entry.clipsDescendants;
   }
   if (Number.isFinite(entry.zIndex)) props.ZIndex = Math.round(Number(entry.zIndex));
   if (Number.isFinite(entry.layoutOrder)) props.LayoutOrder = Math.round(Number(entry.layoutOrder));
