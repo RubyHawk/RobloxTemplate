@@ -46,6 +46,18 @@ export type Report = {
 }
 
 local EPSILON = 1e-4
+-- BasePart colors are stored by Roblox as 8-bit channels, so an authored
+-- channel may move by half of one 1/255 step when Studio reads it back.
+local COLOR_EPSILON = 0.5 / 255 + EPSILON
+
+local COLOR_PROPERTIES = {
+	BackgroundColor3 = true,
+	BorderColor3 = true,
+	Color = true,
+	ImageColor3 = true,
+	TextColor3 = true,
+	TextStrokeColor3 = true,
+}
 
 local function normalizedNumber(value: number): number
 	if math.abs(value) < EPSILON then
@@ -121,9 +133,10 @@ local function normalize(value: any): any
 	return value
 end
 
-local function valuesMatch(actual: any, expected: any): boolean
+local function valuesMatch(actual: any, expected: any, epsilon: number?): boolean
+	local numericEpsilon = epsilon or EPSILON
 	if type(actual) == "number" and type(expected) == "number" then
-		return math.abs(actual - expected) <= EPSILON
+		return math.abs(actual - expected) <= numericEpsilon
 	end
 	if type(actual) ~= type(expected) then
 		return false
@@ -132,7 +145,7 @@ local function valuesMatch(actual: any, expected: any): boolean
 		return actual == expected
 	end
 	for key, expectedValue in expected do
-		if not valuesMatch(actual[key], expectedValue) then
+		if not valuesMatch(actual[key], expectedValue, numericEpsilon) then
 			return false
 		end
 	end
@@ -154,7 +167,7 @@ local function describe(value: any): string
 				break
 			end
 		end
-		return `{ { table.concat(parts, ", ") }}`
+		return "{ " .. table.concat(parts, ", ") .. " }"
 	end
 	return tostring(value)
 end
@@ -271,7 +284,8 @@ function Validator.validate(manifest: Manifest): Report
 					continue
 				end
 				local actualValue = normalize(rawActual)
-				if not valuesMatch(actualValue, expectedValue) then
+				local comparisonEpsilon = if COLOR_PROPERTIES[propertyName] then COLOR_EPSILON else EPSILON
+				if not valuesMatch(actualValue, expectedValue, comparisonEpsilon) then
 					addIssue(
 						report.issues,
 						"property-mismatch",

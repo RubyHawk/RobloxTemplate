@@ -125,12 +125,18 @@ function stableJson(value) {
   return JSON.stringify(value);
 }
 
-function normalizedProperties(properties = {}) {
-  return Object.fromEntries(
-    Object.entries(properties)
+function normalizedProperties(node) {
+  const normalized = Object.fromEntries(
+    Object.entries(node.Properties || {})
       .filter(([key]) => CHECKED_PROPERTIES.has(key))
       .sort(([left], [right]) => left.localeCompare(right)),
   );
+  // Roblox always reports true here even if a model file requests false.
+  // Canonicalize the manifest to the value Studio can actually expose.
+  if (node.ClassName === "CanvasGroup" && Object.hasOwn(normalized, "ClipsDescendants")) {
+    normalized.ClipsDescendants = true;
+  }
+  return normalized;
 }
 
 function childIdentity(child, siblings) {
@@ -148,7 +154,7 @@ function collectEntries(node, segments = [], displayPath = "") {
     path: displayPath,
     segments,
     className: node.ClassName,
-    properties: normalizedProperties(node.Properties),
+    properties: normalizedProperties(node),
   }];
   const children = Array.isArray(node.Children) ? node.Children : [];
   for (const child of children) {
