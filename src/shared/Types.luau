@@ -233,6 +233,14 @@ export type TowerDefenseClientState = {
 	waveRunning: boolean,
 	waveIsBoss: boolean?,
 	waveCount: number?,
+	-- An endless set loops past waveCount forever, so the HUD shows a bare wave
+	-- number instead of a fraction and surfaces the current loop and difficulty.
+	waveEndless: boolean?,
+	waveDifficulty: number?,
+	waveLoop: number?,
+	-- Set only when a finite wave set has been cleared to its last wave. The run
+	-- is over until the player resets.
+	runComplete: boolean?,
 	levelOptions: { TowerDefenseLevelOption },
 	placements: { TowerDefensePlacementState },
 	enemies: { TowerDefenseEnemyState },

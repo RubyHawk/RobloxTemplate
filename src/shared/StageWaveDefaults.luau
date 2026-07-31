@@ -10,6 +10,11 @@ StageWaveDefaults.DEFAULT_WAVE_SET_ID = "default"
 
 StageWaveDefaults.KNOWN_TAGS = table.freeze({ "Ground", "Flying", "Fast", "Armored", "Boss" })
 
+export type Animations = {
+	walkId: string,
+	deathId: string,
+}
+
 export type EnemyType = {
 	id: string,
 	name: string,
@@ -21,6 +26,7 @@ export type EnemyType = {
 	modelId: string,
 	renderScale: number,
 	tint: { r: number, g: number, b: number }?,
+	animations: Animations?,
 }
 
 export type WaveEntry = {
@@ -38,11 +44,42 @@ export type Wave = {
 	isBoss: boolean?,
 }
 
+export type LoopScaling = {
+	curve: "Linear" | "Exponential",
+	healthPerLoop: number,
+	rewardPerLoop: number,
+	speedPerLoop: number,
+	countPerLoop: number,
+	spacingPerLoop: number,
+	bossEveryWaves: number,
+}
+
 export type WaveSet = {
 	id: string,
 	name: string,
 	waves: { Wave },
+	endless: boolean,
+	loopScaling: LoopScaling,
 }
+
+StageWaveDefaults.LOOP_CURVES = table.freeze({ "Linear", "Exponential" })
+
+-- The canonical default curve. It must keep reproducing the pre-schema-6
+-- behavior exactly: a linear 0.35 health and reward ramp per completed loop,
+-- with no speed, count, or spacing growth and no independent boss cadence.
+-- TemplateConfig re-exports this as the runtime fallback so the two can never
+-- drift apart.
+function StageWaveDefaults.defaultLoopScaling(): LoopScaling
+	return {
+		curve = "Linear",
+		healthPerLoop = 0.35,
+		rewardPerLoop = 0.35,
+		speedPerLoop = 0,
+		countPerLoop = 0,
+		spacingPerLoop = 0,
+		bossEveryWaves = 0,
+	}
+end
 
 function StageWaveDefaults.enemyTypes(): { [string]: EnemyType }
 	return {
@@ -57,6 +94,7 @@ function StageWaveDefaults.enemyTypes(): { [string]: EnemyType }
 			modelId = "forest_grunt",
 			renderScale = 1,
 			tint = { r = 0.5, g = 0.375, b = 0.25 },
+			animations = { walkId = "", deathId = "" },
 		},
 		forest_runner = {
 			id = "forest_runner",
@@ -69,6 +107,7 @@ function StageWaveDefaults.enemyTypes(): { [string]: EnemyType }
 			modelId = "forest_runner",
 			renderScale = 0.875,
 			tint = { r = 0.375, g = 0.75, b = 0.375 },
+			animations = { walkId = "", deathId = "" },
 		},
 		bark_bruiser = {
 			id = "bark_bruiser",
@@ -81,6 +120,7 @@ function StageWaveDefaults.enemyTypes(): { [string]: EnemyType }
 			modelId = "bark_bruiser",
 			renderScale = 1.25,
 			tint = { r = 0.375, g = 0.25, b = 0.125 },
+			animations = { walkId = "", deathId = "" },
 		},
 		sky_wisp = {
 			id = "sky_wisp",
@@ -93,6 +133,7 @@ function StageWaveDefaults.enemyTypes(): { [string]: EnemyType }
 			modelId = "sky_wisp",
 			renderScale = 0.875,
 			tint = { r = 0.625, g = 0.875, b = 1 },
+			animations = { walkId = "", deathId = "" },
 		},
 		grove_titan = {
 			id = "grove_titan",
@@ -105,6 +146,7 @@ function StageWaveDefaults.enemyTypes(): { [string]: EnemyType }
 			modelId = "grove_titan",
 			renderScale = 2.25,
 			tint = { r = 0.25, g = 0.5, b = 0.25 },
+			animations = { walkId = "", deathId = "" },
 		},
 	}
 end
@@ -136,6 +178,8 @@ function StageWaveDefaults.defaultWaveSet(): WaveSet
 	return {
 		id = StageWaveDefaults.DEFAULT_WAVE_SET_ID,
 		name = "Default Waves",
+		endless = true,
+		loopScaling = StageWaveDefaults.defaultLoopScaling(),
 		waves = {
 			{ entries = { entry("forest_grunt", 8, 0.7, 0, { healthScale = 1, rewardScale = 1 }) } },
 			{
@@ -208,6 +252,78 @@ function StageWaveDefaults.seed(project: any): boolean
 				cloned.name = waveSetId
 				project.waveSets[waveSetId] = cloned
 				changed = true
+			end
+		end
+	end
+	if StageWaveDefaults.seedLoopScaling(project) then
+		changed = true
+	end
+	if StageWaveDefaults.seedAnimations(project) then
+		changed = true
+	end
+	return changed
+end
+
+-- Gives every authored enemy type the animation overrides introduced by schema
+-- 7. Empty ids mean "use whatever the rig model declares", so nothing about how
+-- an existing rig renders changes. Returns whether anything changed.
+function StageWaveDefaults.seedAnimations(project: any): boolean
+	assert(type(project) == "table", "Stagewright project must be a table")
+	if type(project.enemyTypes) ~= "table" then
+		return false
+	end
+	local changed = false
+	for _, enemyType in project.enemyTypes do
+		if type(enemyType) ~= "table" then
+			continue
+		end
+		if type(enemyType.animations) ~= "table" then
+			enemyType.animations = StageWaveDefaults.defaultAnimations()
+			changed = true
+		else
+			local animations: any = enemyType.animations
+			for _, field in { "walkId", "deathId" } do
+				if type(animations[field]) ~= "string" then
+					animations[field] = ""
+					changed = true
+				end
+			end
+		end
+	end
+	return changed
+end
+
+function StageWaveDefaults.defaultAnimations(): Animations
+	return { walkId = "", deathId = "" }
+end
+
+-- Gives every authored wave set the loop-growth fields introduced by schema 6.
+-- Existing sets keep playing identically because the seeded curve reproduces the
+-- previous hardcoded ramp. Returns whether anything changed.
+function StageWaveDefaults.seedLoopScaling(project: any): boolean
+	assert(type(project) == "table", "Stagewright project must be a table")
+	if type(project.waveSets) ~= "table" then
+		return false
+	end
+	local changed = false
+	for _, waveSet in project.waveSets do
+		if type(waveSet) ~= "table" then
+			continue
+		end
+		if type(waveSet.endless) ~= "boolean" then
+			waveSet.endless = true
+			changed = true
+		end
+		if type(waveSet.loopScaling) ~= "table" then
+			waveSet.loopScaling = StageWaveDefaults.defaultLoopScaling()
+			changed = true
+		else
+			local scaling: any = waveSet.loopScaling
+			for field, fallback in StageWaveDefaults.defaultLoopScaling() :: any do
+				if type(scaling[field]) ~= type(fallback) then
+					scaling[field] = fallback
+					changed = true
+				end
 			end
 		end
 	end

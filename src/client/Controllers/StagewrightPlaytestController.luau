@@ -6,6 +6,8 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Template"):WaitForChild("Shared")
 local StageCatalog = require(Shared.StageCatalog)
+local TowerDefenseRequest = require(Shared.TowerDefenseRequest)
+local TowerDefenseWaves = require(Shared.TowerDefenseWaves)
 
 type Request = (action: string, payload: any, audioCue: string?) -> ()
 
@@ -26,11 +28,23 @@ local function waveCount(stageId: string): number
 	return if waveSet ~= nil then math.max(#waveSet.waves, 1) else 1
 end
 
+local function isEndless(stageId: string): boolean
+	return TowerDefenseWaves.isEndless(StageCatalog.waveSetForStage(stageId))
+end
+
 local function refreshSelection()
-	local maximumWave = waveCount(selectedStageId)
+	local authoredWaves = waveCount(selectedStageId)
+	-- Endless sets keep going past the authored waves, and tuning the growth
+	-- curve means sampling deep waves, so selection is not clamped to the set.
+	local maximumWave = if isEndless(selectedStageId)
+		then TowerDefenseRequest.MAX_PLAYTEST_WAVE
+		else authoredWaves
 	selectedWave = math.clamp(selectedWave, 1, maximumWave)
 	if waveLabel ~= nil then
-		waveLabel.Text = `Wave {selectedWave} / {maximumWave}`
+		local loop = math.floor((selectedWave - 1) / authoredWaves) + 1
+		waveLabel.Text = if loop > 1
+			then `Wave {selectedWave}  (loop {loop} of {authoredWaves})`
+			else `Wave {selectedWave} / {authoredWaves}`
 	end
 	for stageId, button in stageButtons do
 		local selected = stageId == selectedStageId
@@ -102,7 +116,10 @@ function StagewrightPlaytestController.initialize(request: Request)
 		refreshSelection()
 	end)
 	plusButton.Activated:Connect(function()
-		selectedWave = math.min(selectedWave + 1, waveCount(selectedStageId))
+		local ceiling = if isEndless(selectedStageId)
+			then TowerDefenseRequest.MAX_PLAYTEST_WAVE
+			else waveCount(selectedStageId)
+		selectedWave = math.min(selectedWave + 1, ceiling)
 		refreshSelection()
 	end)
 

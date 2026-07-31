@@ -94,12 +94,56 @@ into `ReplicatedStorage.Template.StagewrightPlaytestRuntime`; it does not replac
 the repository export/import workflow.
 
 Press Play after preparing. The Studio-only **Stagewright • Mob Playtest** HUD
-shows the prepared source checksum and can run any authored wave from Levels
-1–3, or reset the current wave immediately. Each run session-selects its level
-and goes through the real server spawn scheduler, route graph, lane assignment,
-enemy rigs, damage, and client renderer. These runs do not save level selection,
-wins, losses, best wave, clears, or unlocks. Stop Play, change Stagewright data,
+shows the prepared source checksum and can run any wave from Levels 1–3, or
+reset the current wave immediately. Each run session-selects its level and goes
+through the real server spawn scheduler, route graph, lane assignment, enemy
+rigs, damage, and client renderer. These runs do not save level selection, wins,
+losses, best wave, clears, or unlocks. Stop Play, change Stagewright data,
 prepare again, and confirm the next Play session shows the new checksum.
+
+### Endless growth
+
+Authored wave sets loop forever; **Endless Growth** in the Wave Designer is what
+each completed loop multiplies. Verify:
+
+1. The panel's preview multipliers for a chosen wave number match what the run
+   actually does at that wave. The preview calls the same runtime function.
+2. Wave selection in the playtest HUD is not capped at the authored wave count
+   for an endless set. Jump past the set length and confirm the label reports the
+   loop number, then run that wave and watch the curve applied for real.
+3. A `countPerLoop` curve visibly thickens the stream at deep waves, and a
+   `spacingPerLoop` curve tightens it, without the wave ever scheduling more than
+   the 500-spawn cap.
+4. Drive a level to the per-player enemy cap. Spawning must pause and resume as
+   towers make room; the wave must not abort and the field must not be wiped.
+5. With `bossEveryWaves` set, confirm every Nth wave number reports as a boss
+   wave in the HUD even though the authored set is shorter than N.
+6. Clearing wave 1 must **not** unlock the next level. The unlock lands only
+   after every authored wave in the set has been cleared.
+7. The lobby HUD shows a bare wave number (with the loop once past loop 1) for an
+   endless set, and `wave/count` only for a set marked not endless.
+8. Turn **Endless: OFF** on a set, then clear its last authored wave. The run
+   must end: the HUD reports the level complete, Start Wave is disabled, and only
+   Reset (or another level) starts play again. Turn it back on and confirm the
+   same set loops past its last wave instead.
+
+### Mob assets and animations
+
+1. Drop a character Model into `ReplicatedStorage.Template.EnemyRigs`, then use
+   `< Mob` / `Mob >` in **Enemy Types** to select it. The status line must name
+   the rig, its part count, and whether it has an animator.
+2. Point a mob at a rig name that does not exist and confirm the status line says
+   the fallback will render. Run it and confirm the server warns rather than
+   silently swapping the rig.
+3. On a rig with an `Animations` folder holding `Walk` and `Death`, leave both id
+   fields blank and confirm the animations still play. Press **Use rig
+   animations** and confirm the declared ids appear in the fields.
+4. Paste an animation id as a bare number in one field and as
+   `rbxassetid://<id>` in the other; both must store and reload identically.
+5. Enter an unusable animation id and confirm the designer refuses the edit with
+   a message rather than writing it.
+6. Confirm edited health, name, tags, speed, reward, and render scale reach the
+   running mob, and that a scaled rig keeps its health bar above the model.
 
 The separate **Your Tower • Platform 01** travel strip is available in every
 tower-defense lobby, including Studio sessions without a prepared playtest

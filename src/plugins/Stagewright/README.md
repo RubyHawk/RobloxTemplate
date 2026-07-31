@@ -34,6 +34,13 @@ domain logic or reusable UI primitives should not be added to the bootstrap.
   resize rules. It preserves in-bounds cell data and reports truncation first.
 - `Graph/Operations.luau`: graph mutations such as connect, split, lanes, and
   handle smoothing. It has no UI, persistence, or Workspace dependency.
+- `Waves/Model.luau`: pure enemy-type, wave-set, and endless-growth mutations.
+  Growth parsing validates through `Shared/StageSchema`, and its preview calls
+  the runtime `TowerDefenseWaves` math so the designer cannot drift from the
+  server. It has no UI, Workspace, or rig-folder dependency.
+- `Waves/RigCatalog.luau`: live discovery of the mob Models under
+  `ReplicatedStorage.Template.EnemyRigs`. It powers the designer's mob picker
+  only; authored data stores the rig name, never a live instance reference.
 - `Graph/PredicateFields.luau`: predicate input parsing and trace-context
   parsing. It has no UI or persistence dependency.
 - `Validation/IssueModel.luau`: pure issue counting, filtering, grouping, and

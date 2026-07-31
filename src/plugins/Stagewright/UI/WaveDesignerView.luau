@@ -7,6 +7,7 @@
 local Factory = require(script.Parent.Factory)
 local Theme = require(script.Parent.Theme)
 local Model = require(script.Parent.Parent.Waves.Model)
+local RigCatalog = require(script.Parent.Parent.Waves.RigCatalog)
 
 local COLORS = Theme.colors
 local button = Factory.button
@@ -239,7 +240,9 @@ function WaveDesignerView.new(config: Config): Controller
 		refresh()
 	end
 
-	local _, setList = column(root, "Wave Sets", UDim2.fromOffset(0, 0), UDim2.new(0, 236, 1, -96))
+	local _, setList = column(root, "Wave Sets", UDim2.fromOffset(0, 0), UDim2.new(0, 236, 0.56, -8))
+	local _, endlessPanel =
+		column(root, "Endless Growth", UDim2.fromScale(0, 0.56), UDim2.new(0, 236, 0.44, -96))
 	local _, waveList = column(root, "Waves", UDim2.fromOffset(244, 0), UDim2.new(0, 236, 0.52, -8))
 	local _, entryPanel =
 		column(root, "Selected Wave Entries", UDim2.new(0, 244, 0.52, 0), UDim2.new(0, 236, 0.48, -96))
@@ -256,7 +259,7 @@ function WaveDesignerView.new(config: Config): Controller
 		Font = Enum.Font.BuilderSans,
 		Position = UDim2.fromOffset(0, 44),
 		Size = UDim2.new(1, 0, 0, 40),
-		Text = "Wave sets are shared by every Map. Levels pick a wave set in Stage settings; the default set is the runtime fallback and every wave needs at least one entry.",
+		Text = "Wave sets are shared by every Map. Levels pick a wave set in Stage settings; the default set is the runtime fallback and every wave needs at least one entry. Authored waves loop forever, and Endless Growth is what each completed loop multiplies.",
 		TextColor3 = COLORS.muted,
 		TextSize = 10,
 		TextWrapped = true,
@@ -307,6 +310,9 @@ function WaveDesignerView.new(config: Config): Controller
 	-- Wave-set column footer actions live inside the list as pinned rows.
 	local entryFields: { [string]: TextBox } = {}
 	local enemyFields: { [string]: TextBox } = {}
+	local scalingFields: { [string]: TextBox } = {}
+	local scalingCurve = "Linear"
+	local previewWave = 25
 
 	local function selectedWaveSet(): any?
 		return project().waveSets[selectedWaveSetId]
@@ -383,7 +389,9 @@ function WaveDesignerView.new(config: Config): Controller
 		clearRows(setList)
 		for order, waveSetId in Model.sortedWaveSetIds(project()) do
 			local waveSet = project().waveSets[waveSetId]
-			local rowText = `{waveSetId}  ({#waveSet.waves} wave{if #waveSet.waves == 1 then "" else "s"})`
+			local endlessMark = if waveSet.endless ~= false then "  •  endless" else ""
+			local rowText =
+				`{waveSetId}  ({#waveSet.waves} wave{if #waveSet.waves == 1 then "" else "s"}){endlessMark}`
 			listRow(setList, rowText, order, waveSetId == selectedWaveSetId, function()
 				selectedWaveSetId = waveSetId
 				selectedWaveIndex = 1
@@ -570,6 +578,94 @@ function WaveDesignerView.new(config: Config): Controller
 		end)
 	end
 
+	-- Endless growth panel: the curve that turns a short authored rhythm into a
+	-- run with no last wave. The preview runs the real runtime math for a chosen
+	-- wave number so a curve can be judged before a playtest.
+	local function renderEndless()
+		clearRows(endlessPanel)
+		local waveSet = selectedWaveSet()
+		if waveSet == nil then
+			return
+		end
+		local scaling = waveSet.loopScaling or {}
+		local endless = waveSet.endless ~= false
+		local modeRow = actionRow(endlessPanel, 1)
+		button(modeRow, if endless then "Endless: ON" else "Endless: OFF", 108, function()
+			edit("Toggle Stagewright endless set", "Endless flag updated.", function()
+				return Model.setEndless(project(), selectedWaveSetId, not endless)
+			end)
+		end)
+		local curveButton = button(modeRow, `Curve: {scalingCurve}`, 112)
+		curveButton.Activated:Connect(function()
+			scalingCurve = if scalingCurve == "Linear" then "Exponential" else "Linear"
+			curveButton.Text = `Curve: {scalingCurve}`
+		end)
+		scalingFields.healthPerLoop = fieldRow(endlessPanel, "HEALTH GROWTH / LOOP", 2)
+		scalingFields.rewardPerLoop = fieldRow(endlessPanel, "REWARD GROWTH / LOOP", 3)
+		scalingFields.countPerLoop = fieldRow(endlessPanel, "SPAWN COUNT GROWTH / LOOP", 4)
+		scalingFields.spacingPerLoop = fieldRow(endlessPanel, "SPAWN SPACING TIGHTENING / LOOP", 5)
+		scalingFields.speedPerLoop = fieldRow(endlessPanel, "SPEED GROWTH / LOOP", 6)
+		scalingFields.bossEveryWaves = fieldRow(endlessPanel, "BOSS EVERY N WAVES (0 = OFF)", 7)
+		for field, box in scalingFields do
+			local value = scaling[field]
+			box.Text = if type(value) == "number" then tostring(value) else "0"
+		end
+		local previewRow = actionRow(endlessPanel, 8)
+		local previewLabel = create("TextLabel", {
+			BackgroundTransparency = 1,
+			Font = Enum.Font.BuilderSans,
+			LayoutOrder = 9,
+			Size = UDim2.new(1, -6, 0, 42),
+			Text = "",
+			TextColor3 = COLORS.muted,
+			TextSize = 10,
+			TextWrapped = true,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Top,
+		}, endlessPanel) :: TextLabel
+		local function refreshPreview()
+			local preview = Model.previewScaling(waveSet, previewWave)
+			previewLabel.Text = string.format(
+				"At wave %d (loop %d): health x%.2f, reward x%.2f, count x%.2f, spacing /%.2f, speed x%.2f",
+				previewWave,
+				preview.loops + 1,
+				preview.health,
+				preview.reward,
+				preview.count,
+				preview.spacing,
+				preview.speed
+			)
+		end
+		button(previewRow, "Preview -10", 84, function()
+			previewWave = math.max(previewWave - 10, 1)
+			refreshPreview()
+		end)
+		button(previewRow, "Preview +10", 84, function()
+			previewWave = math.min(previewWave + 10, 1_000)
+			refreshPreview()
+		end)
+		refreshPreview()
+		local actions = actionRow(endlessPanel, 10)
+		button(actions, "Apply growth", 100, function()
+			local parsed, parseError = Model.parseLoopScaling({
+				curve = scalingCurve,
+				healthPerLoop = scalingFields.healthPerLoop.Text,
+				rewardPerLoop = scalingFields.rewardPerLoop.Text,
+				speedPerLoop = scalingFields.speedPerLoop.Text,
+				countPerLoop = scalingFields.countPerLoop.Text,
+				spacingPerLoop = scalingFields.spacingPerLoop.Text,
+				bossEveryWaves = scalingFields.bossEveryWaves.Text,
+			})
+			if parsed == nil then
+				config.setStatus(parseError or "The growth curve is invalid.", true)
+				return
+			end
+			edit("Update Stagewright endless growth", "Endless growth updated.", function()
+				return Model.applyLoopScaling(project(), selectedWaveSetId, parsed)
+			end)
+		end)
+	end
+
 	local function readEnemyInput(): Model.EnemyTypeInput
 		return {
 			name = enemyFields.name.Text,
@@ -580,6 +676,8 @@ function WaveDesignerView.new(config: Config): Controller
 			baseDamage = enemyFields.baseDamage.Text,
 			modelId = enemyFields.modelId.Text,
 			renderScale = enemyFields.renderScale.Text,
+			walkAnimationId = enemyFields.walkAnimationId.Text,
+			deathAnimationId = enemyFields.deathAnimationId.Text,
 		}
 	end
 
@@ -591,8 +689,11 @@ function WaveDesignerView.new(config: Config): Controller
 		end
 		for order, enemyTypeId in enemyTypeIds do
 			local enemyType = project().enemyTypes[enemyTypeId]
-			local rowText =
-				`{enemyTypeId}  •  {enemyType.health} HP  •  {table.concat(enemyType.tags, "/")}`
+			local mobName = if enemyType.modelId ~= "" then enemyType.modelId else "no model"
+			local rowText = `{enemyTypeId}  •  {enemyType.health} HP  •  {table.concat(
+				enemyType.tags,
+				"/"
+			)}  •  {mobName}`
 			listRow(rosterPanel, rowText, order, enemyTypeId == selectedEnemyTypeId, function()
 				selectedEnemyTypeId = enemyTypeId
 				refresh()
@@ -608,8 +709,10 @@ function WaveDesignerView.new(config: Config): Controller
 		enemyFields.speed = fieldRow(rosterPanel, "SPEED (STUDS/S)", 504)
 		enemyFields.reward = fieldRow(rosterPanel, "REWARD", 505)
 		enemyFields.baseDamage = fieldRow(rosterPanel, "BASE DAMAGE", 506)
-		enemyFields.modelId = fieldRow(rosterPanel, "MODEL ID (ENEMYRIGS TEMPLATE NAME)", 507)
-		enemyFields.renderScale = fieldRow(rosterPanel, "RENDER SCALE", 508)
+		enemyFields.modelId = fieldRow(rosterPanel, "MOB MODEL (ENEMYRIGS MODEL NAME)", 507)
+		enemyFields.renderScale = fieldRow(rosterPanel, "RENDER SCALE", 509)
+		enemyFields.walkAnimationId = fieldRow(rosterPanel, "WALK ANIMATION ID (BLANK = RIG'S OWN)", 510)
+		enemyFields.deathAnimationId = fieldRow(rosterPanel, "DEATH ANIMATION ID (BLANK = RIG'S OWN)", 511)
 		if selectedEnemy ~= nil then
 			enemyFields.name.Text = selectedEnemy.name
 			enemyFields.tags.Text = table.concat(selectedEnemy.tags, ", ")
@@ -619,7 +722,65 @@ function WaveDesignerView.new(config: Config): Controller
 			enemyFields.baseDamage.Text = tostring(selectedEnemy.baseDamage)
 			enemyFields.modelId.Text = selectedEnemy.modelId
 			enemyFields.renderScale.Text = tostring(selectedEnemy.renderScale)
+			local animations = if type(selectedEnemy.animations) == "table"
+				then selectedEnemy.animations
+				else {}
+			enemyFields.walkAnimationId.Text = animations.walkId or ""
+			enemyFields.deathAnimationId.Text = animations.deathId or ""
 		end
+
+		-- Mob picker: whatever Models live in EnemyRigs are the selectable mobs,
+		-- so dropping a character asset in that folder is the whole workflow. The
+		-- field stays editable for rigs that are not in this Studio session yet.
+		local pickerRow = actionRow(rosterPanel, 508)
+		local rigStatus = create("TextLabel", {
+			BackgroundTransparency = 1,
+			Font = Enum.Font.BuilderSans,
+			LayoutOrder = 508,
+			Size = UDim2.new(1, -6, 0, 26),
+			Text = "",
+			TextColor3 = COLORS.muted,
+			TextSize = 10,
+			TextWrapped = true,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Top,
+		}, rosterPanel) :: TextLabel
+		local function refreshRigStatus()
+			rigStatus.Text = RigCatalog.describe(enemyFields.modelId.Text)
+		end
+		button(pickerRow, "< Mob", 62, function()
+			local names = RigCatalog.names()
+			if #names == 0 then
+				config.setStatus("No rigs found under ReplicatedStorage.Template.EnemyRigs.", true)
+				return
+			end
+			local index = table.find(names, enemyFields.modelId.Text) or 1
+			enemyFields.modelId.Text = names[((index - 2) % #names) + 1]
+			refreshRigStatus()
+		end)
+		button(pickerRow, "Mob >", 62, function()
+			local names = RigCatalog.names()
+			if #names == 0 then
+				config.setStatus("No rigs found under ReplicatedStorage.Template.EnemyRigs.", true)
+				return
+			end
+			local index = table.find(names, enemyFields.modelId.Text) or 0
+			enemyFields.modelId.Text = names[(index % #names) + 1]
+			refreshRigStatus()
+		end)
+		button(pickerRow, "Use rig animations", 122, function()
+			local rig = RigCatalog.find(enemyFields.modelId.Text)
+			if rig == nil then
+				config.setStatus("Select a rig that exists in EnemyRigs first.", true)
+				return
+			end
+			enemyFields.walkAnimationId.Text = rig.declaredWalkId
+			enemyFields.deathAnimationId.Text = rig.declaredDeathId
+			config.setStatus(`Copied {rig.name} rig animation ids into the fields.`)
+		end)
+		enemyFields.modelId:GetPropertyChangedSignal("Text"):Connect(refreshRigStatus)
+		refreshRigStatus()
+
 		local actions = actionRow(rosterPanel, 600)
 		button(actions, "Apply enemy type", 122, function()
 			local enemyTypeId = selectedEnemyTypeId
@@ -669,7 +830,12 @@ function WaveDesignerView.new(config: Config): Controller
 			selectedWaveIndex = 1
 			selectedEntryIndex = 1
 		end
+		local activeSet = project().waveSets[selectedWaveSetId]
+		if revisionChanged and activeSet ~= nil and type(activeSet.loopScaling) == "table" then
+			scalingCurve = if activeSet.loopScaling.curve == "Exponential" then "Exponential" else "Linear"
+		end
 		renderWaveSets()
+		renderEndless()
 		renderWaves()
 		renderEntries()
 		renderRoster()

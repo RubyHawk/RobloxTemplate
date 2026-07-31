@@ -10,6 +10,9 @@ local StageSchema = if script ~= nil
 local StageWaveDefaults = if script ~= nil
 	then require(script.Parent.Parent.Shared.StageWaveDefaults)
 	else require("../../../shared/StageWaveDefaults")
+local TowerDefenseWaves = if script ~= nil
+	then require(script.Parent.Parent.Shared.TowerDefenseWaves)
+	else require("../../../shared/TowerDefenseWaves")
 
 local Model = {}
 
@@ -30,6 +33,8 @@ export type EnemyTypeInput = {
 	baseDamage: string,
 	modelId: string,
 	renderScale: string,
+	walkAnimationId: string,
+	deathAnimationId: string,
 }
 
 export type EnemyTypeUpdate = {
@@ -41,6 +46,7 @@ export type EnemyTypeUpdate = {
 	baseDamage: number,
 	modelId: string,
 	renderScale: number,
+	animations: { walkId: string, deathId: string },
 }
 
 export type WaveEntryInput = {
@@ -52,6 +58,24 @@ export type WaveEntryInput = {
 	rewardScale: string,
 	speedScale: string,
 }
+
+export type LoopScalingInput = {
+	curve: string,
+	healthPerLoop: string,
+	rewardPerLoop: string,
+	speedPerLoop: string,
+	countPerLoop: string,
+	spacingPerLoop: string,
+	bossEveryWaves: string,
+}
+
+Model.LOOP_RATE_FIELDS = table.freeze({
+	"healthPerLoop",
+	"rewardPerLoop",
+	"speedPerLoop",
+	"countPerLoop",
+	"spacingPerLoop",
+})
 
 local function trim(value: string): string
 	return string.match(value, "^%s*(.-)%s*$") or ""
@@ -143,6 +167,13 @@ function Model.parseEnemyType(input: EnemyTypeInput): (EnemyTypeUpdate?, string?
 	for tag in string.gmatch(input.tags, "[^,%s]+") do
 		table.insert(tags, KNOWN_TAG_BY_LOWER[string.lower(tag)] or tag)
 	end
+	-- Both id forms a designer might paste normalize to one stored value, so an
+	-- animation typed as a bare number and one pasted as a URI are the same.
+	local walkId = StageSchema.normalizeAssetId(input.walkAnimationId or "")
+	local deathId = StageSchema.normalizeAssetId(input.deathAnimationId or "")
+	if walkId == nil or deathId == nil then
+		return nil, "Animation ids must be blank, a Roblox asset id, or rbxassetid://<id>."
+	end
 	local update: EnemyTypeUpdate = {
 		name = trim(input.name),
 		tags = tags,
@@ -152,6 +183,7 @@ function Model.parseEnemyType(input: EnemyTypeInput): (EnemyTypeUpdate?, string?
 		baseDamage = baseDamage,
 		modelId = trim(input.modelId),
 		renderScale = renderScale,
+		animations = { walkId = walkId, deathId = deathId },
 	}
 	local candidate = {
 		id = "candidate",
@@ -163,6 +195,7 @@ function Model.parseEnemyType(input: EnemyTypeInput): (EnemyTypeUpdate?, string?
 		baseDamage = update.baseDamage,
 		modelId = update.modelId,
 		renderScale = update.renderScale,
+		animations = update.animations,
 	}
 	local message = firstError(StageSchema.validateEnemyType(candidate))
 	if message ~= nil then
@@ -184,6 +217,7 @@ function Model.applyEnemyType(project: any, enemyTypeId: string, update: EnemyTy
 	enemyType.baseDamage = update.baseDamage
 	enemyType.modelId = update.modelId
 	enemyType.renderScale = update.renderScale
+	enemyType.animations = { walkId = update.animations.walkId, deathId = update.animations.deathId }
 	return true, nil
 end
 
@@ -205,6 +239,7 @@ function Model.createEnemyType(project: any, requestedId: string): (string?, str
 		baseDamage = 1,
 		modelId = "",
 		renderScale = 1,
+		animations = StageWaveDefaults.defaultAnimations(),
 	}
 	return id, nil
 end
@@ -233,6 +268,78 @@ function Model.deleteEnemyType(project: any, enemyTypeId: string): (boolean, str
 	return true, nil
 end
 
+-- Endless growth is authored per wave set, so a level can loop gently while
+-- another ramps hard. Parsing validates through the shared schema so the plugin
+-- and the exporter can never disagree about what a legal curve is.
+function Model.parseLoopScaling(input: LoopScalingInput): (any?, string?)
+	local curve = trim(input.curve)
+	if curve ~= "Linear" and curve ~= "Exponential" then
+		return nil, "Curve must be Linear or Exponential."
+	end
+	local scaling: any = { curve = curve }
+	for _, rateField in Model.LOOP_RATE_FIELDS do
+		local rate = tonumber(trim((input :: any)[rateField]))
+		if rate == nil then
+			return nil, `{rateField} must be a number.`
+		end
+		scaling[rateField] = rate
+	end
+	local bossEveryWaves = tonumber(trim(input.bossEveryWaves))
+	if bossEveryWaves == nil then
+		return nil, "Boss cadence must be a number (0 disables it)."
+	end
+	scaling.bossEveryWaves = bossEveryWaves
+	local candidate = {
+		id = "candidate",
+		name = "candidate",
+		endless = true,
+		loopScaling = scaling,
+		waves = {
+			{
+				entries = {
+					{
+						enemyTypeId = "candidate",
+						count = 1,
+						spacingSeconds = 1,
+						startDelaySeconds = 0,
+					},
+				},
+			},
+		},
+	}
+	local message = firstError(StageSchema.validateWaveSet(candidate, { candidate = true }))
+	if message ~= nil then
+		return nil, message
+	end
+	return scaling, nil
+end
+
+function Model.applyLoopScaling(project: any, waveSetId: string, scaling: any): (boolean, string?)
+	local waveSet = project.waveSets[waveSetId]
+	if waveSet == nil then
+		return false, `Unknown wave set {waveSetId}.`
+	end
+	waveSet.loopScaling = deepCopy(scaling)
+	return true, nil
+end
+
+function Model.setEndless(project: any, waveSetId: string, endless: boolean): (boolean, string?)
+	local waveSet = project.waveSets[waveSetId]
+	if waveSet == nil then
+		return false, `Unknown wave set {waveSetId}.`
+	end
+	waveSet.endless = endless
+	return true, nil
+end
+
+-- Projected difficulty for one wave number, used by the designer preview so a
+-- curve can be judged without starting a playtest. It runs the exact runtime
+-- math rather than a lookalike, so the preview cannot drift from the server.
+function Model.previewScaling(waveSet: any, waveNumber: number): TowerDefenseWaves.WaveScaling
+	local scaling = TowerDefenseWaves.resolveScaling(waveSet, StageWaveDefaults.defaultLoopScaling())
+	return TowerDefenseWaves.scalingFor(scaling, waveNumber, math.max(#waveSet.waves, 1))
+end
+
 function Model.createWaveSet(project: any, requestedId: string, copyFromId: string?): (string?, string?)
 	local id, idError = parsedId(requestedId)
 	if id == nil then
@@ -243,8 +350,14 @@ function Model.createWaveSet(project: any, requestedId: string, copyFromId: stri
 	end
 	local waves: any
 	local source = if copyFromId ~= nil then project.waveSets[copyFromId] else nil
+	local endless = true
+	local loopScaling = StageWaveDefaults.defaultLoopScaling()
 	if source ~= nil then
 		waves = deepCopy(source.waves)
+		endless = source.endless ~= false
+		if type(source.loopScaling) == "table" then
+			loopScaling = deepCopy(source.loopScaling)
+		end
 	else
 		local firstEnemyTypeId = Model.sortedEnemyTypeIds(project)[1]
 		if firstEnemyTypeId == nil then
@@ -263,7 +376,7 @@ function Model.createWaveSet(project: any, requestedId: string, copyFromId: stri
 			},
 		}
 	end
-	project.waveSets[id] = { id = id, name = id, waves = waves }
+	project.waveSets[id] = { id = id, name = id, waves = waves, endless = endless, loopScaling = loopScaling }
 	return id, nil
 end
 
@@ -403,7 +516,13 @@ function Model.parseEntry(input: WaveEntryInput, enemyTypeIds: { [string]: boole
 			entry[scaleField] = scale
 		end
 	end
-	local candidate = { id = "candidate", name = "candidate", waves = { { entries = { entry } } } }
+	local candidate = {
+		id = "candidate",
+		name = "candidate",
+		endless = true,
+		loopScaling = StageWaveDefaults.defaultLoopScaling(),
+		waves = { { entries = { entry } } },
+	}
 	local message = firstError(StageSchema.validateWaveSet(candidate, enemyTypeIds))
 	if message ~= nil then
 		return nil, message

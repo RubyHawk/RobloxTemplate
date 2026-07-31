@@ -192,11 +192,24 @@ local function waveEntry(
 	}
 end
 
+-- The three starter sets deliberately demonstrate three different endless
+-- shapes: a gentle linear teaching curve, a wider ramp that also thickens the
+-- stream, and a compounding curve with its own boss rhythm.
+local function loopScaling(overrides: { [string]: any }): { [string]: any }
+	local scaling = StageWaveDefaults.defaultLoopScaling() :: any
+	for field, value in overrides do
+		scaling[field] = value
+	end
+	return scaling
+end
+
 function StageStarterProject.playtestWaveSets(): { [string]: any }
 	return {
 		[StageStarterProject.BASICS_WAVE_SET_ID] = {
 			id = StageStarterProject.BASICS_WAVE_SET_ID,
 			name = "MVP Basics",
+			endless = true,
+			loopScaling = loopScaling({ healthPerLoop = 0.3, rewardPerLoop = 0.2 }),
 			waves = {
 				{ entries = { waveEntry("forest_grunt", 6, 0.8, 0) } },
 				{
@@ -216,6 +229,13 @@ function StageStarterProject.playtestWaveSets(): { [string]: any }
 		[StageStarterProject.MIXED_WAVE_SET_ID] = {
 			id = StageStarterProject.MIXED_WAVE_SET_ID,
 			name = "MVP Mixed",
+			endless = true,
+			loopScaling = loopScaling({
+				healthPerLoop = 0.4,
+				rewardPerLoop = 0.25,
+				countPerLoop = 0.15,
+				spacingPerLoop = 0.1,
+			}),
 			waves = {
 				{ entries = { waveEntry("forest_runner", 10, 0.4, 0) } },
 				{
@@ -236,6 +256,14 @@ function StageStarterProject.playtestWaveSets(): { [string]: any }
 		[StageStarterProject.BOSS_WAVE_SET_ID] = {
 			id = StageStarterProject.BOSS_WAVE_SET_ID,
 			name = "MVP Boss",
+			endless = true,
+			loopScaling = loopScaling({
+				curve = "Exponential",
+				healthPerLoop = 0.22,
+				rewardPerLoop = 0.12,
+				speedPerLoop = 0.04,
+				bossEveryWaves = 3,
+			}),
 			waves = {
 				{
 					entries = {
@@ -290,7 +318,7 @@ function StageStarterProject.build(
 		local stageId = if levelNumber == 1 then startingStageId else idFactory("stage")
 		local graphId, graph = makeGraph(idFactory)
 		stages[stageId] = {
-			schemaVersion = 5,
+			schemaVersion = 7,
 			id = stageId,
 			mapId = mapId,
 			name = `Level {levelNumber}`,
@@ -314,7 +342,7 @@ function StageStarterProject.build(
 		previousId = stageId
 	end
 	return {
-		schemaVersion = 5,
+		schemaVersion = 7,
 		startingStageId = startingStageId,
 		selectedStageId = startingStageId,
 		maps = {

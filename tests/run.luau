@@ -1897,6 +1897,10 @@ do
 		true,
 		"tower playtest accepts an exact authored stage and wave"
 	)
+	expectEqual(TowerDefenseRequest.parseWavePlaytest({
+		stageId = "stage_default",
+		waveNumber = TowerDefenseRequest.MAX_PLAYTEST_WAVE,
+	}) ~= nil, true, "tower playtest reaches deep endless waves so a growth curve can be sampled")
 	for _, invalidPlaytestPayload in
 		{
 			{},
@@ -1905,6 +1909,10 @@ do
 			{ stageId = "stage_default", waveNumber = 1.5 },
 			{ stageId = "stage_default", waveNumber = math.huge },
 			{ stageId = "stage_default", waveNumber = 1, unlocked = true },
+			{
+				stageId = "stage_default",
+				waveNumber = TowerDefenseRequest.MAX_PLAYTEST_WAVE + 1,
+			},
 		}
 	do
 		expectEqual(
@@ -2359,8 +2367,427 @@ do
 	expectEqual(soloWaveDelete, false, "the final wave of a set cannot be deleted")
 end
 
-expectEqual(StageSchema.AUTHORING_VERSION, 5, "Stagewright wave-authoring schema is version 5")
-expectEqual(StageSchema.RUNTIME_VERSION, 3, "Stagewright runtime exports include the wave registries")
+expectEqual(StageSchema.AUTHORING_VERSION, 7, "Stagewright mob-animation schema is version 7")
+expectEqual(
+	StageSchema.RUNTIME_VERSION,
+	5,
+	"Stagewright runtime exports include loop growth and mob animations"
+)
+
+-- Mob assets: an enemy type names a rig model in EnemyRigs and may override the
+-- animations that rig ships with. Ids normalize so a pasted URI and a bare
+-- number are one stored value.
+do
+	local WavesModel = require("../src/plugins/Stagewright/Waves/Model")
+	expectEqual(StageSchema.normalizeAssetId(""), "", "a blank animation id stays blank")
+	expectEqual(
+		StageSchema.normalizeAssetId("123456"),
+		"rbxassetid://123456",
+		"a bare numeric animation id normalizes to the URI form"
+	)
+	expectEqual(
+		StageSchema.normalizeAssetId("rbxassetid://123456"),
+		"rbxassetid://123456",
+		"an already-normalized animation id is preserved"
+	)
+	expectEqual(
+		StageSchema.normalizeAssetId("  789  "),
+		"rbxassetid://789",
+		"surrounding whitespace is trimmed before normalizing"
+	)
+	for _, badAssetId in
+		{ "rbxassetid://abc", "http://example.com/a.rbxm", "0", "-5", "12.5", "rbxassetid://" }
+	do
+		expectEqual(
+			StageSchema.normalizeAssetId(badAssetId),
+			nil,
+			`an unusable animation id is rejected: {badAssetId}`
+		)
+	end
+
+	local animatedEnemy = StageWaveDefaults.enemyTypes().forest_grunt
+	animatedEnemy.animations = { walkId = "rbxassetid://111", deathId = "" }
+	expectEqual(
+		#StageSchema.validateEnemyType(animatedEnemy),
+		0,
+		"an enemy type with one authored animation and one blank validates"
+	)
+	animatedEnemy.animations = { walkId = "not-an-asset", deathId = "" }
+	local badAnimationCodes: { [string]: boolean } = {}
+	for _, issue in StageSchema.validateEnemyType(animatedEnemy) do
+		badAnimationCodes[issue.code] = true
+	end
+	expectEqual(
+		badAnimationCodes.EnemyTypeAnimationId,
+		true,
+		"an unusable animation id fails enemy type validation"
+	)
+
+	local parsedMob, parsedMobError = WavesModel.parseEnemyType({
+		name = "Crystal Golem",
+		tags = "Ground, Armored",
+		health = "260",
+		speed = "4.5",
+		reward = "35",
+		baseDamage = "3",
+		modelId = "crystal_golem",
+		renderScale = "1.5",
+		walkAnimationId = "987654",
+		deathAnimationId = "rbxassetid://5555",
+	})
+	expectEqual(parsedMobError, nil, "a mob with a model and animations parses")
+	expectEqual(
+		parsedMob ~= nil
+			and parsedMob.modelId == "crystal_golem"
+			and parsedMob.animations.walkId == "rbxassetid://987654"
+			and parsedMob.animations.deathId == "rbxassetid://5555"
+			and parsedMob.health == 260,
+		true,
+		"the designer stores the chosen mob model and normalized animation ids"
+	)
+	local badAnimationMob, badAnimationMobError = WavesModel.parseEnemyType({
+		name = "Broken",
+		tags = "Ground",
+		health = "10",
+		speed = "1",
+		reward = "1",
+		baseDamage = "1",
+		modelId = "broken",
+		renderScale = "1",
+		walkAnimationId = "totally not an id",
+		deathAnimationId = "",
+	})
+	expectEqual(badAnimationMob, nil, "the designer rejects an unusable animation id")
+	expectEqual(type(badAnimationMobError), "string", "the animation rejection explains the accepted forms")
+
+	local mobGuid = 0
+	local mobProject = StageStarterProject.build(1, function(prefix: string): string
+		mobGuid += 1
+		return `{prefix}_mob_test_{mobGuid}`
+	end, "stage_mob", "stage_group_mob")
+	expectEqual(
+		(WavesModel.applyEnemyType(mobProject, "forest_grunt", parsedMob)),
+		true,
+		"a mob definition applies to the roster"
+	)
+	local storedMob = mobProject.enemyTypes.forest_grunt
+	expectEqual(
+		storedMob.modelId == "crystal_golem" and storedMob.animations.walkId == "rbxassetid://987654",
+		true,
+		"the applied mob keeps its model and animations"
+	)
+	parsedMob.animations.walkId = "rbxassetid://1"
+	expectEqual(
+		mobProject.enemyTypes.forest_grunt.animations.walkId,
+		"rbxassetid://987654",
+		"applying a mob stores a copy, not an alias to the caller's table"
+	)
+	local createdMobId = WavesModel.createEnemyType(mobProject, "crystal_golem")
+	expectEqual(
+		createdMobId == "crystal_golem"
+			and type(mobProject.enemyTypes.crystal_golem.animations) == "table"
+			and mobProject.enemyTypes.crystal_golem.animations.walkId == "",
+		true,
+		"a new enemy type starts with blank animation overrides"
+	)
+
+	-- v6 -> v7 seeds the overrides without changing how any rig renders.
+	local legacyMobProject = serde.decode("json", StageSchema.encodeCanonical(mobProject))
+	legacyMobProject.schemaVersion = 6
+	for _, enemyType in legacyMobProject.enemyTypes do
+		enemyType.animations = nil
+	end
+	for _, stage in legacyMobProject.stages do
+		stage.schemaVersion = 6
+	end
+	local seededMobs = StageSchema.migrateProject(legacyMobProject)
+	expectEqual(
+		seededMobs.schemaVersion,
+		StageSchema.AUTHORING_VERSION,
+		"schema 6 projects migrate to the mob-animation schema"
+	)
+	expectEqual(
+		seededMobs.enemyTypes.forest_grunt.animations.walkId == ""
+			and seededMobs.enemyTypes.forest_grunt.animations.deathId == "",
+		true,
+		"animation migration defaults to the rig's own animations"
+	)
+	expectEqual(
+		StageSchema.encodeCanonical(
+			StageSchema.migrateProject(serde.decode("json", StageSchema.encodeCanonical(seededMobs)))
+		),
+		StageSchema.encodeCanonical(seededMobs),
+		"animation migration is idempotent"
+	)
+
+	-- The export projection is a whitelist, so animations need carrying too.
+	local bakedMobs = assert(StageExport.bake(mobProject).bundle, "mob project bakes")
+	expectEqual(
+		bakedMobs.enemyTypes.forest_grunt.animations.walkId,
+		"rbxassetid://987654",
+		"authored mob animations survive the export whitelist into the runtime bundle"
+	)
+	expectEqual(
+		bakedMobs.enemyTypes.forest_grunt.modelId,
+		"crystal_golem",
+		"the selected mob model survives the export whitelist"
+	)
+end
+
+-- Endless authoring: the growth curve is per wave set, migrates in with the
+-- previous behavior intact, validates, survives the export whitelist, and is
+-- editable through the same transactional Wave Designer model.
+do
+	local WavesModel = require("../src/plugins/Stagewright/Waves/Model")
+	local endlessGuid = 0
+	local endlessProject = StageStarterProject.build(1, function(prefix: string): string
+		endlessGuid += 1
+		return `{prefix}_endless_{endlessGuid}`
+	end, "stage_endless", "stage_group_endless")
+
+	-- v5 -> v6 seeds the curve without changing how an existing project plays.
+	local legacyEndless = serde.decode("json", StageSchema.encodeCanonical(endlessProject))
+	legacyEndless.schemaVersion = 5
+	for _, waveSet in legacyEndless.waveSets do
+		waveSet.endless = nil
+		waveSet.loopScaling = nil
+	end
+	for _, stage in legacyEndless.stages do
+		stage.schemaVersion = 5
+	end
+	local seededEndless = StageSchema.migrateProject(legacyEndless)
+	expectEqual(
+		seededEndless.schemaVersion,
+		StageSchema.AUTHORING_VERSION,
+		"schema 5 projects migrate to the endless-growth schema"
+	)
+	local seededCurve = seededEndless.waveSets.default.loopScaling
+	expectEqual(
+		seededEndless.waveSets.default.endless == true
+			and seededCurve.curve == "Linear"
+			and seededCurve.healthPerLoop == 0.35
+			and seededCurve.rewardPerLoop == 0.35
+			and seededCurve.countPerLoop == 0,
+		true,
+		"endless migration reproduces the previous hardcoded ramp exactly"
+	)
+	expectEqual(
+		StageSchema.encodeCanonical(
+			StageSchema.migrateProject(serde.decode("json", StageSchema.encodeCanonical(seededEndless)))
+		),
+		StageSchema.encodeCanonical(seededEndless),
+		"endless migration is idempotent"
+	)
+	local partialCurve = serde.decode("json", StageSchema.encodeCanonical(seededEndless))
+	partialCurve.schemaVersion = 5
+	partialCurve.waveSets.default.loopScaling.countPerLoop = nil
+	partialCurve.waveSets.default.loopScaling.curve = 42
+	local repairedCurve = StageSchema.migrateProject(partialCurve).waveSets.default.loopScaling
+	expectEqual(
+		repairedCurve.countPerLoop == 0 and repairedCurve.curve == "Linear",
+		true,
+		"endless migration repairs missing or wrongly typed curve fields"
+	)
+
+	-- Validation bounds.
+	local enemyIds = { forest_grunt = true }
+	local function curveIssueCodes(scaling: any, endless: any): { [string]: boolean }
+		local codes: { [string]: boolean } = {}
+		local candidate = {
+			id = "curve",
+			name = "Curve",
+			endless = endless,
+			loopScaling = scaling,
+			waves = {
+				{
+					entries = {
+						{
+							enemyTypeId = "forest_grunt",
+							count = 1,
+							spacingSeconds = 1,
+							startDelaySeconds = 0,
+						},
+					},
+				},
+			},
+		}
+		for _, issue in StageSchema.validateWaveSet(candidate, enemyIds) do
+			codes[issue.code] = true
+		end
+		return codes
+	end
+	expectEqual(#StageSchema.validateWaveSet({
+		id = "curve",
+		name = "Curve",
+		endless = true,
+		loopScaling = StageWaveDefaults.defaultLoopScaling(),
+		waves = {
+			{
+				entries = {
+					{
+						enemyTypeId = "forest_grunt",
+						count = 1,
+						spacingSeconds = 1,
+						startDelaySeconds = 0,
+					},
+				},
+			},
+		},
+	}, enemyIds), 0, "the seeded curve validates cleanly")
+	local missingCurveCodes = curveIssueCodes(nil, nil)
+	expectEqual(
+		missingCurveCodes.WaveSetLoopScaling == true and missingCurveCodes.WaveSetEndless == true,
+		true,
+		"wave sets must declare both an endless flag and a growth curve"
+	)
+	local badCurve = StageWaveDefaults.defaultLoopScaling() :: any
+	badCurve.curve = "Quadratic"
+	badCurve.healthPerLoop = -1
+	badCurve.bossEveryWaves = 2.5
+	local badCurveCodes = curveIssueCodes(badCurve, true)
+	expectEqual(
+		badCurveCodes.WaveSetLoopCurve == true
+			and badCurveCodes.WaveSetLoopRate == true
+			and badCurveCodes.WaveSetBossCadence == true,
+		true,
+		"growth curves reject unknown shapes, negative rates, and fractional boss cadence"
+	)
+	local steepCurve = StageWaveDefaults.defaultLoopScaling() :: any
+	steepCurve.curve = "Exponential"
+	steepCurve.healthPerLoop = 2
+	local foundSteepWarning = false
+	for _, issue in
+		StageSchema.validateWaveSet({
+			id = "steep",
+			name = "Steep",
+			endless = true,
+			loopScaling = steepCurve,
+			waves = {
+				{
+					entries = {
+						{
+							enemyTypeId = "forest_grunt",
+							count = 1,
+							spacingSeconds = 1,
+							startDelaySeconds = 0,
+						},
+					},
+				},
+			},
+		}, enemyIds)
+	do
+		if issue.code == "SteepLoopCurve" and issue.severity == "Warning" then
+			foundSteepWarning = true
+		end
+	end
+	expectEqual(foundSteepWarning, true, "a compounding curve that doubles every loop warns without blocking")
+
+	-- The export projection is an explicit whitelist, so the curve has to be
+	-- carried deliberately or it would vanish between authoring and runtime.
+	local bakedEndless = StageExport.bake(endlessProject)
+	local bakedSet =
+		assert(bakedEndless.bundle, "endless project bakes").waveSets[StageStarterProject.BOSS_WAVE_SET_ID]
+	expectEqual(
+		bakedSet.endless == true
+			and bakedSet.loopScaling.curve == "Exponential"
+			and bakedSet.loopScaling.bossEveryWaves == 3
+			and bakedSet.loopScaling.speedPerLoop == 0.04,
+		true,
+		"the authored growth curve survives the export whitelist into the runtime bundle"
+	)
+
+	-- Wave Designer mutations.
+	local parsedCurve, parsedCurveError = WavesModel.parseLoopScaling({
+		curve = "Exponential",
+		healthPerLoop = "0.5",
+		rewardPerLoop = "0.2",
+		speedPerLoop = "0",
+		countPerLoop = "0.1",
+		spacingPerLoop = "0",
+		bossEveryWaves = "10",
+	})
+	expectEqual(parsedCurveError, nil, "a valid growth curve parses")
+	expectEqual(
+		parsedCurve ~= nil and parsedCurve.curve == "Exponential" and parsedCurve.bossEveryWaves == 10,
+		true,
+		"parsed growth keeps its curve shape and boss cadence"
+	)
+	for _, invalidCurve in
+		{
+			{ curve = "Sideways", healthPerLoop = "0.5" },
+			{ curve = "Linear", healthPerLoop = "lots" },
+			{ curve = "Linear", healthPerLoop = "-1" },
+			{ curve = "Linear", healthPerLoop = "0.5", bossEveryWaves = "2.5" },
+		}
+	do
+		local candidate: any = {
+			curve = invalidCurve.curve,
+			healthPerLoop = invalidCurve.healthPerLoop,
+			rewardPerLoop = "0",
+			speedPerLoop = "0",
+			countPerLoop = "0",
+			spacingPerLoop = "0",
+			bossEveryWaves = invalidCurve.bossEveryWaves or "0",
+		}
+		expectEqual(
+			(WavesModel.parseLoopScaling(candidate)),
+			nil,
+			`the designer rejects an invalid growth curve: {invalidCurve.curve}/{invalidCurve.healthPerLoop}`
+		)
+	end
+	expectEqual(
+		(WavesModel.applyLoopScaling(endlessProject, "default", parsedCurve)),
+		true,
+		"growth curves apply to an authored wave set"
+	)
+	expectEqual(
+		endlessProject.waveSets.default.loopScaling.healthPerLoop,
+		0.5,
+		"the applied curve replaces the seeded one"
+	)
+	parsedCurve.healthPerLoop = 999
+	expectEqual(
+		endlessProject.waveSets.default.loopScaling.healthPerLoop,
+		0.5,
+		"applying a curve stores a copy, not an alias to the caller's table"
+	)
+	expectEqual(
+		(WavesModel.applyLoopScaling(endlessProject, "missing_set", parsedCurve)),
+		false,
+		"growth cannot be applied to a wave set that does not exist"
+	)
+	expectEqual(
+		(WavesModel.setEndless(endlessProject, "default", false)),
+		true,
+		"a wave set can be marked finite"
+	)
+	expectEqual(endlessProject.waveSets.default.endless, false, "the endless flag persists on the set")
+	expectEqual((WavesModel.setEndless(endlessProject, "default", true)), true, "and back to endless")
+	local inheritedId = WavesModel.createWaveSet(endlessProject, "inherited", "default")
+	expectEqual(
+		inheritedId == "inherited"
+			and endlessProject.waveSets.inherited.loopScaling.healthPerLoop == 0.5
+			and endlessProject.waveSets.inherited.endless == true,
+		true,
+		"copying a wave set copies its growth curve and endless flag"
+	)
+	local freshId = WavesModel.createWaveSet(endlessProject, "fresh", nil)
+	expectEqual(
+		freshId == "fresh"
+			and endlessProject.waveSets.fresh.loopScaling.healthPerLoop
+				== StageWaveDefaults.defaultLoopScaling().healthPerLoop,
+		true,
+		"a wave set created from scratch starts on the seeded curve"
+	)
+	local preview = WavesModel.previewScaling(endlessProject.waveSets.default, 13)
+	local defaultWaveCount = #endlessProject.waveSets.default.waves
+	local expectedLoops = math.floor((13 - 1) / defaultWaveCount)
+	expectEqual(
+		preview.loops == expectedLoops and preview.health == (1 + 0.5) ^ expectedLoops,
+		true,
+		"the designer preview runs the exact runtime growth math"
+	)
+end
 
 -- Stagewright wave authoring: enemy types + wave sets live at project scope,
 -- migrate in from schema 4, validate strictly, and bake into the bundle.
@@ -2385,7 +2812,11 @@ do
 		end
 	end
 	local seededWaveProject = StageSchema.migrateProject(legacyWaveProject)
-	expectEqual(seededWaveProject.schemaVersion, 5, "schema 4 projects migrate to the wave-authoring schema")
+	expectEqual(
+		seededWaveProject.schemaVersion,
+		StageSchema.AUTHORING_VERSION,
+		"schema 4 projects migrate through the wave-authoring schema to the current one"
+	)
 	expectEqual(
 		type(seededWaveProject.enemyTypes) == "table"
 			and seededWaveProject.enemyTypes.forest_grunt ~= nil
@@ -6888,15 +7319,11 @@ do
 		"equip best fills separate slots with every owned copy in strength order"
 	)
 end
-expectEqual(TowerDefenseLogic.waveScale(1), 1, "first tower defense wave uses base scale")
-expectEqual(TowerDefenseLogic.waveScale(5) > 1, true, "later tower defense waves scale up")
 expectEqual(
-	TowerDefenseLogic.waveScale(5),
-	TowerDefenseLogic.waveScale(5, 4),
-	"wave scaling defaults to the legacy four-wave loop"
+	(TowerDefenseLogic :: any).waveScale,
+	nil,
+	"the single hardcoded difficulty ramp is gone; growth comes from the authored curve"
 )
-expectEqual(TowerDefenseLogic.waveScale(6, 6), 1, "wave scaling adapts to the authored wave-set length")
-expectEqual(TowerDefenseLogic.waveScale(7, 6) > 1, true, "authored wave sets scale after a full loop")
 
 -- Wave scheduling: authored waves expand into per-entry spawn streams.
 do
@@ -6907,7 +7334,8 @@ do
 	expectEqual(firstWave.entries[1].enemyTypeId, "forest_grunt", "wave one sends the starter grunt")
 	local bossSet = StageStarterProject.playtestWaveSets()[StageStarterProject.BOSS_WAVE_SET_ID]
 	local requestedBossWave, bossWaveCount = TowerDefenseWaves.waveForIndex(bossSet, 3)
-	local requestedBossStreams = TowerDefenseWaves.buildStreams(requestedBossWave, 50, 1)
+	local requestedBossStreams =
+		TowerDefenseWaves.buildStreams(requestedBossWave, 50, TowerDefenseWaves.baseScaling())
 	expectEqual(
 		bossWaveCount == 3
 			and requestedBossWave.isBoss == true
@@ -6949,7 +7377,10 @@ do
 			},
 		},
 	}
-	local streams = TowerDefenseWaves.buildStreams(mixedWave, 100, 1.35)
+	local legacyLoopScaling = TowerDefenseWaves.baseScaling()
+	legacyLoopScaling.health = 1.35
+	legacyLoopScaling.reward = 1.35
+	local streams = TowerDefenseWaves.buildStreams(mixedWave, 100, legacyLoopScaling)
 	expectEqual(#streams, 2, "each wave entry becomes one spawn stream")
 	expectEqual(TowerDefenseWaves.remainingSpawns(streams), 3, "stream bookkeeping counts pending spawns")
 	expectEqual(streams[1].nextSpawnAt, 100, "immediate entries are due at wave start")
@@ -6992,6 +7423,151 @@ do
 		TowerDefenseWaves.hasTag(StageWaveDefaults.enemyTypes().grove_titan.tags, "Boss"),
 		true,
 		"the seeded titan carries the Boss tag"
+	)
+end
+
+-- Endless growth: authored wave sets loop forever and each completed loop
+-- multiplies every difficulty axis through the set's own curve.
+do
+	local TowerDefenseWaves = require("../src/shared/TowerDefenseWaves")
+	-- TemplateConfig is Roblox-only, so assert on its source: the runtime
+	-- fallback must be the authoring seed itself, never a second copy of the
+	-- numbers that could silently drift.
+	expectEqual(
+		string.find(
+			fs.readFile("src/shared/TemplateConfig.luau"),
+			"waveLoopScaling = StageWaveDefaults.defaultLoopScaling()",
+			1,
+			true
+		) ~= nil,
+		true,
+		"the configured runtime fallback curve is the authoring seed, not a duplicate"
+	)
+	local defaults = StageWaveDefaults.defaultLoopScaling()
+	expectEqual(
+		defaults.curve == "Linear"
+			and defaults.healthPerLoop == 0.35
+			and defaults.rewardPerLoop == 0.35
+			and defaults.speedPerLoop == 0
+			and defaults.countPerLoop == 0
+			and defaults.spacingPerLoop == 0
+			and defaults.bossEveryWaves == 0,
+		true,
+		"the seeded curve reproduces the pre-schema-6 health and reward ramp exactly"
+	)
+
+	expectEqual(TowerDefenseWaves.loopIndex(1, 6), 0, "the first authored loop is loop zero")
+	expectEqual(TowerDefenseWaves.loopIndex(6, 6), 0, "the last authored wave still belongs to loop zero")
+	expectEqual(TowerDefenseWaves.loopIndex(7, 6), 1, "the wave after the set starts the next loop")
+	expectEqual(TowerDefenseWaves.loopIndex(19, 6), 3, "loop index keeps counting for deep waves")
+
+	local linear = TowerDefenseWaves.resolveScaling(
+		{ loopScaling = { curve = "Linear", healthPerLoop = 0.5, countPerLoop = 0.25 } },
+		defaults
+	)
+	local linearWave = TowerDefenseWaves.scalingFor(linear, 13, 6)
+	expectEqual(
+		linearWave.loops == 2 and linearWave.health == 2 and linearWave.count == 1.5,
+		true,
+		"a linear curve adds its rate once per completed loop"
+	)
+	local exponential = TowerDefenseWaves.resolveScaling(
+		{ loopScaling = { curve = "Exponential", healthPerLoop = 1, rewardPerLoop = 0 } },
+		defaults
+	)
+	local exponentialWave = TowerDefenseWaves.scalingFor(exponential, 13, 6)
+	expectEqual(
+		exponentialWave.health == 4 and exponentialWave.reward == 1,
+		true,
+		"an exponential curve compounds per loop and leaves zero-rate axes flat"
+	)
+	local runaway = TowerDefenseWaves.resolveScaling(
+		{ loopScaling = { curve = "Exponential", speedPerLoop = 2 } },
+		defaults
+	)
+	expectEqual(
+		TowerDefenseWaves.scalingFor(runaway, 121, 6).speed,
+		TowerDefenseWaves.MAXIMUM_SPEED_MULTIPLIER,
+		"speed growth is capped so enemies cannot outrun the fixed simulation step"
+	)
+
+	-- Bundles from before schema 6 carry no curve at all.
+	local legacyResolved = TowerDefenseWaves.resolveScaling({ id = "legacy", waves = {} }, defaults)
+	expectEqual(
+		legacyResolved.healthPerLoop,
+		defaults.healthPerLoop,
+		"a wave set with no authored curve falls back to the configured one"
+	)
+	expectEqual(
+		TowerDefenseWaves.isEndless({ id = "legacy" }),
+		true,
+		"wave sets predating the endless flag keep looping as they always did"
+	)
+	expectEqual(
+		TowerDefenseWaves.isEndless({ id = "finite", endless = false }),
+		false,
+		"an explicitly finite set reports itself as such"
+	)
+
+	local growWave: any = {
+		entries = {
+			{ enemyTypeId = "forest_grunt", count = 10, spacingSeconds = 0.8, startDelaySeconds = 0 },
+		},
+	}
+	local grown = TowerDefenseWaves.buildStreams(growWave, 0, {
+		health = 1,
+		reward = 1,
+		speed = 1,
+		count = 2.5,
+		spacing = 2,
+		loops = 1,
+	})
+	expectEqual(
+		grown[1].remaining == 25 and grown[1].spacingSeconds == 0.4,
+		true,
+		"count growth multiplies spawns while spacing growth tightens the stream"
+	)
+	local floodWave: any = {
+		entries = {
+			{ enemyTypeId = "forest_grunt", count = 200, spacingSeconds = 0.5, startDelaySeconds = 0 },
+			{ enemyTypeId = "forest_runner", count = 200, spacingSeconds = 0.5, startDelaySeconds = 0 },
+		},
+	}
+	local flooded = TowerDefenseWaves.buildStreams(floodWave, 0, {
+		health = 1,
+		reward = 1,
+		speed = 1,
+		count = 50,
+		spacing = 1,
+		loops = 20,
+	})
+	expectEqual(
+		TowerDefenseWaves.remainingSpawns(flooded),
+		TowerDefenseWaves.MAXIMUM_WAVE_SPAWNS,
+		"runaway count growth is clamped to the wave spawn cap the scheduler is sized for"
+	)
+	expectEqual(
+		TowerDefenseWaves.MAXIMUM_WAVE_SPAWNS,
+		StageSchema.MAX_WAVE_SPAWNS,
+		"the runtime spawn ceiling matches the authoring cap"
+	)
+
+	local plainWave: any = { entries = {} }
+	expectEqual(
+		TowerDefenseWaves.isBossWave(plainWave, 5, 10),
+		true,
+		"a boss cadence promotes every Nth wave number regardless of set length"
+	)
+	expectEqual(TowerDefenseWaves.isBossWave(plainWave, 5, 11), false, "waves off the cadence stay regular")
+	expectEqual(
+		TowerDefenseWaves.isBossWave({ entries = {}, isBoss = true } :: any, 0, 11),
+		true,
+		"an authored boss flag wins even with no cadence"
+	)
+	expectEqual(
+		TowerDefenseWaves.isBossWave(plainWave, 0, 10),
+		false,
+		"a zero cadence disables automatic boss waves"
 	)
 end
 
@@ -7398,7 +7974,11 @@ local schemaOneProject = {
 	},
 }
 local migratedStageProject = StageSchema.migrateProject(schemaOneProject)
-expectEqual(migratedStageProject.schemaVersion, 5, "Stagewright authoring schemas migrate sequentially")
+expectEqual(
+	migratedStageProject.schemaVersion,
+	StageSchema.AUTHORING_VERSION,
+	"Stagewright authoring schemas migrate sequentially"
+)
 expectEqual(
 	migratedStageProject.stages.legacy.stageNumber == 1
 		and migratedStageProject.stages.legacy.levelNumber == 1
@@ -7413,7 +7993,7 @@ expectEqual(
 )
 expectEqual(
 	StageSchema.migrateProject(migratedStageProject).schemaVersion,
-	5,
+	StageSchema.AUTHORING_VERSION,
 	"Stagewright migration is idempotent"
 )
 do
@@ -7461,7 +8041,11 @@ do
 	}
 	local migratedMapProject = StageSchema.migrateProject(schemaThreeProject)
 	local migratedMap = migratedMapProject.maps[StageHierarchy.LEGACY_MAP_ID]
-	expectEqual(migratedMapProject.schemaVersion, 5, "schema 3 migrates through Map-first to the wave schema")
+	expectEqual(
+		migratedMapProject.schemaVersion,
+		StageSchema.AUTHORING_VERSION,
+		"schema 3 migrates through Map-first and the wave schema to the current one"
+	)
 	expectEqual(
 		migratedMap ~= nil and migratedMap.backdropImageId,
 		"110986082479051",
@@ -8985,6 +9569,267 @@ do
 			and string.find(playtestActivationSource, "markDirty", 1, true) == nil,
 		true,
 		"session-only playtest level activation never selects or saves profile progression"
+	)
+end
+-- Aborting a wave stops the fixed-step simulation for that match, so the abort
+-- must also clear the field. Enemies left behind would freeze mid-route, keep
+-- consuming the per-player cap, and block wave completion forever.
+do
+	local abortAt = assert(
+		string.find(towerDefenseServiceSource, "local function abortWave", 1, true),
+		"wave abort exists"
+	)
+	local spawnResumeAt = assert(
+		string.find(towerDefenseServiceSource, "local function spawnEnemy", abortAt, true),
+		"wave abort has a bounded source section"
+	)
+	local abortSource = string.sub(towerDefenseServiceSource, abortAt, spawnResumeAt - 1)
+	expectEqual(
+		string.find(abortSource, "table.clear(match.enemies)", 1, true) ~= nil
+			and string.find(abortSource, "table.clear(match.enemyOrder)", 1, true) ~= nil,
+		true,
+		"aborting a wave clears every live enemy with its pending spawn streams"
+	)
+	expectEqual(
+		string.find(towerDefenseServiceSource, "if match == nil or not match.waveRunning then", 1, true)
+			~= nil,
+		true,
+		"the simulation loop skips matches that are not running, which is why an abort must clear enemies"
+	)
+	local spawnTickAt = assert(
+		string.find(towerDefenseServiceSource, "local function tickSpawns", 1, true),
+		"spawn scheduling exists"
+	)
+	local enemyTickResumeAt = assert(
+		string.find(towerDefenseServiceSource, "local function tickEnemies", spawnTickAt, true),
+		"spawn scheduling has a bounded source section"
+	)
+	local spawnTickSource = string.sub(towerDefenseServiceSource, spawnTickAt, enemyTickResumeAt - 1)
+	expectEqual(
+		string.find(spawnTickSource, "publishEnemies(player)", 1, true) ~= nil,
+		true,
+		"a rejected spawn republishes so clients stop extrapolating cleared enemies"
+	)
+end
+-- The tower spatial index is built once per simulation step. A killed enemy has
+-- to leave it immediately, or a later tower firing on the same step re-targets
+-- the corpse and pays its reward a second time.
+do
+	local towerTickAt = assert(
+		string.find(towerDefenseServiceSource, "local function tickTowers", 1, true),
+		"tower firing exists"
+	)
+	local waveCompletionResumeAt = assert(
+		string.find(towerDefenseServiceSource, "local function tickWaveCompletion", towerTickAt, true),
+		"tower firing has a bounded source section"
+	)
+	local towerTickSource = string.sub(towerDefenseServiceSource, towerTickAt, waveCompletionResumeAt - 1)
+	local removalAt = assert(
+		string.find(towerTickSource, "removeEnemy(match, target.id)", 1, true),
+		"a lethal shot removes its target"
+	)
+	expectEqual(
+		string.find(towerTickSource, "spatial.positions[target.id] = nil", removalAt, true) ~= nil,
+		true,
+		"a lethal shot also evicts its target from the per-step targeting index"
+	)
+	expectEqual(
+		string.find(towerDefenseServiceSource, "if position == nil or", 1, true) ~= nil,
+		true,
+		"targeting skips enemies that left the index during this step"
+	)
+	local _, rewardCallCount = string.gsub(towerTickSource, "EconomyService%.awardCurrencyRaw", "")
+	expectEqual(rewardCallCount, 1, "tower firing pays a kill reward from exactly one call site")
+end
+-- Endless runs push against the per-player enemy cap by design, so hitting it
+-- has to be backpressure the wave recovers from, never a wave-ending abort.
+do
+	local spawnAt = assert(
+		string.find(towerDefenseServiceSource, "local function spawnEnemy", 1, true),
+		"enemy spawning exists"
+	)
+	local spawnEndAt = assert(
+		string.find(towerDefenseServiceSource, "local function startWaveInternal", spawnAt, true),
+		"enemy spawning has a bounded source section"
+	)
+	local spawnSource = string.sub(towerDefenseServiceSource, spawnAt, spawnEndAt - 1)
+	local capAt = assert(
+		string.find(spawnSource, "maximumEnemiesPerPlayer", 1, true),
+		"spawning checks the per-player enemy cap"
+	)
+	local capTail = string.sub(spawnSource, capAt)
+	local deferredAt = string.find(capTail, '"Deferred"', 1, true)
+	local abortAtCap = string.find(capTail, "abortWave", 1, true)
+	expectEqual(
+		deferredAt ~= nil and (abortAtCap == nil or deferredAt < abortAtCap),
+		true,
+		"reaching the enemy cap defers the spawn instead of aborting the wave"
+	)
+	local spawnTickAt = assert(
+		string.find(towerDefenseServiceSource, "local function tickSpawns", 1, true),
+		"spawn scheduling exists"
+	)
+	local spawnTickEndAt = assert(
+		string.find(towerDefenseServiceSource, "local function tickEnemies", spawnTickAt, true),
+		"spawn scheduling has a bounded source section"
+	)
+	local spawnTickSource = string.sub(towerDefenseServiceSource, spawnTickAt, spawnTickEndAt - 1)
+	expectEqual(
+		string.find(spawnTickSource, 'outcome == "Deferred"', 1, true) ~= nil
+			and string.find(spawnTickSource, 'outcome == "Failed"', 1, true) ~= nil,
+		true,
+		"the scheduler separates a full field from an unplayable wave"
+	)
+	expectEqual(
+		string.find(spawnTickSource, "stream.remaining -= 1", 1, true)
+			> string.find(spawnTickSource, 'outcome == "Deferred"', 1, true) :: number,
+		true,
+		"a deferred spawn keeps its pending count instead of consuming it"
+	)
+end
+-- Wave sets loop, so a level is only beaten once every authored wave is cleared.
+do
+	local completionAt = assert(
+		string.find(towerDefenseServiceSource, "local function tickWaveCompletion", 1, true),
+		"wave completion exists"
+	)
+	local completionSource = string.sub(towerDefenseServiceSource, completionAt)
+	expectEqual(
+		string.find(completionSource, "match.wave >= match.waveCount", 1, true) ~= nil,
+		true,
+		"the next level unlocks only after a full authored loop, not after wave one"
+	)
+	local unlockAt = assert(
+		string.find(completionSource, "StageCatalog.nextLevelId", 1, true),
+		"wave completion resolves the next level"
+	)
+	expectEqual(
+		string.find(string.sub(completionSource, 1, unlockAt), "clearedFullSet", 1, true) ~= nil,
+		true,
+		"the unlock is gated on the completed-set check"
+	)
+end
+for _, endlessMarker in
+	{
+		"TowerDefenseWaves.resolveScaling",
+		"TowerDefenseWaves.scalingFor",
+		"Config.towerDefense.waveLoopScaling",
+		"loopScaling.bossEveryWaves",
+		"match.waveScaling",
+		"waveEndless =",
+	}
+do
+	expectEqual(
+		string.find(towerDefenseServiceSource, endlessMarker, 1, true) ~= nil,
+		true,
+		`tower defense service resolves authored endless growth: {endlessMarker}`
+	)
+end
+expectEqual(
+	string.find(towerDefenseServiceSource, "waveNumber > #waveSet.waves", 1, true),
+	nil,
+	"playtest wave selection is not capped at the authored set length"
+)
+-- The endless toggle is load-bearing: a set marked finite must actually stop.
+do
+	local completionAt = assert(
+		string.find(towerDefenseServiceSource, "local function tickWaveCompletion", 1, true),
+		"wave completion exists"
+	)
+	local completionSource = string.sub(towerDefenseServiceSource, completionAt)
+	expectEqual(
+		string.find(completionSource, "if clearedFullSet and not match.waveEndless then", 1, true) ~= nil
+			and string.find(completionSource, "match.runComplete = true", 1, true) ~= nil,
+		true,
+		"clearing the last wave of a finite set completes the run instead of looping"
+	)
+	local startAt = assert(
+		string.find(towerDefenseServiceSource, "local function startWaveInternal", 1, true),
+		"wave start exists"
+	)
+	local startEndAt = assert(
+		string.find(towerDefenseServiceSource, "function TowerDefenseService.startWave", startAt, true),
+		"wave start has a bounded source section"
+	)
+	local waveStartSource = string.sub(towerDefenseServiceSource, startAt, startEndAt - 1)
+	expectEqual(
+		string.find(waveStartSource, "match.runComplete and requestedWave == nil", 1, true) ~= nil,
+		true,
+		"a completed run refuses another wave until the player resets"
+	)
+	expectEqual(
+		string.find(towerDefenseServiceSource, "runComplete = match.runComplete", 1, true) ~= nil,
+		true,
+		"the completed run reaches the client snapshot"
+	)
+	local levelHudSource = fs.readFile("src/client/Controllers/TowerDefenseLevelController.luau")
+	expectEqual(
+		string.find(levelHudSource, "state.runComplete == true", 1, true) ~= nil
+			and string.find(levelHudSource, "not waveRunning and not runComplete", 1, true) ~= nil,
+		true,
+		"the HUD reports a completed run and stops offering another wave"
+	)
+end
+-- Mob rigs: authored animations play on the rig the enemy type names.
+do
+	local rendererSource = fs.readFile("src/client/Controllers/StageEnemyRenderer.luau")
+	for _, animationMarker in
+		{
+			"definition.animations",
+			'FindFirstChildOfClass("Humanoid")',
+			'FindFirstChildOfClass("AnimationController")',
+			"animator:LoadAnimation",
+			"walkTrack.Looped = true",
+			"deathTrack.Looped = false",
+			"animationsByModel",
+		}
+	do
+		expectEqual(
+			string.find(rendererSource, animationMarker, 1, true) ~= nil,
+			true,
+			`the enemy renderer drives rig animations: {animationMarker}`
+		)
+	end
+	expectEqual(
+		string.find(rendererSource, "is missing from EnemyRigs", 1, true) ~= nil,
+		true,
+		"a mob naming a rig that does not exist warns instead of silently rendering the fallback"
+	)
+	local rigCatalogSource = fs.readFile("src/plugins/Stagewright/Waves/RigCatalog.luau")
+	for _, catalogMarker in
+		{ "EnemyRigs", 'child:IsA("Model")', "declaredWalkId", "hasAnimator", "table.sort(rigs" }
+	do
+		expectEqual(
+			string.find(rigCatalogSource, catalogMarker, 1, true) ~= nil,
+			true,
+			`the plugin discovers selectable mobs from the live rig folder: {catalogMarker}`
+		)
+	end
+	local designerSource = fs.readFile("src/plugins/Stagewright/UI/WaveDesignerView.luau")
+	for _, designerMarker in
+		{ "RigCatalog.names()", "RigCatalog.describe", "Use rig animations", "walkAnimationId" }
+	do
+		expectEqual(
+			string.find(designerSource, designerMarker, 1, true) ~= nil,
+			true,
+			`the Wave Designer can pick a mob and its animations: {designerMarker}`
+		)
+	end
+	-- Authored data stores only the rig name, so the pure model stays testable
+	-- and the project never depends on a live Studio tree.
+	expectEqual(
+		string.find(fs.readFile("src/plugins/Stagewright/Waves/Model.luau"), "RigCatalog", 1, true),
+		nil,
+		"the pure wave model never reaches into the live Studio rig folder"
+	)
+end
+do
+	local levelHudSource = fs.readFile("src/client/Controllers/TowerDefenseLevelController.luau")
+	expectEqual(
+		string.find(levelHudSource, "state.waveEndless == false", 1, true) ~= nil
+			and string.find(levelHudSource, "WAVE {wave}  (LOOP {waveLoop})", 1, true) ~= nil,
+		true,
+		"the HUD drops the wave denominator once an endless set loops past it"
 	)
 end
 for _, retiredServerPresentation in

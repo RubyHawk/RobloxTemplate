@@ -15,10 +15,12 @@ local StageWaveDefaults = if script ~= nil
 
 local StageSchema = {}
 
-StageSchema.AUTHORING_VERSION = 5
-StageSchema.RUNTIME_VERSION = 3
+StageSchema.AUTHORING_VERSION = 7
+StageSchema.RUNTIME_VERSION = 5
 
 StageSchema.MAX_WAVE_SPAWNS = 500
+StageSchema.MAX_LOOP_RATE = 5
+StageSchema.MAX_BOSS_CADENCE = 100
 
 export type JsonValue = string | number | boolean | { JsonValue } | { [string]: JsonValue }
 export type Issue = {
@@ -277,11 +279,53 @@ function StageSchema.migrateProject(project: any): any
 	if version == 4 then
 		StageWaveDefaults.seed(project)
 		for _, stage in project.stages do
+			stage.schemaVersion = 5
+		end
+		project.schemaVersion = 5
+		version = 5
+	end
+	if version == 5 then
+		-- Wave sets gain explicit loop growth. Seeding reproduces the previous
+		-- hardcoded ramp, so a migrated project plays identically until edited.
+		StageWaveDefaults.seedLoopScaling(project)
+		for _, stage in project.stages do
+			stage.schemaVersion = 6
+		end
+		project.schemaVersion = 6
+		version = 6
+	end
+	if version == 6 then
+		-- Enemy types gain animation overrides. Empty ids keep every existing
+		-- rig rendering exactly as before.
+		StageWaveDefaults.seedAnimations(project)
+		for _, stage in project.stages do
 			stage.schemaVersion = StageSchema.AUTHORING_VERSION
 		end
 		project.schemaVersion = StageSchema.AUTHORING_VERSION
 	end
 	return project
+end
+
+-- Roblox animation and model assets are authored as either a bare numeric id or
+-- a full rbxassetid URI. Both normalize to the URI form so exported data, the
+-- plugin picker, and the client renderer always compare the same string.
+function StageSchema.normalizeAssetId(value: any): string?
+	if type(value) ~= "string" then
+		return nil
+	end
+	local trimmed = string.match(value, "^%s*(.-)%s*$") or ""
+	if trimmed == "" then
+		return ""
+	end
+	local digits = string.match(trimmed, "^rbxassetid://(%d+)$") or string.match(trimmed, "^(%d+)$")
+	if digits == nil or #digits > 20 then
+		return nil
+	end
+	local numeric = tonumber(digits)
+	if numeric == nil or numeric <= 0 then
+		return nil
+	end
+	return `rbxassetid://{digits}`
 end
 
 function StageSchema.legacyCells(rows: { string }, columns: number): { [string]: any }
@@ -798,6 +842,21 @@ function StageSchema.validateEnemyType(enemyType: any): { Issue }
 			end
 		end
 	end
+	if enemyType.animations ~= nil then
+		local animations = enemyType.animations
+		if type(animations) ~= "table" then
+			issue("EnemyTypeAnimations", "Enemy type animations must be a table")
+		else
+			for _, animationField in { "walkId", "deathId" } do
+				if StageSchema.normalizeAssetId(animations[animationField]) == nil then
+					issue(
+						"EnemyTypeAnimationId",
+						`Enemy type {animationField} must be blank or a Roblox asset id`
+					)
+				end
+			end
+		end
+	end
 	if enemyType.tint ~= nil then
 		local tint = enemyType.tint
 		if
@@ -828,6 +887,53 @@ function StageSchema.validateWaveSet(waveSet: any, enemyTypeIds: { [string]: boo
 	end
 	if type(waveSet.name) ~= "string" or waveSet.name == "" or #waveSet.name > 120 then
 		issue("InvalidWaveSetName", "Wave set name must contain between 1 and 120 characters")
+	end
+	if type(waveSet.endless) ~= "boolean" then
+		issue("WaveSetEndless", "Wave set endless flag must be a boolean")
+	end
+	local scaling = waveSet.loopScaling
+	if type(scaling) ~= "table" then
+		issue("WaveSetLoopScaling", "Wave set must define loop scaling")
+	else
+		if scaling.curve ~= "Linear" and scaling.curve ~= "Exponential" then
+			issue("WaveSetLoopCurve", "Wave set loop curve must be Linear or Exponential")
+		end
+		for _, rateField in
+			{ "healthPerLoop", "rewardPerLoop", "speedPerLoop", "countPerLoop", "spacingPerLoop" }
+		do
+			if not finiteInRange(scaling[rateField], 0, StageSchema.MAX_LOOP_RATE) then
+				issue(
+					"WaveSetLoopRate",
+					`Wave set {rateField} must be between 0 and {StageSchema.MAX_LOOP_RATE}`
+				)
+			end
+		end
+		if
+			not finiteInRange(scaling.bossEveryWaves, 0, StageSchema.MAX_BOSS_CADENCE)
+			or (type(scaling.bossEveryWaves) == "number" and scaling.bossEveryWaves % 1 ~= 0)
+		then
+			issue(
+				"WaveSetBossCadence",
+				`Wave set boss cadence must be an integer 0-{StageSchema.MAX_BOSS_CADENCE} (0 disables it)`
+			)
+		end
+		-- Compounding growth reaches absurd multipliers within a normal session,
+		-- which would push authored counts past the per-wave spawn cap and starve
+		-- the spawn scheduler. Linear curves stay safe across the whole range.
+		if scaling.curve == "Exponential" then
+			for _, rateField in
+				{ "healthPerLoop", "rewardPerLoop", "speedPerLoop", "countPerLoop", "spacingPerLoop" }
+			do
+				if finiteInRange(scaling[rateField], 1.0000001, StageSchema.MAX_LOOP_RATE) then
+					table.insert(issues, {
+						severity = "Warning",
+						code = "SteepLoopCurve",
+						message = `Wave set {rateField} more than doubles every loop; verify late waves stay playable`,
+						objectId = waveSetId,
+					})
+				end
+			end
+		end
 	end
 	if type(waveSet.waves) ~= "table" or #waveSet.waves < 1 or #waveSet.waves > 100 then
 		issue("WaveSetWaves", "Wave set must contain between 1 and 100 waves")

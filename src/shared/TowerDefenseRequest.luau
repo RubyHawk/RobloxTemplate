@@ -5,6 +5,9 @@ local TowerDefenseRequest = {}
 TowerDefenseRequest.MAX_GRID_INDEX = 512
 TowerDefenseRequest.MAX_UNIT_ID_LENGTH = 64
 TowerDefenseRequest.MAX_STAGE_ID_LENGTH = 80
+-- Studio-only playtest jump. Endless curves are tuned by sampling deep waves,
+-- so this reaches well past any authored set while staying bounded.
+TowerDefenseRequest.MAX_PLAYTEST_WAVE = 1_000
 
 export type Placement = {
 	unitId: string,
@@ -113,7 +116,7 @@ function TowerDefenseRequest.parseWavePlaytest(payload: any): WavePlaytest?
 		or waveNumber == -math.huge
 		or waveNumber % 1 ~= 0
 		or waveNumber < 1
-		or waveNumber > 100
+		or waveNumber > TowerDefenseRequest.MAX_PLAYTEST_WAVE
 	then
 		return nil
 	end

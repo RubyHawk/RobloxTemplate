@@ -84,6 +84,9 @@
       "$className": "Folder",
       "Model": {
         "$path": "../src/plugins/Stagewright/Waves/Model.luau"
+      },
+      "RigCatalog": {
+        "$path": "../src/plugins/Stagewright/Waves/RigCatalog.luau"
       }
     },
     "Stage": {
@@ -189,6 +192,9 @@
       },
       "StageWaveDefaults": {
         "$path": "../src/shared/StageWaveDefaults.luau"
+      },
+      "TowerDefenseWaves": {
+        "$path": "../src/shared/TowerDefenseWaves.luau"
       }
     }
   }
